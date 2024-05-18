@@ -18,11 +18,33 @@
     <main>
         <div class="tent-info">
             <h5>Sensor Reading</h5>
+            <style>
+              .cold {
+                color: dodgerblue;
+              }
+              .normal {
+                color: mediumturquoise;
+              }
+              .idial {
+                color: green;
+              }
+              .warm {
+                color: orange;
+              }
+              .hot {
+                color: red;
+              }
+              .error {
+                color: gray;
+              }
+            </style>
                 {% if temperature_c is not none %}
-                <p>Temperature: {{ temperature_c }}°C / {{ temperature_f }}°F</p>
+                <p class="{% if temperature_c < 18 %}cold{% elif temperature_c <= 21 %}normal{% elif 21 <= temperature_c < 23 %}idial{% elif 24 <= temperature_c < 26 %}warm{% else %}hot{% endif %}"
+                  >Temperature: {{ temperature_c }}°C / {{ temperature_f }}°F
+                </p>
                 <p>Humidity: {{ humidity }}%</p>
                 {% else %}
-                <p>Error reading sensor data.</p>
+                <p class="error">Error reading sensor data.</p>
                 {% endif %}
         </div>
 

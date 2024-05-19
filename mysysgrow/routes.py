@@ -1,6 +1,8 @@
-from flask import render_template, request, redirect, url_for, jsonify
-from run import app
+from flask import render_template, Blueprint, request, redirect, url_for, jsonify
+from .run import app
 from .growth_manager import GrowthManager
+
+routes_bp = Blueprint('routes', __name__)
 
 # Function to simulate fetching sensor data (replace with actual implementation)
 def get_sensor_data():

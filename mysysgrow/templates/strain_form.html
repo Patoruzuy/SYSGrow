@@ -2,52 +2,91 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>SYSGrow</title>
+    <title>Plant Growth Form</title>
     <meta name="author" content="Sebastian Gomez" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="/mysysgrow/static/style.css" />
+    <script>
+        function showDurationInput() {
+            const stageSelect = document.getElementById('stage');
+            const stageDurationInput = document.getElementById('stage_duration');
+            const selectedStage = stageSelect.value;
+
+            stageDurationInput.style.display = 'inline-block';
+            stageDurationInput.placeholder = `Enter duration for ${selectedStage} (days)`;
+        }
+    </script>
   </head>
   <body>
     <header>
         <div class="site-logo" tabindex="1">
-            <img src="images\logo.png" class="logo-image" alt="SYSGrow logo">
+            <img src="images/logo.png" class="logo-image" alt="SYSGrow logo">
             <div class="logo-text">
+                <h1 class="heading">SYSGrow</h1>
                 <p class="subtitle">Tent Grow System Management</p>
         </div>
     </header>
     <main>
-        <div class="tent-info">
-            <h5>Sensor Reading</h5>
-            <style>
-              .cold {
-                color: dodgerblue;
-              }
-              .normal {
-                color: mediumturquoise;
-              }
-              .idial {
-                color: green;
-              }
-              .warm {
-                color: orange;
-              }
-              .hot {
-                color: red;
-              }
-              .error {
-                color: gray;
-              }
-            </style>
-                {% if temperature_c is not none %}
-                <p class="{% if temperature_c < 18 %}cold{% elif temperature_c <= 21 %}normal{% elif 21 <= temperature_c < 23 %}idial{% elif 24 <= temperature_c < 26 %}warm{% else %}hot{% endif %}"
-                  >Temperature: {{ temperature_c }}°C / {{ temperature_f }}°F
-                </p>
-                <p>Humidity: {{ humidity }}%</p>
-                {% else %}
-                <p class="error">Error reading sensor data.</p>
-                {% endif %}
-        </div>
-
+        <section class="section-form">
+            <fieldset>
+                <p>
+                Please enter the required information in the fields below. 
+                </p><br>
+            <form action="/submit_growth_data" method="POST">
+                <div class="form-row">
+                    <label for="strain">Strain:<span class="required">*</span></label>
+                    <input type="text" id="strain" name="strain" placeholder="ex; Jack Herer" tabindex="1" required>
+                </div>
+                <div class="form-row">
+                    <label for="stage">Stage:</label>
+                    <select id="stage" tabindex="2" onchange="showDurationInput()">
+                        <option value="germination">Germination</option>
+                        <option value="vegetation">Vegetation</option>
+                        <option value="flowering">Flowering</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label for="stage_duration">Stage Duration (days):</label>
+                    <input type="number" id="stage_duration" name="stage_duration" tabindex="3" style="display: none;" required>
+                </div>
+                <div class="form-row">
+                    <label for="light">Light schedule (hours):<span class="required">*</span></label>
+                    <input type="number" id="light" name="light" placeholder="ex; 18/6" tabindex="3" required>
+                </div>
+                <div class="form-row">
+                    <label for="day_temp">Day temperature:</label>
+                    <input type="number" id="day_temp" name="day_temp" tabindex="4" required>
+                </div>
+                <div class="form-row">
+                    <label for="night_temp">Night temperature:</label>
+                    <input type="number" id="night_temp" name="night_temp" tabindex="5" required>
+                </div>
+                <div class="form-row">
+                    <label for="ph">pH:</label>
+                    <input type="number" id="ph" name="ph" tabindex="6">
+                </div>
+                <div class="form-row">
+                    <label for="ph">EC:</label>
+                    <input type="number" id="ec" name="ec" tabindex="7">
+                </div>
+                <div class="form-row">
+                    <label for="humedity">Humedity:</label>
+                    <input type="number" id="humedity" name="humedity" tabindex="8">
+                </div>
+                <div class="form-row">
+                    <label for="light_power">Light power:</label>
+                    <input type="number" id="light_power" name="light_power" tabindex="9">
+                </div>
+                <div class="form-row">
+                    <label for="watering">Watering:</label>
+                    <input type="number" id="watering" name="watering" tabindex="9">
+                </div>
+                <div class="form-row">
+                    <input type="submit" tabindex="10">
+                </div>
+            </fieldset>
+        </form>
+    </section>
     </main>
     <aside class="sidebar">
         <section class="table-container">
@@ -58,7 +97,9 @@
                         <li class="races">
                             <div class="races-instance">
                                 <img src="images/imageSmallSquare.jpg" alt="race photo" class="race-photo">
-                                <spam class="strain-name"> Stain name</spam>
+                                <div class="race-title">
+                                    <a href="#Review-race">Race title</a>
+                                </div>
                                 <div class="race-date"><p>Date</p></div>
                                 <div class="race-edit">
                                     <img src="images/edit.png" alt="edit icon" class="edit-icon">
@@ -111,60 +152,6 @@
                                 <div class="race-edit">
                                     <img src="images/edit.png" alt="edit icon" class="edit-icon">
                                 </div>
-                            </div>
-                        </li>
-                    </ul>
-               </div>
-            </div>
-        </section>
-        <section class="table-container">
-            <div class="pending-approval">
-                <h5>Pending Approval</h5>
-                <div class="table-content">
-                    <ul class="pending-list">
-                        <li class="races">
-                            <div class="races-instance">
-                                <img src="images/imageSmallSquare.jpg" alt="race photo" class="race-photo">
-                                <div class="race-title">
-                                    <a href="#Review-race">Race title</a>
-                                </div>
-                                <div class="race-date"><p>Date</p></div>
-                            </div>
-                        </li>
-                        <li class="races">
-                            <div class="races-instance">
-                                <img src="images/imageSmallSquare.jpg" alt="race photo" class="race-photo">
-                                <div class="race-title">
-                                    <a href="#Review-race">Race title</a>
-                                </div>
-                                <div class="race-date"><p>Date</p></div>
-                            </div>
-                        </li>
-                        <li class="races">
-                            <div class="races-instance">
-                                <img src="images/imageSmallSquare.jpg" alt="race photo" class="race-photo">
-                                <div class="race-title">
-                                    <a href="#Review-race">Race title</a>
-                                </div>
-                                <div class="race-date"><p>Date</p></div>
-                            </div>
-                        </li>
-                        <li class="races">
-                            <div class="races-instance">
-                                <img src="images/imageSmallSquare.jpg" alt="race photo" class="race-photo">
-                                <div class="race-title">
-                                    <a href="#Review-race">Race title</a>
-                                </div>
-                                <div class="race-date"><p>Date</p></div>
-                            </div>
-                        </li>
-                        <li class="races">
-                            <div class="races-instance">
-                                <img src="images/imageSmallSquare.jpg" alt="race photo" class="race-photo">
-                                <div class="race-title">
-                                    <a href="#Review-race">Race title</a>
-                                </div>
-                                <div class="race-date"><p>Date</p></div>
                             </div>
                         </li>
                     </ul>

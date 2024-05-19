@@ -121,47 +121,9 @@ select {
     flex-grow: 1;
 }
 
-/* Style the file input label */
-.file-upload-label {
-    padding: 6px 22px;
-    max-width: 20px;
-    border: none;
-    background-color: var(--bg-primary-link);
-    box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2);
-    color: #fff;
-    border-radius: 12px;
-    cursor: pointer;
-}
-
-/* Hide the file input button */
-input[type="file"]::file-selector-button {
-  display: none;
-}
-
-/* Hide the text for the file input */
-#attachment {
-    color: transparent;
-    overflow: hidden;
-    display: none;
-    width: 0px;
-    padding: 10px;
-}
-
-/* Styles for the attachment icon */
-.attach-icon {
-    width: 20px;
-    height: 20px;
-}
-
-/* Styling for the send button and file input button */
-.sendbtn, 
-input[type="file"]::file-selector-button {
-    border: none;
-    background-color: var(--bg-primary-link);
-    box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2);
-    padding: 8px 22px;
-    color: var(--font-link-color);
-    border-radius: 12px;
+.tent-info {
+    border: #6DAFFE;
+    box-shadow: 3px 3px 4px #6b6b6b;
 }
 
 /* Align the send button and file input button to the right */

@@ -1,0 +1,35 @@
+DROP TABLE IF EXISTS strain;
+DROP TABLE IF EXISTS grow;
+DROP TABLE IF EXISTS grow_timestamp;
+
+CREATE TABLE strain (
+  strain_id INTEGER PRIMARY KEY AUTOINCREMENT,
+  strain_name TEXT UNIQUE NOT NULL
+);
+
+CREATE TABLE grow (
+  grow_id INTEGER PRIMARY KEY AUTOINCREMENT,
+  strain_id INTEGER NOT NULL,
+  stage TEXT NOT NULL,
+  week INTEGER NOT NULL,
+  light_schedule TEXT NOT NULL,
+  day_temp INTEGER NOT NULL,
+  night_temp INTEGER NOT NULL,
+  pH REAL NOT NULL,
+  EC REAL NOT NULL,
+  humidity INTEGER NOT NULL,
+  light_power INTEGER,
+  watering REAL,
+  stage_duration INTEGER NOT NULL, -- New column for stage duration
+  FOREIGN KEY (strain_id) REFERENCES strain (strain_id)
+);
+
+CREATE TABLE grow_timestamp (
+  timestamp_id INTEGER PRIMARY KEY AUTOINCREMENT,
+  grow_id INTEGER NOT NULL,
+  stage_seeding TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  stage_vegetation TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  stage_flowering TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  stage_harvest TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (grow_id) REFERENCES grow (grow_id)
+);

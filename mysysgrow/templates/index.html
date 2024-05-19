@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>SYSGrow</title>
+    <meta name="author" content="Sebastian Gomez" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header>
+        <div class="site-logo" tabindex="1">
+            <img src="images/logo.png" class="logo-image" alt="SYSGrow logo">
+            <div class="logo-text">
+                <p class="subtitle">Tent Grow System Management</p>
+        </div>
+        <span><p>Click <a href="strain_form">here</a> to go to the strain form.</p></span>
+    </header>
+    <main>
+        <div class="tent-info">
+            <h5>Sensor Reading</h5>
+            <style>
+              .cold {
+                color: dodgerblue;
+              }
+              .normal {
+                color: mediumturquoise;
+              }
+              .idial {
+                color: green;
+              }
+              .warm {
+                color: orange;
+              }
+              .hot {
+                color: red;
+              }
+              .error {
+                color: gray;
+              }
+            </style>
+                <!-- {% if temperature_c is not none %}
+                <p class="{% if temperature_c < 18 %}cold{% elif temperature_c <= 21 %}normal{% elif 21 <= temperature_c < 23 %}idial{% elif 24 <= temperature_c < 26 %}warm{% else %}hot{% endif %}"
+                  >Temperature: {{ temperature_c }}°C / {{ temperature_f }}°F
+                </p>
+                <p>Humidity: {{ humidity }}%</p>
+                {% else %}
+                <p class="error">Error reading sensor data.</p>
+                {% endif %} -->
+        </div>
+
+    </main>
+    <aside class="sidebar">
+        <section class="table-container">
+            <div class="upcoming-race">
+                <h5>Strain information</h5>
+                <div class="table-content">
+                    <ul class="upcoming-list">
+                        <li class="races">
+                            <div class="races-instance">
+                                <img src="images/imageSmallSquare.jpg" alt="race photo" class="race-photo">
+                                <spam class="strain-name"> Stain name</spam>
+                                <div class="race-date"><p>Date</p></div>
+                                <div class="race-edit">
+                                    <img src="images/edit.png" alt="edit icon" class="edit-icon">
+                                </div>
+                            </div>
+                        </li>
+                        <li class="races">
+                            <div class="races-instance">
+                                <img src="images/imageSmallSquare.jpg" alt="race photo" class="race-photo" />
+                                <div class="race-title">
+                                    <a href="#Review-race">Race title</a>
+                                </div>
+                                <div class="race-date"><p>Date</p></div>
+                                <div class="race-edit">
+                                    <img src="images/edit.png" alt="edit icon" class="edit-icon">
+                                </div>
+                            </div>
+                        </li>
+                        <li class="races">
+                            <div class="races-instance">
+                                <img src="images/imageSmallSquare.jpg" alt="race photo" class="race-photo">
+                                <div class="race-title">
+                                    <a href="#Review-race">Race title</a>
+                                </div>
+                                <div class="race-date"><p>Date</p></div>
+                                <div class="race-edit">
+                                    <img src="images/edit.png" alt="edit icon" class="edit-icon">
+                                </div>
+                            </div>
+                        </li>
+                        <li class="races">
+                            <div class="races-instance">
+                                <img src="images/imageSmallSquare.jpg" alt="race photo" class="race-photo">
+                                <div class="race-title">
+                                    <a href="#Review-race">Race title</a>
+                                </div>
+                                <div class="race-date"><p>Date</p></div>
+                                <div class="race-edit">
+                                    <img src="images/edit.png" alt="edit icon" class="edit-icon">
+                                </div>
+                            </div>
+                        </li>
+                        <li class="races">
+                            <div class="races-instance">
+                                <img src="images/imageSmallSquare.jpg" alt="race photo" class="race-photo">
+                                <div class="race-title">
+                                    <a href="#Review-race">Race title</a>
+                                </div>
+                                <div class="race-date"><p>Date</p></div>
+                                <div class="race-edit">
+                                    <img src="images/edit.png" alt="edit icon" class="edit-icon">
+                                </div>
+                            </div>
+                        </li>
+                    </ul>
+               </div>
+            </div>
+        </section>
+        <p id="validcss">
+        <a href="https://jigsaw.w3.org/css-validator/check/referer">
+          <img src="https://jigsaw.w3.org/css-validator/images/vcss" alt="Valid CSS!" />
+        </a>
+      </p>
+    </aside>
+    <footer>
+        <div id="about">Tent Grow System Management</div>
+      <div id="copyright">© Copyright 2024 by Sebastian Gomez.</div>
+    </footer>
+  </body>
+</html>

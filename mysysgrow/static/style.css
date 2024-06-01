@@ -1,278 +1,45 @@
-:root {
-    --background-color: #E6FAE1;
-    --bg-primary-nav: #f46b45;
-    --bg-secondary-nav: #ffc436;
-    --bg-primary-link: #6DAFFE;
-    --bg-secondary-link: #1e90ff;
-    --font-link-color: #000000;
-    --shadow-color: #536878;
-}
-
-/* Set the basic styles for the page */
 body {
-    display: flex;
-    flex-wrap: wrap;
-    background: var(--background-color);
-    font-family: 'Roboto', sans-serif;
-    font-size: 0.85rem;
-    width: 1024px;
-    max-height: 768px;
-    margin-left:auto;
-    margin-right:auto;
+    font-family: Arial, sans-serif;
+    background-color: #f0f0f0;
+    margin: 0;
+    padding: 0;
 }
 
-/* HEADER **************************************************/
-/* Set the styles for the page header */
-header {
-    display: flex;
-    width: 100%;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    margin-bottom: 0px;
-    padding-bottom: 0px;
+nav {
+    background-color: #333;
+    color: white;
+    padding: 1em;
 }
 
-/* Set the styles for the logo */
-.site-logo {
-    display: flex;
-    align-items: flex-start;
-    margin-top: 10px;
-    margin-bottom: 10px;
-    margin-left: 2px;
-}
-
-/* CONTENT ********************************************************************/
-/* Styling for the main content section */
-main {
-    display: flex;
-    background: var(--background-color);
-    box-shadow: 4px 4px 5px var(--shadow-color);
-    flex-grow: 1; /* Allow the main element to grow to fill available space */
-    width: 60%;
-    margin-top: 10px;
-}
-
-main h6 {
-    margin: 0px;
-    margin-bottom: -25px;
-    font-size: inherit;
-    padding-left: 20px;
-    opacity: 85%;
-    color: var(--font-link-color);
-}
-
-/* Styling for the section form */
-.section-form {
-    width: 100%;
-    margin: 5px;
-}
-
-/* Styling for the fieldset element */
-fieldset {
-    background-color: #fafafa;
-    box-shadow: 4px 4px 5px var(--shadow-color);
-    border: none;
-    margin: 0px 0px 5px 0px;
-    padding: 20px 20px 0px 20px;
-}
-
-/* Styling for the form */
-form {
-    display: flex;
-    flex-direction: column;   
-    border: none;
-}
-
-/* Styling for the form rows */
-.form-row {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    margin-bottom: 18px;
-}
-
-/* Styling for form labels */
- label {
-    flex-basis: 150px;
-}
-
-/* Styling for three form elements */
-fieldset #from, 
-fieldset #subject,
-fieldset #send-date,
-fieldset #announcement {
-    border-radius: 6px;
-    max-width: 40%;
-    border: 0px;
-    box-shadow: 4px 4px 5px var(--shadow-color);
-    flex-grow: 1;
-}
-
-/* Styling for the asterisk (*)*/
-span.required {
-    color: red;
-    margin-left: 5px;
-}
-
-/* Styling for text inputs and select elements */
-input[type="text"], 
-input[type="date"], 
-select {
-    flex-grow: 1;
-}
-
-.tent-info {
-    border: #6DAFFE;
-    box-shadow: 3px 3px 4px #6b6b6b;
-}
-
-/* Align the send button and file input button to the right */
-.form-row:last-of-type {
-    display: flex;
-    margin-bottom: 8px;
-    justify-content: flex-end;
-    align-items: center;
-}
-
-/* Set the styles for the send button and attachment button on hover*/
-.sendbtn:hover, 
-.file-upload-label:hover {
-    background-color: var(--bg-secondary-link);
-    color: #fff;
-    box-shadow: 4px 4px 5px var(--shadow-color);
-}
-
-/* Styles for the main textarea*/
-main textarea {
-    flex-basis: 100%;
-    border-radius: 12px;
-    resize: none;
-    height: 80%;
-    margin: 0px;
-    border:0;
-    box-shadow:4px 1px 5px var(--shadow-color);
-}
-
-
-/* ASIDE ********************************************************************/
-/* Set the width of the aside element to be 20% */
-aside {
-    background: var(--background-color);
-    box-shadow: 4px 4px 5px var(--shadow-color);
-    color: var(--font-link-color);
-    width: 25%;
-    margin-top: 10px;
-    padding-left: 5px;
-
-}
-
-/* Set the background color of two sections */
-.upcoming-race,
-.pending-approval {
-    background: linear-gradient(var(--bg-secondary-nav), #fff);
-    margin-right: 5px;
-    min-width: 100px;
-    box-shadow: 4px 4px 5px var(--shadow-color);
-}
-
-/* Set the background color and font styles of the section titles */
-.upcoming-race h5,
-.pending-approval h5 {
-    background: var(--bg-primary-nav);
-    box-shadow: 4px 4px 5px var(--shadow-color);
-    display: block;
-    color: inherit;
-    line-height: 1.5;
-    font-weight: 550;
-    padding: 2px 20px 3px 14px;
-    margin-top: 5px;
-    margin-bottom: 6px;
-}
-
-/* Set padding and border styles for table content */
-.table-content {
-    padding-right: 4px;
-    padding-left: 5px;
-    margin-bottom: 10px;
-}
-
-/* Set styles for unordered lists inside the aside element */
-aside ul {
+nav ul {
     list-style-type: none;
     margin: 0;
     padding: 0;
 }
 
-/* Set styles for the race instance images, title, and date */
-.races-instance img,
-.race-title,
-.race-date {
-    display: inline-block;
-    vertical-align: middle;
-    padding: 6px 0px 6px 4px;
+nav ul li {
+    display: inline;
+    margin-right: 1em;
 }
 
-/* Styles the race image */
-.races-instance img {
-    width: 25px;
-    height: 25px;
-}
-
-.race-edit {
-    display: none;   
-}
-
-.races {
-    border-bottom: 2px solid var(--bg-secondary-nav);
-    cursor: pointer;
-}
-
-/* Styles the race title link */
-.race-title a {
-    font-weight: 540;
-    color: inherit;
+nav ul li a {
+    color: white;
     text-decoration: none;
 }
 
-/* Set the padding and margin for the p element */
-.races-instance p {
-    padding-left: 30px;
-    margin: 0px;
-    font-size: 0.8rem;
+.container {
+    padding: 2em;
 }
 
-/* Set background color of list items when hovered over */
-aside li:hover {
-    background: var(--bg-primary-link);
+form {
+    margin-bottom: 2em;
 }
 
-/* FOOT ********************************************************************/
-/* Set the background color, width, and grid-row for the footer */
-footer {
-    border-top: 2px solid var(--bg-primary-nav);
-    opacity: 80%;
-    width: 100%;
-    grid-row: -1;
-    margin-top: 10px;
-    padding-top: 10px;
-    padding-bottom: 8px;
-    padding-left: 12px;
+form label {
+    display: block;
+    margin-bottom: 0.5em;
 }
 
-
-/* MEDIA QUERIES TO REARRANGE ELEMENTS ****************************************/
-
-@media (max-width: 1024px) {
-    body {
-      max-width: 100%;
-    }
-  }
-  
-  /* Rearrange elements for smartphones screens */
-  @media screen and (max-width: 375px) {
-      
-  body {
-      font-size: 0.8rem;
-      max-height: 667px;
-  }
+form input, form button {
+    margin-bottom: 1em;
 }

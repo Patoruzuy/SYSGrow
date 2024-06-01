@@ -1,0 +1,138 @@
+:root {
+    --background-color: #E6FAE1;
+}
+
+/* Set the basic styles for the page */
+body {
+    font-family: 'Roboto', sans-serif;
+    background-color: var(--background-color);
+    font-size: 0.85rem;
+    width: 1024px;
+    max-height: 768px;
+    margin-left:auto;
+    margin-right:auto;
+}
+
+/* HEADER **************************************************/
+/* Set the styles for the page header */
+header {
+    display: flex;
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    margin-bottom: 0px;
+    padding-bottom: 0px;
+}
+
+.logo-image {
+    width: 100px;
+    height: 100px;
+}
+
+/* Set the styles for the logo */
+.site-logo {
+    display: flex;
+    align-items: flex-start;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    margin-left: 2px;
+}
+
+/* Set the styles for the logo text */
+.logo-text {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Set the styles for the heading in the header */
+h1.heading {
+    margin: 0;
+    margin-left: 10px;
+}
+
+/* Set the styles for the subtitle in the header */
+p.subtitle {
+    margin: 0;
+    margin-left: 10px;
+}
+
+nav {
+    background-color: #333;
+    color: white;
+    padding: 1em;
+}
+
+nav ul {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+}
+
+nav ul li {
+    display: inline;
+    margin-right: 1em;
+}
+
+nav ul li a {
+    color: white;
+    text-decoration: none;
+}
+
+.container {
+    padding: 2em;
+}
+
+.current_reading {
+    text-align: center; /* Center the container for demonstration */
+}
+
+.top-container {
+    display: inline-block;
+    width: 30%; /* Adjust width to fit three divs in one line */
+    margin: 0; /* Remove default margin */
+    vertical-align: top; /* Align the divs to the top */
+    box-sizing: border-box; /* Include padding and border in the element's total width and height */
+    padding: 10px;
+}
+
+.top-container h2 {
+    margin-top: 8px;
+    text-align: center;
+    padding-bottom: 15px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th, td {
+    border: 1px solid #000;
+    padding: 8px;
+    text-align: center;
+}
+
+form {
+    display: inline-block;
+}
+
+.form-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.form-group label {
+    margin-top: 5px;
+}
+
+button {
+    margin-top: 10px;
+}

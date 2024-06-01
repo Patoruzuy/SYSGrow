@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h1>Sensor Data</h1>
+<table>
+    <thead>
+        <tr>
+            <th>Timestamp</th>
+            <th>Temperature</th>
+            <th>Humidity</th>
+            <th>Soil Moisture</th>
+            <th>Plant Name</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for data in sensor_data %}
+        <tr>
+            <td>{{ data[1] }}</td>
+            <td>{{ data[2] }}</td>
+            <td>{{ data[3] }}</td>
+            <td>{{ data[4] }}</td>
+            <td>{{ data[5] }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

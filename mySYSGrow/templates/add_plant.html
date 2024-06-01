@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h1>Add Plant</h1>
+<form method="post" action="{{ url_for('add_plant') }}">
+    <label for="plant_type">Plant Type:</label>
+    <input type="text" id="plant_type" name="plant_type" required>
+    <button type="submit">Add Plant</button>
+</form>
+{% endblock %}

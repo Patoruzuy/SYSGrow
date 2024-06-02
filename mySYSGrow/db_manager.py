@@ -180,7 +180,7 @@ class DatabaseManager:
         db = self.get_db()
         # Insert or replace the settings in the database
         db.execute('''
-        INSERT OR REPLACE INTO Settings (id, light_start_time, light_end_time, temperature_threshold, humidity_threshold, soil_moisture_threshold)
+        INSERT OR REPLACE INTO Settings (id, light_start_time, light_end_time, temperature_threshold, humidity_threshold, soil_moisture_threshold, light_gpio, fan_gpio, water_spray_gpio)
         VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', 
         (light_start_time, light_end_time, temperature_threshold, humidity_threshold, soil_moisture_threshold, light_gpio, fan_gpio, water_spray_gpio))

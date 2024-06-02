@@ -163,7 +163,7 @@ class DatabaseManager:
         db = self.get_db()
         return db.execute('SELECT * FROM Plants').fetchall()
     
-    def save_settings(self, light_start_time, light_end_time, temperature_threshold, humidity_threshold, soil_moisture_threshold, light_gpio, fan_gpio, waterspray__gpio):
+    def save_settings(self, light_start_time, light_end_time, temperature_threshold, humidity_threshold, soil_moisture_threshold, light_gpio, fan_gpio, waterspray_gpio):
         """
         Saves the settings to the database, replacing existing settings if they exist.
 
@@ -173,6 +173,9 @@ class DatabaseManager:
             temperature_threshold (float): The temperature threshold.
             humidity_threshold (float): The humidity threshold.
             soil_moisture_threshold (float): The soil moisture threshold.
+            light_gpio (float): The GPIO pin for the light.
+            fan_gpio (float): The GPIO pin for the fan.
+            water_spray_gpio (float): The GPIO pin for the water spray.
         """
         db = self.get_db()
         # Insert or replace the settings in the database
@@ -180,7 +183,7 @@ class DatabaseManager:
         INSERT OR REPLACE INTO Settings (id, light_start_time, light_end_time, temperature_threshold, humidity_threshold, soil_moisture_threshold)
         VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', 
-        (light_start_time, light_end_time, temperature_threshold, humidity_threshold, soil_moisture_threshold, light_gpio, fan_gpio, waterspray__gpio))
+        (light_start_time, light_end_time, temperature_threshold, humidity_threshold, soil_moisture_threshold, light_gpio, fan_gpio, waterspray_gpio))
         db.commit()
 
     def load_settings(self) -> tuple:

@@ -35,9 +35,6 @@ class GrowthManager:
         self.database_manager = database_manager
         self.tent = Tent()
         self.timer = Timer()
-        self.light = Light()
-        self.fan = Fan()
-        self.water_spray = WaterSpray()
         self.sensor = Sensor(pin=4)
         self.sensor.attach(self)
         self.temperature_threshold = 24
@@ -55,13 +52,14 @@ class GrowthManager:
             settings = self.database_manager.load_settings()
 
         if settings:
-            # Unpack the settings and apply them
-            self.light_start_time, self.light_end_time, self.temperature_threshold, self.humidity_threshold, self.soil_moisture_threshold = settings
+            # Apply the settings
+            self.light_start_time = settings['light_start_time']
+            self.light_end_time = settings['light_end_time']
+            self.temperature_threshold = settings['temperature_threshold']
+            self.humidity_threshold = settings['humidity_threshold']
+            self.soil_moisture_threshold = settings['soil_moisture_threshold']
             self.set_light_schedule(self.light_start_time, self.light_end_time)
             self.set_thresholds(self.temperature_threshold, self.humidity_threshold, self.soil_moisture_threshold)
-            self.light_gpio = settings['light_gpio']
-            self.fan_gpio = settings['fan_gpio']
-            self.water_spray_gpio = settings['water_spray_gpio']
 
             self.light_relay = Light(pin=self.light_gpio)
             self.fan = Fan(pin=self.fan_gpio)

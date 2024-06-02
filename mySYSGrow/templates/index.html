@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="current_reading">
+    <div class="top-container">
+        <table class="temperature_table">
+            <thead>
+                <tr>
+                    <th>Temperature</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td id="temperature" data-threshold="{{ thresholds.temperature_threshold }}">Loading...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="top-container">
+        <h2>Light Schedule</h2>
+        <form method="post" action="{{ url_for('schedule_lights') }}">
+            <div class="form-container">
+                <div class="form-group">
+                    <input type="time" id="start_time" name="start_time" value="{{ light_schedule['start_time'] }}">
+                    <label for="start_time">Start Time</label>
+                </div>
+                <div class="form-group">
+                    <input type="time" id="end_time" name="end_time" value="{{ light_schedule['end_time'] }}">
+                    <label for="end_time">End Time</label>
+                </div>
+            </div>
+            <button type="submit">Set Schedule</button>
+        </form>
+    </div>
+    <div class="top-container">
+        <table class="humidity_table">
+            <thead>
+                <tr>
+                    <th>Humidity</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td id="humidity" data-threshold="{{ thresholds.humidity_threshold }}">Loading...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+<div class="plants">
+    <h2>Plants</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Plant Name</th>
+                <th>Growth Stage</th>
+                <th>Soil Moisture %</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for plant in plants %}
+            <tr>
+                <td>{{ plant.name }}</td>
+                <td>{{ plant.growth_stage }}</td>
+                <td>{{ plant.moisture_level }}%</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+    <h2>Threshold Settings</h2>
+    <form method="post" action="{{ url_for('set_thresholds') }}">
+        <label for="temperature_threshold">Temperature Threshold (°C):</label>
+        <input type="number" id="temperature_threshold" name="temperature_threshold" step="0.1" required>
+        <label for="humidity_threshold">Humidity Threshold (%):</label>
+        <input type="number" id="humidity_threshold" name="humidity_threshold" step="0.1" required>
+        <label for="soil_moisture_threshold">Soil Moisture Threshold:</label>
+        <input type="number" id="soil_moisture_threshold" name="soil_moisture_threshold" step="0.1" required>
+        <button type="submit">Set Thresholds</button>
+    </form>
+    
+{% endblock %}

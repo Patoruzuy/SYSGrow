@@ -40,6 +40,11 @@ class GrowthManager:
         self.temperature_threshold = 24
         self.humidity_threshold = 40
         self.soil_moisture_threshold = 50
+        self.light_start_time = "08:00"
+        self.light_end_time = "20:00"
+        self.light_gpio = None
+        self.fan_gpio = None
+        self.water_spray_gpio = None
         self.hysteresis = 2
         self.load_settings() 
 

@@ -150,4 +150,4 @@ def set_stage_durations():
     return render_template('set_stage_durations.html', plants=plants)
 
 if __name__ == '__main__':
-    app.run(debug=True, use_reloader=False)
+    app.run(host="192.168.0.40", debug=True, use_reloader=False)

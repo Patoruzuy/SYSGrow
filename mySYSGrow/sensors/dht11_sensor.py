@@ -22,4 +22,4 @@ class DHT11Sensor:
         if humidity is not None and temperature is not None:
             return {'temperature': temperature, 'humidity': humidity}
         else:
-            return {'error': 'Failed to get reading. Try again!'}
+            return None

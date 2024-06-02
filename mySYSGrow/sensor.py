@@ -56,7 +56,9 @@ class Sensor():
         Simulates reading the environmental data and notifies observers.
         """
         data = self.dht11.read()
-        self.notify(data['temperature'], data['humidity'])
+        if data is None:
+            return {'error': 'Failed to get reading. Try again!'}
+        return data
         
 
 class SoilMoistureSensor:

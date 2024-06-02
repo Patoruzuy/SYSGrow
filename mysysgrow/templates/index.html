@@ -2,6 +2,9 @@
 
 {% block content %}
 <div class="current_reading">
+    {% if 'error' in current_sensor_data %}
+    <p>{{ current_sensor_data['error'] }}</p>
+{% else %}
     <div class="top-container">
         <table class="temperature_table">
             <thead>

@@ -229,9 +229,10 @@ class GrowthManager:
         data = self.sensor.read_environment()
         # for plant in self.tent.get_plants():
         #     plant.get_moisture_level()
+        if 'error' in data:
+            return data
         self.update(data['temperature'], data['humidity'])
         return data
-
 
 class Fan:
     """Represents a fan used for temperature control."""

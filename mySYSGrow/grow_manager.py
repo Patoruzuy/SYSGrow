@@ -218,7 +218,7 @@ class GrowthManager:
             moisture_level (float): The current soil moisture level.
         """
         print(f"Plant: {plant.name}, Soil Moisture Level: {moisture_level}")
-        self.database_manager.insert_sensor_data(moisture_level=moisture_level, plant_name=plant.name)
+        self.database_manager.insert_sensor_data(plant_name=plant.name, moisture_level=moisture_level)
         if moisture_level < self.soil_moisture_threshold:
             self.water_spray.turn_on()
         else:

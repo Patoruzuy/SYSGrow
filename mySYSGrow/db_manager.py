@@ -38,15 +38,18 @@ class DatabaseManager:
         db.execute('''CREATE TABLE IF NOT EXISTS SensorData (
                             id INTEGER PRIMARY KEY AUTOINCREMENT,
                             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                            plant_name TEXT,
                             temperature REAL,
                             humidity REAL,
                             moisture_level REAL,
-                            plant_name TEXT
+                            plant_id INTEGER NOT NULL,
+                            FOREIGN KEY (plant_id) REFERENCES Plants (id)
                             )''')
         db.execute('''CREATE TABLE IF NOT EXISTS Plants (
                             id INTEGER PRIMARY KEY AUTOINCREMENT,
                             name TEXT,
-                            growth_stage TEXT
+                            growth_stage TEXT,
+                            moisture_level REAL
                             )''')
         db.execute('''
                             CREATE TABLE IF NOT EXISTS Settings (
@@ -59,52 +62,54 @@ class DatabaseManager:
                             )''')
         db.commit()
 
-    def insert_sensor_data(self, temperature=None, humidity=None, moisture_level=None, plant_name=None):
+    def insert_sensor_data(self, plant_name=None, temperature=None, humidity=None, moisture_level=None):
         """
         Inserts sensor data into the SensorData table.
 
         Args:
+            plant_name (str, optional): The name of the plant.
             temperature (float, optional): The temperature value.
             humidity (float, optional): The humidity value.
             moisture_level (float, optional): The soil moisture level.
-            plant_name (str, optional): The name of the plant.
         """
         db = self.get_db()
-        db.execute('''INSERT INTO SensorData (temperature, humidity, moisture_level, plant_name)
+        db.execute('''INSERT INTO SensorData (plant_name, temperature, humidity, moisture_level)
                             VALUES (?, ?, ?, ?)
                             ''', 
-                            (temperature, humidity, moisture_level, plant_name))
+                            (plant_name, temperature, humidity, moisture_level))
         db.commit()
 
-    def insert_plant(self, name, growth_stage):
+    def insert_plant(self, name, growth_stage, moisture_level):
         """
         Inserts a new plant into the Plants table.
 
         Args:
             name (str): The name of the plant.
             growth_stage (str): The current growth stage of the plant.
+            moisture_level (float, optional): The soil moisture level.
         """
         db = self.get_db()
         db.execute('''INSERT INTO Plants (name, growth_stage)
-                            VALUES (?, ?)
+                            VALUES (?, ?, ?)
                             ''', 
-                            (name, growth_stage))
+                            (name, growth_stage, moisture_level))
         db.commit()
 
-    def update_plant_growth_stage(self, name, growth_stage):
+    def update_plant_growth_stage(self, name, growth_stage, moisture_level):
         """
         Updates the growth stage of a plant in the Plants table.
 
         Args:
             name (str): The name of the plant.
             growth_stage (str): The new growth stage of the plant.
+            moisture_level (float, optional): The soil moisture level.
         """
         db = self.get_db()
         db.execute('''UPDATE Plants
                             SET growth_stage = ?
                             WHERE name = ?
                             ''', 
-                            (growth_stage, name))
+                            (growth_stage, name, moisture_level))
         db.commit()
 
     def get_sensor_data(self) -> list:

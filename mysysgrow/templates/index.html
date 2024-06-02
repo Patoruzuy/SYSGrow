@@ -2,9 +2,6 @@
 
 {% block content %}
 <div class="current_reading">
-    {% if 'error' in current_sensor_data %}
-    <p>{{ current_sensor_data['error'] }}</p>
-{% else %}
     <div class="top-container">
         <table class="temperature_table">
             <thead>
@@ -65,7 +62,7 @@
             <tr>
                 <td>{{ plant.name }}</td>
                 <td>{{ plant.growth_stage }}</td>
-                <td>{{ current_sensor_data['soil_moisture'] }}</td>
+                <td>{{ plant.moisture_level }}%</td>
             </tr>
             {% endfor %}
         </tbody>

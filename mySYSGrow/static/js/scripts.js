@@ -1,5 +1,5 @@
 function fetchSensorData() {
-    fetch('/sensor_data')
+    fetch('/reading_update')
         .then(response => response.json())
         .then(data => {
             const temperatureElement = document.getElementById('temperature');

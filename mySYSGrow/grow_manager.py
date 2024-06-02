@@ -36,7 +36,7 @@ class GrowthManager:
         self.timer = Timer()
         self.fan = Fan()
         self.water_spray = WaterSpray()
-        self.sensor = Sensor()
+        self.sensor = Sensor(pin=4)
         self.sensor.attach(self)
         self.temperature_threshold = 24
         self.humidity_threshold = 40
@@ -226,13 +226,10 @@ class GrowthManager:
     
     def monitor_environment(self):
         """Reads the current environmental conditions from the sensor."""
-        # self.sensor.read_environment()
+        self.sensor.read_environment()
         # for plant in self.tent.get_plants():
         #     plant.get_moisture_level()
-        sensor_data = {'temperature' : 25.3,
-                       'humidity' : 60.5,
-                       'soil_moisture' : [35.2]}
-        return sensor_data
+
 
 
 class Fan:

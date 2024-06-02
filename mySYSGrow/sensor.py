@@ -4,8 +4,9 @@ Sensor and SoilMoistureSensor classes for observing and notifying changes in the
 Author: Sebastian Gomez
 Date: May 2024
 """
+from sensors.dht11_sensor import DHT11Sensor
 
-class Sensor:
+class Sensor():
     """
     Class to represent a sensor for monitoring the tent environment.
     
@@ -13,10 +14,12 @@ class Sensor:
         observers (list): List of observer objects that get notified of sensor changes.
     """
     
-    def __init__(self):
+    def __init__(self, pin):
         """
         Initializes the Sensor with an empty list of observers.
         """
+        self.pin = pin
+        self.dht11 = DHT11Sensor(self.pin)
         self.observers = []
 
     def attach(self, observer):
@@ -52,10 +55,8 @@ class Sensor:
         """
         Simulates reading the environmental data and notifies observers.
         """
-        import random
-        temperature = random.uniform(15, 35)  # Example temperature range
-        humidity = random.uniform(30, 70)     # Example humidity range
-        self.notify(temperature, humidity)
+        data = self.dht11.read()
+        self.notify(data['temperature'], data['humidity'])
 
 class SoilMoistureSensor:
     """

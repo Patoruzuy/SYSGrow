@@ -183,7 +183,7 @@ class DatabaseManager:
         INSERT OR REPLACE INTO Settings (id, light_start_time, light_end_time, temperature_threshold, humidity_threshold, soil_moisture_threshold)
         VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', 
-        (light_start_time, light_end_time, temperature_threshold, humidity_threshold, soil_moisture_threshold, light_gpio, fan_gpio, waterspray_gpio))
+        (light_start_time, light_end_time, temperature_threshold, humidity_threshold, soil_moisture_threshold, light_gpio, fan_gpio, water_spray_gpio))
         db.commit()
 
     def load_settings(self) -> tuple:

@@ -58,6 +58,9 @@ class GrowthManager:
             self.temperature_threshold = settings['temperature_threshold']
             self.humidity_threshold = settings['humidity_threshold']
             self.soil_moisture_threshold = settings['soil_moisture_threshold']
+            self.light_gpio = settings['light_gpio']
+            self.fan_gpio = settings['fan_gpio']
+            self.water_spray_gpio = settings['water_spray_gpio']
             self.set_light_schedule(self.light_start_time, self.light_end_time)
             self.set_thresholds(self.temperature_threshold, self.humidity_threshold, self.soil_moisture_threshold)
 
@@ -77,6 +80,9 @@ class GrowthManager:
             self.temperature_threshold, 
             self.humidity_threshold, 
             self.soil_moisture_threshold
+            self.light_gpio,
+            self.fan_gpio,
+            self.water_spray_gpio
             )
 
     def add_plant(self, plant_type, state):

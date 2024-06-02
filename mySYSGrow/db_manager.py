@@ -163,7 +163,7 @@ class DatabaseManager:
         db = self.get_db()
         return db.execute('SELECT * FROM Plants').fetchall()
     
-    def save_settings(self, light_start_time, light_end_time, temperature_threshold, humidity_threshold, soil_moisture_threshold, light_gpio, fan_gpio, waterspray_gpio):
+    def save_settings(self, light_start_time, light_end_time, temperature_threshold, humidity_threshold, soil_moisture_threshold, light_gpio, fan_gpio, water_spray_gpio):
         """
         Saves the settings to the database, replacing existing settings if they exist.
 

@@ -46,6 +46,7 @@ class GrowthManager:
         self.fan_gpio = None
         self.water_spray_gpio = None
         self.hysteresis = 2
+        self.add_plant("Cannabies", "Sedding")
         self.load_settings() 
 
     def load_settings(self):
@@ -97,7 +98,7 @@ class GrowthManager:
         Args:
             plant_type (str): The type of plant to add.
         """
-        plant = PlantFactory.create_plant(plant_type)
+        plant = PlantFactory.create_plant(plant_type, state)
         self.tent.add_plant(plant)
         self.timer.attach(PlantTimerObserver(plant))
         self.database_manager.insert_plant(plant.name, state, moisture_level=None)

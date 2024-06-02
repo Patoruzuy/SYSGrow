@@ -245,10 +245,10 @@ class GrowthManager:
     
     def monitor_environment(self):
         data = self.sensor.read_environment()
-        for plant in self.tent.get_plants():
-            name = plant.get_name()
-            level = plant.get_moisture_level()
-            self.update_soil_moisture(name, level)
+        # for plant in self.tent.get_plants():
+        #     name = plant.get_name()
+        #     level = plant.get_moisture_level()
+        #     self.update_soil_moisture(name, level)
         if 'error' in data:
             return data
         self.update(data['temperature'], data['humidity'])

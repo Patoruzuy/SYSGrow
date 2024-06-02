@@ -58,7 +58,10 @@ class DatabaseManager:
                             light_end_time TEXT,
                             temperature_threshold REAL,
                             humidity_threshold REAL,
-                            soil_moisture_threshold REAL
+                            soil_moisture_threshold REAL,
+                            light_gpio REAL,
+                            fan_gpio REAL,
+                            water_spray_gpio REAL
                             )''')
         db.commit()
 
@@ -160,7 +163,7 @@ class DatabaseManager:
         db = self.get_db()
         return db.execute('SELECT * FROM Plants').fetchall()
     
-    def save_settings(self, light_start_time, light_end_time, temperature_threshold, humidity_threshold, soil_moisture_threshold):
+    def save_settings(self, light_start_time, light_end_time, temperature_threshold, humidity_threshold, soil_moisture_threshold, light_gpio, fan_gpio, waterspray__gpio):
         """
         Saves the settings to the database, replacing existing settings if they exist.
 
@@ -175,9 +178,9 @@ class DatabaseManager:
         # Insert or replace the settings in the database
         db.execute('''
         INSERT OR REPLACE INTO Settings (id, light_start_time, light_end_time, temperature_threshold, humidity_threshold, soil_moisture_threshold)
-        VALUES (1, ?, ?, ?, ?, ?)
+        VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', 
-        (light_start_time, light_end_time, temperature_threshold, humidity_threshold, soil_moisture_threshold))
+        (light_start_time, light_end_time, temperature_threshold, humidity_threshold, soil_moisture_threshold, light_gpio, fan_gpio, waterspray__gpio))
         db.commit()
 
     def load_settings(self) -> tuple:
@@ -189,6 +192,6 @@ class DatabaseManager:
         """
         db = self.get_db()
         # Select the settings from the database
-        return db.execute('SELECT light_start_time, light_end_time, temperature_threshold, humidity_threshold, soil_moisture_threshold FROM Settings WHERE id = 1').fetchone()
+        return db.execute('SELECT * FROM Settings WHERE id = 1').fetchone()
         
 

@@ -1,6 +1,16 @@
 {% extends 'base.html' %}
 
 {% block content %}
+<h1>Settings</h1>
+<form action="{{ url_for('settings') }}" method="POST">
+    <label for="light_gpio">Light GPIO Pin:</label>
+    <input type="text" id="light_gpio" name="light_gpio" value="{{ settings['light_gpio'] }}"><br>
+    <label for="fan_gpio">Fan GPIO Pin:</label>
+    <input type="text" id="fan_gpio" name="fan_gpio" value="{{ settings['fan_gpio'] }}"><br>
+    <label for="water_spray_gpio">Water Spray GPIO Pin:</label>
+    <input type="text" id="water_spray_gpio" name="water_spray_gpio" value="{{ settings['water_spray_gpio'] }}"><br>
+    <button type="submit">Save Settings</button>
+</form>
 <h2>Control Light</h2>
 <form action="{{ url_for('control_light') }}" method="POST">
     <button type="submit" name="action" value="on">Turn On Light</button>

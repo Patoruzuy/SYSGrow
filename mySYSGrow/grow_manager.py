@@ -59,6 +59,13 @@ class GrowthManager:
             self.light_start_time, self.light_end_time, self.temperature_threshold, self.humidity_threshold, self.soil_moisture_threshold = settings
             self.set_light_schedule(self.light_start_time, self.light_end_time)
             self.set_thresholds(self.temperature_threshold, self.humidity_threshold, self.soil_moisture_threshold)
+            self.light_gpio = settings['light_gpio']
+            self.fan_gpio = settings['fan_gpio']
+            self.water_spray_gpio = settings['water_spray_gpio']
+
+            self.light_relay = Light(pin=self.light_gpio)
+            self.fan = Fan(pin=self.fan_gpio)
+            self.water_spray = WaterSpray(pin=self.water_spray_gpio)
         else:
             print("Cannot load the settings, setted the threshold values by default")
 
@@ -237,6 +244,30 @@ class GrowthManager:
             return data
         self.update(data['temperature'], data['humidity'])
         return data
+    
+    def turn_on_light(self):
+        """Turn on the light by activating the light relay."""
+        self.light.turn_on()
+
+    def turn_off_light(self):
+        """Turn off the light by deactivating the light relay."""
+        self.light.turn_off()
+
+    def turn_on_fan(self):
+        """Turn on the fan by activating the fan relay."""
+        self.fan.turn_on()
+
+    def turn_off_fan(self):
+        """Turn off the fan by deactivating the fan relay."""
+        self.fan.turn_off()
+
+    def turn_on_water_spray(self):
+        """Turn on the water spray by activating the water spray relay."""
+        self.water_spray.turn_on()
+
+    def turn_off_water_spray(self):
+        """Turn off the water spray by deactivating the water spray relay."""
+        self.water_spray.turn_off()
 
     
 class Light:

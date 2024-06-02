@@ -169,8 +169,14 @@ def set_stage_durations():
     plants = manager.database_manager.get_plants()
     return render_template('set_stage_durations.html', plants=plants)
 
-@app.route('/settings')
+@app.route('/settings', methods=['GET', 'POST'])
 def settings():
+    if request.method == 'POST':
+        light_gpio = request.form['light_gpio']
+        fan_gpio = request.form['fan_gpio']
+        water_spray_gpio = request.form['water_spray_gpio']
+        manager.database_manager.save_settings(light_gpio, fan_gpio, water_spray_gpio)
+
     return render_template('settings.html')
 
 @app.route('/control_light', methods=['POST'])

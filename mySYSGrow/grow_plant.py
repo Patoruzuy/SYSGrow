@@ -110,7 +110,7 @@ class PlantFactory:
     Factory class for creating plant objects.
     """
     @staticmethod
-    def create_plant(plant_type, state) -> Plant:
+    def create_plant(plant_type) -> Plant:
         """
         Creates a plant of the specified type.
 
@@ -125,7 +125,7 @@ class PlantFactory:
             ValueError: If the plant could not be created.
         """
         if plant_type:
-            return Plant(plant_type, state)
+            return Plant(plant_type)
         else:
             raise ValueError("Could not create the plant")
         

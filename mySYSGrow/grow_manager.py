@@ -98,7 +98,7 @@ class GrowthManager:
         Args:
             plant_type (str): The type of plant to add.
         """
-        plant = PlantFactory.create_plant(plant_type, state)
+        plant = PlantFactory.create_plant(plant_type)
         self.tent.add_plant(plant)
         self.timer.attach(PlantTimerObserver(plant))
         self.database_manager.insert_plant(plant.name, state, moisture_level=None)

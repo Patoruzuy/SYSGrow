@@ -95,7 +95,7 @@ class DatabaseManager:
                             (name, growth_stage, moisture_level))
         db.commit()
 
-    def update_plant_growth_stage(self, name, growth_stage, moisture_level):
+    def update_plant_growth_stage(self, name, growth_stage):
         """
         Updates the growth stage of a plant in the Plants table.
 
@@ -109,7 +109,7 @@ class DatabaseManager:
                             SET growth_stage = ?
                             WHERE name = ?
                             ''', 
-                            (growth_stage, name, moisture_level))
+                            (growth_stage, name))
         db.commit()
 
     def get_sensor_data(self) -> list:

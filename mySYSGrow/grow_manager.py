@@ -11,6 +11,7 @@ from grow_plant import *
 from db_manager import DatabaseManager
 from sensor import Sensor, SoilMoistureSensor
 from flask import current_app
+from relay.relay import Relay
 
 class GrowthManager:
     """
@@ -34,6 +35,7 @@ class GrowthManager:
         self.database_manager = database_manager
         self.tent = Tent()
         self.timer = Timer()
+        self.light = Light()
         self.fan = Fan()
         self.water_spray = WaterSpray()
         self.sensor = Sensor(pin=4)
@@ -72,7 +74,7 @@ class GrowthManager:
             self.soil_moisture_threshold
             )
 
-    def add_plant(self, plant_type):
+    def add_plant(self, plant_type, state):
         """
         Adds a plant to the tent and sets up monitoring for it.
 
@@ -82,7 +84,7 @@ class GrowthManager:
         plant = PlantFactory.create_plant(plant_type)
         self.tent.add_plant(plant)
         self.timer.attach(PlantTimerObserver(plant))
-        self.database_manager.insert_plant(plant.name, 'seed')
+        self.database_manager.insert_plant(plant.name, state, moisture_level=None)
         plant.soil_moisture_sensor.attach(self)
 
     def remove_plant(self, plant):
@@ -226,57 +228,58 @@ class GrowthManager:
 
     
     def monitor_environment(self):
-        """Reads the current environmental conditions from the sensor."""
         data = self.sensor.read_environment()
-        # for plant in self.tent.get_plants():
-        #     plant.get_moisture_level()
+        for plant in self.tent.get_plants():
+            name = plant.get_name()
+            level = plant.get_moisture_level()
+            self.update_soil_moisture(name, level)
         if 'error' in data:
             return data
         self.update(data['temperature'], data['humidity'])
         return data
 
+    
+class Light:
+    """Represents a light controlled by the schedule."""
+    def __ini__(self, pin=None, ip=None):
+        self.light = Relay('light', pin, ip)
+
+    def turn_on(self):
+        """Turns the light on."""
+        self.light.turn_on()
+        print("Light is turned on.")
+
+    def turn_off(self):
+        """Turns the light off."""
+        self.light.turn_off()
+        print("Light is turned off.")
+   
 class Fan:
     """Represents a fan used for temperature control."""
+    def __ini__(self, pin=None, ip=None):
+        self.fan = Relay('fan', pin, ip)
+
     def turn_on(self):
         """Turns the fan on."""
+        self.fan.turn_on()
         print("Fan is turned on to cool down the tent.")
 
     def turn_off(self):
         """Turns the fan off."""
+        self.fan.turn_off()
         print("Fan is turned off.")
 
 
 class WaterSpray:
     """Represents a water spray used for humidity control."""
+    def __ini__(self, pin=None, ip=None):
+        self.waterspray = Relay('fan', pin, ip)
     def turn_on(self):
         """Turns the water spray on."""
+        self.waterspray.turn_on()
         print("Water spray is turned on to increase humidity.")
 
     def turn_off(self):
         """Turns the water spray off."""
+        self.waterspray.turn_off()
         print("Water spray is turned off.")
-
-
-if __name__ == "__main__":
-    # Example usage of the GrowthManager
-    manager = GrowthManager()
-    manager.add_plant("Tomato")
-    manager.add_plant("Lettuce")
-    
-    manager.schedule_lights("08:00", "20:00")
-    
-    manager.grow_all_plants()
-    
-    # Simulate monitoring environment
-    manager.monitor_environment()
-    
-    # Retrieve and display data from the database
-    print("Sensor data: ")
-    sensor_data = manager.database_manager.get_sensor_data()
-    for data in sensor_data:
-        print(data)
-
-    print("Plants: ")
-    plants = manager.database_manager.get_plants()
-    for plant in plants:
-        print(plant)

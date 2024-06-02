@@ -169,5 +169,27 @@ def set_stage_durations():
     plants = manager.database_manager.get_plants()
     return render_template('set_stage_durations.html', plants=plants)
 
+@app.route('/settings')
+def settings():
+    return render_template('settings.html')
+
+@app.route('/control_light', methods=['POST'])
+def control_light():
+    action = request.form['action']
+    if action == 'on':
+        manager.turn_on_light()
+    elif action == 'off':
+        manager.turn_off_light()
+    return redirect(url_for('index'))
+
+@app.route('/control_fan', methods=['POST'])
+def control_fan():
+    action = request.form['action']
+    if action == 'on':
+        manager.turn_on_fan()
+    elif action == 'off':
+        manager.turn_off_fan()
+    return redirect(url_for('index'))
+
 if __name__ == '__main__':
     app.run(host="192.168.0.40", debug=True, use_reloader=False)

@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h2>Control Light</h2>
+<form action="{{ url_for('control_light') }}" method="POST">
+    <button type="submit" name="action" value="on">Turn On Light</button>
+    <button type="submit" name="action" value="off">Turn Off Light</button>
+</form>
+
+<h2>Control Fan</h2>
+<form action="{{ url_for('control_fan') }}" method="POST">
+    <button type="submit" name="action" value="on">Turn On Fan</button>
+    <button type="submit" name="action" value="off">Turn Off Fan</button>
+</form>
+
+{% endblock %}

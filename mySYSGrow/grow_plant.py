@@ -84,7 +84,7 @@ class Plant:
         """
         Reads the moisture level from the soil moisture sensor.
         """
-        self.soil_moisture_sensor.read_moisture_level()
+        return self.soil_moisture_sensor.read_moisture_level()
 
     def set_stage(self, stage: str):
         """
@@ -95,14 +95,14 @@ class Plant:
         """
         self.stage = stage
 
-    def get_stage(self) -> str:
+    def get_days_current_stage(self) -> int:
         """
-        Returns the current stage of the plant.
+        Returns the days in the current stage of the plant.
 
         Returns:
-            str: The current stage of the plant.
+            int: The days in the current stage of the plant.
         """
-        return self.stage 
+        return self.days_in_current_stage 
 
 
 class PlantFactory:
@@ -110,25 +110,24 @@ class PlantFactory:
     Factory class for creating plant objects.
     """
     @staticmethod
-    def create_plant(plant_type) -> Plant:
+    def create_plant(plant_type, state) -> Plant:
         """
         Creates a plant of the specified type.
 
         Args:
             plant_type (str): The type of plant to create.
+            state (str): The stage of the plant (seeding, vegetative or flowering)
 
         Returns:
             Plant: The created plant object.
 
         Raises:
-            ValueError: If the plant type is unknown.
+            ValueError: If the plant could not be created.
         """
-        if plant_type == "Tomato":
-            return Plant("Tomato")
-        elif plant_type == "Lettuce":
-            return Plant("Lettuce")
+        if plant_type:
+            return Plant(plant_type, state)
         else:
-            raise ValueError("Unknown plant type")
+            raise ValueError("Could not create the plant")
         
 
 class PlantState:

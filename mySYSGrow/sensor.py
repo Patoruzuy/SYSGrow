@@ -58,6 +58,7 @@ class Sensor():
         data = self.dht11.read()
         if data is None:
             return {'error': 'Failed to get reading. Try again!'}
+        self.notify(data['temperature'], data['humidity'])
         return data
         
 

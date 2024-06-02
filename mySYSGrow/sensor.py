@@ -57,6 +57,7 @@ class Sensor():
         """
         data = self.dht11.read()
         self.notify(data['temperature'], data['humidity'])
+        
 
 class SoilMoistureSensor:
     """

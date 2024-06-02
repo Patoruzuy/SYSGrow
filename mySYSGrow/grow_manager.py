@@ -226,10 +226,11 @@ class GrowthManager:
     
     def monitor_environment(self):
         """Reads the current environmental conditions from the sensor."""
-        self.sensor.read_environment()
+        data = self.sensor.read_environment()
         # for plant in self.tent.get_plants():
         #     plant.get_moisture_level()
-
+        self.update(data['temperature'], data['humidity'])
+        return data
 
 
 class Fan:

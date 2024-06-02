@@ -32,9 +32,12 @@ def index():
     """
     plants = manager.database_manager.get_plants()
     current_light_schedule = manager.get_light_schedule()
-    # Read real-time sensor data
-    current_sensor_data = manager.monitor_environment() 
-    return render_template('index.html', plants=plants, current_sensor_data=current_sensor_data, light_schedule=current_light_schedule or {})
+    thresholds = {
+        'temperature_threshold': manager.temperature_threshold,
+        'humidity_threshold': manager.humidity_threshold,
+        'soil_moisture_threshold': manager.soil_moisture_threshold
+        }
+    return render_template('index.html', plants=plants, light_schedule=current_light_schedule or {}, thresholds=thresholds)
 
 @app.route('/schedule_lights', methods=['GET', 'POST'])
 def schedule_lights():
@@ -77,6 +80,23 @@ def add_plant():
         manager.add_plant(plant_type)
         return redirect(url_for('index'))
     return render_template('add_plant.html')
+
+@app.route('/reading_update')
+def reading_update():
+    """
+    Fetch the current environmental sensor data and return it as JSON.
+
+    This endpoint is called by the client-side JavaScript to get the latest
+    temperature and humidity readings without refreshing the entire page.
+
+    Returns:
+        Response: A Flask Response object containing the sensor data in JSON format.
+    """
+    # Call the method to read the current environmental data from the sensor
+    data = manager.monitor_environment()
+
+    # Return the sensor data as a JSON response
+    return jsonify(data)
 
 @app.route('/sensor_data')
 def sensor_data():

@@ -56,6 +56,7 @@ class GrowthManager:
             # Unpack the settings and apply them
             self.light_start_time, self.light_end_time, self.temperature_threshold, self.humidity_threshold, self.soil_moisture_threshold = settings
             self.set_light_schedule(self.light_start_time, self.light_end_time)
+            self.set_thresholds()
         else:
             print("Cannot load the settings, setted the threshold values by default")
 

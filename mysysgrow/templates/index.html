@@ -14,7 +14,7 @@
             </thead>
             <tbody>
                 <tr>
-                    <td>{{ current_sensor_data['temperature'] }}</td>
+                    <td id="temperature" data-threshold="{{ thresholds.temperature_threshold }}">Loading...</td>
                 </tr>
             </tbody>
         </table>
@@ -44,7 +44,7 @@
             </thead>
             <tbody>
                 <tr>
-                    <td>{{ current_sensor_data['humidity'] }}</td>
+                    <td id="humidity" data-threshold="{{ thresholds.humidity_threshold }}">Loading...</td>
                 </tr>
             </tbody>
         </table>

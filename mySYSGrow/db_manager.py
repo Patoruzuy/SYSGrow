@@ -90,7 +90,7 @@ class DatabaseManager:
             moisture_level (float, optional): The soil moisture level.
         """
         db = self.get_db()
-        db.execute('''INSERT INTO Plants (name, growth_stage)
+        db.execute('''INSERT INTO Plants (name, growth_stage, moisture_level)
                             VALUES (?, ?, ?)
                             ''', 
                             (name, growth_stage, moisture_level))

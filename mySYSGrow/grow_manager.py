@@ -79,7 +79,7 @@ class GrowthManager:
             self.light_end_time, 
             self.temperature_threshold, 
             self.humidity_threshold, 
-            self.soil_moisture_threshold
+            self.soil_moisture_threshold,
             self.light_gpio,
             self.fan_gpio,
             self.water_spray_gpio

@@ -217,7 +217,7 @@ class GrowthManager:
             humidity (float): The current humidity.
         """
         print(f"Temperature: {temperature}, Humidity: {humidity}")
-        self.database_manager.insert_sensor_data(temperature, humidity)
+        self.database_manager.insert_sensor_data(temperature=temperature, humidity=temperature)
         if temperature > self.temperature_threshold + self.hysteresis:
             self.fan.turn_on()
         elif temperature < self.temperature_threshold - self.hysteresis:

@@ -38,11 +38,9 @@ class DatabaseManager:
         db.execute('''CREATE TABLE IF NOT EXISTS SensorData (
                             id INTEGER PRIMARY KEY AUTOINCREMENT,
                             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                            plant_id INTEGER NOT NULL,
                             temperature REAL,
                             humidity REAL,
                             moisture_level REAL,
-                            FOREIGN KEY (plant_id) REFERENCES Plants (id)
                             )''')
         db.execute('''CREATE TABLE IF NOT EXISTS Plants (
                             id INTEGER PRIMARY KEY AUTOINCREMENT,

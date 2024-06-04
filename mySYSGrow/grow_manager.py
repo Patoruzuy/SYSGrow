@@ -217,7 +217,7 @@ class GrowthManager:
             humidity (float): The current humidity.
         """
         print(f"Temperature: {temperature}, Humidity: {humidity}")
-        self.database_manager.insert_sensor_data(temperature=temperature, humidity=temperature)
+        self.database_manager.insert_sensor_data(temperature=temperature, humidity=humidity)
         if temperature > self.temperature_threshold + self.hysteresis:
             self.fan.turn_on()
         elif temperature < self.temperature_threshold - self.hysteresis:
@@ -246,10 +246,10 @@ class GrowthManager:
     
     def monitor_environment(self):
         data = self.sensor.read_environment()
-        # for plant in self.tent.get_plants():
-        #     name = plant.get_name()
-        #     level = plant.get_moisture_level()
-        #     self.update_soil_moisture(name, level)
+        for plant in self.tent.get_plants():
+             name = plant.get_name()
+             level = plant.get_moisture_level()
+             self.update_soil_moisture(name, level)
         if 'error' in data:
             return data
         self.update(data['temperature'], data['humidity'])

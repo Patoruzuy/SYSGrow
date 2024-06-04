@@ -39,8 +39,7 @@ class DatabaseManager:
                             id INTEGER PRIMARY KEY AUTOINCREMENT,
                             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
                             temperature REAL,
-                            humidity REAL,
-                            moisture_level REAL
+                            humidity REAL
                             )''')
         db.execute('''CREATE TABLE IF NOT EXISTS Plants (
                             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -62,20 +61,19 @@ class DatabaseManager:
                             )''')
         db.commit()
 
-    def insert_sensor_data(self, temperature=None, humidity=None, moisture_level=None):
+    def insert_sensor_data(self, temperature=None, humidity=None):
         """
         Inserts sensor data into the SensorData table.
 
         Args:
             temperature (float, optional): The temperature value.
             humidity (float, optional): The humidity value.
-            moisture_level (float, optional): The soil moisture level.
         """
         db = self.get_db()
-        db.execute('''INSERT INTO SensorData (temperature, humidity, moisture_level)
-                            VALUES (?, ?, ?)
+        db.execute('''INSERT INTO SensorData (temperature, humidity)
+                            VALUES (?, ?)
                             ''', 
-                            (temperature, humidity, moisture_level))
+                            (temperature, humidity))
         db.commit()
 
     def insert_plant(self, name, growth_stage, moisture_level):

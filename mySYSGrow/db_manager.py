@@ -40,7 +40,7 @@ class DatabaseManager:
                             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
                             temperature REAL,
                             humidity REAL,
-                            moisture_level REAL,
+                            moisture_level REAL
                             )''')
         db.execute('''CREATE TABLE IF NOT EXISTS Plants (
                             id INTEGER PRIMARY KEY AUTOINCREMENT,

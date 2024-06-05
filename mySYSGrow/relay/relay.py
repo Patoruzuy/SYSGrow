@@ -18,6 +18,8 @@ class Relay:
             ip (str): The IP address of the ESP8266 ESP-01 module (for wireless relay).
         """
         self.device = device
+        self.pin = pin
+        self.ip = ip
         self.is_gpio_relay = pin is not None
         self.is_wireless_relay = ip is not None
 

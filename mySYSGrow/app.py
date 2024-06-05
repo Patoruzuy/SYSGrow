@@ -12,7 +12,7 @@ import io
 import base64
 
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static')
 app.config['DATABASE'] = 'database/grow_tent.db'
 database_manager = DatabaseManager()
 database_manager.init_app(app)
@@ -30,7 +30,7 @@ def index():
     Returns:
         str: Rendered HTML template.
     """
-    plants = manager.database_manager.get_plants()
+    plants = manager.database_manager.get_all_plants()
     current_light_schedule = manager.get_light_schedule()
     thresholds = {
         'temperature_threshold': manager.temperature_threshold,
@@ -166,7 +166,7 @@ def set_stage_durations():
         grow_days = int(request.form['grow_days'])
         manager.set_stage_durations(plant_name, seed_days, grow_days)
         return redirect(url_for('index'))
-    plants = manager.database_manager.get_plants()
+    plants = manager.database_manager.get_all_plants()
     return render_template('set_stage_durations.html', plants=plants)
 
 @app.route('/test_device')

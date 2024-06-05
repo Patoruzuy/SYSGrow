@@ -12,7 +12,7 @@ from db_manager import DatabaseManager
 from sensor import Sensor, SoilMoistureSensor
 from flask import current_app
 from relay.relay import Relay
-from device_manager import *
+from device_manager import DeviceManager, Device
 
 class GrowthManager:
     """
@@ -38,7 +38,7 @@ class GrowthManager:
         self.timer = Timer()
         self.sensor = Sensor(pin=4)
         self.sensor.attach(self)
-        self.device_manager(database_manager)
+        self.device_manager = DeviceManager(database_manager)
         self.temperature_threshold = 24
         self.humidity_threshold = 40
         self.soil_moisture_threshold = 50
@@ -71,10 +71,6 @@ class GrowthManager:
             self.water_spray_gpio = settings['water_spray_gpio']
             self.set_light_schedule(self.light_start_time, self.light_end_time)
             self.set_thresholds(self.temperature_threshold, self.humidity_threshold, self.soil_moisture_threshold)
-
-            self.light_relay = Light(pin=self.light_gpio)
-            self.fan = Fan(pin=self.fan_gpio)
-            self.water_spray = WaterSpray(pin=self.water_spray_gpio)
         else:
             print("Cannot load the settings, setted the threshold values by default")
 

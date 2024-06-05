@@ -12,6 +12,7 @@ from db_manager import DatabaseManager
 from sensor import Sensor, SoilMoistureSensor
 from flask import current_app
 from relay.relay import Relay
+from device_manager import *
 
 class GrowthManager:
     """
@@ -37,6 +38,7 @@ class GrowthManager:
         self.timer = Timer()
         self.sensor = Sensor(pin=4)
         self.sensor.attach(self)
+        self.device_manager(database_manager)
         self.temperature_threshold = 24
         self.humidity_threshold = 40
         self.soil_moisture_threshold = 50
@@ -115,32 +117,6 @@ class GrowthManager:
         self.timer.detach(PlantTimerObserver(plant))
         self.soil_moisture_sensor.detach(self)
 
-    def set_temperature_threshold(self, temperature):
-        """
-        Sets the temperature threshold for the fan.
-
-        Args:
-            temperature (float): The new temperature threshold.
-        """
-        self.temperature_threshold = temperature
-
-    def set_humidity_threshold(self, humidity):
-        """
-        Sets the humidity threshold for the water spray.
-
-        Args:
-            humidity (float): The new humidity threshold.
-        """
-        self.humidity_threshold = humidity
-
-    def set_soil_moisture_threshold(self, moisture):
-        """
-        Sets the soil moisture threshold for the water spray.
-
-        Args:
-            moisture (float): The new soil moisture threshold.
-        """
-        self.soil_moisture_threshold = moisture
 
     def set_hysteresis(self,value):
         """
@@ -210,23 +186,22 @@ class GrowthManager:
 
     def update(self, temperature, humidity):
         """
-        Updates the environmental conditions and controls the fan and water spray.
+        Updates the environmental conditions and controls the devices accordingly.
 
         Args:
             temperature (float): The current temperature.
             humidity (float): The current humidity.
         """
-        print(f"Temperature: {temperature}, Humidity: {humidity}")
         self.database_manager.insert_sensor_data(temperature=temperature, humidity=humidity)
         if temperature > self.temperature_threshold + self.hysteresis:
-            self.fan.turn_on()
+            self.device_manager.turn_on_device('temperature')
         elif temperature < self.temperature_threshold - self.hysteresis:
-            self.fan.turn_off()
+            self.device_manager.turn_off_device('temperature')
 
         if humidity < self.humidity_threshold - self.hysteresis:
-            self.water_spray.turn_on()
-        elif humidity > self.humidity_threshold - self.hysteresis:  
-            self.water_spray.turn_off()
+            self.device_manager.turn_on_device('humidity')
+        elif humidity > self.humidity_threshold - self.hysteresis:
+            self.device_manager.turn_off_device('humidity')
 
     def update_soil_moisture(self, plant, moisture_level):
         """
@@ -236,23 +211,26 @@ class GrowthManager:
             plant (Plant): The plant being monitored.
             moisture_level (float): The current soil moisture level.
         """
-        print(f"Plant: {plant.name}, Soil Moisture Level: {moisture_level}")
         self.database_manager.insert_sensor_data(plant_name=plant.name, moisture_level=moisture_level)
         if moisture_level < self.soil_moisture_threshold:
-            self.water_spray.turn_on()
+            self.device_manager.turn_on_device('soil_moisture')
         else:
-            self.water_spray.turn_off()
+            self.device_manager.turn_off_device('soil_moisture')
 
-    
     def monitor_environment(self):
+        """
+        Monitors the environment and updates devices accordingly.
+
+        Returns:
+            dict: The current environmental data.
+        """
         data = self.sensor.read_environment()
-        for plant in self.tent.get_plants():
-             name = plant.get_name()
-             level = plant.get_moisture_level()
-             self.update_soil_moisture(name, level)
         if 'error' in data:
             return data
         self.update(data['temperature'], data['humidity'])
+        for plant in self.database_manager.get_all_plants():
+            moisture_level = plant.get_moisture_level()
+            self.update_soil_moisture(plant, moisture_level)
         return data
     
     def turn_on_light(self):
@@ -278,49 +256,3 @@ class GrowthManager:
     def turn_off_water_spray(self):
         """Turn off the water spray by deactivating the water spray relay."""
         self.water_spray.turn_off()
-
-    
-class Light:
-    """Represents a light controlled by the schedule."""
-    def __ini__(self, pin=None, ip=None):
-        self.light = Relay('light', pin, ip)
-
-    def turn_on(self):
-        """Turns the light on."""
-        self.light.turn_on()
-        print("Light is turned on.")
-
-    def turn_off(self):
-        """Turns the light off."""
-        self.light.turn_off()
-        print("Light is turned off.")
-   
-class Fan:
-    """Represents a fan used for temperature control."""
-    def __ini__(self, pin=None, ip=None):
-        self.fan = Relay('fan', pin, ip)
-
-    def turn_on(self):
-        """Turns the fan on."""
-        self.fan.turn_on()
-        print("Fan is turned on to cool down the tent.")
-
-    def turn_off(self):
-        """Turns the fan off."""
-        self.fan.turn_off()
-        print("Fan is turned off.")
-
-
-class WaterSpray:
-    """Represents a water spray used for humidity control."""
-    def __ini__(self, pin=None, ip=None):
-        self.waterspray = Relay('fan', pin, ip)
-    def turn_on(self):
-        """Turns the water spray on."""
-        self.waterspray.turn_on()
-        print("Water spray is turned on to increase humidity.")
-
-    def turn_off(self):
-        """Turns the water spray off."""
-        self.waterspray.turn_off()
-        print("Water spray is turned off.")

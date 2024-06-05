@@ -3,6 +3,7 @@
 {% block content %}
 <h1>Device Settings</h1>
 <form id="settings-form" method="POST">
+    <input type="hidden" id="device_count" name="device_count" value="{{ devices|length }}">
     <div id="devices-container">
         {% for device in devices %}
         <div class="device">
@@ -30,6 +31,7 @@ let deviceCount = {{ devices|length }};
 
 function addDevice() {
     deviceCount++;
+    document.getElementById('device_count').value = deviceCount;
     const container = document.getElementById('devices-container');
     const deviceDiv = document.createElement('div');
     deviceDiv.className = 'device';

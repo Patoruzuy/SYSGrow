@@ -169,21 +169,38 @@ def set_stage_durations():
     plants = manager.database_manager.get_plants()
     return render_template('set_stage_durations.html', plants=plants)
 
+@app.route('/test_device')
+def test_device():
+    device_name = request.args.get('device')
+    success = manager.device_manager.test_device(device_name)
+    return jsonify({'success': success})
+
 @app.route('/settings', methods=['GET', 'POST'])
 def settings():
     if request.method == 'POST':
-        device_count = len([key for key in request.form.keys() if key.startswith('device_name_')])
+        devices = []
+        device_count = int(request.form['device_count'])
         for i in range(1, device_count + 1):
-            name = request.form[f'device_name_{i}']
-            gpio = request.form.get(f'device_gpio_{i}', None)
-            ip_address = request.form.get(f'device_ip_{i}', None)
-            functionality = request.form[f'device_functionality_{i}']
-            database_manager.insert_device(name, gpio, ip_address, functionality)
-        return redirect(url_for('index'))
+            name = request.form.get(f'device_name_{i}')
+            gpio = request.form.get(f'device_gpio_{i}')
+            ip_address = request.form.get(f'device_ip_{i}')
+            functionality = request.form.get(f'device_functionality_{i}')
+            if name and functionality:
+                gpio = int(gpio) if gpio else None
+                devices.append({
+                    'name': name,
+                    'gpio': gpio,
+                    'ip_address': ip_address,
+                    'functionality': functionality
+                })
+        # Clear existing devices and add the new ones
+        database_manager.clear_devices()
+        for device in devices:
+            manager.device_manager.add_device(**device)
+        return redirect(url_for('settings'))
     else:
         devices = database_manager.get_device_configs()
         return render_template('settings.html', devices=devices)
-
-
+    
 if __name__ == '__main__':
     app.run(host="192.168.0.40", debug=True, use_reloader=False)

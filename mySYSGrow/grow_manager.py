@@ -99,7 +99,7 @@ class GrowthManager:
         Returns:
             Plant: The Plant object.
         """
-        row = self.database_manager.get_plant_data(id)
+        row = self.database_manager.get_plant(id)
         if row:
             return self.create_plant_from_row(row)
         return None
@@ -111,7 +111,7 @@ class GrowthManager:
         Returns:
             list: A list of Plant objects.
         """
-        rows = self.database_manager.get_all_plant_data()
+        rows = self.database_manager.get_all_plants()
         plants = [self.create_plant_from_row(row) for row in rows]
         return plants
     

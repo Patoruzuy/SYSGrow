@@ -113,7 +113,13 @@ class SoilMoistureSensor:
         """
         Simulates reading the soil moisture level and notifies observers.
         """
-        import random
-        moisture_level = random.uniform(0, 100)
-        self.notify(moisture_level)
+        try:
+            # Simulate reading the moisture level
+            import random
+            moisture_level = random.uniform(0, 100)
+            self.notify(moisture_level)
+            return moisture_level
+        except Exception as e:
+            print(f"Error reading soil moisture level: {e}")
+            return None
 

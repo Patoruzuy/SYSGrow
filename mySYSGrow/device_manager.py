@@ -75,7 +75,7 @@ class DeviceManager:
 
     Methods:
         get_device_by_functionality(functionality): Retrieves a device by its functionality.
-        add_device(name, gpio, ip_address, type, functionality): Adds a new device.
+        add_device(name, gpio, ip_address, functionality): Adds a new device.
         turn_on_device(functionality): Turns on a specified device by functionality.
         turn_off_device(functionality): Turns off a specified device by functionality.
         test_device(functionality): Tests a specified device by functionality.
@@ -105,7 +105,6 @@ class DeviceManager:
                 name=config['name'],
                 gpio=config['gpio'],
                 ip_address=config['ip_address'],
-                type=config['type'],
                 functionality=config['functionality']
             )
             devices[config['functionality']] = device
@@ -123,7 +122,7 @@ class DeviceManager:
         """
         return self.devices.get(functionality)
 
-    def add_device(self, name, gpio, ip_address, type, functionality):
+    def add_device(self, name, gpio, ip_address, functionality):
         """
         Adds a new device to the manager.
 
@@ -131,12 +130,11 @@ class DeviceManager:
             name (str): The name of the device.
             gpio (int, optional): The GPIO pin number for control.
             ip_address (str, optional): The IP address for wireless control.
-            type (str): The type of control (e.g., 'temperature', 'humidity').
             functionality (str): Description of the device's functionality.
         """
-        device = Device(name, gpio, ip_address, type, functionality)
+        device = Device(name, gpio, ip_address, functionality)
         self.devices[functionality] = device
-        self.database_manager.save_device_config(device)
+        self.database_manager.insert_device(name, gpio, ip_address, functionality)
 
     def turn_on_device(self, functionality):
         """

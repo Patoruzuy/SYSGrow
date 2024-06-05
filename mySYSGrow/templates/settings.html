@@ -20,7 +20,7 @@
                     <option value="temperature_control" {% if device.functionality == "temperature_control" %}selected{% endif %}>Temperature Control</option>
                     <option value="humidity_control" {% if device.functionality == "humidity_control" %}selected{% endif %}>Humidity Control</option>
                 </select>
-                <button type="button" onclick="testDevice('{{ device.name }}')">Test Device</button>
+                <button type="button" onclick="testDevice('{{ device.name }}', {{ loop.index }})">Test Device</button>
                 <span id="test_result_{{ loop.index }}"></span>
             </div>
             {% endfor %}
@@ -38,7 +38,7 @@
                     <option value="temperature_control">Temperature Control</option>
                     <option value="humidity_control">Humidity Control</option>
                 </select>
-                <button type="button" onclick="testDevice('new_device')">Test Device</button>
+                <button type="button" onclick="testDevice('new_device', 1)">Test Device</button>
                 <span id="test_result_1"></span>
             </div>
         {% endif %}

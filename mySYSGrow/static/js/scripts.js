@@ -69,11 +69,11 @@ function addDevice() {
     container.appendChild(deviceDiv);
 }
 
-function testDevice(deviceName) {
+function testDevice(deviceName, index) {
     fetch(`/test_device?device=${deviceName}`)
         .then(response => response.json())
         .then(data => {
-            const resultElement = document.querySelector(`#test_result_${deviceName}`);
+            const resultElement = document.getElementById(`test_result_${index}`);
             if (data.success) {
                 resultElement.innerText = "Test successful!";
                 resultElement.style.color = "green";
@@ -84,7 +84,7 @@ function testDevice(deviceName) {
         })
         .catch(error => {
             console.error('Error testing device:', error);
-            const resultElement = document.querySelector(`#test_result_${deviceName}`);
+            const resultElement = document.getElementById(`test_result_${index}`);
             resultElement.innerText = "Error testing device.";
             resultElement.style.color = "red";
         });

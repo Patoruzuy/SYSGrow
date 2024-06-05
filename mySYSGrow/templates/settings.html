@@ -3,28 +3,51 @@
 {% block content %}
 <h1>Device Settings</h1>
 <form id="settings-form" method="POST">
-    <input type="hidden" id="device_count" name="device_count" value="{{ devices|length }}">
+    <input type="hidden" id="device_count" name="device_count" value="{{ devices|length if devices else 1 }}">
     <div id="devices-container">
-        {% for device in devices %}
-        <div class="device">
-            <label for="device_name_{{ loop.index }}">Device Name:</label>
-            <input type="text" id="device_name_{{ loop.index }}" name="device_name_{{ loop.index }}" value="{{ device.name }}">
-            <label for="device_gpio_{{ loop.index }}">GPIO:</label>
-            <input type="text" id="device_gpio_{{ loop.index }}" name="device_gpio_{{ loop.index }}" value="{{ device.gpio }}">
-            <label for="device_ip_{{ loop.index }}">IP Address:</label>
-            <input type="text" id="device_ip_{{ loop.index }}" name="device_ip_{{ loop.index }}" value="{{ device.ip_address }}">
-            <label for="device_functionality_{{ loop.index }}">Functionality:</label>
-            <select id="device_functionality_{{ loop.index }}" name="device_functionality_{{ loop.index }}">
-                <option value="light" {% if device.functionality == "light" %}selected{% endif %}>Light</option>
-                <option value="temperature_control" {% if device.functionality == "temperature_control" %}selected{% endif %}>Temperature Control</option>
-                <option value="humidity_control" {% if device.functionality == "humidity_control" %}selected{% endif %}>Humidity Control</option>
-            </select>
-        </div>
-        {% endfor %}
+        {% if devices %}
+            {% for device in devices %}
+            <div class="device">
+                <label for="device_name_{{ loop.index }}">Device Name:</label>
+                <input type="text" id="device_name_{{ loop.index }}" name="device_name_{{ loop.index }}" value="{{ device.name }}">
+                <label for="device_gpio_{{ loop.index }}">GPIO:</label>
+                <input type="text" id="device_gpio_{{ loop.index }}" name="device_gpio_{{ loop.index }}" value="{{ device.gpio }}">
+                <label for="device_ip_{{ loop.index }}">IP Address:</label>
+                <input type="text" id="device_ip_{{ loop.index }}" name="device_ip_{{ loop.index }}" value="{{ device.ip_address }}">
+                <label for="device_functionality_{{ loop.index }}">Functionality:</label>
+                <select id="device_functionality_{{ loop.index }}" name="device_functionality_{{ loop.index }}">
+                    <option value="light" {% if device.functionality == "light" %}selected{% endif %}>Light</option>
+                    <option value="temperature_control" {% if device.functionality == "temperature_control" %}selected{% endif %}>Temperature Control</option>
+                    <option value="humidity_control" {% if device.functionality == "humidity_control" %}selected{% endif %}>Humidity Control</option>
+                </select>
+                <button type="button" onclick="testDevice('{{ device.name }}')">Test Device</button>
+                <span id="test_result_{{ loop.index }}"></span>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="device">
+                <label for="device_name_1">Device Name:</label>
+                <input type="text" id="device_name_1" name="device_name_1">
+                <label for="device_gpio_1">GPIO:</label>
+                <input type="text" id="device_gpio_1" name="device_gpio_1">
+                <label for="device_ip_1">IP Address:</label>
+                <input type="text" id="device_ip_1" name="device_ip_1">
+                <label for="device_functionality_1">Functionality:</label>
+                <select id="device_functionality_1" name="device_functionality_1">
+                    <option value="light">Light</option>
+                    <option value="temperature_control">Temperature Control</option>
+                    <option value="humidity_control">Humidity Control</option>
+                </select>
+                <button type="button" onclick="testDevice('new_device')">Test Device</button>
+                <span id="test_result_1"></span>
+            </div>
+        {% endif %}
     </div>
     <button type="button" onclick="addDevice()">Add Device</button>
     <input type="submit" value="Save">
 </form>
+
+
 <h2>Threshold Settings</h2>
 <form method="post" action="{{ url_for('set_thresholds') }}">
     <label for="temperature_threshold">Temperature Threshold (°C):</label>

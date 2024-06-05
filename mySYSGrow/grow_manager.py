@@ -103,6 +103,21 @@ class GrowthManager:
         if row:
             return self.create_plant_from_row(row)
         return None
+
+    def create_plant_from_row(self, row) -> Plant:
+        """
+        Creates a Plant object from a database row.
+
+        Args:
+            row (sqlite3.Row): The database row containing plant data.
+
+        Returns:
+            Plant: The created Plant object.
+        """
+        plant = Plant(row['name'])
+        plant.set_stage(row['growth_stage'])
+        plant.soil_moisture_sensor = SoilMoistureSensor(plant)  # Associate the soil moisture sensor
+        return plant
         
     def get_all_plants(self) -> list:
         """

@@ -63,6 +63,29 @@ function addDevice() {
             <option value="temperature_control">Temperature Control</option>
             <option value="humidity_control">Humidity Control</option>
         </select>
+        <button type="button" onclick="testDevice('new_device')">Test Device</button>
+        <span id="test_result_${deviceCount}"></span>
     `;
     container.appendChild(deviceDiv);
+}
+
+function testDevice(deviceName) {
+    fetch(`/test_device?device=${deviceName}`)
+        .then(response => response.json())
+        .then(data => {
+            const resultElement = document.querySelector(`#test_result_${deviceName}`);
+            if (data.success) {
+                resultElement.innerText = "Test successful!";
+                resultElement.style.color = "green";
+            } else {
+                resultElement.innerText = "Test failed.";
+                resultElement.style.color = "red";
+            }
+        })
+        .catch(error => {
+            console.error('Error testing device:', error);
+            const resultElement = document.querySelector(`#test_result_${deviceName}`);
+            resultElement.innerText = "Error testing device.";
+            resultElement.style.color = "red";
+        });
 }

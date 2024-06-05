@@ -240,7 +240,7 @@ class GrowthManager:
         elif humidity > self.humidity_threshold - self.hysteresis:
             self.device_manager.turn_off_device('humidity')
 
-    def update_soil_moisture(self, plant, moisture_level):
+    def update_soil_moisture(self, plant_name, moisture_level):
         """
         Updates the soil moisture level and controls the water spray.
 
@@ -248,7 +248,7 @@ class GrowthManager:
             plant (Plant): The plant being monitored.
             moisture_level (float): The current soil moisture level.
         """
-        self.database_manager.insert_sensor_data(plant_name=plant.name, moisture_level=moisture_level)
+        self.database_manager.insert_sensor_data(plant_name=plant_name, moisture_level=moisture_level)
         if moisture_level < self.soil_moisture_threshold:
             self.device_manager.turn_on_device('soil_moisture')
         else:

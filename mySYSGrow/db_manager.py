@@ -66,6 +66,7 @@ class DatabaseManager:
             db.execute('''CREATE TABLE IF NOT EXISTS SensorData (
                                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                                plant_name TEXT,
                                 temperature REAL,
                                 humidity REAL,
                                 moisture_level REAL
@@ -121,7 +122,7 @@ class DatabaseManager:
         except sqlite3.Error as e:
             logging.error(f"Error clearing devices: {e}")
 
-    def insert_sensor_data(self, temperature=None, humidity=None, moisture_level=None):
+    def insert_sensor_data(self, plant_name=None, temperature=None, humidity=None, moisture_level=None):
         """
         Inserts sensor data into the SensorData table.
 
@@ -132,10 +133,10 @@ class DatabaseManager:
         """
         try:
             db = self.get_db()
-            db.execute('''INSERT INTO SensorData (temperature, humidity, moisture_level)
-                                VALUES (?, ?, ?)
+            db.execute('''INSERT INTO SensorData (plant_name, temperature, humidity, moisture_level)
+                                VALUES (?, ?, ?, ?)
                                 ''', 
-                                (temperature, humidity, moisture_level))
+                                (plant_name, temperature, humidity, moisture_level))
             db.commit()
         except sqlite3.Error as e:
             logging.error(f"Error inserting sensor data: {e}")

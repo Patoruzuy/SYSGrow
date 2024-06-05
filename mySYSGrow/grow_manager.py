@@ -89,6 +89,32 @@ class GrowthManager:
             self.water_spray_gpio
             )
 
+    def get_plant(self, id) -> Plant:
+        """
+        Retrieves a Plant object by its ID.
+
+        Args:
+            id (int): The ID of the plant.
+
+        Returns:
+            Plant: The Plant object.
+        """
+        row = self.database_manager.get_plant_data(id)
+        if row:
+            return self.create_plant_from_row(row)
+        return None
+        
+    def get_all_plants(self) -> list:
+        """
+        Retrieves all Plant objects.
+
+        Returns:
+            list: A list of Plant objects.
+        """
+        rows = self.database_manager.get_all_plant_data()
+        plants = [self.create_plant_from_row(row) for row in rows]
+        return plants
+    
     def add_plant(self, plant_type, state):
         """
         Adds a plant to the tent and sets up monitoring for it.
@@ -174,7 +200,7 @@ class GrowthManager:
         Updates the growth stage of all plants and stores the data in the database.
         """
         self.timer.notify()
-        for plant in self.tent.get_plants():
+        for plant in self.tent.get_all_plants():
             self.database_manager.update_plant_growth_stage(
                 plant.name, plant.state.__class__.__name__
             )
@@ -224,7 +250,7 @@ class GrowthManager:
         if 'error' in data:
             return data
         self.update(data['temperature'], data['humidity'])
-        for plant in self.database_manager.get_plants():
+        for plant in self.get_all_plants():
             moisture_level = plant.get_moisture_level()
             self.update_soil_moisture(plant, moisture_level)
         return data

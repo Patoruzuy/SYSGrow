@@ -236,7 +236,7 @@ class DatabaseManager:
             logging.error(f"Error getting light schedule: {e}")
             return None
 
-    def get_plants(self) -> list:
+    def get_all_plants(self) -> list:
         """
         Retrieves all plants from the Plants table.
 

@@ -41,3 +41,28 @@ setInterval(fetchSensorData, 5000);
 
 // Fetch data immediately when the page loads
 window.onload = fetchSensorData;
+
+let deviceCount = parseInt(document.getElementById('device_count').value, 10);
+
+function addDevice() {
+    deviceCount++;
+    document.getElementById('device_count').value = deviceCount;
+    const container = document.getElementById('devices-container');
+    const deviceDiv = document.createElement('div');
+    deviceDiv.className = 'device';
+    deviceDiv.innerHTML = `
+        <label for="device_name_${deviceCount}">Device Name:</label>
+        <input type="text" id="device_name_${deviceCount}" name="device_name_${deviceCount}">
+        <label for="device_gpio_${deviceCount}">GPIO:</label>
+        <input type="text" id="device_gpio_${deviceCount}" name="device_gpio_${deviceCount}">
+        <label for="device_ip_${deviceCount}">IP Address:</label>
+        <input type="text" id="device_ip_${deviceCount}" name="device_ip_${deviceCount}">
+        <label for="device_functionality_${deviceCount}">Functionality:</label>
+        <select id="device_functionality_${deviceCount}" name="device_functionality_${deviceCount}">
+            <option value="light">Light</option>
+            <option value="temperature_control">Temperature Control</option>
+            <option value="humidity_control">Humidity Control</option>
+        </select>
+    `;
+    container.appendChild(deviceDiv);
+}

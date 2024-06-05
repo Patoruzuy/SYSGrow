@@ -224,7 +224,7 @@ class GrowthManager:
         if 'error' in data:
             return data
         self.update(data['temperature'], data['humidity'])
-        for plant in self.database_manager.get_all_plants():
+        for plant in self.database_manager.get_plants():
             moisture_level = plant.get_moisture_level()
             self.update_soil_moisture(plant, moisture_level)
         return data

@@ -172,30 +172,18 @@ def set_stage_durations():
 @app.route('/settings', methods=['GET', 'POST'])
 def settings():
     if request.method == 'POST':
-        light_gpio = request.form['light_gpio']
-        fan_gpio = request.form['fan_gpio']
-        water_spray_gpio = request.form['water_spray_gpio']
-        manager.database_manager.save_settings(light_gpio, fan_gpio, water_spray_gpio)
+        device_count = len([key for key in request.form.keys() if key.startswith('device_name_')])
+        for i in range(1, device_count + 1):
+            name = request.form[f'device_name_{i}']
+            gpio = request.form.get(f'device_gpio_{i}', None)
+            ip_address = request.form.get(f'device_ip_{i}', None)
+            functionality = request.form[f'device_functionality_{i}']
+            database_manager.insert_device(name, gpio, ip_address, functionality)
+        return redirect(url_for('index'))
+    else:
+        devices = database_manager.get_device_configs()
+        return render_template('settings.html', devices=devices)
 
-    return render_template('settings.html')
-
-@app.route('/control_light', methods=['POST'])
-def control_light():
-    action = request.form['action']
-    if action == 'on':
-        manager.turn_on_light()
-    elif action == 'off':
-        manager.turn_off_light()
-    return redirect(url_for('index'))
-
-@app.route('/control_fan', methods=['POST'])
-def control_fan():
-    action = request.form['action']
-    if action == 'on':
-        manager.turn_on_fan()
-    elif action == 'off':
-        manager.turn_off_fan()
-    return redirect(url_for('index'))
 
 if __name__ == '__main__':
     app.run(host="192.168.0.40", debug=True, use_reloader=False)

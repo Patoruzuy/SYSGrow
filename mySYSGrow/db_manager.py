@@ -35,11 +35,19 @@ class DatabaseManager:
         Creates the necessary tables in the database if they do not already exist.
         """
         db = self.get_db()
+        db.execute('''CREATE TABLE IF NOT EXISTS Device (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            name TEXT NOT NULL,
+                            gpio INTEGER,
+                            ip_address TEXT,
+                            functionality TEXT NOT NULL
+                            )''')
         db.execute('''CREATE TABLE IF NOT EXISTS SensorData (
                             id INTEGER PRIMARY KEY AUTOINCREMENT,
                             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
                             temperature REAL,
-                            humidity REAL
+                            humidity REAL,
+                            moisture_level REAL
                             )''')
         db.execute('''CREATE TABLE IF NOT EXISTS Plants (
                             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -61,20 +69,41 @@ class DatabaseManager:
                             )''')
         db.commit()
 
-    def insert_sensor_data(self, temperature=None, humidity=None):
+    def get_device_configs(self):
+        self.cursor.execute("SELECT name, gpio, ip_address, functionality FROM Devices")
+        rows = self.cursor.fetchall()
+        device_configs = []
+        for row in rows:
+            config = {
+                'name': row[0],
+                'gpio': row[1],
+                'ip_address': row[2],
+                'functionality': row[3]
+            }
+            device_configs.append(config)
+        return device_configs
+    
+    def insert_sensor_data(self, temperature=None, humidity=None, moisture_level=None):
         """
         Inserts sensor data into the SensorData table.
 
         Args:
             temperature (float, optional): The temperature value.
             humidity (float, optional): The humidity value.
+            moisture_level (float optional): The plant moisture level
         """
         db = self.get_db()
-        db.execute('''INSERT INTO SensorData (temperature, humidity)
-                            VALUES (?, ?)
+        db.execute('''INSERT INTO SensorData (temperature, humidity, moisture_level)
+                            VALUES (?, ?, ?)
                             ''', 
-                            (temperature, humidity))
+                            (temperature, humidity, moisture_level))
         db.commit()
+
+    def insert_device(self, name, gpio, ip_address, functionality):
+
+        db = self.get_db()
+        db.execute("INSERT INTO Devices (name, gpio, ip_address, functionality) VALUES (?, ?, ?, ?)",
+                           (name, gpio, ip_address, functionality))
 
     def insert_plant(self, name, growth_stage, moisture_level):
         """

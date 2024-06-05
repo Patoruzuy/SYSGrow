@@ -1,3 +1,10 @@
+"""
+Description: This script manage the relays
+
+Author: Sebastian Gomez
+Date: 28/05/24
+"""
+
 import RPi.GPIO as GPIO
 import requests
 

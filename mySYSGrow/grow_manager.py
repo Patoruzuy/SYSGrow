@@ -46,7 +46,7 @@ class GrowthManager:
         self.fan_gpio = None
         self.water_spray_gpio = None
         self.hysteresis = 2
-        self.add_plant("Cannabies", "Sedding")
+        self.add_plant("Cannabies", "Seed")
         self.load_settings() 
 
     def load_settings(self):

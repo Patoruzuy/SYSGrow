@@ -85,7 +85,7 @@ def add_plant():
         return redirect(url_for('index'))
     return render_template('add_plant.html')
 
-@app.route('/link_sensor', methods=['POST'])
+@app.route('/link_sensor', methods=['GET', 'POST'])
 def link_sensor():
     """
     Link a soil moisture sensor to a plant.
@@ -93,10 +93,13 @@ def link_sensor():
     Returns:
         redirect: Redirect to the index page.
     """
-    plant_id = request.form['plant_id']
-    sensor_id = request.form['sensor_id']
-    manager.link_sensor_to_plant(plant_id, sensor_id)
-    return redirect(url_for('index'))
+    if request.method == 'POST':
+        plant_id = request.form['plant_id']
+        sensor_id = request.form['sensor_id']
+        manager.link_sensor_to_plant(plant_id, sensor_id)
+        return redirect(url_for('index'))
+    plants = manager.get_all_plants()
+    return render_template('add_plant.html', plants=plants)
 
 @app.route('/reading_update')
 def reading_update():
@@ -188,7 +191,7 @@ def set_stage_durations():
 
 @app.route('/test_device')
 def test_device():
-    functionality = request.args.get('device_functionality_1')
+    functionality = request.args.get('functionality')
     success = manager.device_manager.test_device(functionality)
     return jsonify({'success': success})
 

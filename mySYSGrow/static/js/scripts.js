@@ -52,6 +52,7 @@ function addDeviceAndSubmit() {
     const newDeviceContainer = document.getElementById('new-device-container');
     const newDeviceDiv = document.createElement('div');
     newDeviceDiv.classList.add('device');
+    newDeviceDiv.id = `device_${count}`;
 
     newDeviceDiv.innerHTML = `
         <label for="device_name_${count}">Device Name:</label>
@@ -75,8 +76,9 @@ function addDeviceAndSubmit() {
 }
 
 
-function testDevice(deviceName, index) {
-    fetch(`/test_device?device=${deviceName}`)
+function testDevice(functionality, index) {
+    const functionality = document.getElementById(functionality).value;
+    fetch(`/test_device?functionality=${functionality}`)
         .then(response => response.json())
         .then(data => {
             const resultElement = document.getElementById(`test_result_${index}`);

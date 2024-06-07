@@ -24,6 +24,7 @@ class Relay:
         self.is_wireless_relay = ip is not None
 
         if self.is_gpio_relay:
+            GPIO.setwarnings(False)
             GPIO.setmode(GPIO.BCM)
             GPIO.setup(self.pin, GPIO.OUT)
 

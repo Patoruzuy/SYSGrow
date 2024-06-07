@@ -221,7 +221,7 @@ class GrowthManager:
         if self.light_observer:
             self.light_start_time = start_time
             self.light_end_time = end_time
-            self.timer.schedule_light(self.start_time, self.end_time)
+            self.timer.schedule_light(self.light_start_time, self.light_end_time)
             self.save_settings()
             print(f"Light scheduled from {start_time} to {end_time}.")
         else:

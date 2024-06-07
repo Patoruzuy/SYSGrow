@@ -79,6 +79,7 @@ class DeviceManager:
         turn_on_device(functionality): Turns on a specified device by functionality.
         turn_off_device(functionality): Turns off a specified device by functionality.
         test_device(functionality): Tests a specified device by functionality.
+        cleanup(): Cleans up GPIO resources for all devices.
     """
 
     def __init__(self, database_manager):

@@ -42,32 +42,37 @@ setInterval(fetchSensorData, 5000);
 // Fetch data immediately when the page loads
 window.onload = fetchSensorData;
 
-let deviceCount = parseInt(document.getElementById('device_count').value, 10);
-
 function addDevice() {
-    deviceCount++;
-    document.getElementById('device_count').value = deviceCount;
-    const container = document.getElementById('devices-container');
-    const deviceDiv = document.createElement('div');
-    deviceDiv.className = 'device';
-    deviceDiv.innerHTML = `
-        <label for="device_name_${deviceCount}">Device Name:</label>
-        <input type="text" id="device_name_${deviceCount}" name="device_name_${deviceCount}">
-        <label for="device_gpio_${deviceCount}">GPIO:</label>
-        <input type="text" id="device_gpio_${deviceCount}" name="device_gpio_${deviceCount}">
-        <label for="device_ip_${deviceCount}">IP Address:</label>
-        <input type="text" id="device_ip_${deviceCount}" name="device_ip_${deviceCount}">
-        <label for="device_functionality_${deviceCount}">Functionality:</label>
-        <select id="device_functionality_${deviceCount}" name="device_functionality_${deviceCount}">
+    const deviceCount = document.getElementById('device_count');
+    let count = parseInt(deviceCount.value);
+
+    count += 1;
+    deviceCount.value = count;
+
+    const newDeviceContainer = document.getElementById('new-device-container');
+    const newDeviceDiv = document.createElement('div');
+    newDeviceDiv.classList.add('device');
+
+    newDeviceDiv.innerHTML = `
+        <label for="device_name_${count}">Device Name:</label>
+        <input type="text" id="device_name_${count}" name="device_name_${count}">
+        <label for="device_gpio_${count}">GPIO:</label>
+        <input type="text" id="device_gpio_${count}" name="device_gpio_${count}">
+        <label for="device_ip_${count}">IP Address:</label>
+        <input type="text" id="device_ip_${count}" name="device_ip_${count}">
+        <label for="device_functionality_${count}">Functionality:</label>
+        <select id="device_functionality_${count}" name="device_functionality_${count}">
             <option value="light">Light</option>
             <option value="temperature_control">Temperature Control</option>
             <option value="humidity_control">Humidity Control</option>
         </select>
-        <button type="button" onclick="testDevice('new_device')">Test Device</button>
-        <span id="test_result_${deviceCount}"></span>
+        <button type="button" onclick="testDevice('new_device', ${count})">Test Device</button>
+        <span id="test_result_${count}"></span>
     `;
-    container.appendChild(deviceDiv);
+
+    newDeviceContainer.appendChild(newDeviceDiv);
 }
+
 
 function testDevice(deviceName, index) {
     fetch(`/test_device?device=${deviceName}`)

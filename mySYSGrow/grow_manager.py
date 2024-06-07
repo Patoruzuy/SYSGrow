@@ -35,6 +35,7 @@ class GrowthManager:
         self.database_manager = database_manager
         self.tent = Tent()
         self.timer = Timer()
+        self.light_observer = None
         self.sensor = Sensor(pin=4)
         self.sensor.attach(self)
         self.device_manager = DeviceManager(database_manager)

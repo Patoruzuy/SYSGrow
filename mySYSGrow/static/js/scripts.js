@@ -42,8 +42,7 @@ setInterval(fetchSensorData, 5000);
 // Fetch data immediately when the page loads
 window.onload = fetchSensorData;
 
-
-function testDevice(functionality, index) {
+function testDevice(functionality, index = null) {
     const queryString = new URLSearchParams({
         functionality: functionality
     }).toString();
@@ -51,7 +50,7 @@ function testDevice(functionality, index) {
     fetch(`/test_device?${queryString}`)
         .then(response => response.json())
         .then(data => {
-            const resultElement = document.getElementById(`test_result_${index}`);
+            const resultElement = index ? document.getElementById(`test_result_${index}`) : document.getElementById('test_result');
             if (data.success) {
                 resultElement.innerText = "Test successful!";
                 resultElement.style.color = "green";
@@ -62,7 +61,7 @@ function testDevice(functionality, index) {
         })
         .catch(error => {
             console.error('Error testing device:', error);
-            const resultElement = document.getElementById(`test_result_${index}`);
+            const resultElement = index ? document.getElementById(`test_result_${index}`) : document.getElementById('test_result');
             resultElement.innerText = "Error testing device.";
             resultElement.style.color = "red";
         });

@@ -19,7 +19,7 @@
                 <option value="humidity">Humidity Control</option>
                 <option value="soil_moisture">Soil Moisture</option>
             </select>
-            <button type="button" onclick="testDevice('device_functionality')">Test Device</button>
+            <button type="button" onclick="testDevice(document.getElementById('device_functionality').value)">Test Device</button>
             <span id="test_result"></span>
         </div>
     </div>
@@ -46,7 +46,7 @@
             <td>{{ device.gpio }}</td>
             <td>{{ device.ip_address }}</td>
             <td>{{ device.functionality }}</td>
-            <td><button type="button" onclick="testDevice('{{ device.functionality }}')">Test</button></td>
+            <td><button type="button" onclick="testDevice('{{ device.functionality }}', '{{ loop.index }}')">Test</button></td>
         </tr>
         {% endfor %}
     </tbody>
@@ -64,4 +64,3 @@
 </form>
 
 {% endblock %}
-

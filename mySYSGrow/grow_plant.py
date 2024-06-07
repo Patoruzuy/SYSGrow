@@ -1,20 +1,18 @@
 """
-Description: This script defines classes for managing plant growth, including plant states and a plant factory for creating different types of plants.
+Description: This script defines classes for managing plant growth, including plant stages and a plant factory for creating different types of plants.
 
 Author: Sebastian Gomez
 Date: 26/05/24
 """
-
-from grow_tent import Tent
 from sensor import SoilMoistureSensor
 
 class Plant:
     """
-    Represents a plant with various states and a soil moisture sensor.
+    Represents a plant with various stages and a soil moisture sensor.
 
     Attributes:
         name (str): The name of the plant.
-        state (PlantState): The current state of the plant.
+        stage (PlantStage): The current stage of the plant.
         soil_moisture_sensor (SoilMoistureSensor): Sensor to monitor soil moisture.
         stage (str): The current stage of the plant.
         stage_durations (dict): The durations for each growth stage.
@@ -22,27 +20,27 @@ class Plant:
     """
     def __init__(self, name):
         """
-        Initializes a new plant with a seed state and a soil moisture sensor.
+        Initializes a new plant with a seed stage and a soil moisture sensor.
 
         Args:
             name (str): The name of the plant.
         """
         self.name = name
-        self.state = SeedState(self)
+        self.stage = SeedStage(self)
         self.soil_moisture_sensor = SoilMoistureSensor(self)
         self.stage_durations = {'Seedling': 7,
                                 'Vegetative' : 23,
                                 'Flowering': 30}
         self.days_in_current_stage = 0
 
-    def set_state(self, state):
+    def set_stage(self, stage):
         """
-        Sets the current state of the plant.
+        Sets the current stage of the plant.
 
         Args:
-            state (PlantState): The new state of the plant.
+            stage (PlantStage): The new stage of the plant.
         """
-        self.state = state
+        self.stage = stage
         self.days_in_current_stage = 0
 
     def set_stage_durations(self, seed_days, veg_days, flowering_days):
@@ -60,16 +58,16 @@ class Plant:
 
     def grow(self):
         """
-        Triggers the grow process for the plant, changing its state as it grows and adds 
+        Triggers the grow process for the plant, changing its stage as it grows and adds 
         one day to the current stage.
         """
-        self.state.grow()
+        self.stage.grow()
         self.days_in_current_stage +=1
         # Check and transition to the next stage if the current stage duration is met
-        if self.stage.__class__.__name__ == 'SeedState' and self.days_in_current_stage >= self.stage_durations['Seedling']:
-            self.set_state(GrowState(self))
-        elif self.stage.__class__.__name__ == 'GrowState' and self.days_in_current_stage >= self.stage_durations['Vegetative']:
-            self.set_state(FloweringState(self))
+        if self.stage.__class__.__name__ == 'SeedStage' and self.days_in_current_stage >= self.stage_durations['Seedling']:
+            self.set_stage(GrowStage(self))
+        elif self.stage.__class__.__name__ == 'GrowStage' and self.days_in_current_stage >= self.stage_durations['Vegetative']:
+            self.set_stage(FloweringStage(self))
 
     def get_name(self) -> str:
         """
@@ -120,7 +118,7 @@ class PlantFactory:
 
         Args:
             plant_type (str): The type of plant to create.
-            state (str): The stage of the plant (seeding, vegetative or flowering)
+            stage (str): The stage of the plant (seeding, vegetative or flowering)
 
         Returns:
             Plant: The created plant object.
@@ -134,54 +132,54 @@ class PlantFactory:
             raise ValueError("Could not create the plant")
         
 
-class PlantState:
+class PlantStage:
     """
-    Represents a generic state of a plant.
+    Represents a generic stage of a plant.
 
     Attributes:
-        plant (Plant): The plant associated with this state.
+        plant (Plant): The plant associated with this stage.
     """
     def __init__(self, plant):
         """
-        Initializes the state with the given plant.
+        Initializes the stage with the given plant.
 
         Args:
-            plant (Plant): The plant associated with this state.
+            plant (Plant): The plant associated with this stage.
         """
         self.plant = plant
 
     def grow(self):
         """
-        Defines the grow behavior for the state. This should be overridden by subclasses.
+        Defines the grow behavior for the stage. This should be overridden by subclasses.
         """
         pass
 
 
-class SeedState(PlantState):
+class SeedStage(PlantStage):
     """
-    Represents the seedling state of a plant.
+    Represents the seedling stage of a plant.
     """
     def grow(self):
         """
-        Transitions the plant from the seedling state to the grow state.
+        Transitions the plant from the seedling stage to the grow stage.
         """
         print(f"{self.plant.name} is growing from a seed.")
-        self.plant.set_state(GrowState(self.plant))
+        self.plant.set_stage(GrowStage(self.plant))
 
-class GrowState(PlantState):
+class GrowStage(PlantStage):
     """
-    Represents the grow state of a plant.
+    Represents the grow stage of a plant.
     """
     def grow(self):
         """
-        Transitions the plant from the grow state to the harvest state.
+        Transitions the plant from the grow stage to the harvest stage.
         """
         print(f"{self.plant.name} is in vegetative stage.")
-        self.plant.set_state(FloweringState(self.plant))
+        self.plant.set_stage(FloweringStage(self.plant))
 
-class FloweringState(PlantState):
+class FloweringStage(PlantStage):
     """
-    Represents the harvest state of a plant.
+    Represents the harvest stage of a plant.
     """
     def grow(self):
         """

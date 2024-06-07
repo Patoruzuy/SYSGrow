@@ -45,8 +45,20 @@ class Tent:
         """
         self.plants.remove(plant)
 
-    #def get_plant_by_name(plant_name) -> srt:
-
+    def get_plant_by_name(self, plant_name) -> str:
+        """
+        Retrieves a plant by its name.
+        
+        Args:
+            plant_name (str): The name of the plant to retrieve.
+        
+        Returns:
+            Plant: The plant with the given name, or None if not found.
+        """
+        for plant in self.plants:
+            if plant.get_name() == plant_name:
+                return plant
+        return None
 
     def get_all_plants(self) -> list:
         """

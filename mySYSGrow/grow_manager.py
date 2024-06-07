@@ -136,6 +136,7 @@ class GrowthManager:
         Args:
             plant_type (str): The type of plant to add.
             stage (str): The stage of plant is in.
+            details (str): Plant details (optional)
         """
         plant = PlantFactory.create_plant(plant_type)
         self.tent.add_plant(plant)
@@ -217,7 +218,7 @@ class GrowthManager:
         self.timer.notify()
         for plant in self.tent.get_all_plants():
             self.database_manager.update_plant_growth_stage(
-                plant.name, plant.state.__class__.__name__
+                plant.name, plant.stage.__class__.__name__
             )
             plant.get_moisture_level()
 

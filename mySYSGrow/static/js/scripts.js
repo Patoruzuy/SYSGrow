@@ -79,7 +79,12 @@ function addDeviceAndSubmit() {
 
 function testDevice(functionality, index) {
     const functionality = document.getElementById(functionality).value;
-    fetch(`/test_device?functionality=${functionality}`)
+
+    const queryString = new URLSearchParams({
+        functionality: functionality
+    }).toString();
+
+    fetch(`/test_device?${queryString}`)
         .then(response => response.json())
         .then(data => {
             const resultElement = document.getElementById(`test_result_${index}`);

@@ -199,25 +199,18 @@ def test_device():
 @app.route('/settings', methods=['GET', 'POST'])
 def settings():
     if request.method == 'POST':
-        devices = []
-        device_count = int(request.form['device_count'])
-        for i in range(1, device_count + 1):
-            name = request.form.get(f'device_name_{i}')
-            gpio = request.form.get(f'device_gpio_{i}')
-            ip_address = request.form.get(f'device_ip_{i}')
-            functionality = request.form.get(f'device_functionality_{i}')
-            if name and functionality:
-                gpio = int(gpio) if gpio else None
-                devices.append({
-                    'name': name,
-                    'gpio': gpio,
-                    'ip_address': ip_address,
-                    'functionality': functionality
-                    })
-        # Clear existing devices and add the new ones
-        database_manager.clear_devices()
-        for device in devices:
-            manager.device_manager.add_device(**device)
+        name = request.form.get(f'device_name')
+        gpio = request.form.get(f'device_gpio')
+        ip_address = request.form.get(f'device_ip')
+        functionality = request.form.get(f'device_functionality')
+        if name and functionality:
+            gpio = int(gpio) if gpio else None
+            manager.device_manager.add_device(
+                'name': name,
+                'gpio': gpio,
+                'ip_address': ip_address,
+                'functionality': functionality
+                )
         return redirect(url_for('settings'))
     else:
         devices = database_manager.get_device_configs()

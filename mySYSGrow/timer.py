@@ -47,7 +47,7 @@ class Timer:
         """
         self.observers.remove(observer)
 
-    def notify(self, message):
+    def notify(self, message=None):
         """
         Notifies all attached observers with a specific message.
 

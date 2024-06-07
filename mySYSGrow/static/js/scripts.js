@@ -68,7 +68,7 @@ function addDeviceAndSubmit() {
             <option value="humidity">Humidity Control</option>
             <option value="soil_moisture">Soil Moisture</option>
         </select>
-        <button type="button" onclick="testDevice('device_name_${count}', 'device_gpio_${count}', 'device_ip_${count}', 'device_functionality_${count}', ${count})">Test Device</button>
+        <button type="button" onclick="testDevice('device_functionality_${count}', ${count})">Test Device</button>
         <span id="test_result_${count}"></span>
     `;
 

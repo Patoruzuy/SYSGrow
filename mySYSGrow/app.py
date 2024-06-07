@@ -10,6 +10,7 @@ from grow_manager import GrowthManager, DatabaseManager
 import matplotlib.pyplot as plt
 import io
 import base64
+import atexit
 
 
 app = Flask(__name__, static_folder='static')
@@ -21,6 +22,8 @@ with app.app_context():
     global manager
     manager = GrowthManager(database_manager=database_manager)
 
+# Register cleanup function to be called on exit
+atexit.register(manager.device_manager.cleanup)
 
 @app.route('/')
 def index():

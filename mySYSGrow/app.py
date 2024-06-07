@@ -77,7 +77,8 @@ def add_plant():
     """
     if request.method == 'POST':
         plant_type = request.form['plant_type']
-        manager.add_plant(plant_type)
+        plant_stage = request.form['plant_stage']
+        manager.add_plant(plant_type, plant_stage)
         return redirect(url_for('index'))
     return render_template('add_plant.html')
 

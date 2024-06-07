@@ -8,11 +8,9 @@ Date: 26/05/2024
 from timer import *
 from grow_tent import Tent
 from grow_plant import *
-from db_manager import DatabaseManager
 from sensor import Sensor, SoilMoistureSensor
 from flask import current_app
-from relay.relay import Relay
-from device_manager import DeviceManager, Device
+from device_manager import DeviceManager
 
 class GrowthManager:
     """
@@ -48,7 +46,7 @@ class GrowthManager:
         self.fan_gpio = None
         self.water_spray_gpio = None
         self.hysteresis = 2
-        self.add_plant("Cannabies", "Seed")
+        self.add_plant("Cannabies", "Seedling")
         self.load_settings() 
 
     def load_settings(self):
@@ -130,17 +128,18 @@ class GrowthManager:
         plants = [self.create_plant_from_row(row) for row in rows]
         return plants
     
-    def add_plant(self, plant_type, state):
+    def add_plant(self, plant_type, stage):
         """
         Adds a plant to the tent and sets up monitoring for it.
 
         Args:
             plant_type (str): The type of plant to add.
+            stage (str): The stage of plant is in.
         """
         plant = PlantFactory.create_plant(plant_type)
         self.tent.add_plant(plant)
         self.timer.attach(PlantTimerObserver(plant))
-        self.database_manager.insert_plant(plant.name, state, moisture_level=None)
+        self.database_manager.insert_plant(plant.name, stage, moisture_level=None)
         plant.soil_moisture_sensor.attach(self)
 
     def remove_plant(self, plant):
@@ -155,14 +154,14 @@ class GrowthManager:
         self.soil_moisture_sensor.detach(self)
 
 
-    def set_hysteresis(self,value):
+    def set_hysteresis(self, hysteresis):
         """
         Sets the hysteresis value to prevent rapid cycling.
 
         Args:
             hysteresis (int): The new hysteresis value
         """
-        self.hysteresis = value
+        self.hysteresis = hysteresis
 
     def set_stage_durations(self, plant_name, seed_days, veg_days, flowering_days):
         """
@@ -170,7 +169,7 @@ class GrowthManager:
 
         Args:
             plant_name (str): The name of the plant for which to set the stage durations.
-            seed_days (int): The number of days for the seed stage.
+            seed_days (int): The number of days for the seedling stage.
             veg_days (int): The number of days for the vegetative stage.
             flowering_days (int): The number of days for the flowering stage.
         """
@@ -271,26 +270,3 @@ class GrowthManager:
                 self.update_soil_moisture(plant, moisture_level)
         return data
     
-    def turn_on_light(self):
-        """Turn on the light by activating the light relay."""
-        self.light.turn_on()
-
-    def turn_off_light(self):
-        """Turn off the light by deactivating the light relay."""
-        self.light.turn_off()
-
-    def turn_on_fan(self):
-        """Turn on the fan by activating the fan relay."""
-        self.fan.turn_on()
-
-    def turn_off_fan(self):
-        """Turn off the fan by deactivating the fan relay."""
-        self.fan.turn_off()
-
-    def turn_on_water_spray(self):
-        """Turn on the water spray by activating the water spray relay."""
-        self.water_spray.turn_on()
-
-    def turn_off_water_spray(self):
-        """Turn off the water spray by deactivating the water spray relay."""
-        self.water_spray.turn_off()

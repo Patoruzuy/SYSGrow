@@ -30,7 +30,7 @@ class Plant:
         self.name = name
         self.state = SeedState(self)
         self.soil_moisture_sensor = SoilMoistureSensor(self)
-        self.stage_durations = {'Seed': 7,
+        self.stage_durations = {'Seedling': 7,
                                 'Vegetative' : 23,
                                 'Flowering': 30}
         self.days_in_current_stage = 0
@@ -50,11 +50,11 @@ class Plant:
         Sets the durations for each growth stage of the plant.
 
         Args:
-            seed_days (int): The number of days for the seed stage.
+            seed_days (int): The number of days for the seedling stage.
             veg_days (int): The number of days for the vegetative stage.
             flowering_days (int): The number of days for the flowering stage.
         """
-        self.stage_durations['Seed'] = seed_days
+        self.stage_durations['Seedling'] = seed_days
         self.stage_durations['Vegetative'] = veg_days
         self.stage_durations['Flowering'] = flowering_days
 
@@ -66,7 +66,7 @@ class Plant:
         self.state.grow()
         self.days_in_current_stage +=1
         # Check and transition to the next stage if the current stage duration is met
-        if self.stage.__class__.__name__ == 'SeedState' and self.days_in_current_stage >= self.stage_durations['Seed']:
+        if self.stage.__class__.__name__ == 'SeedState' and self.days_in_current_stage >= self.stage_durations['Seedling']:
             self.set_state(GrowState(self))
         elif self.stage.__class__.__name__ == 'GrowState' and self.days_in_current_stage >= self.stage_durations['Vegetative']:
             self.set_state(FloweringState(self))
@@ -159,11 +159,11 @@ class PlantState:
 
 class SeedState(PlantState):
     """
-    Represents the seed state of a plant.
+    Represents the seedling state of a plant.
     """
     def grow(self):
         """
-        Transitions the plant from the seed state to the grow state.
+        Transitions the plant from the seedling state to the grow state.
         """
         print(f"{self.plant.name} is growing from a seed.")
         self.plant.set_state(GrowState(self.plant))

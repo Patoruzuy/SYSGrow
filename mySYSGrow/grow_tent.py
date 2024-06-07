@@ -45,7 +45,10 @@ class Tent:
         """
         self.plants.remove(plant)
 
-    def get_plants(self) -> list:
+    #def get_plant_by_name(plant_name) -> srt:
+
+
+    def get_all_plants(self) -> list:
         """
         Retrieves the list of plants in the tent.
         

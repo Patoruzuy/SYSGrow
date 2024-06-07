@@ -77,8 +77,7 @@ class DatabaseManager:
                                 growth_stage TEXT,
                                 moisture_level REAL
                                 )''')
-            db.execute('''
-                                CREATE TABLE IF NOT EXISTS Settings (
+            db.execute('''CREATE TABLE IF NOT EXISTS Settings (
                                 id INTEGER PRIMARY KEY,
                                 light_start_time TEXT,
                                 light_end_time TEXT,
@@ -88,6 +87,13 @@ class DatabaseManager:
                                 light_gpio REAL,
                                 fan_gpio REAL,
                                 water_spray_gpio REAL
+                                )''')
+            db.execute('''CREATE TABLE IF NOT EXISTS plant_sensors (
+                                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                plant_id INTEGER,
+                                sensor_id INTEGER,
+                                FOREIGN KEY (plant_id) REFERENCES Plants(id),
+                                FOREIGN KEY (sensor_id) REFERENCES Device(id)
                                 )''')
             db.commit()
         except sqlite3.Error as e:
@@ -169,6 +175,76 @@ class DatabaseManager:
             db.commit()
         except sqlite3.Error as e:
             logging.error(f"Error inserting plant: {e}")
+
+    def link_sensor_to_plant(self, plant_id, sensor_id):
+        """
+        Link a soil moisture sensor to a plant in the database.
+
+        Args:
+            plant_id (int): The ID of the plant.
+            sensor_id (int): The ID of the sensor.
+        """
+        try:
+            db = self.get_db()
+            db.execute("INSERT INTO plant_sensors (plant_id, sensor_id) VALUES (?, ?)",
+                       (plant_id, sensor_id))
+            db.commit()
+        except sqlite3.Error as e:
+            logging.error(f"Error linking sensor to plant: {e}")
+
+    def get_sensors_for_plant(self, plant_id):
+        """
+        Get sensors linked to a specific plant.
+
+        Args:
+            plant_id (int): The ID of the plant.
+
+        Returns:
+            list: List of sensor IDs linked to the plant.
+        """
+        try:
+            db = self.get_db()
+            cursor = db.execute("SELECT sensor_id FROM plant_sensors WHERE plant_id = ?", (plant_id,))
+            return [row['sensor_id'] for row in cursor.fetchall()]
+        except sqlite3.Error as e:
+            logging.error(f"Error getting sensors for plant: {e}")
+            return []
+
+    def get_plant_by_id(self, plant_id):
+        """
+        Get plant details by ID.
+
+        Args:
+            plant_id (int): The ID of the plant.
+
+        Returns:
+            dict: Details of the plant.
+        """
+        try:
+            db = self.get_db()
+            cursor = db.execute("SELECT * FROM Plants WHERE id = ?", (plant_id,))
+            return cursor.fetchone()
+        except sqlite3.Error as e:
+            logging.error(f"Error getting plant by ID: {e}")
+            return None
+
+    def get_device_by_id(self, device_id):
+        """
+        Get device details by ID.
+
+        Args:
+            device_id (int): The ID of the device.
+
+        Returns:
+            dict: Details of the device.
+        """
+        try:
+            db = self.get_db()
+            cursor = db.execute("SELECT * FROM Device WHERE id = ?", (device_id,))
+            return cursor.fetchone()
+        except sqlite3.Error as e:
+            logging.error(f"Error getting device by ID: {e}")
+            return None   
 
     def update_plant_growth_stage(self, name, growth_stage):
         """

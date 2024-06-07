@@ -42,7 +42,7 @@ setInterval(fetchSensorData, 5000);
 // Fetch data immediately when the page loads
 window.onload = fetchSensorData;
 
-function addDevice() {
+function addDeviceAndSubmit() {
     const deviceCount = document.getElementById('device_count');
     let count = parseInt(deviceCount.value);
 
@@ -71,6 +71,7 @@ function addDevice() {
     `;
 
     newDeviceContainer.appendChild(newDeviceDiv);
+    document.getElementById('settings-form').submit();
 }
 
 

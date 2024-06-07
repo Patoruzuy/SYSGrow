@@ -85,6 +85,19 @@ def add_plant():
         return redirect(url_for('index'))
     return render_template('add_plant.html')
 
+@app.route('/link_sensor', methods=['POST'])
+def link_sensor():
+    """
+    Link a soil moisture sensor to a plant.
+
+    Returns:
+        redirect: Redirect to the index page.
+    """
+    plant_id = request.form['plant_id']
+    sensor_id = request.form['sensor_id']
+    manager.link_sensor_to_plant(plant_id, sensor_id)
+    return redirect(url_for('index'))
+
 @app.route('/reading_update')
 def reading_update():
     """

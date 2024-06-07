@@ -148,7 +148,7 @@ class DeviceManager:
         if device:
             device.turn_on()
         else:
-            print(f"Device with functionality '{functionality}' not found.")
+            print(f"Cannot turn on device with functionality '{functionality}' because is not found.")
 
     def turn_off_device(self, functionality):
         """
@@ -161,7 +161,7 @@ class DeviceManager:
         if device:
             device.turn_off()
         else:
-            print(f"Device with functionality '{functionality}' not found.")
+            print(f"Cannot turn off device with functionality '{functionality}' because is not found.")
 
     def test_device(self, functionality):
         """

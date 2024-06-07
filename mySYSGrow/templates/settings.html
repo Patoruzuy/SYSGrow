@@ -15,14 +15,16 @@
             <label for="device_functionality_1">Functionality:</label>
             <select id="device_functionality_1" name="device_functionality_1">
                 <option value="light">Light</option>
-                <option value="temperature_control">Temperature Control</option>
-                <option value="humidity_control">Humidity Control</option>
+                <option value="temperature">Temperature Control</option>
+                <option value="humidity">Humidity Control</option>
+                <option value="soil_moisture">Soil Moisture</option>
             </select>
             <button type="button" onclick="testDevice('new_device', 1)">Test Device</button>
             <span id="test_result_1"></span>
         </div>
     </div>
-    <input type="submit" value="Save">
+    <button type="button" onclick="addDeviceAndSubmit()">Add Device</button>
+    <input type="submit" value="Save" id="save-button" style="display: none;">
 </form>
 
 <h1>Devices</h1>

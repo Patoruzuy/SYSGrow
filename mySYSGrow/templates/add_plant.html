@@ -5,6 +5,8 @@
 <form method="post" action="{{ url_for('add_plant') }}">
     <label for="plant_type">Plant Type:</label>
     <input type="text" id="plant_type" name="plant_type" required>
+    <label for="plant_name">Plant Name:</label>
+    <input type="text" id="plant_name" name="plant_name">
     <label for="plant_stage">Plant stage:</label>
     <select id="plant_stage" name="plant_stage">
         <option value="seedling">Seedling</option>
@@ -14,4 +16,24 @@
     <input type="text" id="plant_stage" name="plant_stage" required>
     <button type="submit">Add Plant</button>
 </form>
+
+<h1>Link Soil Moisture Sensor</h1>
+<form id="link-sensor-form" method="POST" action="{{ url_for('link_sensor') }}">
+    <label for="plant_id">Select Plant:</label>
+    <select id="plant_id" name="plant_id">
+        {% for plant in plants %}
+        <option value="{{ plant.id }}">{{ plant.name }}</option>
+        {% endfor %}
+    </select>
+    <label for="sensor_id">Select Soil Moisture Sensor:</label>
+    <select id="sensor_id" name="sensor_id">
+        {% for device in devices %}
+        {% if device.functionality == "soil_moisture" %}
+        <option value="{{ device.id }}">{{ device.name }}</option>
+        {% endif %}
+        {% endfor %}
+    </select>
+    <button type="submit">Link Sensor</button>
+</form>
+
 {% endblock %}

@@ -156,6 +156,20 @@ class GrowthManager:
         self.timer.detach(PlantTimerObserver(plant))
         self.soil_moisture_sensor.detach(self)
 
+    def link_sensor_to_plant(self, plant_id, sensor_id):
+        """
+        Link a soil moisture sensor to a plant.
+
+        Args:
+            plant_id (int): The ID of the plant.
+            sensor_id (int): The ID of the sensor.
+        """
+        plant = self.database_manager.get_plant_by_id(plant_id)
+        sensor = self.device_manager.get_device_by_id(sensor_id)
+
+        if plant and sensor:
+            self.database_manager.link_sensor_to_plant(plant_id, sensor_id)
+            print(f"Linked sensor '{sensor.name}' to plant '{plant.name}'.")
 
     def set_hysteresis(self, hysteresis):
         """

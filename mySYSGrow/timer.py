@@ -130,7 +130,7 @@ class PlantTimerObserver:
         """
         self.plant = plant
 
-    def update(self):
+    def update(self, message=None):
         """
         Triggers the plant to grow when the timer notifies.
         """

@@ -42,19 +42,23 @@ setInterval(fetchSensorData, 5000);
 // Fetch data immediately when the page loads
 window.onload = fetchSensorData;
 
-function testEntity(functionality) {
+function testDevice(functionality) {
+    if (!functionality) {
+        document.getElementById('test_result').textContent = "No functionality selected.";
+        return;
+    }
     const xhr = new XMLHttpRequest();
-    xhr.open("GET", `/test_device?functionality=${functionality}`);
-    xhr.onload = function() {
-        if (xhr.status == 200) {
-            const response = JSON.parse(xhr.responseText);
-            document.getElementById('test_result').textContent = response.success ? "Device test successful" : "Device test failed";
-        } else {
-            document.getElementById('test_result').textContent = "Error testing device";
+    xhr.open("GET", `/test_device?functionality=${functionality}`, true);
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState == 4) {
+            if (xhr.status == 200) {
+                const response = JSON.parse(xhr.responseText);
+                document.getElementById('test_result').textContent = response.success ? "Device test successful" : "Device test failed";
+            } else {
+                document.getElementById('test_result').textContent = "Error testing device: " + xhr.status;
+            }
         }
-    };
-    xhr.onerror = function() {
-        document.getElementById('test_result').textContent = "Network error";
     };
     xhr.send();
 }
+

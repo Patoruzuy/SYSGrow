@@ -55,6 +55,7 @@ class Timer:
             message (str): The message to send to observers.
         """
         for observer in self.observers:
+            print(f"Notifying {observer} with message '{message}'")
             observer.update(message)
 
     def schedule_light(self, start_time, end_time):

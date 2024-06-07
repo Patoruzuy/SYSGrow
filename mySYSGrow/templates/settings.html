@@ -46,7 +46,7 @@
             <td>{{ device.gpio }}</td>
             <td>{{ device.ip_address }}</td>
             <td>{{ device.functionality }}</td>
-            <td><button type="button" onclick="ttestDevice('{{ device.functionality }}', '{{ loop.index }}')">Test</button></td>
+            <td><button type="button" onclick="testDevice('{{ device.functionality }}', '{{ loop.index }}')">Test</button></td>
         </tr>
         {% endfor %}
     </tbody>

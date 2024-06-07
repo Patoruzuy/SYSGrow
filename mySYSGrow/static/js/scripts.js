@@ -42,27 +42,19 @@ setInterval(fetchSensorData, 5000);
 // Fetch data immediately when the page loads
 window.onload = fetchSensorData;
 
-function testDevice(functionality, index = null) {
-    const queryString = new URLSearchParams({
-        functionality: functionality
-    }).toString();
-
-    fetch(`/test_device?${queryString}`)
-        .then(response => response.json())
-        .then(data => {
-            const resultElement = index ? document.getElementById(`test_result_${index}`) : document.getElementById('test_result');
-            if (data.success) {
-                resultElement.innerText = "Test successful!";
-                resultElement.style.color = "green";
-            } else {
-                resultElement.innerText = "Test failed.";
-                resultElement.style.color = "red";
-            }
-        })
-        .catch(error => {
-            console.error('Error testing device:', error);
-            const resultElement = index ? document.getElementById(`test_result_${index}`) : document.getElementById('test_result');
-            resultElement.innerText = "Error testing device.";
-            resultElement.style.color = "red";
-        });
+function testEntity(functionality) {
+    const xhr = new XMLHttpRequest();
+    xhr.open("GET", `/test_device?functionality=${functionality}`);
+    xhr.onload = function() {
+        if (xhr.status == 200) {
+            const response = JSON.parse(xhr.responseText);
+            document.getElementById('test_result').textContent = response.success ? "Device test successful" : "Device test failed";
+        } else {
+            document.getElementById('test_result').textContent = "Error testing device";
+        }
+    };
+    xhr.onerror = function() {
+        document.getElementById('test_result').textContent = "Network error";
+    };
+    xhr.send();
 }

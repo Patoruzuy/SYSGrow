@@ -8,6 +8,7 @@ Date: 26/05/2024
 from timer import *
 from grow_tent import Tent
 from grow_plant import *
+from db_manager import DatabaseManager
 from sensor import Sensor, SoilMoistureSensor
 from flask import current_app
 from device_manager import DeviceManager

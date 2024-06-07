@@ -206,10 +206,7 @@ def settings():
         if name and functionality:
             gpio = int(gpio) if gpio else None
             manager.device_manager.add_device(
-                'name': name,
-                'gpio': gpio,
-                'ip_address': ip_address,
-                'functionality': functionality
+                name, gpio, ip_address, functionality
                 )
         return redirect(url_for('settings'))
     else:

@@ -66,3 +66,7 @@ class Relay:
         if self.is_gpio_relay:
             GPIO.cleanup(self.pin)
 
+    def __del__(self):
+        """Destructor to ensure cleanup is called when the object is destroyed."""
+        self.cleanup()
+

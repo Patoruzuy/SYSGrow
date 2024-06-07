@@ -194,18 +194,38 @@ class GrowthManager:
         self.soil_moisture_threshold = soil_moisture_threshold
         self.save_settings()
 
+    def create_light_observer(self):
+        """
+        Creates the LightObserver if a light device is available.
+        """
+        light_device = self.device_manager.get_device_by_functionality("light")
+        if light_device:
+            self.light_observer = LightObserver(self.device_manager, functionality="light")
+            self.timer.attach(self.light_observer)
+            print("LightObserver created and attached to the timer.")
+        else:
+            print("No light device found. LightObserver not created.")
+
     def set_light_schedule(self, start_time, end_time):
         """
-        Schedules the light to turn on and off at specified times and saves the settings.
+        Schedules the light on/off times.
 
         Args:
-            start_time (str): The time to turn on the light.
-            end_time (str): The time to turn off the light.
+            start_time (str): The start time for the light schedule in 'HH:MM' format.
+            end_time (str): The end time for the light schedule in 'HH:MM' format.
         """
-        self.light_start_time = start_time
-        self.light_end_time = end_time
-        self.timer.schedule_light(start_time, end_time)
-        self.save_settings()
+        if not self.light_observer:
+            self.create_light_observer()
+        
+        if self.light_observer:
+            self.light_start_time = start_time
+            self.light_end_time = end_time
+            self.timer.schedule_light(self.start_time, self.end_time)
+            self.save_settings()
+            print(f"Light scheduled from {start_time} to {end_time}.")
+        else:
+            print("Cannot schedule light. No LightObserver available.")
+
 
     def get_light_schedule(self):
         return self.database_manager.get_light_schedule()

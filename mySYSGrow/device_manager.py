@@ -172,3 +172,16 @@ class DeviceManager:
         if device:
             return device.test()
         return False
+
+    def cleanup(self):
+        """
+        Cleans up all devices managed by the DeviceManager.
+        """
+        for device in self.devices.values():
+            device.cleanup()
+
+    def __del__(self):
+        """
+        Destructor to ensure cleanup is called when the DeviceManager object is destroyed.
+        """
+        self.cleanup()

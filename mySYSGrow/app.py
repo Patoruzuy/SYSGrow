@@ -172,8 +172,8 @@ def set_stage_durations():
 
 @app.route('/test_device')
 def test_device():
-    device_name = request.args.get('device')
-    success = manager.device_manager.test_device(device_name)
+    functionality = request.args.get('device_functionality_1')
+    success = manager.device_manager.test_device(functionality)
     return jsonify({'success': success})
 
 @app.route('/settings', methods=['GET', 'POST'])

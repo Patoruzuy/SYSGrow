@@ -46,7 +46,29 @@
     <button type="button" onclick="addDevice()">Add Device</button>
     <input type="submit" value="Save">
 </form>
-
+<h1>Devices</h1>
+<table>
+    <thead>
+        <tr>
+            <th>Id</th>
+            <th>Device Name</th>
+            <th>GPIO</th>
+            <th>IP address</th>
+            <th>Functionality</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for data in devices %}
+        <tr>
+            <td>{{ data[1] }}</td>
+            <td>{{ data[2] }}</td>
+            <td>{{ data[3] }}</td>
+            <td>{{ data[4] }}</td>
+            <td>{{ data[5] }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
 
 <h2>Threshold Settings</h2>
 <form method="post" action="{{ url_for('set_thresholds') }}">

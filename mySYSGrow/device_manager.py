@@ -179,7 +179,7 @@ class DeviceManager:
         Cleans up all devices managed by the DeviceManager.
         """
         for device in self.devices.values():
-            device.reley.cleanup()
+            device.relay.cleanup()
 
     def __del__(self):
         """

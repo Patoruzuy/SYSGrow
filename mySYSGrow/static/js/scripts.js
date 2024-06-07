@@ -64,10 +64,11 @@ function addDeviceAndSubmit() {
         <label for="device_functionality_${count}">Functionality:</label>
         <select id="device_functionality_${count}" name="device_functionality_${count}">
             <option value="light">Light</option>
-            <option value="temperature_control">Temperature Control</option>
-            <option value="humidity_control">Humidity Control</option>
+            <option value="temperature">Temperature Control</option>
+            <option value="humidity">Humidity Control</option>
+            <option value="soil_moisture">Soil Moisture</option>
         </select>
-        <button type="button" onclick="testDevice('new_device', ${count})">Test Device</button>
+        <button type="button" onclick="testDevice('device_name_${count}', 'device_gpio_${count}', 'device_ip_${count}', 'device_functionality_${count}', ${count})">Test Device</button>
         <span id="test_result_${count}"></span>
     `;
 

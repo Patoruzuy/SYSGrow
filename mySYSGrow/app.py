@@ -85,7 +85,7 @@ def add_plant():
         return redirect(url_for('index'))
     return render_template('add_plant.html')
 
-@app.route('/link_sensor', methods=['GET', 'POST'])
+@app.route('/link_sensor', methods=['POST'])
 def link_sensor():
     """
     Link a soil moisture sensor to a plant.
@@ -98,7 +98,7 @@ def link_sensor():
         sensor_id = request.form['sensor_id']
         manager.link_sensor_to_plant(plant_id, sensor_id)
         return redirect(url_for('index'))
-    plants = manager.get_all_plants()
+    plants = manager.database_manager.get_all_plants()
     return render_template('add_plant.html', plants=plants)
 
 @app.route('/reading_update')
@@ -199,26 +199,31 @@ def test_device():
 @app.route('/settings', methods=['GET', 'POST'])
 def settings():
     if request.method == 'POST':
-        devices = []
-        device_count = int(request.form['device_count'])
-        for i in range(1, device_count + 1):
-            name = request.form.get(f'device_name_{i}')
-            gpio = request.form.get(f'device_gpio_{i}')
-            ip_address = request.form.get(f'device_ip_{i}')
-            functionality = request.form.get(f'device_functionality_{i}')
-            if name and functionality:
-                gpio = int(gpio) if gpio else None
-                devices.append({
-                    'name': name,
-                    'gpio': gpio,
-                    'ip_address': ip_address,
-                    'functionality': functionality
-                })
-        # Clear existing devices and add the new ones
-        database_manager.clear_devices()
-        for device in devices:
-            manager.device_manager.add_device(**device)
-        return redirect(url_for('settings'))
+        if 'add_device' in request.form:
+            # Handle adding a new device
+            device_count = int(request.form['device_count']) + 1
+            return redirect(url_for('settings', device_count=device_count))
+        elif 'save' in request.form:
+            devices = []
+            device_count = int(request.form['device_count'])
+            for i in range(1, device_count + 1):
+                name = request.form.get(f'device_name_{i}')
+                gpio = request.form.get(f'device_gpio_{i}')
+                ip_address = request.form.get(f'device_ip_{i}')
+                functionality = request.form.get(f'device_functionality_{i}')
+                if name and functionality:
+                    gpio = int(gpio) if gpio else None
+                    devices.append({
+                        'name': name,
+                        'gpio': gpio,
+                        'ip_address': ip_address,
+                        'functionality': functionality
+                    })
+            # Clear existing devices and add the new ones
+            database_manager.clear_devices()
+            for device in devices:
+                manager.device_manager.add_device(**device)
+            return redirect(url_for('settings'))
     else:
         devices = database_manager.get_device_configs()
         return render_template('settings.html', devices=devices)

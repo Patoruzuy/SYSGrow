@@ -42,44 +42,8 @@ setInterval(fetchSensorData, 5000);
 // Fetch data immediately when the page loads
 window.onload = fetchSensorData;
 
-function addDeviceAndSubmit() {
-    const deviceCount = document.getElementById('device_count');
-    let count = parseInt(deviceCount.value);
-
-    count += 1;
-    deviceCount.value = count;
-
-    const newDeviceContainer = document.getElementById('new-device-container');
-    const newDeviceDiv = document.createElement('div');
-    newDeviceDiv.classList.add('device');
-    newDeviceDiv.id = `device_${count}`;
-
-    newDeviceDiv.innerHTML = `
-        <label for="device_name_${count}">Device Name:</label>
-        <input type="text" id="device_name_${count}" name="device_name_${count}">
-        <label for="device_gpio_${count}">GPIO:</label>
-        <input type="text" id="device_gpio_${count}" name="device_gpio_${count}">
-        <label for="device_ip_${count}">IP Address:</label>
-        <input type="text" id="device_ip_${count}" name="device_ip_${count}">
-        <label for="device_functionality_${count}">Functionality:</label>
-        <select id="device_functionality_${count}" name="device_functionality_${count}">
-            <option value="light">Light</option>
-            <option value="temperature">Temperature Control</option>
-            <option value="humidity">Humidity Control</option>
-            <option value="soil_moisture">Soil Moisture</option>
-        </select>
-        <button type="button" onclick="testDevice('device_functionality_${count}', ${count})">Test Device</button>
-        <span id="test_result_${count}"></span>
-    `;
-
-    newDeviceContainer.appendChild(newDeviceDiv);
-    document.getElementById('settings-form').submit();
-}
-
 
 function testDevice(functionality, index) {
-    const functionality = document.getElementById(functionality).value;
-
     const queryString = new URLSearchParams({
         functionality: functionality
     }).toString();

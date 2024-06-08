@@ -191,7 +191,7 @@ def set_stage_durations():
     return render_template('set_stage_durations.html', plants=plants)
 
 @app.route('/actuator')
-def index():
+def actuator():
     available_actuators = ['Heater', 'Cooler', 'Humidifier', 'CO2Injector']  # List all available actuator types
     active_actuators = manager.actuator_manager.get_actuators()
     return render_template('actuator.html', available_actuators=available_actuators, active_actuators=active_actuators)

@@ -207,7 +207,7 @@ def add_actuator():
     manager.actuator_manager.add_actuator(actuator_type, actuator)
     return jsonify({"status": "success", "actuator": actuator_type})
 
-@app.route('/add_sensor', method=['POST'])
+@app.route('/add_sensor', methods=['POST'])
 def add_sensor():
     sensor_type = request.form['sensor_type']
     sensor_pin = int(request.form['sensor_pin'])

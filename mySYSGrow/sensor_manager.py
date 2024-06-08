@@ -180,6 +180,7 @@ class SensorManager:
             type (str): The type of sensor.
             functionality (str): Description of the sensor's functionality.
         """
+        self.database_manager.insert_device(name, gpio, ip_address, type, functionality)
         if type == 'dht':
             sensor = DHTSensor(pin=gpio)
         elif type == 'soil_moisture':

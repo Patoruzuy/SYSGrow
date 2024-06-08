@@ -73,9 +73,9 @@ class SensorManager:
             type (str): The type of sensor.
             functionality (str): Description of the sensor's functionality.
         """
-        if type == 'dht':
+        if functionality == 'dht':
             sensor = DHTSensor(pin=gpio)
-        elif type == 'soil_moisture':
+        elif functionality == 'soil_moisture':
             sensor = SoilMoistureSensor(plant=name)
         else:
             print(f"Unknown sensor type: {type}")

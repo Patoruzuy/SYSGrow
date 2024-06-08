@@ -240,6 +240,7 @@ def settings():
         ip_address = request.form.get('device_ip')
         sensor_functionality = request.form.get('sensor_functionality')
         actuator_functionality = request.form.get('actuator_functionality')
+        print("Sensor: ", sensor_functionality, "actuator: ", actuator_functionality)
 
         if name and (sensor_functionality or actuator_functionality):
             gpio = int(gpio) if gpio else None
@@ -247,9 +248,11 @@ def settings():
         if type == 'sensor':
             functionality = sensor_functionality
             manager.sensor_manager.add_sensor(name, gpio, ip_address, type, functionality)
+            print("Add to sensor manager", name, gpio, ip_address, type, functionality)
         elif type == 'actuator':
             functionality = actuator_functionality
-            manager.device_manager.add_device(name, gpio, ip_address, type, functionality)
+            print(name, gpio, ip_address, type, functionality)
+            manager.device_manager.add_device("Add to device manager", name, gpio, ip_address, type, functionality)
 
         return redirect(url_for('settings'))
     else:

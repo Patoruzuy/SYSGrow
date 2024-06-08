@@ -112,7 +112,7 @@ class DatabaseManager:
         """Inserts a new device into the Devices table."""
         try:
             db = self.get_db()
-            db.execute("INSERT INTO Device (name, gpio, ip_address, functionality) VALUES (?, ?, ?, ?, ?)",
+            db.execute("INSERT INTO Device (name, gpio, ip_address, type, functionality) VALUES (?, ?, ?, ?, ?)",
                             (name, gpio, ip_address, type, functionality))
             db.commit()
         except sqlite3.Error as e:

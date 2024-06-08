@@ -251,8 +251,8 @@ def settings():
             print("Add to sensor manager", name, gpio, ip_address, type, functionality)
         elif type == 'actuator':
             functionality = actuator_functionality
-            print(name, gpio, ip_address, type, functionality)
-            manager.device_manager.add_device("Add to device manager", name, gpio, ip_address, type, functionality)
+            print("Add to device manager", name, gpio, ip_address, type, functionality)
+            manager.device_manager.add_device(name, gpio, ip_address, type, functionality)
 
         return redirect(url_for('settings'))
     else:

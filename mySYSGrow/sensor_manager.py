@@ -64,7 +64,7 @@ class SoilMoistureSensor(Sensor):
             plant (str): The name of the plant associated with this sensor.
         """
         self.plant = plant
-        self.pin
+        self.pin = pin
         self.sensor = SoilMoistureSensorV2(self.pin)
 
     def read(self):

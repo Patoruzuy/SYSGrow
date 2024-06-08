@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<h1>Plant Tent Control</h1>
+<h2>Available Actuators</h2>
+<ul id="available-actuators">
+    {% for actuator in available_actuators %}
+    <li>{{ actuator }}</li>
+    {% endfor %}
+</ul>
+
+<h2>Active Actuators</h2>
+<ul id="active-actuators">
+    {% for actuator in active_actuators %}
+    <li>{{ actuator }}
+        <button onclick="removeActuator('{{ actuator }}')">Remove</button>
+        <button
+            onclick="controlActuator('{{ actuator }}', 'activate')">Activate</button>
+        <button
+            onclick="controlActuator('{{ actuator }}', 'deactivate')">Deactivate</button>
+    </li>
+    {% endfor %}
+</ul>
+
+<h2>Add Actuator</h2>
+<form id="add-actuator-form">
+    <label for="actuator_type">Actuator Type:</label>
+    <select id="actuator_type" name="actuator_type">
+        {% for actuator in available_actuators %}
+        <option value="{{ actuator }}">{{ actuator }}</option>
+        {% endfor %}
+    </select>
+    <label for="pin">GPIO Pin:</label>
+    <input type="number" id="pin" name="pin">
+    <button type="submit">Add Actuator</button>
+</form>
+
+<script>
+        document.getElementById('add-actuator-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            fetch('/add_actuator', {
+                method: 'POST',
+                body: formData
+            }).then(response => response.json())
+              .then(data => {
+                  alert(data.status);
+                  location.reload();
+              });
+        });
+
+        function removeActuator(actuatorType) {
+            fetch('/remove_actuator', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({actuator_type: actuatorType})
+            }).then(response => response.json())
+              .then(data => {
+                  alert(data.status);
+                  location.reload();
+              });
+        }
+
+        function controlActuator(actuatorType, action) {
+            fetch('/control_actuator', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({actuator_type: actuatorType, action: action})
+            }).then(response => response.json())
+              .then(data => {
+                  alert(data.status);
+              });
+        }
+</script>
+
+{% endblock %}

@@ -7,6 +7,7 @@ Date: 26/05/24
 
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 from grow_manager import GrowthManager, DatabaseManager
+from actuator_manager import RelayActuator
 import matplotlib.pyplot as plt
 import io
 import base64
@@ -188,6 +189,40 @@ def set_stage_durations():
         return redirect(url_for('index'))
     plants = manager.database_manager.get_all_plants()
     return render_template('set_stage_durations.html', plants=plants)
+
+@app.route('/actuator')
+def index():
+    available_actuators = ['Heater', 'Cooler', 'Humidifier', 'CO2Injector']  # List all available actuator types
+    active_actuators = manager.actuator_manager.get_actuators()
+    return render_template('actuator.html', available_actuators=available_actuators, active_actuators=active_actuators)
+
+
+@app.route('/add_actuator', methods=['POST'])
+def add_actuator():
+    actuator_type = request.form['actuator_type']
+    pin = int(request.form['pin'])
+
+    actuator = RelayActuator(actuator_type, pin)
+    manager.actuator_manager.add_actuator(actuator_type, actuator)
+    return jsonify({"status": "success", "actuator": actuator_type})
+
+@app.route('/remove_actuator', methods=['POST'])
+def remove_actuator():
+    actuator_type = request.form['actuator_type']
+    manager.actuator_manager.remove_actuator(actuator_type)
+    return jsonify({"status": "success", "actuator": actuator_type})
+
+@app.route('/control_actuator', methods=['POST'])
+def control_actuator():
+    actuator_type = request.form['actuator_type']
+    action = request.form['action']
+    
+    if action == 'activate':
+        manager.actuator_manager.activate_actuator(actuator_type)
+    elif action == 'deactivate':
+        manager.actuator_manager.deactivate_actuator(actuator_type)
+    
+    return jsonify({"status": "success", "actuator": actuator_type, "action": action})
 
 @app.route('/test_device')
 def test_device():

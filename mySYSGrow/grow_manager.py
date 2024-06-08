@@ -12,6 +12,7 @@ from db_manager import DatabaseManager
 from sensor import DHTSensor, SoilMoistureSensor
 from flask import current_app
 from device_manager import DeviceManager
+from actuator_manager import *
 
 class GrowthManager:
     """
@@ -39,6 +40,7 @@ class GrowthManager:
         self.sensor = DHTSensor(pin=4)
         self.sensor.attach(self)
         self.device_manager = DeviceManager(database_manager)
+        self.actuator_manager = ActuatorManager()
         self.temperature_threshold = 24
         self.humidity_threshold = 40
         self.soil_moisture_threshold = 50

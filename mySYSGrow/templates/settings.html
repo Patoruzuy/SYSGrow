@@ -59,7 +59,7 @@
             <td>{{ device.ip_address }}</td>
             <td>{{ device.type }}</td>
             <td>{{ device.functionality }}</td>
-            <td><button type="button" onclick="testDevice('{{ device.functionality }}', '{{ loop.index }}')">Test</button><span id="test_result"></span></td>
+            <td><button type="button" class="test-device-btn" data-functionality="{{ device.functionality }}">Test</button></td>
         </tr>
         {% endfor %}
     </tbody>

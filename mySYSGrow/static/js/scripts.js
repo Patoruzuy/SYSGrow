@@ -62,3 +62,14 @@ function testDevice(functionality) {
     xhr.send();
 }
 
+document.getElementById('test-device-btn').addEventListener('click', function () {
+    const functionality = document.getElementById('device_functionality').value;
+    testDevice(functionality);
+});
+
+document.querySelectorAll('.test-device-btn').forEach(button => {
+    button.addEventListener('click', function () {
+        const functionality = this.getAttribute('data-functionality');
+        testDevice(functionality);
+    });
+});

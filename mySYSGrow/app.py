@@ -100,6 +100,7 @@ def link_sensor():
         manager.link_sensor_to_plant(plant_id, sensor_id)
         return redirect(url_for('index'))
     plants = manager.database_manager.get_all_plants()
+    print("app.py plants: ", plants)
     return render_template('add_plant.html', plants=plants)
 
 @app.route('/reading_update')
@@ -200,11 +201,19 @@ def actuator():
 @app.route('/add_actuator', methods=['POST'])
 def add_actuator():
     actuator_type = request.form['actuator_type']
-    pin = int(request.form['pin'])
-
-    actuator = RelayActuator(actuator_type, pin)
+    actuator_pin = int(request.form['actuator_pin'])
+    actuator_ip = request.form.get('actuator_ip')
+    actuator = RelayActuator(actuator_type, actuator_pin, actuator_ip)
     manager.actuator_manager.add_actuator(actuator_type, actuator)
     return jsonify({"status": "success", "actuator": actuator_type})
+
+@app.route('/add_sensor', method=['POST'])
+def add_sensor():
+    sensor_type = request.form['sensor_type']
+    sensor_pin = int(request.form['sensor_pin'])
+    sensor_ip = request.form.get('sensor_ip')
+    manager.sensor_manager.add_sensor(sensor_type, sensor_pin, sensor_ip)
+    return jsonify({"status": "success", "actuator": sensor_type})
 
 @app.route('/remove_actuator', methods=['POST'])
 def remove_actuator():
@@ -212,6 +221,13 @@ def remove_actuator():
     actuator_type = data['actuator_type']
     manager.actuator_manager.remove_actuator(actuator_type)
     return jsonify({"status": "success", "actuator": actuator_type})
+
+@app.route('/remove_sensor', methods=['POST'])
+def remove_sensor():
+    data = request.json
+    sensor_type = data['sensor_type']
+    manager.sensor_manager.remove_sensor(sensor_type)
+    return jsonify({"status": "success", "actuator": sensor_type})
 
 @app.route('/control_actuator', methods=['POST'])
 def control_actuator():

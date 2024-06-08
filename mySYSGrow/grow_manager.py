@@ -9,7 +9,7 @@ from timer import *
 from grow_tent import Tent
 from grow_plant import *
 from db_manager import DatabaseManager
-from sensor import DHTSensor, SoilMoistureSensor
+from sensor import *
 from flask import current_app
 from device_manager import DeviceManager
 from actuator_manager import *
@@ -41,6 +41,7 @@ class GrowthManager:
         self.sensor.attach(self)
         self.device_manager = DeviceManager(database_manager)
         self.actuator_manager = ActuatorManager()
+        self.sensor_manager = SensorManager
         self.temperature_threshold = 24
         self.humidity_threshold = 40
         self.soil_moisture_threshold = 50

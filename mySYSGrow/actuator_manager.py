@@ -124,4 +124,5 @@ class ActuatorManager:
         Returns:
             list: A list of actuator names.
         """
+        print("ActuatorManager value: ",self.actuators.values())
         return self.actuators.keys()

@@ -135,6 +135,7 @@ class SensorManager:
         """
         self.database_manager = database_manager
         self.sensors = self._load_sensors_from_db()
+        self.sensors = {}
 
     def _load_sensors_from_db(self):
         """
@@ -143,7 +144,7 @@ class SensorManager:
         Returns:
             dict: A dictionary of Sensor objects keyed by their functionalities.
         """
-        sensors = {}
+        
         sensor_configs = self.database_manager.get_sensor_configs()
         for config in sensor_configs:
             if config['type'] == 'dht':
@@ -154,8 +155,18 @@ class SensorManager:
                 sensor = CO2Sensor(ip=config['ip_address'])
             else:
                 continue
-            sensors[config['functionality']] = sensor
-        return sensors
+            self.sensors[config['functionality']] = sensor
+        return self.sensors
+    
+    def get_sensors(self):
+        """
+        Returns the names of all managed sensors.
+
+        Returns:
+            list: A list of sensors names.
+        """
+        print("ActuatorManager value: ",self.actuators.values())
+        return self.sensors.keys()
 
     def get_sensor_by_functionality(self, functionality):
         """
@@ -169,7 +180,7 @@ class SensorManager:
         """
         return self.sensors.get(functionality)
 
-    def add_sensor(self, name, gpio, ip_address, type, functionality):
+    def add_sensor(self, name, gpio, ip_address, type, functionality=None):
         """
         Adds a new sensor to the manager.
 

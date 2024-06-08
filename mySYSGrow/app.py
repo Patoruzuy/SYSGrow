@@ -257,7 +257,9 @@ def settings():
         return redirect(url_for('settings'))
     else:
         devices = database_manager.get_device_configs()
+        print("devices:", devices)
         sensors = database_manager.get_sensor_configs()
+        print("sensors:", sensors)
         return render_template('settings.html', devices=devices, sensors=sensors)
     
 if __name__ == '__main__':

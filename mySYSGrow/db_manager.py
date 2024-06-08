@@ -170,7 +170,7 @@ class DatabaseManager:
         """Retrieves device configurations from the database."""
         try:
             db = self.get_db()
-            cursor = db.execute("SELECT name, gpio, ip_address, functionality FROM Device")
+            cursor = db.execute("SELECT name, gpio, ip_address, type, functionality FROM Device")
             rows = cursor.fetchall()
             device_configs = []
             for row in rows:

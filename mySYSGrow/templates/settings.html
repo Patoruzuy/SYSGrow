@@ -37,7 +37,7 @@
     <button type="submit" name="add_device" value="add">Add Device</button>
 </form>
 
-<h1>Devices</h1>
+<h1>Actuators</h1>
 <table>
     <thead>
         <tr>
@@ -45,6 +45,7 @@
             <th>Device Name</th>
             <th>GPIO</th>
             <th>IP Address</th>
+            <th>Type</th>
             <th>Functionality</th>
             <th>Test device</th>
         </tr>
@@ -56,8 +57,35 @@
             <td>{{ device.name }}</td>
             <td>{{ device.gpio }}</td>
             <td>{{ device.ip_address }}</td>
+            <td>{{ device.type }}</td>
             <td>{{ device.functionality }}</td>
             <td><button type="button" onclick="testDevice('{{ device.functionality }}', '{{ loop.index }}')">Test</button><span id="test_result"></span></td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<h1>Sensors</h1>
+<table>
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Device Name</th>
+            <th>GPIO</th>
+            <th>IP Address</th>
+            <th>Type</th>
+            <th>Functionality</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for sensor in sensors %}
+        <tr>
+            <td>{{ loop.index }}</td>
+            <td>{{ sensor.name }}</td>
+            <td>{{ sensor.gpio }}</td>
+            <td>{{ sensor.ip_address }}</td>
+            <td>{{ sensor.type }}</td>
+            <td>{{ sensor.functionality }}</td>
         </tr>
         {% endfor %}
     </tbody>

@@ -219,7 +219,8 @@ def settings():
         return redirect(url_for('settings'))
     else:
         devices = database_manager.get_device_configs()
-        return render_template('settings.html', devices=devices)
+        sensors = database_manager.get_sensor_configs()
+        return render_template('settings.html', devices=devices, sensors=sensors)
     
 if __name__ == '__main__':
     app.run(host="192.168.0.40", debug=True, use_reloader=False)

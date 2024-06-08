@@ -208,14 +208,16 @@ def add_actuator():
 
 @app.route('/remove_actuator', methods=['POST'])
 def remove_actuator():
-    actuator_type = request.form['actuator_type']
+    data = request.json
+    actuator_type = data['actuator_type']
     manager.actuator_manager.remove_actuator(actuator_type)
     return jsonify({"status": "success", "actuator": actuator_type})
 
 @app.route('/control_actuator', methods=['POST'])
 def control_actuator():
-    actuator_type = request.form['actuator_type']
-    action = request.form['action']
+    data = request.json
+    actuator_type = data['actuator_type']
+    action = data['action']
     
     if action == 'activate':
         manager.actuator_manager.activate_actuator(actuator_type)

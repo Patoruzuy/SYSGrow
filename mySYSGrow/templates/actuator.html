@@ -37,41 +37,41 @@
 </form>
 
 <script>
-        document.getElementById('add-actuator-form').addEventListener('submit', function(event) {
-            event.preventDefault();
-            const formData = new FormData(event.target);
-            fetch('/add_actuator', {
-                method: 'POST',
-                body: formData
-            }).then(response => response.json())
-              .then(data => {
-                  alert(data.status);
-                  location.reload();
-              });
+    document.getElementById('add-actuator-form').addEventListener('submit', function(event) {
+        event.preventDefault();
+        const formData = new FormData(event.target);
+        fetch('/add_actuator', {
+            method: 'POST',
+            body: formData
+        }).then(response => response.json())
+        .then(data => {
+            alert(data.status);
+            location.reload();
         });
+    });
 
-        function removeActuator(actuatorType) {
-            fetch('/remove_actuator', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({actuator_type: actuatorType})
-            }).then(response => response.json())
-              .then(data => {
-                  alert(data.status);
-                  location.reload();
-              });
-        }
+    function removeActuator(actuatorType) {
+        fetch('/remove_actuator', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({actuator_type: actuatorType})
+        }).then(response => response.json())
+        .then(data => {
+            alert(data.status);
+            location.reload();
+        });
+    }
 
-        function controlActuator(actuatorType, action) {
-            fetch('/control_actuator', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({actuator_type: actuatorType, action: action})
-            }).then(response => response.json())
-              .then(data => {
-                  alert(data.status);
-              });
-        }
+    function controlActuator(actuatorType, action) {
+        fetch('/control_actuator', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({actuator_type: actuatorType, action: action})
+        }).then(response => response.json())
+        .then(data => {
+            alert(data.status);
+        });
+    }
 </script>
 
 {% endblock %}

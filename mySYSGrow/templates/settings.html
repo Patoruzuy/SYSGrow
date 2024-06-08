@@ -8,19 +8,30 @@
         <div class="device" id="device">
             <label for="device_name">Device Name:</label>
             <input type="text" id="device_name" name="device_name">
+            <label for="device_type">Type:</label>
+            <select id="device_type" name="device_type">
+                <option value="sensor">Sensor</option>
+                <option value="actuator">Actuator</option>
             <label for="device_gpio">GPIO:</label>
             <input type="text" id="device_gpio" name="device_gpio">
             <label for="device_ip">IP Address:</label>
             <input type="text" id="device_ip" name="device_ip">
-            <label for="device_functionality">Functionality:</label>
-            <select id="device_functionality" name="device_functionality">
-                <option value="light">Light</option>
-                <option value="temperature">Temperature Control</option>
-                <option value="humidity">Humidity Control</option>
-                <option value="soil_moisture">Soil Moisture</option>
+            <label for="sensor_functionality">Sensors</label>
+            <select id="sensor_functionality" name="sensor_functionality">
+                <option value="dht">Digital humedity and temperature</option>
+                <option value="soil_moisture">Soil moisture</option>
+                <option value="co2_injector">CO2</option>
             </select>
-            <button type="button" onclick="testDevice(document.getElementById('device_functionality').value)">Test Device</button>
-            <span id="test_result"></span>
+            <label for="actuator_functionality">Actuators:</label>
+            <select id="actuator_functionality" name="actuator_functionality">
+                <option value="light">Light</option>
+                <option value="heater">Heater</option>
+                <option value="cooler">Cooler</option>
+                <option value="humidifier">Humidifier</option>
+                <option value="deshumidifier">Dehumidifier</option>
+                <option value="water_pump">Water Pump</option>
+                <option value="co2_injector">CO2 Injector</option>
+            </select>
         </div>
     </div>
     <button type="submit" name="add_device" value="add">Add Device</button>
@@ -46,7 +57,7 @@
             <td>{{ device.gpio }}</td>
             <td>{{ device.ip_address }}</td>
             <td>{{ device.functionality }}</td>
-            <td><button type="button" onclick="testDevice('{{ device.functionality }}', '{{ loop.index }}')">Test</button></td>
+            <td><button type="button" onclick="testDevice('{{ device.functionality }}', '{{ loop.index }}')">Test</button><span id="test_result"></span></td>
         </tr>
         {% endfor %}
     </tbody>

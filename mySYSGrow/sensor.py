@@ -6,7 +6,108 @@ Date: May 2024
 """
 from sensors.dht11_sensor import DHT11Sensor
 
-class Sensor():
+class SensorManager:
+    """
+    Manages multiple Sensor objects, loading their configurations from a database.
+
+    Attributes:
+        database_manager (DatabaseManager): An instance of the database manager.
+        sensors (dict): A dictionary of Sensor objects keyed by their functionalities.
+
+    Methods:
+        get_sensor_by_functionality(functionality): Retrieves a sensor by its functionality.
+        add_sensor(name, gpio, ip_address, type, functionality): Adds a new sensor.
+        remove_sensor(functionality): Removes a specified sensor by functionality.
+        read_all_sensors(): Reads data from all sensors and notifies their observers.
+    """
+
+    def __init__(self, database_manager):
+        """
+        Initializes a SensorManager object.
+
+        Args:
+            database_manager (DatabaseManager): An instance of the database manager.
+        """
+        self.database_manager = database_manager
+        self.sensors = self._load_sensors_from_db()
+
+    def _load_sensors_from_db(self):
+        """
+        Loads sensor configurations from the database and creates Sensor objects.
+
+        Returns:
+            dict: A dictionary of Sensor objects keyed by their functionalities.
+        """
+        sensors = {}
+        sensor_configs = self.database_manager.get_sensor_configs()
+        for config in sensor_configs:
+            if config['type'] == 'dht':
+                sensor = DHTSensor(pin=config['gpio'])
+            elif config['type'] == 'soil_moisture':
+                sensor = SoilMoistureSensor(plant=config['name'])  # Assuming 'name' is the plant name
+            else:
+                continue
+            sensors[config['functionality']] = sensor
+        return sensors
+
+    def get_sensor_by_functionality(self, functionality):
+        """
+        Retrieves a Sensor object by its functionality.
+
+        Args:
+            functionality (str): The functionality of the sensor to retrieve.
+
+        Returns:
+            Sensor: The Sensor object with the specified functionality, or None if not found.
+        """
+        return self.sensors.get(functionality)
+
+    def add_sensor(self, name, gpio, ip_address, type, functionality):
+        """
+        Adds a new sensor to the manager.
+
+        Args:
+            name (str): The name of the sensor.
+            gpio (int, optional): The GPIO pin number for control.
+            ip_address (str, optional): The IP address for wireless control.
+            type (str): The type of sensor.
+            functionality (str): Description of the sensor's functionality.
+        """
+        if type == 'dht':
+            sensor = DHTSensor(pin=gpio)
+        elif type == 'soil_moisture':
+            sensor = SoilMoistureSensor(plant=name)
+        else:
+            print(f"Unknown sensor type: {type}")
+            return
+        
+        self.sensors[functionality] = sensor
+        self.database_manager.insert_sensor(name, gpio, ip_address, type, functionality)
+
+    def remove_sensor(self, functionality):
+        """
+        Removes the specified sensor by functionality.
+
+        Args:
+            functionality (str): The functionality of the sensor to remove.
+        """
+        if functionality in self.sensors:
+            del self.sensors[functionality]
+            self.database_manager.remove_sensor(functionality)
+        else:
+            print(f"Cannot remove sensor with functionality '{functionality}' because it is not found.")
+
+    def read_all_sensors(self):
+        """
+        Reads data from all sensors and notifies their observers.
+        """
+        for sensor in self.sensors.values():
+            if isinstance(sensor, DHTSensor):
+                sensor.read_environment()
+            elif isinstance(sensor, SoilMoistureSensor):
+                sensor.read_moisture_level()
+
+class DHTSensor():
     """
     Class to represent a sensor for monitoring the tent environment.
     
@@ -50,6 +151,22 @@ class Sensor():
         """
         for observer in self.observers:
             observer.update(temperature, humidity)
+    
+    def get_temperature():
+        """Return the temperature
+        """
+        data = self.dht11.read()
+        if data is None:
+            return {'error': 'Failed to get reading. Try again!'}
+        return data['temperature']
+    
+    def get_humidity():
+        """Return the temperature
+        """
+        data = self.dht11.read()
+        if data is None:
+            return {'error': 'Failed to get reading. Try again!'}
+        return data['humidity']
 
     def read_environment(self):
         """

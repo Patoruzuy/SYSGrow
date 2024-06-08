@@ -9,7 +9,7 @@ from timer import *
 from grow_tent import Tent
 from grow_plant import *
 from db_manager import DatabaseManager
-from sensor import Sensor, SoilMoistureSensor
+from sensor import DHTSensor, SoilMoistureSensor
 from flask import current_app
 from device_manager import DeviceManager
 
@@ -36,7 +36,7 @@ class GrowthManager:
         self.tent = Tent()
         self.timer = Timer()
         self.light_observer = None
-        self.sensor = Sensor(pin=4)
+        self.sensor = DHTSensor(pin=4)
         self.sensor.attach(self)
         self.device_manager = DeviceManager(database_manager)
         self.temperature_threshold = 24
@@ -257,7 +257,7 @@ class GrowthManager:
             )
             plant.get_moisture_level()
 
-    def update(self, temperature, humidity):
+    def update_dht(self, temperature, humidity):
         """
         Updates the environmental conditions and controls the devices accordingly.
 
@@ -267,14 +267,14 @@ class GrowthManager:
         """
         self.database_manager.insert_sensor_data(temperature=temperature, humidity=humidity)
         if temperature > self.temperature_threshold + self.hysteresis:
-            self.device_manager.turn_on_device('temperature')
+            self.device_manager.turn_on_device('fan')
         elif temperature < self.temperature_threshold - self.hysteresis:
-            self.device_manager.turn_off_device('temperature')
+            self.device_manager.turn_off_device('fan')
 
         if humidity < self.humidity_threshold - self.hysteresis:
-            self.device_manager.turn_on_device('humidity')
+            self.device_manager.turn_on_device('humidifier')
         elif humidity > self.humidity_threshold - self.hysteresis:
-            self.device_manager.turn_off_device('humidity')
+            self.device_manager.turn_off_device('humidifier')
 
     def update_soil_moisture(self, plant, moisture_level):
         """
@@ -300,7 +300,7 @@ class GrowthManager:
         data = self.sensor.read_environment()
         if 'error' in data:
             return data
-        self.update(data['temperature'], data['humidity'])
+        self.update_dht(data['temperature'], data['humidity'])
         for plant in self.get_all_plants():
             moisture_level = plant.get_moisture_level()
             if moisture_level is not None:

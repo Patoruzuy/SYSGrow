@@ -63,8 +63,6 @@ class Device:
             print(f"Error testing device {self.name}: {e}")
             return False
 
-
-
 class DeviceManager:
     """
     Manages multiple Device objects, loading their configurations from a database.
@@ -106,6 +104,7 @@ class DeviceManager:
                 name=config['name'],
                 gpio=config['gpio'],
                 ip_address=config['ip_address'],
+                type=config['type']
                 functionality=config['functionality']
             )
             devices[config['functionality']] = device
@@ -123,7 +122,7 @@ class DeviceManager:
         """
         return self.devices.get(functionality)
 
-    def add_device(self, name, gpio, ip_address, functionality):
+    def add_device(self, name, gpio, ip_address, type, functionality):
         """
         Adds a new device to the manager.
 
@@ -131,11 +130,12 @@ class DeviceManager:
             name (str): The name of the device.
             gpio (int, optional): The GPIO pin number for control.
             ip_address (str, optional): The IP address for wireless control.
+            type (str): The type of device, sensor or actuator
             functionality (str): Description of the device's functionality.
         """
-        device = Device(name, gpio, ip_address, functionality)
+        device = Device(name, gpio, ip_address,type, functionality)
         self.devices[functionality] = device
-        self.database_manager.insert_device(name, gpio, ip_address, functionality)
+        self.database_manager.insert_device(name, gpio, ip_address, type, functionality)
 
     def turn_on_device(self, functionality):
         """

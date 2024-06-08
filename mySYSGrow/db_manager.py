@@ -61,6 +61,15 @@ class DatabaseManager:
                                 name TEXT NOT NULL,
                                 gpio INTEGER,
                                 ip_address TEXT,
+                                type TEXT NOT NULL,
+                                functionality TEXT NOT NULL
+                                )''')
+            db.execute('''CREATE TABLE IF NOT EXISTS Sensor (
+                                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                name TEXT NOT NULL,
+                                gpio INTEGER,
+                                ip_address TEXT,
+                                type TEXT NOT NULL,
                                 functionality TEXT NOT NULL
                                 )''')
             db.execute('''CREATE TABLE IF NOT EXISTS SensorData (
@@ -93,69 +102,31 @@ class DatabaseManager:
                                 plant_id INTEGER,
                                 sensor_id INTEGER,
                                 FOREIGN KEY (plant_id) REFERENCES Plants(id),
-                                FOREIGN KEY (sensor_id) REFERENCES Device(id)
+                                FOREIGN KEY (sensor_id) REFERENCES Sensor(id)
                                 )''')
             db.commit()
         except sqlite3.Error as e:
             logging.error(f"Error creating tables: {e}")
 
-    def get_device_configs(self):
-        """Retrieves device configurations from the database."""
-        try:
-            db = self.get_db()
-            cursor = db.execute("SELECT name, gpio, ip_address, functionality FROM Device")
-            rows = cursor.fetchall()
-            device_configs = []
-            for row in rows:
-                config = {
-                    'name': row['name'],
-                    'gpio': row['gpio'],
-                    'ip_address': row['ip_address'],
-                    'functionality': row['functionality']
-                }
-                device_configs.append(config)
-            return device_configs
-        except sqlite3.Error as e:
-            logging.error(f"Error getting device configs: {e}")
-            return []
-
-    def clear_devices(self):
-        """Clears all device configurations from the database."""
-        try:
-            db = self.get_db()
-            db.execute("DELETE FROM Device")
-            db.commit()
-        except sqlite3.Error as e:
-            logging.error(f"Error clearing devices: {e}")
-
-    def insert_sensor_data(self, plant_name=None, temperature=None, humidity=None, moisture_level=None):
-        """
-        Inserts sensor data into the SensorData table.
-
-        Args:
-            temperature (float, optional): The temperature value.
-            humidity (float, optional): The humidity value.
-            moisture_level (float optional): The plant moisture level
-        """
-        try:
-            db = self.get_db()
-            db.execute('''INSERT INTO SensorData (plant_name, temperature, humidity, moisture_level)
-                                VALUES (?, ?, ?, ?)
-                                ''', 
-                                (plant_name, temperature, humidity, moisture_level))
-            db.commit()
-        except sqlite3.Error as e:
-            logging.error(f"Error inserting sensor data: {e}")
-
-    def insert_device(self, name, gpio, ip_address, functionality):
+    def insert_device(self, name, gpio, ip_address, type, functionality):
         """Inserts a new device into the Devices table."""
         try:
             db = self.get_db()
-            db.execute("INSERT INTO Device (name, gpio, ip_address, functionality) VALUES (?, ?, ?, ?)",
-                            (name, gpio, ip_address, functionality))
+            db.execute("INSERT INTO Device (name, gpio, ip_address, functionality) VALUES (?, ?, ?, ?, ?)",
+                            (name, gpio, ip_address, type, functionality))
             db.commit()
         except sqlite3.Error as e:
             logging.error(f"Error inserting device: {e}")
+
+    def insert_sensor(self, name, gpio, ip_address, type, functionality):
+        """Inserts a new sensor into the Sensor table."""
+        try:
+            db = self.get_db()
+            db.execute("INSERT INTO Sensor (name, gpio, ip_address, type, functionality) VALUES (?, ?, ?, ?, ?)",
+                            (name, gpio, ip_address, type, functionality))
+            db.commit()
+        except sqlite3.Error as e:
+            logging.error(f"Error inserting sensor: {e}")
 
     def insert_plant(self, name, growth_stage, moisture_level):
         """
@@ -176,21 +147,111 @@ class DatabaseManager:
         except sqlite3.Error as e:
             logging.error(f"Error inserting plant: {e}")
 
-    def link_sensor_to_plant(self, plant_id, sensor_id):
+    def insert_sensor_data(self, plant_name=None, temperature=None, humidity=None, moisture_level=None):
         """
-        Link a soil moisture sensor to a plant in the database.
+        Inserts sensor data into the SensorData table.
 
         Args:
-            plant_id (int): The ID of the plant.
-            sensor_id (int): The ID of the sensor.
+            temperature (float, optional): The temperature value.
+            humidity (float, optional): The humidity value.
+            moisture_level (float optional): The plant moisture level
         """
         try:
             db = self.get_db()
-            db.execute("INSERT INTO plant_sensors (plant_id, sensor_id) VALUES (?, ?)",
-                       (plant_id, sensor_id))
+            db.execute('''INSERT INTO SensorData (plant_name, temperature, humidity, moisture_level)
+                                VALUES (?, ?, ?, ?)
+                                ''', 
+                                (plant_name, temperature, humidity, moisture_level))
             db.commit()
         except sqlite3.Error as e:
-            logging.error(f"Error linking sensor to plant: {e}")
+            logging.error(f"Error inserting sensor data: {e}")
+
+    def get_device_configs(self):
+        """Retrieves device configurations from the database."""
+        try:
+            db = self.get_db()
+            cursor = db.execute("SELECT name, gpio, ip_address, functionality FROM Device")
+            rows = cursor.fetchall()
+            device_configs = []
+            for row in rows:
+                config = {
+                    'name': row['name'],
+                    'gpio': row['gpio'],
+                    'ip_address': row['ip_address'],
+                    'type': row['type'],
+                    'functionality': row['functionality']
+                }
+                device_configs.append(config)
+            return device_configs
+        except sqlite3.Error as e:
+            logging.error(f"Error getting device configs: {e}")
+            return []
+
+    def get_sensor_configs(self):
+        """Retrieves sensor configurations from the database."""
+        try:
+            db = self.get_db()
+            cursor = db.execute("SELECT name, gpio, ip_address, type, functionality FROM Sensor")
+            rows = cursor.fetchall()
+            sensor_configs = []
+            for row in rows:
+                config = {
+                    'name': row['name'],
+                    'gpio': row['gpio'],
+                    'ip_address': row['ip_address'],
+                    'type': row['type'],
+                    'functionality': row['functionality']
+                }
+                sensor_configs.append(config)
+            return sensor_configs
+        except sqlite3.Error as e:
+            logging.error(f"Error getting sensor configs: {e}")
+            return []
+        
+    def get_sensor_data(self) -> list:
+        """
+        Retrieves all sensor data from the SensorData table.
+
+        Returns:
+            list: A list of tuples containing sensor data records.
+        """
+        try:
+            db = self.get_db()
+            return db.execute('SELECT * FROM SensorData').fetchall()
+        except sqlite3.Error as e:
+            logging.error(f"Error getting sensor data: {e}")
+            return []
+    
+    def get_plant(self, id) -> tuple:
+        """
+        Retrieves a specific plant's information from the Plants table.
+
+        Args:
+            id (int): The ID of the plant.
+
+        Returns:
+            tuple: A tuple containing the plant's name and growth stage.
+        """
+        try:
+            db = self.get_db()
+            return db.execute('SELECT name, growth_stage FROM Plants WHERE id = ?', (id,)).fetchone()
+        except sqlite3.Error as e:
+            logging.error(f"Error getting plant: {e}")
+            return None
+        
+    def get_all_plants(self) -> list:
+        """
+        Retrieves all plants from the Plants table.
+
+        Returns:
+            list: A list of tuples containing plant records.
+        """
+        try:
+            db = self.get_db()
+            return db.execute('SELECT * FROM Plants').fetchall()
+        except sqlite3.Error as e:
+            logging.error(f"Error getting plants: {e}")
+            return []
 
     def get_sensors_for_plant(self, plant_id):
         """
@@ -244,7 +305,41 @@ class DatabaseManager:
             return cursor.fetchone()
         except sqlite3.Error as e:
             logging.error(f"Error getting device by ID: {e}")
-            return None   
+            return None
+
+    def clear_devices(self):
+        """Clears all device configurations from the database."""
+        try:
+            db = self.get_db()
+            db.execute("DELETE FROM Device")
+            db.commit()
+        except sqlite3.Error as e:
+            logging.error(f"Error clearing devices: {e}")
+
+    def remove_sensor(self, functionality):
+        """Removes a sensor from the Sensor table based on its functionality."""
+        try:
+            db = self.get_db()
+            db.execute("DELETE FROM Sensor WHERE functionality = ?", (functionality,))
+            db.commit()
+        except sqlite3.Error as e:
+            logging.error(f"Error removing sensor: {e}")
+
+    def link_sensor_to_plant(self, plant_id, sensor_id):
+        """
+        Link a soil moisture sensor to a plant in the database.
+
+        Args:
+            plant_id (int): The ID of the plant.
+            sensor_id (int): The ID of the sensor.
+        """
+        try:
+            db = self.get_db()
+            db.execute("INSERT INTO plant_sensors (plant_id, sensor_id) VALUES (?, ?)",
+                       (plant_id, sensor_id))
+            db.commit()
+        except sqlite3.Error as e:
+            logging.error(f"Error linking sensor to plant: {e}") 
 
     def update_plant_growth_stage(self, name, growth_stage):
         """
@@ -264,37 +359,6 @@ class DatabaseManager:
             db.commit()
         except sqlite3.Error as e:
             logging.error(f"Error updating plant growth stage: {e}")
-
-    def get_sensor_data(self) -> list:
-        """
-        Retrieves all sensor data from the SensorData table.
-
-        Returns:
-            list: A list of tuples containing sensor data records.
-        """
-        try:
-            db = self.get_db()
-            return db.execute('SELECT * FROM SensorData').fetchall()
-        except sqlite3.Error as e:
-            logging.error(f"Error getting sensor data: {e}")
-            return []
-    
-    def get_plant(self, id) -> tuple:
-        """
-        Retrieves a specific plant's information from the Plants table.
-
-        Args:
-            id (int): The ID of the plant.
-
-        Returns:
-            tuple: A tuple containing the plant's name and growth stage.
-        """
-        try:
-            db = self.get_db()
-            return db.execute('SELECT name, growth_stage FROM Plants WHERE id = ?', (id,)).fetchone()
-        except sqlite3.Error as e:
-            logging.error(f"Error getting plant: {e}")
-            return None
         
     def get_light_schedule(self):
         """
@@ -312,20 +376,6 @@ class DatabaseManager:
         except sqlite3.Error as e:
             logging.error(f"Error getting light schedule: {e}")
             return None
-
-    def get_all_plants(self) -> list:
-        """
-        Retrieves all plants from the Plants table.
-
-        Returns:
-            list: A list of tuples containing plant records.
-        """
-        try:
-            db = self.get_db()
-            return db.execute('SELECT * FROM Plants').fetchall()
-        except sqlite3.Error as e:
-            logging.error(f"Error getting plants: {e}")
-            return []
     
     def save_settings(self, light_start_time, light_end_time, temperature_threshold, humidity_threshold, soil_moisture_threshold, light_gpio, fan_gpio, water_spray_gpio):
         """

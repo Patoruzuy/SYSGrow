@@ -22,30 +22,6 @@
     </li>
     {% endfor %}
 </ul>
-<h1>Actuators</h1>
-<table>
-    <thead>
-        <tr>
-            <th>ID</th>
-            <th>Actuator Name</th>
-            <th>Test actuator</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for actuator in active-actuators %}
-        <tr>
-            <td>{{ loop.index }}</td>
-            <td><li>{{ actuator }}
-                <button onclick="removeActuator('{{ actuator }}')">Remove</button>
-                <button
-                    onclick="controlActuator('{{ actuator }}', 'activate')">Activate</button>
-                <button
-                    onclick="controlActuator('{{ actuator }}', 'deactivate')">Deactivate</button>
-            </li></td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
 
 <h2>Add Actuator</h2>
 <form id="add-actuator-form">

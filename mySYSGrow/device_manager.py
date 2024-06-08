@@ -104,7 +104,7 @@ class DeviceManager:
                 name=config['name'],
                 gpio=config['gpio'],
                 ip_address=config['ip_address'],
-                type=config['type']
+                type=config['type'],
                 functionality=config['functionality']
             )
             devices[config['functionality']] = device

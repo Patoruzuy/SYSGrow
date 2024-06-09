@@ -180,3 +180,16 @@ class ActuatorManager:
             dict: A dictionary with actuator names as keys and their states as values.
         """
         return {name: actuator.get_state() for name, actuator in self.actuators.items()}
+
+    def cleanup(self):
+        """
+        Cleans up all actuator managed by the ActuatorManager.
+        """
+        for actuator in self.actuators.values():
+            actuator.relay.cleanup()
+
+    def __del__(self):
+        """
+        Destructor to ensure cleanup is called when the ActuatorManager object is destroyed.
+        """
+        self.cleanup()

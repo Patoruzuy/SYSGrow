@@ -343,9 +343,9 @@ class GrowthManager:
         control_signal = self.controller.compute(current_moisture)
 
         if control_signal > 0:
-            self.actuator_manager.activate_actuator('WaterPump')
+            self.actuator_manager.activate_actuator('Water-Pump')
         else:
-            self.actuator_manager.deactivate_actuator('WaterPump')
+            self.actuator_manager.deactivate_actuator('Water-Pump')
 
         print(f"Soil Moisture: {current_moisture}%, Control Signal: {control_signal}")
 
@@ -354,8 +354,8 @@ class GrowthManager:
     #     control_signal = self.controller.compute(current_co2)
 
     #     if control_signal > 0:
-    #         self.actuator_manager.activate_actuator('CO2Injector')
+    #         self.actuator_manager.activate_actuator('CO2-Injector')
     #     else:
-    #         self.actuator_manager.deactivate_actuator('CO2Injector')
+    #         self.actuator_manager.deactivate_actuator('CO2-Injector')
 
     #     print(f"CO2 Level: {current_co2}ppm, Control Signal: {control_signal}")

@@ -317,6 +317,7 @@ class GrowthManager:
     def control_temperature(self):
         current_temperature = self.sensor.get_temperature()
         control_signal = self.controller.compute(current_temperature)
+        print("current temp: ", current_temperature, "control_signal: ", control_signal)
     
         if control_signal > 0:
            self.actuator_manager.activate_actuator("Heater")

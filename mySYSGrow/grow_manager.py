@@ -277,8 +277,8 @@ class GrowthManager:
             dict: The current environmental data.
         """
         # data = self.sensor.read_environment()
-        if 'error' in data:
-            return data
+        # if 'error' in data:
+        #     return data
         self.control_temperature()
         self.control_humidity()
         all_reading = self.sensor_manager.read_all_sensors()

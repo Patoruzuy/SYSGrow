@@ -129,7 +129,8 @@ def sensor_data():
         str: Rendered HTML template.
     """
     sensor_data = manager.database_manager.get_sensor_data()
-    return render_template('sensor_data.html', sensor_data=sensor_data)
+    plant_sensor_data = manager.database_manager.get_all_plants()
+    return render_template('sensor_data.html', sensor_data=sensor_data, plant_sensor_data=plant_sensor_data)
 
 @app.route('/sensor_data_graph')
 def sensor_data_graph():
@@ -195,8 +196,12 @@ def set_stage_durations():
 def actuator():
     available_actuators = ['Heater', 'Cooler', 'Humidifier', 'CO2Injector']  # List all available actuator types
     active_actuators = manager.actuator_manager.get_actuators()
-    return render_template('actuator.html', available_actuators=available_actuators, active_actuators=active_actuators)
+    active_sensors = manager.sensor_manager.get_sensors()
+    return render_template('actuator.html', available_actuators=available_actuators, active_actuators=active_actuators, active_sensors=active_sensors)
 
+# @app.route('/sensors')
+# def sensors():
+#     active_sensors = manager.sensor_manager.get_sensors()
 
 @app.route('/add_actuator', methods=['POST'])
 def add_actuator():

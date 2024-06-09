@@ -1,15 +1,13 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<h1>Sensor Data</h1>
+<h1>Tent environment Sensor Data</h1>
 <table>
     <thead>
         <tr>
             <th>Timestamp</th>
-            <th>Plant Name</th>
             <th>Temperature</th>
             <th>Humidity</th>
-            <th>Soil Moisture</th>
         </tr>
     </thead>
     <tbody>
@@ -18,8 +16,26 @@
             <td>{{ data[1] }}</td>
             <td>{{ data[2] }}</td>
             <td>{{ data[3] }}</td>
-            <td>{{ data[4] }}</td>
-            <td>{{ data[5] }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<h1>Plant Sensor Data</h1>
+<table>
+    <thead>
+        <tr>
+            <th>Timestamp</th>
+            <th>Plant name</th>
+            <th>Soil Moisture</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for data in plant_sensor_data %}
+        <tr>
+            <td>{{ data[1] }}</td>
+            <td>{{ data[2] }}</td>
+            <td>{{ data[3] }}</td>
         </tr>
         {% endfor %}
     </tbody>

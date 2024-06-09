@@ -43,11 +43,14 @@ class GrowthManager:
         self.device_manager = DeviceManager(database_manager)
         self.actuator_manager = ActuatorManager()
         self.sensor_manager = SensorManager
-        self.controller = PIDController(kp=1.0, ki=0.1, kd=0.05, setpoint=22.0)
-        #self.controller = MLController(model=your_model, setpoint=22.0)
         self.temperature_threshold = 24
         self.humidity_threshold = 40
         self.soil_moisture_threshold = 50
+        self.temp_pid = PIDController(kp=1.0, ki=0.1, kd=0.05, setpoint=self.temperature_threshold)
+        self.humidity_pid = PIDController(kp=1.0, ki=0.1, kd=0.05, setpoint=self.humidity_threshold)
+        self.soil_moisture_pid = PIDController(kp=1.0, ki=0.1, kd=0.05, setpoint=self.soil_moisture_threshold)
+        self.co2_pid = PIDController(kp=1.0, ki=0.1, kd=0.05, setpoint=22.0)
+        #self.controller = MLController(model=your_model, setpoint=22.0)
         self.light_start_time = "08:00"
         self.light_end_time = "20:00"
         self.light_gpio = None
@@ -308,6 +311,7 @@ class GrowthManager:
             return data
         self.update_dht(data['temperature'], data['humidity'])
         self.control_temperature()
+        self.control_humidity()
         for plant in self.get_all_plants():
             moisture_level = plant.get_moisture_level()
             if moisture_level is not None:
@@ -329,6 +333,7 @@ class GrowthManager:
     def control_humidity(self):
         current_humidity =  self.sensor.get_humidity()
         control_signal = self.controller.compute(current_humidity)
+        print("current humidity: ", current_humidity, "control_signal: ", control_signal)
 
         if control_signal > 0:
             self.actuator_manager.activate_actuator('Humidifier')

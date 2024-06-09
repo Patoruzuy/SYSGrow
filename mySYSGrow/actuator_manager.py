@@ -106,6 +106,7 @@ class ActuatorManager:
         """
         if name in self.actuators:
             self.actuators[name].activate()
+            print("Activate name: ", + name)
     
     def deactivate_actuator(self, name):
         """
@@ -116,6 +117,7 @@ class ActuatorManager:
         """
         if name in self.actuators:
             self.actuators[name].deactivate()
+            print("Deactivate name: ", + name)
     
     def get_actuators(self):
         """

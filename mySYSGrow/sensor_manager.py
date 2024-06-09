@@ -110,7 +110,7 @@ class CO2Sensor(Sensor):
         data = self.co2_sensor.read()
         if data is None:
             return {'error': 'Failed to get reading. Try again!'}
-        return {'co2': data['co2']}
+        return {'CO2': data['CO2']}
 
 class SensorManager:
     """
@@ -147,11 +147,11 @@ class SensorManager:
         
         sensor_configs = self.database_manager.get_sensor_configs()
         for config in sensor_configs:
-            if config['type'] == 'dht':
+            if config['type'] == 'DHT':
                 sensor = DHTSensor(pin=config['gpio'])
-            elif config['type'] == 'soil_moisture':
+            elif config['type'] == 'Soil-Moisture':
                 sensor = SoilMoistureSensor(pin=config['gpio'])
-            elif config['type'] == 'co2':
+            elif config['type'] == 'CO2':
                 sensor = CO2Sensor(ip=config['ip_address'])
             else:
                 continue
@@ -165,7 +165,7 @@ class SensorManager:
         Returns:
             list: A list of sensors names.
         """
-        print("ActuatorManager value: ",self.actuators.values())
+        print("SensorManager value: ",self.actuators.values())
         return self.sensors.keys()
 
     def get_sensor_by_functionality(self, functionality):
@@ -192,11 +192,11 @@ class SensorManager:
             functionality (str): Description of the sensor's functionality.
         """
         self.database_manager.insert_device(name, gpio, ip_address, type, functionality)
-        if type == 'dht':
+        if type == 'DHT':
             sensor = DHTSensor(pin=gpio)
-        elif type == 'soil_moisture':
+        elif type == 'Soil-Moisture':
             sensor = SoilMoistureSensor(pin=gpio)
-        elif type == 'co2':
+        elif type == 'CO2':
             sensor = CO2Sensor(ip=ip_address)
         else:
             print(f"Unknown sensor type: {type}")

@@ -73,7 +73,7 @@ class GrowthManager:
             self.set_light_schedule(self.light_start_time, self.light_end_time)
             self.set_thresholds(self.temperature_threshold, self.humidity_threshold, self.soil_moisture_threshold)
             self.sensor_manager._load_sensors_from_db()
-            self.actuator_manager._load_sensors_from_db()
+            self.actuator_manager._load_actuators_from_db()
         else:
             print("Cannot load the settings, setted the threshold values by default")
 

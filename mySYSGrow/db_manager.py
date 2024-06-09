@@ -97,10 +97,7 @@ class DatabaseManager:
                                 light_end_time TEXT,
                                 temperature_threshold REAL,
                                 humidity_threshold REAL,
-                                soil_moisture_threshold REAL,
-                                light_gpio REAL,
-                                fan_gpio REAL,
-                                water_spray_gpio REAL
+                                soil_moisture_threshold REAL
                                 )''')
             db.execute('''CREATE TABLE IF NOT EXISTS plant_sensors (
                                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -401,7 +398,7 @@ class DatabaseManager:
             logging.error(f"Error getting light schedule: {e}")
             return None
     
-    def save_settings(self, light_start_time, light_end_time, temperature_threshold, humidity_threshold, soil_moisture_threshold, light_gpio, fan_gpio, water_spray_gpio):
+    def save_settings(self, light_start_time, light_end_time, temperature_threshold, humidity_threshold, soil_moisture_threshold):
         """
         Saves the settings to the database, replacing existing settings if they exist.
 
@@ -411,17 +408,14 @@ class DatabaseManager:
             temperature_threshold (float): The temperature threshold.
             humidity_threshold (float): The humidity threshold.
             soil_moisture_threshold (float): The soil moisture threshold.
-            light_gpio (float): The GPIO pin for the light.
-            fan_gpio (float): The GPIO pin for the fan.
-            water_spray_gpio (float): The GPIO pin for the water spray.
         """
         try:
             db = self.get_db()
             db.execute('''
-            INSERT OR REPLACE INTO Settings (id, light_start_time, light_end_time, temperature_threshold, humidity_threshold, soil_moisture_threshold, light_gpio, fan_gpio, water_spray_gpio)
-            VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT OR REPLACE INTO Settings (id, light_start_time, light_end_time, temperature_threshold, humidity_threshold, soil_moisture_threshold)
+            VALUES (1, ?, ?, ?, ?, ?)
             ''', 
-            (light_start_time, light_end_time, temperature_threshold, humidity_threshold, soil_moisture_threshold, light_gpio, fan_gpio, water_spray_gpio))
+            (light_start_time, light_end_time, temperature_threshold, humidity_threshold, soil_moisture_threshold))
             db.commit()
         except sqlite3.Error as e:
             logging.error(f"Error saving settings: {e}")

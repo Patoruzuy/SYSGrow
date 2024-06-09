@@ -11,7 +11,6 @@ from grow_plant import *
 from db_manager import DatabaseManager
 from sensor import *
 from flask import current_app
-from device_manager import DeviceManager
 from actuator_manager import *
 from pib_controller import PIDController
 
@@ -40,7 +39,6 @@ class GrowthManager:
         self.light_observer = None
         self.sensor = DHTSensor(pin=4)
         self.sensor.attach(self)
-        self.device_manager = DeviceManager(database_manager)
         self.actuator_manager = ActuatorManager(database_manager)
         self.sensor_manager = SensorManager
         self.temperature_threshold = 24
@@ -53,9 +51,6 @@ class GrowthManager:
         #self.controller = MLController(model=your_model, setpoint=22.0)
         self.light_start_time = "08:00"
         self.light_end_time = "20:00"
-        self.light_gpio = None
-        self.fan_gpio = None
-        self.water_spray_gpio = None
         self.hysteresis = 2
         self.add_plant("Cannabies", "Seedling")
         self.load_settings() 
@@ -75,9 +70,6 @@ class GrowthManager:
             self.temperature_threshold = settings['temperature_threshold']
             self.humidity_threshold = settings['humidity_threshold']
             self.soil_moisture_threshold = settings['soil_moisture_threshold']
-            self.light_gpio = settings['light_gpio']
-            self.fan_gpio = settings['fan_gpio']
-            self.water_spray_gpio = settings['water_spray_gpio']
             self.set_light_schedule(self.light_start_time, self.light_end_time)
             self.set_thresholds(self.temperature_threshold, self.humidity_threshold, self.soil_moisture_threshold)
         else:
@@ -92,10 +84,7 @@ class GrowthManager:
             self.light_end_time, 
             self.temperature_threshold, 
             self.humidity_threshold, 
-            self.soil_moisture_threshold,
-            self.light_gpio,
-            self.fan_gpio,
-            self.water_spray_gpio
+            self.soil_moisture_threshold
             )
 
     def get_plant(self, id) -> Plant:
@@ -266,25 +255,6 @@ class GrowthManager:
             )
             plant.get_moisture_level()
 
-    def update_dht(self, temperature, humidity):
-        """
-        Updates the environmental conditions and controls the devices accordingly.
-
-        Args:
-            temperature (float): The current temperature.
-            humidity (float): The current humidity.
-        """
-        self.database_manager.insert_sensor_data(temperature=temperature, humidity=humidity)
-        if temperature > self.temperature_threshold + self.hysteresis:
-            self.device_manager.turn_on_device('cooler')
-        elif temperature < self.temperature_threshold - self.hysteresis:
-            self.device_manager.turn_off_device('cooler')
-
-        if humidity < self.humidity_threshold - self.hysteresis:
-            self.device_manager.turn_on_device('humidifier')
-        elif humidity > self.humidity_threshold - self.hysteresis:
-            self.device_manager.turn_off_device('humidifier')
-
     def update_soil_moisture(self, plant, moisture_level):
         """
         Updates the soil moisture level and controls the water spray.
@@ -293,7 +263,7 @@ class GrowthManager:
             plant (Plant): The plant being monitored.
             moisture_level (float): The current soil moisture level.
         """
-        self.database_manager.insert_sensor_data(plant_name=plant.name, moisture_level=moisture_level)
+        self.database_manager.insert_sensor_data(moisture_level=moisture_level)
         if moisture_level < self.soil_moisture_threshold:
             self.device_manager.turn_on_device('soil_moisture')
         else:
@@ -309,7 +279,6 @@ class GrowthManager:
         data = self.sensor.read_environment()
         if 'error' in data:
             return data
-        self.update_dht(data['temperature'], data['humidity'])
         self.control_temperature()
         self.control_humidity()
         for plant in self.get_all_plants():

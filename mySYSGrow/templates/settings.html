@@ -70,22 +70,18 @@
     <thead>
         <tr>
             <th>ID</th>
-            <th>Device Name</th>
+            <th>Sensor Name</th>
             <th>GPIO</th>
             <th>IP Address</th>
-            <th>Type</th>
-            <th>Functionality</th>
         </tr>
     </thead>
     <tbody>
         {% for sensor in sensors %}
         <tr>
             <td>{{ loop.index }}</td>
-            <td>{{ sensor.name }}</td>
+            <td>{{ sensor.sensor_type }}</td>
             <td>{{ sensor.gpio }}</td>
             <td>{{ sensor.ip_address }}</td>
-            <td>{{ sensor.type }}</td>
-            <td>{{ sensor.functionality }}</td>
         </tr>
         {% endfor %}
     </tbody>

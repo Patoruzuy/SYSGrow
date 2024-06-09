@@ -73,11 +73,9 @@ class DatabaseManager:
                                 )''')
             db.execute('''CREATE TABLE IF NOT EXISTS Sensor (
                                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                name TEXT NOT NULL,
+                                sensor_type TEXT NOT NULL,
                                 gpio INTEGER,
-                                ip_address TEXT,
-                                type TEXT NOT NULL,
-                                functionality TEXT NOT NULL
+                                ip_address TEXT
                                 )''')
             db.execute('''CREATE TABLE IF NOT EXISTS SensorData (
                                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -139,12 +137,12 @@ class DatabaseManager:
         except sqlite3.Error as e:
             logging.error(f"Error inserting device: {e}")
 
-    def insert_sensor(self, name, gpio, ip_address, type, functionality):
+    def insert_sensor(self, sensor_type, gpio, ip_address):
         """Inserts a new sensor into the Sensor table."""
         try:
             db = self.get_db()
-            db.execute("INSERT INTO Sensor (name, gpio, ip_address, type, functionality) VALUES (?, ?, ?, ?, ?)",
-                            (name, gpio, ip_address, type, functionality))
+            db.execute("INSERT INTO Sensor (sensor_type, gpio, ip_address) VALUES (?, ?, ?)",
+                            (sensor_type, gpio, ip_address))
             db.commit()
         except sqlite3.Error as e:
             logging.error(f"Error inserting sensor: {e}")
@@ -212,16 +210,14 @@ class DatabaseManager:
         """Retrieves sensor configurations from the database."""
         try:
             db = self.get_db()
-            cursor = db.execute("SELECT name, gpio, ip_address, type, functionality FROM Sensor")
+            cursor = db.execute("SELECT sensor_type, gpio, ip_address FROM Sensor")
             rows = cursor.fetchall()
             sensor_configs = []
             for row in rows:
                 config = {
-                    'name': row['name'],
+                    'sensor_type': row['sensor_type'],
                     'gpio': row['gpio'],
-                    'ip_address': row['ip_address'],
-                    'type': row['type'],
-                    'functionality': row['functionality']
+                    'ip_address': row['ip_address']
                 }
                 sensor_configs.append(config)
             return sensor_configs

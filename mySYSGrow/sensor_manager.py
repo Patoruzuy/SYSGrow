@@ -181,7 +181,7 @@ class SensorManager:
         """
         return self.sensors.get(functionality)
 
-    def add_sensor(self, name, gpio, ip_address, type, functionality=None):
+    def add_sensor(self, sensor_type, gpio, ip_address, type, functionality=None):
         """
         Adds a new sensor to the manager.
 
@@ -192,15 +192,15 @@ class SensorManager:
             type (str): The type of sensor.
             functionality (str): Description of the sensor's functionality.
         """
-        self.database_manager.insert_device(name, gpio, ip_address, type, functionality)
-        if type == 'DHT':
+        self.database_manager.insert_device(sensor_type, gpio, ip_address, type, functionality)
+        if sensor_type == 'DHT':
             sensor = DHTSensor(pin=gpio)
-        elif type == 'Soil-Moisture':
+        elif sensor_type == 'Soil-Moisture':
             sensor = SoilMoistureSensor(pin=gpio)
-        elif type == 'CO2':
+        elif sensor_type == 'CO2':
             sensor = CO2Sensor(pin=gpio, ip=ip_address)
         else:
-            print(f"Unknown sensor type: {type}")
+            print(f"Unknown sensor type: {sensor_type}")
             return
         
         self.sensors[functionality] = sensor

@@ -149,8 +149,8 @@ class DHTSensor():
             temperature (float): The current temperature.
             humidity (float): The current humidity.
         """
-        for observer in self.observers:
-            observer.update_dht(temperature, humidity)
+        # for observer in self.observers:
+        #     observer.update_dht(temperature, humidity)
     
     def get_temperature(self):
         """Return the temperature

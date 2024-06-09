@@ -169,30 +169,27 @@ class SensorManager:
         """
         return list(self.sensors.keys())
 
-    def get_sensor_by_functionality(self, functionality):
+    def get_sensor_by_type(self, sensor_type):
         """
-        Retrieves a Sensor object by its functionality.
+        Retrieves a Sensor object by its type.
 
         Args:
-            functionality (str): The functionality of the sensor to retrieve.
+            sensor_type (str): The type or name of the sensor to retrieve.
 
         Returns:
-            Sensor: The Sensor object with the specified functionality, or None if not found.
+            Sensor: The Sensor object with the specified type, or None if not found.
         """
-        return self.sensors.get(functionality)
+        return self.sensors.get(sensor_type)
 
-    def add_sensor(self, sensor_type, gpio, ip_address, type, functionality=None):
+    def add_sensor(self, sensor_type, gpio, ip_address):
         """
         Adds a new sensor to the manager.
 
         Args:
-            name (str): The name of the sensor.
+            sensor_type (str): The type or name of the sensor.
             gpio (int, optional): The GPIO pin number for control.
             ip_address (str, optional): The IP address for wireless control.
-            type (str): The type of sensor.
-            functionality (str): Description of the sensor's functionality.
         """
-        self.database_manager.insert_device(sensor_type, gpio, ip_address, type, functionality)
         if sensor_type == 'DHT':
             sensor = DHTSensor(pin=gpio)
         elif sensor_type == 'Soil-Moisture':
@@ -203,8 +200,8 @@ class SensorManager:
             print(f"Unknown sensor type: {sensor_type}")
             return
         
-        self.sensors[functionality] = sensor
-        self.database_manager.insert_sensor(name, gpio, ip_address, type, functionality)
+        self.sensors[sensor_type] = sensor
+        self.database_manager.insert_sensor(sensor_type, gpio, ip_address)
 
     def remove_sensor(self, functionality):
         """
@@ -227,7 +224,7 @@ class SensorManager:
             dict: A dictionary containing the readings from all sensors.
         """
         readings = {}
-        for name, sensor in self.sensors.items():
-            readings[name] = sensor.read()
-            print("Sensor manager", "name: ",name, "Reading: ", readings)
+        for sensor_type, sensor in self.sensors.items():
+            readings[sensor_type] = sensor.read()
+            print("Sensor manager", "name: ",sensor_type, "Reading: ", readings)
         return readings

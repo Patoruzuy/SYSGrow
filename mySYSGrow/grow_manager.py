@@ -40,7 +40,7 @@ class GrowthManager:
         self.sensor = DHTSensor(pin=4)
         self.sensor.attach(self)
         self.actuator_manager = ActuatorManager(database_manager)
-        self.sensor_manager = SensorManager
+        self.sensor_manager = SensorManager(database_manager)
         self.temperature_threshold = 24
         self.humidity_threshold = 40
         self.soil_moisture_threshold = 50

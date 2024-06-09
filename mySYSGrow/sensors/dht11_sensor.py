@@ -9,7 +9,7 @@ class DHT11Sensor:
         Args:
             pin (int): GPIO pin number where the sensor is connected.
         """
-        self.sensor = adafruit_dht.DHT11(pin)
+        self.sensor = adafruit_dht.DHT11(board.pin)
 
     def read(self):
         """

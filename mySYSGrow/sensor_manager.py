@@ -87,16 +87,18 @@ class CO2Sensor(Sensor):
     Class to represent a CO2 sensor for monitoring CO2 levels.
     
     Attributes:
+        pin (int): The GPIO pin number to which the CO2 sensor is connected.
         ip (str): The IP address for wireless control of the CO2 sensor.
         co2_sensor (CO2Sensor): The CO2 sensor instance.
     """
-    def __init__(self, ip):
+    def __init__(self, pin, ip):
         """
         Initializes the CO2Sensor with a specified IP address.
 
-        Args:
+            pin (int): The GPIO pin number to which the CO2 sensor is connected.
             ip (str): The IP address for wireless control of the CO2 sensor.
         """
+        self.pin = pin
         self.ip = ip
         self.co2_sensor = CO2Sensor(self.ip)
 
@@ -155,7 +157,7 @@ class SensorManager:
                 sensor = CO2Sensor(ip=config['ip_address'])
             else:
                 continue
-            self.sensors[config['functionality']] = sensor
+            self.sensors[config['name']] = sensor
         return self.sensors
     
     def get_sensors(self):
@@ -196,7 +198,7 @@ class SensorManager:
         elif type == 'Soil-Moisture':
             sensor = SoilMoistureSensor(pin=gpio)
         elif type == 'CO2':
-            sensor = CO2Sensor(ip=ip_address)
+            sensor = CO2Sensor(pin=gpio, ip=ip_address)
         else:
             print(f"Unknown sensor type: {type}")
             return
@@ -225,6 +227,7 @@ class SensorManager:
             dict: A dictionary containing the readings from all sensors.
         """
         readings = {}
-        for functionality, sensor in self.sensors.items():
-            readings[functionality] = sensor.read()
+        for name, sensor in self.sensors.items():
+            readings[name] = sensor.read()
+            print("Sensor manager", "name: ",name, "Reading: ", readings)
         return readings

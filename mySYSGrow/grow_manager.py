@@ -281,6 +281,8 @@ class GrowthManager:
             return data
         self.control_temperature()
         self.control_humidity()
+        all_reading = self.sensor_manager.read_all_sensors()
+        print("All reading get from monitor evniroment:", all_reading)
         for plant in self.get_all_plants():
             moisture_level = plant.get_moisture_level()
             if moisture_level is not None:

@@ -44,18 +44,30 @@ class RelayActuator(Actuator):
             ip (str, optional): The IP address for wireless control of the relay.
         """
         self.relay = Relay(device=device, pin=pin, ip=ip)
+        self.state = 'off'
     
     def activate(self):
         """
         Activates the actuator.
         """
         self.relay.turn_on()
+        self.state = 'on'
     
     def deactivate(self):
         """
         Deactivates the actuator.
         """
         self.relay.turn_off()
+        self.state = 'off'
+    
+    def get_state(self):
+        """
+        Returns the current state of the actuator.
+
+        Returns:
+            str: The current state ('on' or 'off').
+        """
+        return self.state
 
 class ActuatorManager:
     """
@@ -159,3 +171,12 @@ class ActuatorManager:
         """
         print("ActuatorManager value: ",self.actuators.values())
         return self.actuators.keys()
+    
+    def get_actuator_states(self):
+        """
+        Returns the states of all managed actuators.
+
+        Returns:
+            dict: A dictionary with actuator names as keys and their states as values.
+        """
+        return {name: actuator.get_state() for name, actuator in self.actuators.items()}

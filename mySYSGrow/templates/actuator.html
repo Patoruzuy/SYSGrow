@@ -26,6 +26,7 @@
 <ul id="active-sensors">
     {% for actuator in active_sensors %}
     <li>{{ actuator }}
+        <span>Status: {{ actuator_states[actuator] }}</span>
         <button onclick="removeActuator('{{ sensor }}')">Remove</button>
     </li>
     {% endfor %}

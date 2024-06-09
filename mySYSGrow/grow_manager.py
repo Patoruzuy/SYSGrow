@@ -320,7 +320,7 @@ class GrowthManager:
     
     def control_temperature(self):
         current_temperature = self.sensor.get_temperature()
-        control_signal = self.controller.compute(current_temperature)
+        control_signal = self.temp_pid.compute(current_temperature)
         print("current temp: ", current_temperature, "control_signal: ", control_signal)
     
         if control_signal > 0:
@@ -332,7 +332,7 @@ class GrowthManager:
     
     def control_humidity(self):
         current_humidity =  self.sensor.get_humidity()
-        control_signal = self.controller.compute(current_humidity)
+        control_signal = self.humidity_pid.compute(current_humidity)
         print("current humidity: ", current_humidity, "control_signal: ", control_signal)
 
         if control_signal > 0:
@@ -346,7 +346,7 @@ class GrowthManager:
 
     def control_soil_moisture(self):
         current_moisture = self.sensor.read_moisture_level()
-        control_signal = self.controller.compute(current_moisture)
+        control_signal = self.soil_moisture_pid.compute(current_moisture)
 
         if control_signal > 0:
             self.actuator_manager.activate_actuator('Water-Pump')
@@ -357,7 +357,7 @@ class GrowthManager:
 
     # def control_co2(self):
     #     current_co2 = self.sensor.get_co2_level()
-    #     control_signal = self.controller.compute(current_co2)
+    #     control_signal = self.co2_pid.compute(current_co2)
 
     #     if control_signal > 0:
     #         self.actuator_manager.activate_actuator('CO2-Injector')

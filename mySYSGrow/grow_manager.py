@@ -273,9 +273,9 @@ class GrowthManager:
         """
         self.database_manager.insert_sensor_data(temperature=temperature, humidity=humidity)
         if temperature > self.temperature_threshold + self.hysteresis:
-            self.device_manager.turn_on_device('fan')
+            self.device_manager.turn_on_device('cooler')
         elif temperature < self.temperature_threshold - self.hysteresis:
-            self.device_manager.turn_off_device('fan')
+            self.device_manager.turn_off_device('cooler')
 
         if humidity < self.humidity_threshold - self.hysteresis:
             self.device_manager.turn_on_device('humidifier')
@@ -307,6 +307,7 @@ class GrowthManager:
         if 'error' in data:
             return data
         self.update_dht(data['temperature'], data['humidity'])
+        self.control_temperature()
         for plant in self.get_all_plants():
             moisture_level = plant.get_moisture_level()
             if moisture_level is not None:
@@ -314,7 +315,7 @@ class GrowthManager:
         return data
     
     def control_temperature(self):
-        current_temperature = self.sensor.observers['temperature']
+        current_temperature = self.sensor.get_temperature()
         control_signal = self.controller.compute(current_temperature)
     
         if control_signal > 0:

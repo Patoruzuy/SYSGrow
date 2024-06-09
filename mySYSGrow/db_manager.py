@@ -56,6 +56,13 @@ class DatabaseManager:
         """Creates the necessary tables in the database if they do not already exist."""
         try:
             db = self.get_db()
+            db.execute('''CREATE TABLE IF NOT EXISTS Actuator (
+                                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                name TEXT NOT NULL,
+                                gpio INTEGER,
+                                ip_address TEXT,
+                                type TEXT NOT NULL
+                                )''')
             db.execute('''CREATE TABLE IF NOT EXISTS Device (
                                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                                 name TEXT NOT NULL,
@@ -105,6 +112,25 @@ class DatabaseManager:
             db.commit()
         except sqlite3.Error as e:
             logging.error(f"Error creating tables: {e}")
+
+    def insert_actuator(self, name, gpio, ip_address, type):
+        """Inserts a new actuator into the Actuator table."""
+        try:
+            db = self.get_db()
+            db.execute("INSERT INTO Actuator (name, gpio, ip_address, type) VALUES (?, ?, ?, ?)",
+                            (name, gpio, ip_address, type))
+            db.commit()
+        except sqlite3.Error as e:
+            logging.error(f"Error inserting actuator: {e}")
+
+    def remove_actuator(self, name):
+        """Removes an actuator from the Actuator table."""
+        try:
+            db = self.get_db()
+            db.execute("DELETE FROM Actuator WHERE name = ?", (name,))
+            db.commit()
+        except sqlite3.Error as e:
+            logging.error(f"Error removing actuator: {e}")
 
     def insert_device(self, name, gpio, ip_address, type, functionality):
         """Inserts a new device into the Devices table."""

@@ -196,7 +196,12 @@ def set_stage_durations():
 def actuator():
     available_actuators = ['Heater', 'Cooler', 'Humidifier', 'CO2Injector']  # List all available actuator types
     active_actuators = manager.actuator_manager.get_actuators()
-    active_sensors = manager.sensor_manager.get_sensors()
+    try:
+        active_sensors = manager.sensor_manager.get_sensors()
+        print(f"Active sensors: {active_sensors}")
+    except Exception as e:
+        print(f"Error retrieving sensors: {e}")
+        active_sensors = []
     return render_template('actuator.html', available_actuators=available_actuators, active_actuators=active_actuators, active_sensors=active_sensors)
 
 # @app.route('/sensors')

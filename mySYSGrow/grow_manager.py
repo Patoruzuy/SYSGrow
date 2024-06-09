@@ -41,7 +41,7 @@ class GrowthManager:
         self.sensor = DHTSensor(pin=4)
         self.sensor.attach(self)
         self.device_manager = DeviceManager(database_manager)
-        self.actuator_manager = ActuatorManager()
+        self.actuator_manager = ActuatorManager(database_manager)
         self.sensor_manager = SensorManager
         self.temperature_threshold = 24
         self.humidity_threshold = 40
@@ -222,7 +222,7 @@ class GrowthManager:
         """
         Creates the LightObserver if a light device is available.
         """
-        light_device = self.device_manager.get_device_by_functionality("light")
+        light_device = self.actuator_manager.get_actuator("Light")
         if light_device:
             self.light_observer = LightObserver(self.device_manager, functionality="light")
             self.timer.attach(self.light_observer)

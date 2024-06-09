@@ -62,6 +62,7 @@ class ActuatorManager:
     Manages multiple actuator objects.
 
     Attributes:
+        database_manager (DatabaseManager): An instance of the database manager.
         actuators (dict): Dictionary to store actuators with their names as keys.
     
     Methods:
@@ -70,12 +71,28 @@ class ActuatorManager:
         activate_actuator(name): Activates a specified actuator by name.
         deactivate_actuator(name): Deactivates a specified actuator by name.
         get_actuators(): Returns the names of all managed actuators.
+        get_actuator_by_name(name): Retrieves an actuator by its name.
     """
-    def __init__(self):
+    def __init__(self, database_manager):
         """
         Initializes the ActuatorManager with an empty dictionary of actuators.
         """
+        self.database_manager = database_manager
         self.actuators = {}
+
+    def _load_actuators_from_db(self):
+        """
+        Loads actuator configurations from the database and creates Actuator objects.
+
+        Returns:
+            dict: A dictionary of Actuator objects keyed by their names.
+        """
+        actuators = {}
+        actuator_configs = self.database_manager.get_actuator_configs()
+        for config in actuator_configs:
+            actuator = RelayActuator(device=config['name'], pin=config['gpio'], ip=config['ip_address'])
+            actuators[config['name']] = actuator
+        return actuators
     
     def add_actuator(self, name, actuator):
         """
@@ -86,6 +103,7 @@ class ActuatorManager:
             actuator (Actuator): The actuator object to be added.
         """
         self.actuators[name] = actuator
+        self.database_manager.insert_actuator(name, actuator.relay.pin, actuator.relay.ip, 'Relay')
     
     def remove_actuator(self, name):
         """
@@ -96,6 +114,7 @@ class ActuatorManager:
         """
         if name in self.actuators:
             del self.actuators[name]
+            self.database_manager.remove_actuator(name)
     
     def activate_actuator(self, name):
         """
@@ -118,6 +137,18 @@ class ActuatorManager:
         if name in self.actuators:
             self.actuators[name].deactivate()
             print("Deactivate name: ", + name)
+
+    def get_actuator(self, name):
+        """
+        Retrieves an actuator by its name.
+
+        Args:
+            name (str): The name of the actuator to retrieve.
+
+        Returns:
+            Actuator: The actuator object with the specified name, or None if not found.
+        """
+        return self.actuators.get(name)
     
     def get_actuators(self):
         """

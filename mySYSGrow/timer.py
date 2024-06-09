@@ -89,19 +89,16 @@ class LightObserver:
     Observer class that responds to timer notifications by turning lights on and off.
     
     Attributes:
-        device_manager (DeviceManager): The device manager to control devices.
-        functionality (str): The functionality of the light device.
+        actuator_manager (ActuatorManager): The actuator manager to control actuators.
     """
-    def __init__(self, device_manager, functionality):
+    def __init__(self, actuator_manager):
         """
-        Initializes the LightObserver with a device manager and functionality.
+        Initializes the LightObserver with actuator manager.
 
         Args:
-            device_manager (DeviceManager): The device manager to control devices.
-            functionality (str): The functionality of the light device.
+            actuator_manager (ActuatorManager): The actuator manager to control actuators.
         """
-        self.device_manager = device_manager
-        self.functionality = functionality
+        self.actuator_manager = actuator_manager
 
     def update(self, message):
         """
@@ -111,9 +108,9 @@ class LightObserver:
             message (str): The desired state of the light ('on' or 'off').
         """
         if message == "on":
-            self.device_manager.turn_on_device(self.functionality)
+            self.actuator_manager.activate_actuator("Light")
         elif message == "off":
-            self.device_manager.turn_off_device(self.functionality)
+            self.actuator_manager.deactivate_actuator("Light")
 
 class PlantTimerObserver:
     """

@@ -13,6 +13,7 @@ from sensor import *
 from flask import current_app
 from device_manager import DeviceManager
 from actuator_manager import *
+from pib_controller import PIDController
 
 class GrowthManager:
     """
@@ -42,6 +43,8 @@ class GrowthManager:
         self.device_manager = DeviceManager(database_manager)
         self.actuator_manager = ActuatorManager()
         self.sensor_manager = SensorManager
+        self.controller = PIDController(kp=1.0, ki=0.1, kd=0.05, setpoint=22.0)
+        #self.controller = MLController(model=your_model, setpoint=22.0)
         self.temperature_threshold = 24
         self.humidity_threshold = 40
         self.soil_moisture_threshold = 50
@@ -310,3 +313,48 @@ class GrowthManager:
                 self.update_soil_moisture(plant, moisture_level)
         return data
     
+    def control_temperature(self):
+        current_temperature = self.sensor.observers['temperature']
+        control_signal = self.controller.compute(current_temperature)
+    
+        if control_signal > 0:
+           self.actuator_manager.activate_actuator("Heater")
+           self.actuator_manager.deactivate_actuator("Cooler")
+        else:
+            self.actuator_manager.deactivate_actuator("Heater")
+            self.actuator_manager.activate_actuator("Cooler")
+    
+    def control_humidity(self):
+        current_humidity =  self.sensor.get_humidity()
+        control_signal = self.controller.compute(current_humidity)
+
+        if control_signal > 0:
+            self.actuator_manager.activate_actuator('Humidifier')
+            self.actuator_manager.deactivate_deactuator("Dehumidifier")
+        else:
+            self.actuator_manager.deactivate_actuator("Humidifier")
+            self.actuator_manager.activate_actuator("Dehumidifier")
+
+        print(f"Humidity: {current_humidity}%, Control Signal: {control_signal}")
+
+    def control_soil_moisture(self):
+        current_moisture = self.sensor.read_moisture_level()
+        control_signal = self.controller.compute(current_moisture)
+
+        if control_signal > 0:
+            self.actuator_manager.activate_actuator('WaterPump')
+        else:
+            self.actuator_manager.deactivate_actuator('WaterPump')
+
+        print(f"Soil Moisture: {current_moisture}%, Control Signal: {control_signal}")
+
+    # def control_co2(self):
+    #     current_co2 = self.sensor.get_co2_level()
+    #     control_signal = self.controller.compute(current_co2)
+
+    #     if control_signal > 0:
+    #         self.actuator_manager.activate_actuator('CO2Injector')
+    #     else:
+    #         self.actuator_manager.deactivate_actuator('CO2Injector')
+
+    #     print(f"CO2 Level: {current_co2}ppm, Control Signal: {control_signal}")

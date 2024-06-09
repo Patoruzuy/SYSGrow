@@ -152,7 +152,7 @@ class DHTSensor():
         for observer in self.observers:
             observer.update_dht(temperature, humidity)
     
-    def get_temperature():
+    def get_temperature(self):
         """Return the temperature
         """
         data = self.dht11.read()
@@ -160,7 +160,7 @@ class DHTSensor():
             return {'error': 'Failed to get reading. Try again!'}
         return data['temperature']
     
-    def get_humidity():
+    def get_humidity(self):
         """Return the temperature
         """
         data = self.dht11.read()

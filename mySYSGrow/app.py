@@ -262,7 +262,7 @@ def settings():
 
         if name and (sensor_functionality or actuator_functionality):
             gpio = int(gpio) if gpio else None
-
+        print("Second debugging, Sensor: ", sensor_functionality, "actuator: ", actuator_functionality)
         if type == 'sensor':
             functionality = sensor_functionality
             manager.sensor_manager.add_sensor(name, gpio, ip_address, type, functionality)

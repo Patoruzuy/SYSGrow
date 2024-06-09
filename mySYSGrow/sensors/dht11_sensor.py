@@ -18,8 +18,15 @@ class DHT11Sensor:
         Returns:
             dict: A dictionary containing 'temperature' and 'humidity'.
         """
-        humidity, temperature = Adafruit_DHT.read_retry(self.sensor, self.pin)
-        if humidity is not None and temperature is not None:
-            return {'temperature': temperature, 'humidity': humidity}
-        else:
+        try:
+            humidity, temperature = Adafruit_DHT.read_retry(self.sensor, self.pin)
+            if humidity is not None and temperature is not None:
+                return {
+                    'temperature': temperature,
+                    'humidity': humidity
+                }
+            else:
+                raise ValueError("Failed to read from DHT sensor")
+        except RuntimeError as e:
+            print(f"RuntimeError: {e}")
             return None

@@ -60,8 +60,7 @@ class DatabaseManager:
                                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                                 name TEXT NOT NULL,
                                 gpio INTEGER,
-                                ip_address TEXT,
-                                type TEXT NOT NULL
+                                ip_address TEXT
                                 )''')
             db.execute('''CREATE TABLE IF NOT EXISTS Device (
                                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -108,12 +107,12 @@ class DatabaseManager:
         except sqlite3.Error as e:
             logging.error(f"Error creating tables: {e}")
 
-    def insert_actuator(self, name, gpio, ip_address, type):
+    def insert_actuator(self, name, gpio, ip_address):
         """Inserts a new actuator into the Actuator table."""
         try:
             db = self.get_db()
-            db.execute("INSERT INTO Actuator (name, gpio, ip_address, type) VALUES (?, ?, ?, ?)",
-                            (name, gpio, ip_address, type))
+            db.execute("INSERT INTO Actuator (name, gpio, ip_address) VALUES (?, ?, ?)",
+                            (name, gpio, ip_address))
             db.commit()
         except sqlite3.Error as e:
             logging.error(f"Error inserting actuator: {e}")
@@ -204,6 +203,25 @@ class DatabaseManager:
             return device_configs
         except sqlite3.Error as e:
             logging.error(f"Error getting device configs: {e}")
+            return []
+        
+    def get_actuator_configs(self):
+        """Retrieves actuator configurations from the database."""
+        try:
+            db = self.get_db()
+            cursor = db.execute("SELECT name, gpio, ip_address FROM Actuator")
+            rows = cursor.fetchall()
+            actuator_configs = []
+            for row in rows:
+                config = {
+                    'name': row['name'],
+                    'gpio': row['gpio'],
+                    'ip_address': row['ip_address']
+                }
+                actuator_configs.append(config)
+            return actuator_configs
+        except sqlite3.Error as e:
+            logging.error(f"Error getting sensor configs: {e}")
             return []
 
     def get_sensor_configs(self):

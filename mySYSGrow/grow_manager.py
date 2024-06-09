@@ -38,7 +38,7 @@ class GrowthManager:
         self.tent = Tent()
         self.timer = Timer()
         self.light_observer = None
-        self.sensor = DHTSensor(pin=D4)
+        self.sensor = DHTSensor(pin=4)
         self.sensor.attach(self)
         self.device_manager = DeviceManager(database_manager)
         self.actuator_manager = ActuatorManager()

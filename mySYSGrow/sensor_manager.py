@@ -165,7 +165,6 @@ class SensorManager:
         Returns:
             list: A list of sensors names.
         """
-        print("SensorManager value: ",self.actuators.values())
         return self.sensors.keys()
 
     def get_sensor_by_functionality(self, functionality):

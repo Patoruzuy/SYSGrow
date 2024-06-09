@@ -24,7 +24,7 @@ with app.app_context():
     manager = GrowthManager(database_manager=database_manager)
 
 # Register cleanup function to be called on exit
-atexit.register(manager.device_manager.cleanup)
+atexit.register(manager.actuator_manager.cleanup)
 
 @app.route('/')
 def index():

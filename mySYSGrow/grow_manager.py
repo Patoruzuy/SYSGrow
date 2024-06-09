@@ -337,7 +337,7 @@ class GrowthManager:
 
         if control_signal > 0:
             self.actuator_manager.activate_actuator('Humidifier')
-            self.actuator_manager.deactivate_deactuator("Dehumidifier")
+            self.actuator_manager.deactivate_actuator("Dehumidifier")
         else:
             self.actuator_manager.deactivate_actuator("Humidifier")
             self.actuator_manager.activate_actuator("Dehumidifier")

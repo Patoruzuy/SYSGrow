@@ -37,8 +37,8 @@ class GrowthManager:
         self.tent = Tent()
         self.timer = Timer()
         self.light_observer = None
-        self.sensor = DHTSensor(pin=4)
-        self.sensor.attach(self)
+        # self.sensor = DHTSensor(pin=4)
+        # self.sensor.attach(self)
         self.actuator_manager = ActuatorManager(database_manager)
         self.sensor_manager = SensorManager(database_manager)
         self.temperature_threshold = 24
@@ -272,41 +272,32 @@ class GrowthManager:
             self.device_manager.turn_off_device('soil_moisture')
 
     def monitor_environment(self):
-        """
-        Monitors the environment and updates devices accordingly.
+        sensor_readings = self.sensor_manager.read_all_sensors()
+        for sensor_type, readings in sensor_readings.items():
+            if sensor_type == 'DHT':
+                self.control_temperature(readings['temperature'])
+                self.control_humidity(readings['humidity'])
+            elif sensor_type == 'Soil-Moisture':
+                self.control_soil_moisture(readings['moisture_level'])
+            elif sensor_type == 'CO2':
+                # self.control_CO2(readings['co2'])
+                print(readings['co2'])
+        return sensor_readings
 
-        Returns:
-            dict: The current environmental data.
-        """
-        # data = self.sensor.read_environment()
-        # if 'error' in data:
-        #     return data
-        self.control_temperature()
-        self.control_humidity()
-        all_reading = self.sensor_manager.read_all_sensors()
-        print("All reading get from monitor evniroment:", all_reading)
-        # for plant in self.get_all_plants():
-        #     moisture_level = plant.get_moisture_level()
-        #     if moisture_level is not None:
-        #         self.update_soil_moisture(plant, moisture_level)
-        # return data
-    
-    def control_temperature(self):
-        current_temperature = self.sensor.get_temperature()
+    def control_temperature(self, current_temperature):
         control_signal = self.temp_pid.compute(current_temperature)
-        print("current temp: ", current_temperature, "control_signal: ", control_signal)
+        print("Current temp: ", current_temperature, "Control signal: ", control_signal)
     
         if control_signal > 0:
-           self.actuator_manager.activate_actuator("Heater")
-           self.actuator_manager.deactivate_actuator("Cooler")
+            self.actuator_manager.activate_actuator("Heater")
+            self.actuator_manager.deactivate_actuator("Cooler")
         else:
             self.actuator_manager.deactivate_actuator("Heater")
             self.actuator_manager.activate_actuator("Cooler")
     
-    def control_humidity(self):
-        current_humidity =  self.sensor.get_humidity()
+    def control_humidity(self, current_humidity):
         control_signal = self.humidity_pid.compute(current_humidity)
-        print("current humidity: ", current_humidity, "control_signal: ", control_signal)
+        print("Current humidity: ", current_humidity, "Control signal: ", control_signal)
 
         if control_signal > 0:
             self.actuator_manager.activate_actuator('Humidifier')
@@ -317,9 +308,9 @@ class GrowthManager:
 
         print(f"Humidity: {current_humidity}%, Control Signal: {control_signal}")
 
-    def control_soil_moisture(self):
-        current_moisture = self.sensor.read_moisture_level()
+    def control_soil_moisture(self, current_moisture):
         control_signal = self.soil_moisture_pid.compute(current_moisture)
+        print("Current moisture: ", current_moisture, "Control signal: ", control_signal)
 
         if control_signal > 0:
             self.actuator_manager.activate_actuator('Water-Pump')
@@ -328,8 +319,8 @@ class GrowthManager:
 
         print(f"Soil Moisture: {current_moisture}%, Control Signal: {control_signal}")
 
-    # def control_co2(self):
-    #     current_co2 = self.sensor.get_co2_level()
+    # def control_co2(self, readings):
+    #     current_co2 = readings
     #     control_signal = self.co2_pid.compute(current_co2)
 
     #     if control_signal > 0:

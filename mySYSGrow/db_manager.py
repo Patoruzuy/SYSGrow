@@ -80,7 +80,7 @@ class DatabaseManager:
                                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
                                 temperature REAL,
-                                humidity REAL,
+                                humidity REAL
                                 )''')
             db.execute('''CREATE TABLE IF NOT EXISTS Plants (
                                 id INTEGER PRIMARY KEY AUTOINCREMENT,

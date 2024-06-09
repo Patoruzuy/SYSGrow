@@ -272,7 +272,18 @@ class GrowthManager:
             self.device_manager.turn_off_device('soil_moisture')
 
     def monitor_environment(self):
+        """
+        Monitors the environment and updates devices accordingly.
+
+        Returns:
+            dict: The current environmental data.
+        """
         sensor_readings = self.sensor_manager.read_all_sensors()
+        
+        if not sensor_readings:
+            print("No sensor readings available.")
+            return {}
+
         for sensor_type, readings in sensor_readings.items():
             if sensor_type == 'DHT':
                 self.control_temperature(readings['temperature'])

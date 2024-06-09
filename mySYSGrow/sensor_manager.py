@@ -226,5 +226,5 @@ class SensorManager:
         readings = {}
         for sensor_type, sensor in self.sensors.items():
             readings[sensor_type] = sensor.read()
-            print("Sensor manager", "name: ",sensor_type, "Reading: ", readings)
+            print("Sensor manager", "name: ", sensor_type, "Reading: ", readings)
         return readings

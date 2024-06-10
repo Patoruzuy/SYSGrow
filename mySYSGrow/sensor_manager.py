@@ -137,7 +137,6 @@ class SensorManager:
         """
         self.database_manager = database_manager
         self.sensors = self._load_sensors_from_db()
-        self.sensors = {}
 
     def _load_sensors_from_db(self):
         """
@@ -146,7 +145,7 @@ class SensorManager:
         Returns:
             dict: A dictionary of Sensor objects keyed by their functionalities.
         """
-        
+        sensors = {}
         sensor_configs = self.database_manager.get_sensor_configs()
         for config in sensor_configs:
             if config['sensor_type'] == 'DHT':
@@ -157,8 +156,8 @@ class SensorManager:
                 sensor = CO2Sensor(ip=config['ip_address'])
             else:
                 continue
-            self.sensors[config['sensor_type']] = sensor
-        return self.sensors
+            sensors[config['sensor_type']] = sensor
+        return sensors
     
     def get_sensors(self):
         """
@@ -167,7 +166,7 @@ class SensorManager:
         Returns:
             list: A list of sensors names.
         """
-        return list(self.sensors.keys())
+        return self.sensors.keys()
 
     def get_sensor_by_type(self, sensor_type):
         """
@@ -190,7 +189,6 @@ class SensorManager:
             gpio (int, optional): The GPIO pin number for control.
             ip_address (str, optional): The IP address for wireless control.
         """
-        sensor = None
         if sensor_type == 'DHT':
             sensor = DHTSensor(pin=gpio)
         elif sensor_type == 'Soil-Moisture':

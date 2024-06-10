@@ -114,10 +114,8 @@ def reading_update():
     Returns:
         Response: A Flask Response object containing the sensor data in JSON format.
     """
-    # Call the method to read the current environmental data from the sensor
     data = manager.monitor_environment()
-    print("reading update in app.py: ", data)
-    # Return the sensor data as a JSON response
+    print(f"Reading update in app.py: {data}")
     return jsonify(data)
 
 @app.route('/sensor_data')
@@ -299,6 +297,19 @@ def settings():
         sensors = database_manager.get_sensor_configs()
         print("sensors:", sensors)
         return render_template('settings.html', devices=devices, sensors=sensors)
+    
+@app.errorhandler(500)
+def internal_error(error):
+    return jsonify({'status': 'error', 'message': str(error)}), 500
+
+@app.errorhandler(404)
+def not_found_error(error):
+    return jsonify({'status': 'error', 'message': 'Not found'}), 404
+
+@app.errorhandler(400)
+def bad_request_error(error):
+    return jsonify({'status': 'error', 'message': 'Bad request'}), 400
+
     
 if __name__ == '__main__':
     app.run(host="192.168.0.40", debug=True, use_reloader=False)

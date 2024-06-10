@@ -2,39 +2,51 @@ function fetchSensorData() {
     fetch('/reading_update')
         .then(response => response.json())
         .then(data => {
+            console.log('Fetched data:', data);  // Debugging line to check fetched data
+
             const temperatureElement = document.getElementById('temperature');
             const humidityElement = document.getElementById('humidity');
 
             const temperatureThreshold = parseFloat(temperatureElement.getAttribute('data-threshold'));
             const humidityThreshold = parseFloat(humidityElement.getAttribute('data-threshold'));
 
-            if (data.error) {
-                temperatureElement.innerText = data.error;
-                humidityElement.innerText = data.error;
-            } else {
-                const temperature = data.temperature;
-                const humidity = data.humidity;
+            if (!data || !data.DHT) {
+                temperatureElement.innerText = 'Error';
+                humidityElement.innerText = 'Error';
+                console.error('Invalid data format:', data);  // Debugging line to check data format
+                return;
+            }
 
+            const temperature = data.DHT.temperature;
+            const humidity = data.DHT.humidity;
+
+            if (temperature !== null && temperature !== undefined) {
                 temperatureElement.innerText = temperature + '°C';
+                temperatureElement.style.color = temperature > temperatureThreshold ? 'red' : 'green';
+            } else {
+                temperatureElement.innerText = 'N/A';
+            }
+
+            if (humidity !== null && humidity !== undefined) {
                 humidityElement.innerText = humidity + '%';
-
-                // Change font color based on temperature threshold
-                if (temperature > temperatureThreshold) {
-                    temperatureElement.style.color = 'red';
-                } else {
-                    temperatureElement.style.color = 'green';
-                }
-
-                // Change font color based on humidity threshold
-                if (humidity < humidityThreshold) {
-                    humidityElement.style.color = 'blue';
-                } else {
-                    humidityElement.style.color = 'green';
-                }
+                humidityElement.style.color = humidity < humidityThreshold ? 'blue' : 'green';
+            } else {
+                humidityElement.innerText = 'N/A';
             }
         })
-        .catch(error => console.error('Error fetching sensor data:', error));
+        .catch(error => {
+            console.error('Error fetching sensor data:', error);
+            document.getElementById('temperature').innerText = 'Error';
+            document.getElementById('humidity').innerText = 'Error';
+        });
 }
+
+// Fetch data every 5 seconds
+setInterval(fetchSensorData, 5000);
+
+// Fetch data immediately when the page loads
+window.onload = fetchSensorData;
+
 
 // Fetch data every 5 seconds
 setInterval(fetchSensorData, 5000);

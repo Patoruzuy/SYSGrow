@@ -1,33 +1,30 @@
 import adafruit_dht
+import time
 import board
 
-class DHT11Sensor:
+class DHTSensor:
     def __init__(self, pin):
-        """
-        Initializes the DHT11 sensor.
-        
-        Args:
-            pin (int): GPIO pin number where the sensor is connected.
-        """
-        pin_mapping = {
-            4: board.D4,
-            17: board.D17,
-            27: board.D27,
-            22: board.D22,
-        }
-        self.sensor = adafruit_dht.DHT11(pin_mapping[pin])
+        self.pin = getattr(board, f"D{pin}")
+        self.sensor = adafruit_dht.DHT11(self.pin)
 
-    def read(self):
+    def read(self, retries=3, delay=2):
         """
-        Reads the temperature and humidity from the sensor.
-        
+        Reads the temperature and humidity from the DHT sensor with retry logic.
+
+        Args:
+            retries (int): The number of retries before failing.
+            delay (int): The delay between retries in seconds.
+
         Returns:
-            dict: A dictionary containing 'temperature' and 'humidity'.
+            dict: A dictionary containing the temperature and humidity.
         """
-        try:
-            temperature = self.sensor.temperature
-            humidity = self.sensor.humidity
-            return {'temperature': temperature, 'humidity': humidity}
-        except RuntimeError as e:
-            print(f'Error reading sensor: {e}')
-            return {'temperature': None, 'humidity': None}
+        for _ in range(retries):
+            try:
+                temperature = self.sensor.temperature
+                humidity = self.sensor.humidity
+                if temperature is not None and humidity is not None:
+                    return {'temperature': temperature, 'humidity': humidity}
+            except RuntimeError as e:
+                print(f"Error reading sensor: {e}")
+                time.sleep(delay)
+        return {'temperature': None, 'humidity': None}

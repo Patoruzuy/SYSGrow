@@ -190,6 +190,7 @@ class SensorManager:
             gpio (int, optional): The GPIO pin number for control.
             ip_address (str, optional): The IP address for wireless control.
         """
+        sensor = None
         if sensor_type == 'DHT':
             sensor = DHTSensor(pin=gpio)
         elif sensor_type == 'Soil-Moisture':

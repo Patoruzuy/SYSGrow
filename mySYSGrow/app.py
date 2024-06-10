@@ -213,7 +213,7 @@ def actuator():
 def add_actuator():
     actuator_type = request.form['actuator_type']
     actuator_pin = int(request.form['actuator_pin'])
-    actuator_ip = request.form.get('actuator_ip')
+    actuator_ip = request.form.get('actuator_ip', None)
     actuator = RelayActuator(actuator_type, actuator_pin, actuator_ip)
     manager.actuator_manager.add_actuator(actuator_type, actuator)
     return jsonify({"status": "success", "actuator": actuator_type})
@@ -221,10 +221,13 @@ def add_actuator():
 @app.route('/add_sensor', methods=['POST'])
 def add_sensor():
     sensor_type = request.form['sensor_type']
-    sensor_pin = int(request.form['sensor_pin'])
-    sensor_ip = request.form.get('sensor_ip')
+    sensor_pin = request.form.get('sensor_pin', type=int)
+    sensor_ip = request.form.get('sensor_ip', None)
+    if not sensor_type or (not sensor_pin and not sensor_ip):
+        return jsonify({'status': 'error', 'message': 'Invalid sensor configuration'}), 400
+
     manager.sensor_manager.add_sensor(sensor_type, sensor_pin, sensor_ip)
-    return jsonify({"status": "success", "actuator": sensor_type})
+    return jsonify({'status': 'success', 'sensor': sensor_type}), 200
 
 @app.route('/remove_actuator', methods=['POST'])
 def remove_actuator():

@@ -9,7 +9,7 @@ from timer import *
 from grow_tent import Tent
 from grow_plant import *
 from db_manager import DatabaseManager
-from sensor import *
+from sensor_manager import SensorManager
 from flask import current_app
 from actuator_manager import *
 from pib_controller import PIDController

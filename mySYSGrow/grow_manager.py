@@ -284,27 +284,35 @@ class GrowthManager:
             print("No sensor readings available.")
             return {}
 
-        for sensor_type, readings in sensor_readings.items():
-            if sensor_type == 'DHT':
-                temperature = readings.get('temperature')
-                humidity = readings.get('humidity')
-                if temperature is not None and humidity is not None:
-                    self.control_temperature(temperature)
-                    self.control_humidity(humidity)
-                else:
-                    print(f"Invalid DHT readings: temperature={temperature}, humidity={humidity}")
-            elif sensor_type == 'Soil-Moisture':
-                moisture_level = readings.get('moisture_level')
-                if moisture_level is not None:
-                    self.control_soil_moisture(moisture_level)
-                else:
-                    print(f"Invalid Soil-Moisture reading: moisture_level={moisture_level}")
-            elif sensor_type == 'CO2':
-                co2_level = readings.get('co2')
-                if co2_level is not None:
-                    print(f"CO2 level: {co2_level}")  # or self.control_CO2(co2_level) if you implement it
-                else:
-                    print(f"Invalid CO2 reading: co2={co2_level}")
+        # Process DHT sensor readings
+        dht_readings = sensor_readings.get('DHT')
+        if dht_readings:
+            temperature = dht_readings.get('temperature')
+            humidity = dht_readings.get('humidity')
+            if temperature is not None and humidity is not None:
+                self.control_temperature(temperature)
+                self.control_humidity(humidity)
+            else:
+                print(f"Invalid DHT readings: temperature={temperature}, humidity={humidity}")
+
+        # Process Soil-Moisture sensor readings
+        soil_moisture_readings = sensor_readings.get('Soil-Moisture')
+        if soil_moisture_readings:
+            moisture_level = soil_moisture_readings.get('moisture_level')
+            if moisture_level is not None:
+                self.control_soil_moisture(moisture_level)
+            else:
+                print(f"Invalid Soil-Moisture reading: moisture_level={moisture_level}")
+
+        # Process CO2 sensor readings
+        co2_readings = sensor_readings.get('CO2')
+        if co2_readings:
+            co2_level = co2_readings.get('co2')
+            if co2_level is not None:
+                print(f"CO2 level: {co2_level}")
+            else:
+                print(f"Invalid CO2 reading: co2={co2_level}")
+
         return sensor_readings
 
     def control_temperature(self, current_temperature):

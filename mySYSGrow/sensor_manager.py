@@ -149,15 +149,15 @@ class SensorManager:
         
         sensor_configs = self.database_manager.get_sensor_configs()
         for config in sensor_configs:
-            if config['type'] == 'DHT':
+            if config['sensor_type'] == 'DHT':
                 sensor = DHTSensor(pin=config['gpio'])
-            elif config['type'] == 'Soil-Moisture':
+            elif config['sensor_type'] == 'Soil-Moisture':
                 sensor = SoilMoistureSensor(pin=config['gpio'])
-            elif config['type'] == 'CO2':
+            elif config['sensor_type'] == 'CO2':
                 sensor = CO2Sensor(ip=config['ip_address'])
             else:
                 continue
-            self.sensors[config['name']] = sensor
+            self.sensors[config['sensor_type']] = sensor
         return self.sensors
     
     def get_sensors(self):
@@ -203,18 +203,18 @@ class SensorManager:
         self.sensors[sensor_type] = sensor
         self.database_manager.insert_sensor(sensor_type, gpio, ip_address)
 
-    def remove_sensor(self, functionality):
+    def remove_sensor(self, sensor_type):
         """
         Removes the specified sensor by functionality.
 
         Args:
             functionality (str): The functionality of the sensor to remove.
         """
-        if functionality in self.sensors:
-            del self.sensors[functionality]
-            self.database_manager.remove_sensor(functionality)
+        if sensor_type in self.sensors:
+            del self.sensors[sensor_type]
+            self.database_manager.remove_sensor(sensor_type)
         else:
-            print(f"Cannot remove sensor with functionality '{functionality}' because it is not found.")
+            print(f"Cannot remove sensor with sensor name '{sensor_type}' because it is not found.")
 
     def read_all_sensors(self):
         """

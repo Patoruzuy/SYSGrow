@@ -312,7 +312,7 @@ class GrowthManager:
                 print(f"CO2 level: {co2_level}")
             else:
                 print(f"Invalid CO2 reading: co2={co2_level}")
-
+        print("sensor_reading in monitor_environment: ", sensor_readings)
         return sensor_readings
 
     def control_temperature(self, current_temperature):

@@ -116,7 +116,7 @@ def reading_update():
     """
     # Call the method to read the current environmental data from the sensor
     data = manager.monitor_environment()
-
+    print("reading update in app.py: ", data)
     # Return the sensor data as a JSON response
     return jsonify(data)
 

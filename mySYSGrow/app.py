@@ -202,7 +202,13 @@ def actuator():
     except Exception as e:
         print(f"Error retrieving sensors: {e}")
         active_sensors = []
+
+    try:
         actuator_states = manager.actuator_manager.get_actuator_states()
+    except Exception as e:
+        print(f"Error retrieving actuator states: {e}")
+        actuator_states = {actuator: 'off' for actuator in active_actuators}
+
     return render_template('actuator.html', available_actuators=available_actuators, active_actuators=active_actuators, active_sensors=active_sensors, actuator_states=actuator_states)
 
 # @app.route('/sensors')

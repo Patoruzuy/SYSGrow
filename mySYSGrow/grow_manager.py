@@ -286,18 +286,33 @@ class GrowthManager:
 
         for sensor_type, readings in sensor_readings.items():
             if sensor_type == 'DHT':
-                self.control_temperature(readings['temperature'])
-                self.control_humidity(readings['humidity'])
+                temperature = readings.get('temperature')
+                humidity = readings.get('humidity')
+                if temperature is not None and humidity is not None:
+                    self.control_temperature(temperature)
+                    self.control_humidity(humidity)
+                else:
+                    print(f"Invalid DHT readings: temperature={temperature}, humidity={humidity}")
             elif sensor_type == 'Soil-Moisture':
-                self.control_soil_moisture(readings['moisture_level'])
+                moisture_level = readings.get('moisture_level')
+                if moisture_level is not None:
+                    self.control_soil_moisture(moisture_level)
+                else:
+                    print(f"Invalid Soil-Moisture reading: moisture_level={moisture_level}")
             elif sensor_type == 'CO2':
-                # self.control_CO2(readings['co2'])
-                print(readings['co2'])
+                co2_level = readings.get('co2')
+                if co2_level is not None:
+                    print(f"CO2 level: {co2_level}")  # or self.control_CO2(co2_level) if you implement it
+                else:
+                    print(f"Invalid CO2 reading: co2={co2_level}")
         return sensor_readings
 
     def control_temperature(self, current_temperature):
+        if current_temperature is None:
+            print("Invalid temperature reading.")
+            return
         control_signal = self.temp_pid.compute(current_temperature)
-        print("Current temp: ", current_temperature, "Control signal: ", control_signal)
+        print("current temp: ", current_temperature, "control_signal: ", control_signal)
     
         if control_signal > 0:
             self.actuator_manager.activate_actuator("Heater")
@@ -307,8 +322,11 @@ class GrowthManager:
             self.actuator_manager.activate_actuator("Cooler")
     
     def control_humidity(self, current_humidity):
+        if current_humidity is None:
+            print("Invalid humidity reading.")
+            return
         control_signal = self.humidity_pid.compute(current_humidity)
-        print("Current humidity: ", current_humidity, "Control signal: ", control_signal)
+        print("current humidity: ", current_humidity, "control_signal: ", control_signal)
 
         if control_signal > 0:
             self.actuator_manager.activate_actuator('Humidifier')
@@ -320,8 +338,10 @@ class GrowthManager:
         print(f"Humidity: {current_humidity}%, Control Signal: {control_signal}")
 
     def control_soil_moisture(self, current_moisture):
+        if current_moisture is None:
+            print("Invalid soil moisture reading.")
+            return
         control_signal = self.soil_moisture_pid.compute(current_moisture)
-        print("Current moisture: ", current_moisture, "Control signal: ", control_signal)
 
         if control_signal > 0:
             self.actuator_manager.activate_actuator('Water-Pump')

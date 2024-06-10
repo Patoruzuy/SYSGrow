@@ -274,17 +274,17 @@ def settings():
         actuator_functionality = request.form.get('actuator_functionality')
         print("Sensor: ", sensor_functionality, "actuator: ", actuator_functionality)
 
-        if name and (sensor_functionality or actuator_functionality):
-            gpio = int(gpio) if gpio else None
-        print("Second debugging, Sensor: ", sensor_functionality, "actuator: ", actuator_functionality)
-        if type == 'sensor':
-            functionality = sensor_functionality
-            manager.sensor_manager.add_sensor(name, gpio, ip_address, type, functionality)
-            print("Add to sensor manager", name, gpio, ip_address, type, functionality)
-        elif type == 'actuator':
-            functionality = actuator_functionality
-            print("Add to device manager", name, gpio, ip_address, type, functionality)
-            manager.device_manager.add_device(name, gpio, ip_address, type, functionality)
+        # if name and (sensor_functionality or actuator_functionality):
+        #     gpio = int(gpio) if gpio else None
+        # print("Second debugging, Sensor: ", sensor_functionality, "actuator: ", actuator_functionality)
+        # if type == 'sensor':
+        #     functionality = sensor_functionality
+        #     manager.sensor_manager.add_sensor(name, gpio, ip_address, type, functionality)
+        #     print("Add to sensor manager", name, gpio, ip_address, )
+        # elif type == 'actuator':
+        #     functionality = actuator_functionality
+        #     print("Add to device manager", name, gpio, ip_address, type, functionality)
+        #     manager.device_manager.add_device(name, gpio, ip_address, type, functionality)
 
         return redirect(url_for('settings'))
     else:

@@ -206,10 +206,10 @@ class SensorManager:
 
     def remove_sensor(self, sensor_type):
         """
-        Removes the specified sensor by functionality.
+        Removes the specified sensor by type.
 
         Args:
-            functionality (str): The functionality of the sensor to remove.
+            Sensor_type (str): The type or name of the sensor to remove.
         """
         if sensor_type in self.sensors:
             del self.sensors[sensor_type]

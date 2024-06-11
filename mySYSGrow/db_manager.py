@@ -89,7 +89,7 @@ class DatabaseManager:
                                 moisture_level REAL,
                                 last_updated DATETIME DEFAULT CURRENT_TIMESTAMP
                                 )''')
-            db.execute(''''CREATE TABLE PlantReadings (
+            db.execute('''CREATE TABLE PlantReadings (
                                 reading_id INTEGER PRIMARY KEY AUTOINCREMENT,
                                 plant_id INTEGER,
                                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -172,6 +172,16 @@ class DatabaseManager:
             db.commit()
         except sqlite3.Error as e:
             logging.error(f"Error inserting plant: {e}")
+
+    def insert_soil_moisture_history(self, plant_id, moisture_level):
+        """Inserts a new soil moisture reading into the PlantReadings table."""
+        try:
+            db = self.get_db()
+            db.execute("INSERT INTO PlantReadings (plant_id, moisture_level) VALUES (?, ?)",
+                       (plant_id, moisture_level))
+            db.commit()
+        except sqlite3.Error as e:
+            logging.error(f"Error inserting soil moisture history: {e}")
 
     def insert_sensor_data(self, temperature=None, humidity=None):
         """
@@ -273,7 +283,7 @@ class DatabaseManager:
             id (int): The ID of the plant.
 
         Returns:
-            tuple: A tuple containing the plant's name and growth stage.
+            tuple: A tuple containing the plant's name and current stage.
         """
         try:
             db = self.get_db()

@@ -24,7 +24,7 @@ class DatabaseManager:
         insert_sensor_data: Inserts sensor data into the SensorReading table.
         insert_device: Inserts a new device into the Devices table.
         insert_plant: Inserts a new plant into the Plants table.
-        update_plant_growth_stage: Updates the growth stage of a plant in the Plants table.
+        update_plant_current_stage: Updates the growth stage of a plant in the Plants table.
         get_sensor_data: Retrieves all sensor data from the SensorReading table.
         get_plant: Retrieves a specific plant's information from the Plants table.
         get_light_schedule: Retrieves the light schedule from the Settings table.
@@ -71,23 +71,31 @@ class DatabaseManager:
                                 functionality TEXT NOT NULL
                                 )''')
             db.execute('''CREATE TABLE IF NOT EXISTS Sensor (
-                                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                sensor_id INTEGER PRIMARY KEY AUTOINCREMENT,
                                 sensor_type TEXT NOT NULL,
                                 gpio INTEGER,
                                 ip_address TEXT
                                 )''')
             db.execute('''CREATE TABLE IF NOT EXISTS SensorReading (
-                                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                reading_id INTEGER PRIMARY KEY AUTOINCREMENT,
                                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
                                 temperature REAL,
                                 humidity REAL
                                 )''')
             db.execute('''CREATE TABLE IF NOT EXISTS Plants (
-                                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                plant_id INTEGER PRIMARY KEY AUTOINCREMENT,
                                 name TEXT,
-                                growth_stage TEXT,
-                                moisture_level REAL
+                                current_stage TEXT,
+                                moisture_level REAL,
+                                last_updated DATETIME DEFAULT CURRENT_TIMESTAMP
                                 )''')
+            db.execute(''''CREATE TABLE PlantReadings (
+                                reading_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                plant_id INTEGER,
+                                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                                soil_moisture REAL,
+                                FOREIGN KEY (plant_id) REFERENCES Plants(plant_id)
+                            ''')
             db.execute('''CREATE TABLE IF NOT EXISTS Settings (
                                 id INTEGER PRIMARY KEY,
                                 light_start_time TEXT,
@@ -146,21 +154,21 @@ class DatabaseManager:
         except sqlite3.Error as e:
             logging.error(f"Error inserting sensor: {e}")
 
-    def insert_plant(self, name, growth_stage, moisture_level):
+    def insert_plant(self, name, current_stage, moisture_level):
         """
         Inserts a new plant into the Plants table.
 
         Args:
             name (str): The name of the plant.
-            growth_stage (str): The current growth stage of the plant.
+            current_stage (str): The current growth stage of the plant.
             moisture_level (float, optional): The soil moisture level.
         """
         try:
             db = self.get_db()
-            db.execute('''INSERT INTO Plants (name, growth_stage, moisture_level)
+            db.execute('''INSERT INTO Plants (name, current_stage, moisture_level)
                                 VALUES (?, ?, ?)
                                 ''', 
-                                (name, growth_stage, moisture_level))
+                                (name, current_stage, moisture_level))
             db.commit()
         except sqlite3.Error as e:
             logging.error(f"Error inserting plant: {e}")
@@ -269,7 +277,7 @@ class DatabaseManager:
         """
         try:
             db = self.get_db()
-            return db.execute('SELECT name, growth_stage FROM Plants WHERE id = ?', (id,)).fetchone()
+            return db.execute('SELECT name, current_stage FROM Plants WHERE id = ?', (id,)).fetchone()
         except sqlite3.Error as e:
             logging.error(f"Error getting plant: {e}")
             return None
@@ -376,21 +384,21 @@ class DatabaseManager:
         except sqlite3.Error as e:
             logging.error(f"Error linking sensor to plant: {e}") 
 
-    def update_plant_growth_stage(self, name, growth_stage):
+    def update_plant_current_stage(self, name, current_stage):
         """
         Updates the growth stage of a plant in the Plants table.
 
         Args:
             name (str): The name of the plant.
-            growth_stage (str): The new growth stage of the plant.
+            current_stage (str): The new growth stage of the plant.
         """
         try:
             db = self.get_db()
             db.execute('''UPDATE Plants
-                                SET growth_stage = ?
+                                SET current_stage = ?
                                 WHERE name = ?
                                 ''', 
-                                (growth_stage, name))
+                                (current_stage, name))
             db.commit()
         except sqlite3.Error as e:
             logging.error(f"Error updating plant growth stage: {e}")

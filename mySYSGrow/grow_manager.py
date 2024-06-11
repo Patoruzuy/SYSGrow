@@ -115,7 +115,7 @@ class GrowthManager:
             Plant: The created Plant object.
         """
         plant = Plant(row['name'])
-        plant.set_stage(row['growth_stage'])
+        plant.set_stage(row['current_stage'])
         plant.soil_moisture_sensor = SoilMoistureSensor(plant)  # Associate the soil moisture sensor
         return plant
         
@@ -252,7 +252,7 @@ class GrowthManager:
         """
         self.timer.notify()
         for plant in self.tent.get_all_plants():
-            self.database_manager.update_plant_growth_stage(
+            self.database_manager.update_plant_current_stage(
                 plant.name, plant.stage.__class__.__name__
             )
             plant.get_moisture_level()
@@ -265,6 +265,7 @@ class GrowthManager:
             plant (Plant): The plant being monitored.
             moisture_level (float): The current soil moisture level.
         """
+        self.database_manager.insert_soil_moisture_history(plant.id, moisture_level)
         self.database_manager.insert_sensor_data(moisture_level=moisture_level)
         if moisture_level < self.soil_moisture_threshold:
             self.device_manager.turn_on_device('soil_moisture')
@@ -289,10 +290,10 @@ class GrowthManager:
         if dht_readings:
             temperature = dht_readings.get('temperature')
             humidity = dht_readings.get('humidity')
-            self.database_manager.insert_sensor_data(temperature=temperature, humidity=humidity)
             if temperature is not None and humidity is not None:
                 self.control_temperature(temperature)
                 self.control_humidity(humidity)
+                self.database_manager.insert_sensor_data(temperature=temperature, humidity=humidity)
             else:
                 print(f"Invalid DHT readings: temperature={temperature}, humidity={humidity}")
 

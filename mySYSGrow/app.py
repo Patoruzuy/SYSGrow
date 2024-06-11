@@ -86,6 +86,12 @@ def add_plant():
         return redirect(url_for('index'))
     return render_template('add_plant.html')
 
+@app.route('/soil_moisture_history/<int:plant_id>')
+def soil_moisture_history(plant_id):
+    history = database_manager.get_soil_moisture_history(plant_id)
+    plant = database_manager.get_plant(plant_id)
+    return render_template('index.html', history=history, plant=plant)
+
 @app.route('/link_sensor', methods=['POST'])
 def link_sensor():
     """

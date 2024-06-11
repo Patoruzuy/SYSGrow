@@ -1,4 +1,4 @@
-function fetchSensorData() {
+function fetchSensorReading() {
     fetch('/reading_update')
         .then(response => response.json())
         .then(data => {
@@ -42,17 +42,17 @@ function fetchSensorData() {
 }
 
 // Fetch data every 5 seconds
-setInterval(fetchSensorData, 5000);
+setInterval(fetchSensorReading, 5000);
 
 // Fetch data immediately when the page loads
-window.onload = fetchSensorData;
+window.onload = fetchSensorReading;
 
 
 // Fetch data every 5 seconds
-setInterval(fetchSensorData, 5000);
+setInterval(fetchSensorReading, 5000);
 
 // Fetch data immediately when the page loads
-window.onload = fetchSensorData;
+window.onload = fetchSensorReading;
 
 function testDevice(functionality) {
     if (!functionality) {

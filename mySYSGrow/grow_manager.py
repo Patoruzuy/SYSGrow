@@ -289,6 +289,7 @@ class GrowthManager:
         if dht_readings:
             temperature = dht_readings.get('temperature')
             humidity = dht_readings.get('humidity')
+            self.database_manager.insert_sensor_data(temperature=temperature, humidity=humidity)
             if temperature is not None and humidity is not None:
                 self.control_temperature(temperature)
                 self.control_humidity(humidity)
@@ -301,6 +302,7 @@ class GrowthManager:
             moisture_level = soil_moisture_readings.get('moisture_level')
             if moisture_level is not None:
                 self.control_soil_moisture(moisture_level)
+                self.database_manager.insert_sensor_data(moisture_level=moisture_level)
             else:
                 print(f"Invalid Soil-Moisture reading: moisture_level={moisture_level}")
 

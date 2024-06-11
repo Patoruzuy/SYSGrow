@@ -21,11 +21,11 @@ class DatabaseManager:
         create_tables: Creates necessary tables in the database.
         get_device_configs: Retrieves device configurations from the database.
         clear_devices: Clears all device configurations from the database.
-        insert_sensor_data: Inserts sensor data into the SensorData table.
+        insert_sensor_data: Inserts sensor data into the SensorReading table.
         insert_device: Inserts a new device into the Devices table.
         insert_plant: Inserts a new plant into the Plants table.
         update_plant_growth_stage: Updates the growth stage of a plant in the Plants table.
-        get_sensor_data: Retrieves all sensor data from the SensorData table.
+        get_sensor_data: Retrieves all sensor data from the SensorReading table.
         get_plant: Retrieves a specific plant's information from the Plants table.
         get_light_schedule: Retrieves the light schedule from the Settings table.
         get_plants: Retrieves all plants from the Plants table.
@@ -76,7 +76,7 @@ class DatabaseManager:
                                 gpio INTEGER,
                                 ip_address TEXT
                                 )''')
-            db.execute('''CREATE TABLE IF NOT EXISTS SensorData (
+            db.execute('''CREATE TABLE IF NOT EXISTS SensorReading (
                                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
                                 temperature REAL,
@@ -167,7 +167,7 @@ class DatabaseManager:
 
     def insert_sensor_data(self, temperature=None, humidity=None):
         """
-        Inserts sensor data into the SensorData table.
+        Inserts sensor data into the SensorReading table.
 
         Args:
             temperature (float, optional): The temperature value.
@@ -176,7 +176,7 @@ class DatabaseManager:
         """
         try:
             db = self.get_db()
-            db.execute('''INSERT INTO SensorData (temperature, humidity)
+            db.execute('''INSERT INTO SensorReading (temperature, humidity)
                                 VALUES (?, ?)
                                 ''', 
                                 (temperature, humidity))
@@ -245,14 +245,14 @@ class DatabaseManager:
         
     def get_sensor_data(self) -> list:
         """
-        Retrieves all sensor data from the SensorData table.
+        Retrieves all sensor data from the SensorReading table.
 
         Returns:
             list: A list of tuples containing sensor data records.
         """
         try:
             db = self.get_db()
-            return db.execute('SELECT * FROM SensorData').fetchall()
+            return db.execute('SELECT * FROM SensorReading').fetchall()
         except sqlite3.Error as e:
             logging.error(f"Error getting sensor data: {e}")
             return []

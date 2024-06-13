@@ -214,24 +214,6 @@ def set_stage_durations():
     plants = manager.database_manager.get_all_plants()
     return render_template('set_stage_durations.html', plants=plants)
 
-@app.route('/increase_days/<plant_name>', methods=['POST'])
-def increase_days(plant_name):
-    plant = manager.get_plant_by_name(plant_name)
-    if plant:
-        plant.increase_days_in_stage()
-        manager.database_manager.update_plant_days(plant_name, plant.get_days_current_stage())
-        return jsonify({"status": "success", "message": f"Increased days for {plant_name}."})
-    return jsonify({"status": "error", "message": f"Plant {plant_name} not found."})
-
-@app.route('/decrease_days/<plant_name>', methods=['POST'])
-def decrease_days(plant_name):
-    plant = manager.get_plant_by_name(plant_name)
-    if plant:
-        plant.decrease_days_in_stage()
-        manager.database_manager.update_plant_days(plant_name, plant.get_days_current_stage())
-        return jsonify({"status": "success", "message": f"Decreased days for {plant_name}."})
-    return jsonify({"status": "error", "message": f"Plant {plant_name} not found."})
-
 @app.route('/actuator')
 def actuator():
     available_actuators = ['Heater', 'Cooler', 'Humidifier', 'CO2Injector']  # List all available actuator types

@@ -6,6 +6,7 @@ Date: 26/05/24
 """
 from datetime import datetime, timedelta
 from sensor_manager import SoilMoistureSensor
+from db_manager import DatabaseManager as database_manager
 
 class Plant:
     """
@@ -28,11 +29,18 @@ class Plant:
         """
         self.name = name
         self.stage = SeedStage(self)
-        self.soil_moisture_sensor = SoilMoistureSensor(self)
+        self.sensor_id = None
+        self.soil_moisture_sensor = None
         self.stage_durations = {'Seedling': 7,
                                 'Vegetative' : 23,
                                 'Flowering': 30}
         self.days_in_current_stage = 0
+
+    def set_sensor(self, sensor):
+        if isinstance(sensor, SoilMoistureSensor):
+            self.soil_moisture_sensor = sensor
+            self.sensor_id = sensor.sensor_id
+            database_manager.update_plant_sensor_link(self.name, sensor.sensor_id)
 
     def set_stage(self, stage):
         """
@@ -121,7 +129,7 @@ class PlantFactory:
     Factory class for creating plant objects.
     """
     @staticmethod
-    def create_plant(plant_type) -> Plant:
+    def create_plant(plant_type, sensor_pin=None) -> Plant:
         """
         Creates a plant of the specified type.
 
@@ -136,9 +144,13 @@ class PlantFactory:
             ValueError: If the plant could not be created.
         """
         if plant_type:
-            return Plant(plant_type)
+            plant = Plant(plant_type)
         else:
             raise ValueError("Could not create the plant")
+        if sensor_pin:
+            sensor = SoilMoistureSensor(plant, sensor_pin)
+            plant.set_sensor(sensor)
+        return plant
         
 
 class PlantStage:

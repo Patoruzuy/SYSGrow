@@ -4,7 +4,8 @@ Description: This script defines classes for managing plant growth, including pl
 Author: Sebastian Gomez
 Date: 26/05/24
 """
-from sensor import SoilMoistureSensor
+from datetime import datetime, timedelta
+from sensor_manager import SoilMoistureSensor
 
 class Plant:
     """
@@ -97,6 +98,15 @@ class Plant:
         """
         self.stage = stage
 
+    def increase_days_in_stage(self):
+        """Increases the days in the current stage by 1."""
+        self.days_in_current_stage += 1
+
+    def decrease_days_in_stage(self):
+        """Decreases the days in the current stage by 1."""
+        if self.days_in_current_stage > 0:
+            self.days_in_current_stage -= 1
+
     def get_days_current_stage(self) -> int:
         """
         Returns the days in the current stage of the plant.
@@ -105,7 +115,6 @@ class Plant:
             int: The days in the current stage of the plant.
         """
         return self.days_in_current_stage 
-
 
 class PlantFactory:
     """

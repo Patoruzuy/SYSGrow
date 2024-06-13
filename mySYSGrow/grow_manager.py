@@ -37,8 +37,6 @@ class GrowthManager:
         self.tent = Tent()
         self.timer = Timer()
         self.light_observer = None
-        # self.sensor = DHTSensor(pin=4)
-        # self.sensor.attach(self)
         self.actuator_manager = ActuatorManager(database_manager)
         self.sensor_manager = SensorManager(database_manager)
         self.temperature_threshold = 24
@@ -130,6 +128,12 @@ class GrowthManager:
         plants = [self.create_plant_from_row(row) for row in rows]
         return plants
     
+    def get_plant_by_name(self, name):
+        for plant in self.get_all_plants():
+            if plant.name == name:
+                return plant
+        return None
+    
     def add_plant(self, plant_type, stage):
         """
         Adds a plant to the tent and sets up monitoring for it.
@@ -142,7 +146,7 @@ class GrowthManager:
         plant = PlantFactory.create_plant(plant_type)
         self.tent.add_plant(plant)
         self.timer.attach(PlantTimerObserver(plant))
-        self.database_manager.insert_plant(plant.name, stage, moisture_level=None)
+        self.database_manager.insert_plant(plant.name, stage, days_in_current_stage=None, moisture_level=None)
         plant.soil_moisture_sensor.attach(self)
 
     def remove_plant(self, plant):

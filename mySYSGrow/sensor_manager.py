@@ -3,7 +3,7 @@ import random
 from sensors.dht11_sensor import DHT11Sensor
 from sensors.co2_sensor import CO2Sensor
 from sensors.soil_moisture_sensor import SoilMoistureSensorV2
-
+from sensors.temp_humidity_sensor import BME280Sensor
 class Sensor(ABC):
     """
     Abstract base class representing a generic sensor.
@@ -148,6 +148,8 @@ class SensorManager:
         sensors = {}
         sensor_configs = self.database_manager.get_sensor_configs()
         for config in sensor_configs:
+            if config['sensor_type'] == 'BME280':
+                sensor = BME280Sensor(i2c_bus=1)
             if config['sensor_type'] == 'DHT':
                 sensor = DHTSensor(pin=config['gpio'])
             elif config['sensor_type'] == 'Soil-Moisture':
@@ -179,6 +181,21 @@ class SensorManager:
             Sensor: The Sensor object with the specified type, or None if not found.
         """
         return self.sensors.get(sensor_type)
+    
+    def get_sensor_by_id(self, sensor_id):
+            """
+            Retrieves sensor information by its ID.
+
+            Args:
+                sensor_id (int): The ID of the sensor.
+
+            Returns:
+                Sensor: The sensor object.
+            """
+            sensor_info = self.database_manager.get_sensor(sensor_id)
+            if sensor_info:
+                return Sensor(sensor_info['sensor_type'], sensor_info['gpio'], sensor_info['ip_address'])
+            return None
 
     def add_sensor(self, sensor_type, gpio, ip_address):
         """
@@ -189,6 +206,8 @@ class SensorManager:
             gpio (int, optional): The GPIO pin number for control.
             ip_address (str, optional): The IP address for wireless control.
         """
+        if sensor_type == 'BME280':
+            sensor = BME280Sensor(i2c_bus=1)
         if sensor_type == 'DHT':
             sensor = DHTSensor(pin=gpio)
         elif sensor_type == 'Soil-Moisture':
@@ -224,6 +243,10 @@ class SensorManager:
         """
         readings = {}
         for sensor_type, sensor in self.sensors.items():
-            readings[sensor_type] = sensor.read()
-            print("Sensor manager", "name: ", sensor_type, "Reading: ", readings)
+            reading = sensor.read()
+            if reading['temperature'] is None or reading['humidity'] is None:
+                print(f"Invalid {sensor_type} readings: {reading}")
+                continue
+            readings[sensor_type] = reading
+            print(f"Sensor manager name: {sensor_type} Reading: {readings}")
         return readings

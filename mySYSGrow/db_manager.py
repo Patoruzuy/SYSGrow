@@ -62,14 +62,6 @@ class DatabaseManager:
                                 gpio INTEGER,
                                 ip_address TEXT
                                 )''')
-            db.execute('''CREATE TABLE IF NOT EXISTS Device (
-                                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                name TEXT NOT NULL,
-                                gpio INTEGER,
-                                ip_address TEXT,
-                                type TEXT NOT NULL,
-                                functionality TEXT NOT NULL
-                                )''')
             db.execute('''CREATE TABLE IF NOT EXISTS Sensor (
                                 sensor_id INTEGER PRIMARY KEY AUTOINCREMENT,
                                 sensor_type TEXT NOT NULL,
@@ -86,6 +78,7 @@ class DatabaseManager:
                                 plant_id INTEGER PRIMARY KEY AUTOINCREMENT,
                                 name TEXT,
                                 current_stage TEXT,
+                                days_in_current_stage,
                                 moisture_level REAL,
                                 last_updated DATETIME DEFAULT CURRENT_TIMESTAMP
                                 )''')
@@ -104,7 +97,7 @@ class DatabaseManager:
                                 humidity_threshold REAL,
                                 soil_moisture_threshold REAL
                                 )''')
-            db.execute('''CREATE TABLE IF NOT EXISTS plant_sensors (
+            db.execute('''CREATE TABLE IF NOT EXISTS PlantSensors (
                                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                                 plant_id INTEGER,
                                 sensor_id INTEGER,
@@ -154,7 +147,7 @@ class DatabaseManager:
         except sqlite3.Error as e:
             logging.error(f"Error inserting sensor: {e}")
 
-    def insert_plant(self, name, current_stage, moisture_level):
+    def insert_plant(self, name, current_stage, days_in_current_stage, moisture_level):
         """
         Inserts a new plant into the Plants table.
 
@@ -165,10 +158,10 @@ class DatabaseManager:
         """
         try:
             db = self.get_db()
-            db.execute('''INSERT INTO Plants (name, current_stage, moisture_level)
-                                VALUES (?, ?, ?)
+            db.execute('''INSERT INTO Plants (name, current_stage, days_in_current_stage, moisture_level)
+                                VALUES (?, ?, ?, ?)
                                 ''', 
-                                (name, current_stage, moisture_level))
+                                (name, current_stage, days_in_current_stage, moisture_level))
             db.commit()
         except sqlite3.Error as e:
             logging.error(f"Error inserting plant: {e}")
@@ -305,6 +298,22 @@ class DatabaseManager:
         except sqlite3.Error as e:
             logging.error(f"Error getting plants: {e}")
             return []
+        
+    def get_sensor(self, sensor_id):
+        """
+        Retrieves a sensor from the database by its ID.
+
+        Args:
+            sensor_id (int): The ID of the sensor.
+
+        Returns:
+            dict: Sensor information.
+        """
+        db = self.get_db()
+        sensor = db.execute('SELECT * FROM Sensor WHERE sensor_id = ?', (sensor_id,)).fetchone()
+        if sensor:
+            return dict(sensor)
+        return None
 
     def get_sensors_for_plant(self, plant_id):
         """
@@ -318,7 +327,7 @@ class DatabaseManager:
         """
         try:
             db = self.get_db()
-            cursor = db.execute("SELECT sensor_id FROM plant_sensors WHERE plant_id = ?", (plant_id,))
+            cursor = db.execute("SELECT sensor_id FROM PlantSensors WHERE plant_id = ?", (plant_id,))
             return [row['sensor_id'] for row in cursor.fetchall()]
         except sqlite3.Error as e:
             logging.error(f"Error getting sensors for plant: {e}")
@@ -360,15 +369,6 @@ class DatabaseManager:
             logging.error(f"Error getting device by ID: {e}")
             return None
 
-    def clear_devices(self):
-        """Clears all device configurations from the database."""
-        try:
-            db = self.get_db()
-            db.execute("DELETE FROM Device")
-            db.commit()
-        except sqlite3.Error as e:
-            logging.error(f"Error clearing devices: {e}")
-
     def remove_sensor(self, functionality):
         """Removes a sensor from the Sensor table based on its functionality."""
         try:
@@ -388,7 +388,7 @@ class DatabaseManager:
         """
         try:
             db = self.get_db()
-            db.execute("INSERT INTO plant_sensors (plant_id, sensor_id) VALUES (?, ?)",
+            db.execute("INSERT INTO PlantSensors (plant_id, sensor_id) VALUES (?, ?)",
                        (plant_id, sensor_id))
             db.commit()
         except sqlite3.Error as e:
@@ -412,6 +412,16 @@ class DatabaseManager:
             db.commit()
         except sqlite3.Error as e:
             logging.error(f"Error updating plant growth stage: {e}")
+
+    def update_plant_days(self, plant_name, days_in_current_stage):
+        """Updates the days in the current stage for a specific plant."""
+        try:
+            db = self.get_db()
+            db.execute('''UPDATE Plants SET days_in_current_stage = ? WHERE name = ?''',
+                       (days_in_current_stage, plant_name))
+            db.commit()
+        except sqlite3.Error as e:
+            logging.error(f"Error updating plant days: {e}")
         
     def get_light_schedule(self):
         """

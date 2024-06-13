@@ -85,3 +85,18 @@ document.querySelectorAll('.test-device-btn').forEach(button => {
         testDevice(functionality);
     });
 });
+
+function adjustDays(plantName, action) {
+    fetch(`/${action}_days/${plantName}`, {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === "success") {
+            location.reload();
+        } else {
+            alert(data.message);
+        }
+    })
+    .catch(error => console.error('Error adjusting days:', error));
+}

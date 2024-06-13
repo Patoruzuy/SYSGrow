@@ -4,6 +4,7 @@ from sensors.dht11_sensor import DHT11Sensor
 from sensors.co2_sensor import CO2Sensor
 from sensors.soil_moisture_sensor import SoilMoistureSensorV2
 from sensors.temp_humidity_sensor import BME280Sensor
+
 class Sensor(ABC):
     """
     Abstract base class representing a generic sensor.

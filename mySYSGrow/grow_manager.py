@@ -134,20 +134,19 @@ class GrowthManager:
                 return plant
         return None
     
-    def add_plant(self, plant_type, stage):
+    def add_plant(self, plant_type, current_stage):
         """
         Adds a plant to the tent and sets up monitoring for it.
 
         Args:
             plant_type (str): The type of plant to add.
-            stage (str): The stage of plant is in.
+            current_stage (str): The stage of plant is in.
             details (str): Plant details (optional)
         """
         plant = PlantFactory.create_plant(plant_type)
         self.tent.add_plant(plant)
         self.timer.attach(PlantTimerObserver(plant))
-        self.database_manager.insert_plant(plant.name, stage, days_in_current_stage=None, moisture_level=None)
-        plant.soil_moisture_sensor.attach(self)
+        self.database_manager.insert_plant(plant.name, current_stage, days_in_current_stage=None, moisture_level=None)
 
     def remove_plant(self, plant):
         """
@@ -174,15 +173,6 @@ class GrowthManager:
         if plant and sensor:
             self.database_manager.link_sensor_to_plant(plant_id, sensor_id)
             print(f"Linked sensor '{sensor.name}' to plant '{plant.name}'.")
-
-    def set_hysteresis(self, hysteresis):
-        """
-        Sets the hysteresis value to prevent rapid cycling.
-
-        Args:
-            hysteresis (int): The new hysteresis value
-        """
-        self.hysteresis = hysteresis
 
     def set_stage_durations(self, plant_name, seed_days, veg_days, flowering_days):
         """
@@ -271,10 +261,6 @@ class GrowthManager:
         """
         self.database_manager.insert_soil_moisture_history(plant.id, moisture_level)
         self.database_manager.insert_sensor_data(moisture_level=moisture_level)
-        if moisture_level < self.soil_moisture_threshold:
-            self.device_manager.turn_on_device('soil_moisture')
-        else:
-            self.device_manager.turn_off_device('soil_moisture')
 
     def monitor_environment(self):
         """
@@ -289,37 +275,21 @@ class GrowthManager:
             print("No sensor readings available.")
             return {}
 
-        # Process DHT sensor readings
-        dht_readings = sensor_readings.get('DHT')
-        if dht_readings:
-            temperature = dht_readings.get('temperature')
-            humidity = dht_readings.get('humidity')
-            if temperature is not None and humidity is not None:
+        for sensor_type, readings in sensor_readings.items():
+            if sensor_type == 'DHT':
+                temperature = readings.get('temperature')
+                humidity = readings.get('humidity')
                 self.control_temperature(temperature)
                 self.control_humidity(humidity)
                 self.database_manager.insert_sensor_data(temperature=temperature, humidity=humidity)
-            else:
-                print(f"Invalid DHT readings: temperature={temperature}, humidity={humidity}")
-
-        # Process Soil-Moisture sensor readings
-        soil_moisture_readings = sensor_readings.get('Soil-Moisture')
-        if soil_moisture_readings:
-            moisture_level = soil_moisture_readings.get('moisture_level')
-            if moisture_level is not None:
-                self.control_soil_moisture(moisture_level)
-                self.database_manager.insert_sensor_data(moisture_level=moisture_level)
-            else:
-                print(f"Invalid Soil-Moisture reading: moisture_level={moisture_level}")
-
-        # Process CO2 sensor readings
-        co2_readings = sensor_readings.get('CO2')
-        if co2_readings:
-            co2_level = co2_readings.get('co2')
-            if co2_level is not None:
-                print(f"CO2 level: {co2_level}")
-            else:
-                print(f"Invalid CO2 reading: co2={co2_level}")
-        print("sensor_reading in monitor_environment: ", sensor_readings)
+            elif sensor_type == 'Soil-Moisture':
+                for plant in self.get_all_plants():
+                    moisture_level = readings.get('moisture_level')
+                    self.update_soil_moisture(plant, moisture_level)
+            elif sensor_type == 'CO2':
+                co2_level = readings.get('co2')
+                self.database_manager.insert_sensor_data(co2_level=co2_level)
+        
         return sensor_readings
 
     def control_temperature(self, current_temperature):

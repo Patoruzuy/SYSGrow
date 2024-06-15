@@ -120,6 +120,7 @@ class GrowthManager:
             Plant: The created Plant object.
         """
         plant = Plant(row['name'])
+        plant.plant_id = row['plant_id']
         plant.set_stage(row['current_stage'])
         plant.set_day_current_stage(row['days_in_current_stage'])
         return plant

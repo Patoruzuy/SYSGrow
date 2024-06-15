@@ -221,8 +221,8 @@ def set_stage_durations():
     plants = manager.database_manager.get_all_plants()
     return render_template('set_stage_durations.html', plants=plants)
 
-@app.route('/actuator')
-def actuator():
+@app.route('/settings')
+def settings():
     available_gpio_pins = get_available_gpio_pins()
     available_actuators = ['Heater', 'Cooler', 'Humidifier', 'CO2Injector']  # List all available actuator types
     active_actuators = manager.actuator_manager.get_actuators()

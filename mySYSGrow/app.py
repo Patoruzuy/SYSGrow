@@ -128,7 +128,7 @@ def link_sensor():
     sensors = manager.database_manager.get_sensors_by_type('Soil-Moisture')
     print("Plants retrieved:", plants)
     print("Soil moisture sensors retrieved:", sensors)
-    return render_template('link_sensor.html', plants=plants, sensors=sensors)
+    return render_template('add_plant.html', plants=plants, sensors=sensors)
 
 @app.route('/reading_update')
 def reading_update():

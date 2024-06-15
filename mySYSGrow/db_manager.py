@@ -397,7 +397,7 @@ class DatabaseManager:
             db = self.get_db()
             schedule = db.execute('SELECT light_start_time, light_end_time FROM Settings ORDER BY id DESC LIMIT 1').fetchone()
             if schedule:
-                return {'start_time': schedule['light_start_time'], 'end_time': schedule['light_end_time']}
+                return {'light_start_time': schedule['light_start_time'], 'light_end_time': schedule['light_end_time']}
             return None
         except sqlite3.Error as e:
             logging.error(f"Error getting light schedule: {e}")

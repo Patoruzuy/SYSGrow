@@ -194,27 +194,6 @@ class DatabaseManager:
             db.commit()
         except sqlite3.Error as e:
             logging.error(f"Error inserting sensor data: {e}")
-
-    def get_device_configs(self):
-        """Retrieves device configurations from the database."""
-        try:
-            db = self.get_db()
-            cursor = db.execute("SELECT name, gpio, ip_address, type, functionality FROM Device")
-            rows = cursor.fetchall()
-            device_configs = []
-            for row in rows:
-                config = {
-                    'name': row['name'],
-                    'gpio': row['gpio'],
-                    'ip_address': row['ip_address'],
-                    'type': row['type'],
-                    'functionality': row['functionality']
-                }
-                device_configs.append(config)
-            return device_configs
-        except sqlite3.Error as e:
-            logging.error(f"Error getting device configs: {e}")
-            return []
         
     def get_actuator_configs(self):
         """Retrieves actuator configurations from the database."""
@@ -314,6 +293,16 @@ class DatabaseManager:
         if sensor:
             return dict(sensor)
         return None
+    
+    def get_sensors_by_type(self, sensor_type):
+        """Retrieves sensors by type from the database."""
+        try:
+            db = self.get_db()
+            sensors = db.execute('SELECT * FROM Sensor WHERE sensor_type = ?', (sensor_type,)).fetchall()
+            return sensors
+        except sqlite3.Error as e:
+            logging.error(f"Error retrieving sensors by type: {e}")
+            return []
 
     def get_sensors_for_plant(self, plant_id):
         """
@@ -349,24 +338,6 @@ class DatabaseManager:
             return cursor.fetchone()
         except sqlite3.Error as e:
             logging.error(f"Error getting plant by ID: {e}")
-            return None
-
-    def get_device_by_id(self, device_id):
-        """
-        Get device details by ID.
-
-        Args:
-            device_id (int): The ID of the device.
-
-        Returns:
-            dict: Details of the device.
-        """
-        try:
-            db = self.get_db()
-            cursor = db.execute("SELECT * FROM Device WHERE id = ?", (device_id,))
-            return cursor.fetchone()
-        except sqlite3.Error as e:
-            logging.error(f"Error getting device by ID: {e}")
             return None
 
     def remove_sensor(self, functionality):

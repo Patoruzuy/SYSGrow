@@ -110,7 +110,7 @@ def soil_moisture_history(plant_id):
     plant = database_manager.get_plant(plant_id)
     return render_template('index.html', history=history, plant=plant)
 
-@app.route('/link_sensor', methods=['POST'])
+@app.route('/link_sensor', methods=['GET', 'POST'])
 def link_sensor():
     """
     Link a soil moisture sensor to a plant.
@@ -123,9 +123,11 @@ def link_sensor():
         sensor_id = request.form['sensor_id']
         manager.link_sensor_to_plant(plant_id, sensor_id)
         return redirect(url_for('index'))
+    
     plants = manager.database_manager.get_all_plants()
-    print("app.py plants: ", plants)
-    return render_template('add_plant.html', plants=plants)
+    sensors = manager.database_manager.get_sensors_by_type('Soil-Moisture')
+    return render_template('link_sensor.html', plants=plants, sensors=sensors)
+
 
 @app.route('/reading_update')
 def reading_update():

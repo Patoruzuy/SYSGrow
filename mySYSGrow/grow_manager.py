@@ -144,7 +144,7 @@ class GrowthManager:
                 return plant
         return None
     
-    def add_plant(self, plant_type, current_stage):
+    def add_plant(self, plant_type, current_stage, days_in_current_stage):
         """
         Adds a plant to the tent and sets up monitoring for it.
 
@@ -156,7 +156,7 @@ class GrowthManager:
         plant = PlantFactory.create_plant(plant_type)
         self.tent.add_plant(plant)
         self.timer.attach(PlantTimerObserver(plant))
-        self.database_manager.insert_plant(plant.name, current_stage, days_in_current_stage=None, moisture_level=None)
+        self.database_manager.insert_plant(plant.name, current_stage, days_in_current_stage, moisture_level=None)
 
     def remove_plant(self, plant):
         """
@@ -257,7 +257,6 @@ class GrowthManager:
     def get_light_schedule(self):
         return self.database_manager.get_light_schedule()
     
-
     def grow_all_plants(self):
         """
         Updates the growth stage of all plants and stores the data in the database.

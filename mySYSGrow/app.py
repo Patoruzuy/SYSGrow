@@ -99,7 +99,8 @@ def add_plant():
     if request.method == 'POST':
         plant_type = request.form.get('plant_type')
         plant_stage = request.form.get('plant_stage')
-        manager.add_plant(plant_type, plant_stage)
+        days_current_stage = request.form.get('days_in_stage')
+        manager.add_plant(plant_type, plant_stage, days_current_stage)
         return redirect(url_for('index'))
 
     plants = manager.database_manager.get_all_plants()

@@ -126,8 +126,9 @@ def link_sensor():
     
     plants = manager.database_manager.get_all_plants()
     sensors = manager.database_manager.get_sensors_by_type('Soil-Moisture')
+    print("Plants retrieved:", plants)
+    print("Soil moisture sensors retrieved:", sensors)
     return render_template('link_sensor.html', plants=plants, sensors=sensors)
-
 
 @app.route('/reading_update')
 def reading_update():
@@ -285,13 +286,6 @@ def control_actuator():
         manager.actuator_manager.deactivate_actuator(actuator_type)
     
     return jsonify({"status": "success", "actuator": actuator_type, "action": action})
-
-@app.route('/test_device')
-def test_device():
-    functionality = request.args.get('functionality')
-    print('Functionality to test: ', functionality)
-    success = manager.device_manager.test_device(functionality)
-    return jsonify({'success': success})
 
 @app.route('/settings', methods=['GET', 'POST'])
 def settings():

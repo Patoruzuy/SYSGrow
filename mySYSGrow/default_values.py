@@ -1,4 +1,5 @@
 import os
+from adafruit_ads1x15.ads1x15 import ADS
 
 class Config:
     DATABASE = os.getenv('DATABASE_PATH', 'database/grow_tent.db')

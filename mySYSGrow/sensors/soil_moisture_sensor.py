@@ -1,6 +1,6 @@
 import board
 import busio
-from adafruit_ads1x15.ads1x15 import ADS1115
+import adafruit_ads1x15.ads1115 as ADS
 from adafruit_ads1x15.analog_in import AnalogIn
 
 class SoilMoistureSensorV2:
@@ -17,7 +17,7 @@ class SoilMoistureSensorV2:
         i2c = busio.I2C(board.SCL, board.SDA)
 
         # Create the ADS object
-        self.ads = ADS1115(i2c)
+        self.ads = ADS.ADS1115(i2c)
 
     def read(self):
         """

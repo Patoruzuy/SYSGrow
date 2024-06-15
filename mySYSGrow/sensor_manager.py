@@ -57,14 +57,13 @@ class SoilMoistureSensor(Sensor):
         plant (str): The plant associated with this sensor.
         pin (int): ADC channel where the soil moisture sensor is connected.
     """
-    def __init__(self, plant, pin):
+    def __init__(self, pin):
         """
         Initializes the SoilMoistureSensor with a plant name.
 
         Args:
             plant (str): The name of the plant associated with this sensor.
         """
-        self.plant = plant
         self.pin = pin
         self.sensor = SoilMoistureSensorV2(self.pin)
 

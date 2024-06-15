@@ -114,7 +114,10 @@ class GrowthManager:
         """
         plant = Plant(row['name'])
         plant.set_stage(row['current_stage'])
-        plant.soil_moisture_sensor = SoilMoistureSensor(plant)  # Associate the soil moisture sensor
+        pin = row.get('pin')
+        if pin:
+            plant.soil_moisture_sensor = SoilMoistureSensor(plant, pin=pin) 
+            print(f"No pin available for plant {plant.name}")
         return plant
         
     def get_all_plants(self) -> list:

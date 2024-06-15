@@ -69,15 +69,14 @@ class SoilMoistureSensor(Sensor):
 
     def read(self):
         """
-        Simulates reading the soil moisture level.
+        Reads the soil moisture level from the sensor.
 
         Returns:
             dict: A dictionary containing the soil moisture level.
         """
         try:
-            # Simulate reading the moisture level
-            moisture_level = random.uniform(0, 100)
-            return {"soil_moisture": moisture_level}
+            moisture_level = self.sensor.read()
+            return moisture_level
         except Exception as e:
             print(f"Error reading soil moisture level: {e}")
             return {'error': str(e)}

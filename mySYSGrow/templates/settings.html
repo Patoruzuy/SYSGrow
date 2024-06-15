@@ -1,91 +1,95 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<h1>Device Settings</h1>
-<form id="settings-form" method="POST">
-    <input type="hidden" id="device_count" name="device_count" value="{{ devices|length }}">
-    <div id="new-device-container">
-        <div class="device" id="device">
-            <label for="device_name">Device Name:</label>
-            <input type="text" id="device_name" name="device_name">
-            <label for="device_type">Type:</label>
-            <select id="device_type" name="device_type">
-                <option value="sensor">Sensor</option>
-                <option value="actuator">Actuator</option>
-            <label for="device_gpio">GPIO:</label>
-            <input type="number" id="device_gpio" name="device_gpio">
-            <label for="device_ip">IP Address:</label>
-            <input type="text" id="device_ip" name="device_ip">
-            <label for="sensor_functionality">Sensors</label>
-            <select id="sensor_functionality" name="sensor_functionality">
-                <option value="dht">Digital humedity and temperature</option>
-                <option value="soil_moisture">Soil moisture</option>
-                <option value="co2_injector">CO2</option>
-            </select>
-            <label for="actuator_functionality">Actuators:</label>
-            <select id="actuator_functionality" name="actuator_functionality">
-                <option value="light">Light</option>
-                <option value="heater">Heater</option>
-                <option value="cooler">Cooler</option>
-                <option value="humidifier">Humidifier</option>
-                <option value="deshumidifier">Dehumidifier</option>
-                <option value="water_pump">Water Pump</option>
-                <option value="co2_injector">CO2 Injector</option>
-            </select>
-        </div>
-    </div>
-    <button type="submit" name="add_device" value="add">Add Device</button>
+
+<h1>Settings</h1>
+
+<h2>Light</h2>
+<div class="light_container">
+    <form id="add-light-form">
+        <label for="light_pin">GPIO pin:</label>
+        <input type="number" id="light_pin" name="light_pin">
+        <label for="light_ip">IP Address:</label>
+        <input type="text" id="light_ip" name="light_ip">
+        <button type="submit">Add Light</button>
+    </form>
+</div>
+
+<div class="fan_container">
+    <form id="add-fan-form">
+        <label for="fan_pin">GPIO pin:</label>
+        <input type="number" id="fan_pin" name="fan_pin">
+        <label for="fan_ip">IP Address:</label>
+        <input type="text" id="fan_ip" name="fan_ip">
+        <button type="submit">Add Fan</button>
+    </form>
+</div>
+
+<h2>Available Actuators</h2>
+<ul id="available-actuators">
+    {% for actuator in available_actuators %}
+    <li>{{ actuator }}</li>
+    {% endfor %}
+</ul>
+
+<h2>Active Actuators</h2>
+<ul id="active-actuators">
+    {% for actuator in active_actuators %}
+    <li>{{ actuator }}
+        <span>Status: {{ actuator_states[actuator] }}</span>
+        <button onclick="removeActuator('{{ actuator }}')">Remove</button>
+        <button onclick="controlActuator('{{ actuator }}', 'activate')">Activate</button>
+        <button onclick="controlActuator('{{ actuator }}', 'deactivate')">Deactivate</button>
+    </li>
+    {% endfor %}
+</ul>
+
+<h2>Active Sensors</h2>
+<ul id="active-sensors">
+    {% for sensor in active_sensors %}
+    <li>{{ sensor }}
+        <button onclick="removeSensor('{{ sensor }}')">Remove</button>
+    </li>
+    {% endfor %}
+</ul>
+
+<h2>Add Actuator</h2>
+<form id="add-actuator-form">
+    <label for="actuator_type">Actuator Type:</label>
+    <select id="actuator_type" name="actuator_type">
+        <option value="Light">Light</option>
+        <option value="Heater">Heater</option>
+        <option value="Cooler">Cooler</option>
+        <option value="Humidifier">Humidifier</option>
+        <option value="Dehumidifier">Dehumidifier</option>
+        <option value="Water-Pump">Water Pump</option>
+        <option value="CO2-Injector">CO2 Injector</option>
+    </select>
+    <label for="actuator_pin">GPIO Pin:</label>
+    <input type="number" id="actuator_pin" name="actuator_pin">
+    <label for="actuator_ip">IP Address:</label>
+    <input type="text" id="actuator_ip" name="actuator_ip">
+    <button type="submit">Add Actuator</button>
 </form>
 
-<h1>Actuators</h1>
-<table>
-    <thead>
-        <tr>
-            <th>ID</th>
-            <th>Device Name</th>
-            <th>GPIO</th>
-            <th>IP Address</th>
-            <th>Type</th>
-            <th>Functionality</th>
-            <th>Test device</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for device in devices %}
-        <tr>
-            <td>{{ loop.index }}</td>
-            <td>{{ device.name }}</td>
-            <td>{{ device.gpio }}</td>
-            <td>{{ device.ip_address }}</td>
-            <td>{{ device.type }}</td>
-            <td>{{ device.functionality }}</td>
-            <td><button type="button" class="test-device-btn" data-functionality="{{ device.functionality }}">Test</button></td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
-
-<h1>Sensors</h1>
-<table>
-    <thead>
-        <tr>
-            <th>ID</th>
-            <th>Sensor Name</th>
-            <th>GPIO</th>
-            <th>IP Address</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for sensor in sensors %}
-        <tr>
-            <td>{{ loop.index }}</td>
-            <td>{{ sensor.sensor_type }}</td>
-            <td>{{ sensor.gpio }}</td>
-            <td>{{ sensor.ip_address }}</td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+<h2>Add Sensor</h2>
+<form id="add-sensor-form">
+    <label for="sensor_name">Sensor name:</label>
+    <select id="sensor_name" name="sensor_name" onchange="updateSensorTypeOptions()">
+        <option value="humidity_temp_sensor">Digital humidity and temperature</option>
+        <option value="soil_sensor">Soil moisture</option>
+        <option value="co2_sensor">CO2</option>
+    </select>
+    <label for="sensor_type">Sensor type:</label>
+    <select id="sensor_type" name="sensor_type">
+        <!-- Options will be dynamically populated based on sensor name selection -->
+    </select>
+    <label for="sensor_pin">GPIO pin:</label>
+    <input type="number" id="sensor_pin" name="sensor_pin">
+    <label for="sensor_ip">IP Address:</label>
+    <input type="text" id="sensor_ip" name="sensor_ip">
+    <button type="submit">Add Sensor</button>
+</form>
 
 <h2>Threshold Settings</h2>
 <form method="post" action="{{ url_for('set_thresholds') }}">
@@ -97,5 +101,101 @@
     <input type="number" id="soil_moisture_threshold" name="soil_moisture_threshold" step="0.1" required>
     <button type="submit">Set Thresholds</button>
 </form>
+
+<script>
+    const sensorTypeOptions = {
+        'humidity_temp_sensor': [
+            { value: 'DHT11', text: 'DHT11 Sensor' },
+            { value: 'DHT22', text: 'DHT22 Sensor' },
+            { value: 'BME280', text: 'BME280 Sensor' }
+        ],
+        'soil_sensor': [
+            { value: 'Soil-Moisture', text: 'Soil Moisture Sensor' }
+        ],
+        'co2_sensor': [
+            { value: 'CO2', text: 'CO2 Sensor' }
+        ]
+    };
+
+    function updateSensorTypeOptions() {
+        const sensorName = document.getElementById('sensor_name').value;
+        const sensorTypeSelect = document.getElementById('sensor_type');
+
+        // Clear previous options
+        sensorTypeSelect.innerHTML = '';
+
+        // Populate new options
+        sensorTypeOptions[sensorName].forEach(option => {
+            const opt = document.createElement('option');
+            opt.value = option.value;
+            opt.text = option.text;
+            sensorTypeSelect.add(opt);
+        });
+    }
+
+    // Initialize the sensor type options on page load
+    document.addEventListener('DOMContentLoaded', updateSensorTypeOptions);
+
+    document.getElementById('add-sensor-form').addEventListener('submit', function(event) {
+        event.preventDefault();
+        const formData = new FormData(event.target);
+        fetch('/add_sensor', {
+            method: 'POST',
+            body: formData
+        }).then(response => response.json())
+        .then(data => {
+            alert(data.status);
+            location.reload();
+        });
+    });
+
+    function removeSensor(sensorType) {
+        fetch('/remove_sensor', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({sensor_type: sensorType})
+        }).then(response => response.json())
+        .then(data => {
+            alert(data.status);
+            location.reload();
+        });
+    }
+
+    document.getElementById('add-actuator-form').addEventListener('submit', function(event) {
+        event.preventDefault();
+        const formData = new FormData(event.target);
+        fetch('/add_actuator', {
+            method: 'POST',
+            body: formData
+        }).then(response => response.json())
+        .then(data => {
+            alert(data.status);
+            location.reload();
+        });
+    });
+
+    function removeActuator(actuatorType) {
+        fetch('/remove_actuator', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({actuator_type: actuatorType})
+        }).then(response => response.json())
+        .then(data => {
+            alert(data.status);
+            location.reload();
+        });
+    }
+
+    function controlActuator(actuatorType, action) {
+        fetch('/control_actuator', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({actuator_type: actuatorType, action: action})
+        }).then(response => response.json())
+        .then(data => {
+            alert(data.status);
+        });
+    }
+</script>
 
 {% endblock %}

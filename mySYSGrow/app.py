@@ -210,7 +210,8 @@ def set_stage_durations():
         plant_name = request.form['plant_name']
         seed_days = int(request.form['seed_days'])
         grow_days = int(request.form['grow_days'])
-        manager.set_stage_durations(plant_name, seed_days, grow_days)
+        flowering_days = int(request.form['flowering_days'])
+        manager.set_stage_durations(plant_name, seed_days, grow_days, flowering_days)
         return redirect(url_for('index'))
     plants = manager.database_manager.get_all_plants()
     return render_template('set_stage_durations.html', plants=plants)
@@ -240,12 +241,13 @@ def actuator():
 
 @app.route('/add_actuator', methods=['POST'])
 def add_actuator():
+    actuator_name = request.form['actuator_name']
     actuator_type = request.form['actuator_type']
     actuator_pin = int(request.form['actuator_pin'])
     actuator_ip = request.form.get('actuator_ip', None)
     actuator = RelayActuator(actuator_type, actuator_pin, actuator_ip)
-    manager.actuator_manager.add_actuator(actuator_type, actuator)
-    return jsonify({"status": "success", "actuator": actuator_type})
+    manager.actuator_manager.add_actuator(actuator_name, actuator)
+    return jsonify({"status": "success", "actuator": actuator_name})
 
 @app.route('/add_sensor', methods=['POST'])
 def add_sensor():

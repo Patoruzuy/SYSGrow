@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import io
 import base64
 import atexit
-
+from default_values import DefaultValues
 
 app = Flask(__name__, static_folder='static')
 app.config['DATABASE'] = 'database/grow_tent.db'
@@ -25,6 +25,11 @@ with app.app_context():
 
 # Register cleanup function to be called on exit
 atexit.register(manager.actuator_manager.cleanup)
+
+used_pins = set()
+
+def get_available_gpio_pins():
+    return {pin: name for pin, name in DefaultValues.GPIO_PINS.items() if pin not in used_pins}
 
 @app.route('/')
 def index():
@@ -218,6 +223,7 @@ def set_stage_durations():
 
 @app.route('/actuator')
 def actuator():
+    available_gpio_pins = get_available_gpio_pins()
     available_actuators = ['Heater', 'Cooler', 'Humidifier', 'CO2Injector']  # List all available actuator types
     active_actuators = manager.actuator_manager.get_actuators()
     try:
@@ -232,8 +238,8 @@ def actuator():
     except Exception as e:
         print(f"Error retrieving actuator states: {e}")
         actuator_states = {actuator: 'off' for actuator in active_actuators}
-
-    return render_template('actuator.html', available_actuators=available_actuators, active_actuators=active_actuators, active_sensors=active_sensors, actuator_states=actuator_states)
+    
+    return render_template('settings.html', available_gpio_pins=available_gpio_pins, available_actuators=available_actuators, active_actuators=active_actuators, active_sensors=active_sensors, actuator_states=actuator_states)
 
 # @app.route('/sensors')
 # def sensors():
@@ -241,24 +247,24 @@ def actuator():
 
 @app.route('/add_actuator', methods=['POST'])
 def add_actuator():
-    actuator_name = request.form['actuator_name']
     actuator_type = request.form['actuator_type']
     actuator_pin = int(request.form['actuator_pin'])
     actuator_ip = request.form.get('actuator_ip', None)
     actuator = RelayActuator(actuator_type, actuator_pin, actuator_ip)
-    manager.actuator_manager.add_actuator(actuator_name, actuator)
-    return jsonify({"status": "success", "actuator": actuator_name})
+    manager.actuator_manager.add_actuator(actuator_type, actuator)
+    return jsonify({"status": "success", "actuator": actuator_type})
 
 @app.route('/add_sensor', methods=['POST'])
 def add_sensor():
+    sensor_name = request.form['sensor_name']
     sensor_type = request.form['sensor_type']
     sensor_pin = request.form.get('sensor_pin', type=int)
     sensor_ip = request.form.get('sensor_ip', None)
-    if not sensor_type or (not sensor_pin and not sensor_ip):
-        return jsonify({'status': 'error', 'message': 'Invalid sensor configuration'}), 400
-
+    if sensor_pin in used_pins:
+        return jsonify({"status": "error", "message": "GPIO pin already used"}), 400
     manager.sensor_manager.add_sensor(sensor_type, sensor_pin, sensor_ip)
-    return jsonify({'status': 'success', 'sensor': sensor_type}), 200
+    used_pins.add(sensor_pin)
+    return jsonify({'status': 'success', 'sensor': sensor_name}), 200
 
 @app.route('/remove_actuator', methods=['POST'])
 def remove_actuator():
@@ -286,37 +292,6 @@ def control_actuator():
         manager.actuator_manager.deactivate_actuator(actuator_type)
     
     return jsonify({"status": "success", "actuator": actuator_type, "action": action})
-
-@app.route('/settings', methods=['GET', 'POST'])
-def settings():
-    if request.method == 'POST':
-        name = request.form.get('device_name')
-        type = request.form.get('device_type')
-        gpio = request.form.get('device_gpio')
-        ip_address = request.form.get('device_ip')
-        sensor_functionality = request.form.get('sensor_functionality')
-        actuator_functionality = request.form.get('actuator_functionality')
-        print("Sensor: ", sensor_functionality, "actuator: ", actuator_functionality)
-
-        # if name and (sensor_functionality or actuator_functionality):
-        #     gpio = int(gpio) if gpio else None
-        # print("Second debugging, Sensor: ", sensor_functionality, "actuator: ", actuator_functionality)
-        # if type == 'sensor':
-        #     functionality = sensor_functionality
-        #     manager.sensor_manager.add_sensor(name, gpio, ip_address, type, functionality)
-        #     print("Add to sensor manager", name, gpio, ip_address, )
-        # elif type == 'actuator':
-        #     functionality = actuator_functionality
-        #     print("Add to device manager", name, gpio, ip_address, type, functionality)
-        #     manager.device_manager.add_device(name, gpio, ip_address, type, functionality)
-
-        return redirect(url_for('settings'))
-    else:
-        devices = database_manager.get_device_configs()
-        print("devices:", devices)
-        sensors = database_manager.get_sensor_configs()
-        print("sensors:", sensors)
-        return render_template('settings.html', devices=devices, sensors=sensors)
     
 @app.errorhandler(500)
 def internal_error(error):

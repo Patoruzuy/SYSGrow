@@ -178,7 +178,7 @@ class GrowthManager:
             sensor_id (int): The ID of the sensor.
         """
         plant = self.database_manager.get_plant_by_id(plant_id)
-        sensor = self.sensor_manager.get_device_by_id(sensor_id)
+        sensor = self.sensor_manager.get_sensor_by_id(sensor_id)
 
         if plant and sensor:
             self.database_manager.link_sensor_to_plant(plant_id, sensor_id)
@@ -277,6 +277,7 @@ class GrowthManager:
             moisture_level (float): The current soil moisture level.
         """
         self.database_manager.insert_soil_moisture_history(plant.id, moisture_level)
+        print("sensor reading soil:", plant, moisture_level)
         self.database_manager.insert_sensor_data(moisture_level=moisture_level)
 
     def monitor_environment(self):

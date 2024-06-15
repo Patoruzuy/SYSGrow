@@ -36,7 +36,7 @@
     <label for="plant_name">Plant Name:</label>
     <select id="plant_name" name="plant_name" required>
         {% for plant in plants %}
-        <option value="{{ plant[1] }}">{{ plant[1] }}</option>
+        <option value="{{ plant.id }}">{{ plant.name }}</option>
         {% endfor %}
     </select>
     <label for="seed_days">Days in Seed Stage:</label>

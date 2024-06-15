@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-import random 
 from sensors.dht11_sensor import DHT11Sensor
 from sensors.co2_sensor import CO2Sensor
 from sensors.soil_moisture_sensor import SoilMoistureSensorV2

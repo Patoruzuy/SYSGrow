@@ -1,7 +1,7 @@
-from adafruit_ads1x15.ads1115 import ADS
-from adafruit_ads1x15.analog_in import AnalogIn
 import board
 import busio
+from adafruit_ads1x15.ads1x15 import ADS1115
+from adafruit_ads1x15.analog_in import AnalogIn
 
 class SoilMoistureSensorV2:
     def __init__(self, adc_channel):
@@ -9,12 +9,15 @@ class SoilMoistureSensorV2:
         Initializes the SoilMoistureSensor.
         
         Args:
-            adc_channel (int): ADC channel where the soil moisture sensor is connected.
+            adc_channel (ADS.P0, ADS.P1, etc.): ADC channel where the soil moisture sensor is connected.
         """
         self.adc_channel = adc_channel
-        self.i2c = busio.I2C(board.SCL, board.SDA)
-        self.ads = ADS.ADS1115(self.i2c)
-        self.channel = AnalogIn(self.ads, self.adc_channel)
+
+        # Create the I2C bus
+        i2c = busio.I2C(board.SCL, board.SDA)
+
+        # Create the ADS object
+        self.ads = ADS1115(i2c)
 
     def read(self):
         """
@@ -24,9 +27,11 @@ class SoilMoistureSensorV2:
             dict: A dictionary containing 'soil_moisture'.
         """
         try:
-            # Read soil moisture value from ADC
-            moisture_level = self.channel.value
+            # Create an analog input channel on the specified ADC channel
+            chan = AnalogIn(self.ads, self.adc_channel)
+            moisture_level = chan.value
             return {'soil_moisture': moisture_level}
         except Exception as e:
             print(f"Error reading soil moisture level: {e}")
             return None
+

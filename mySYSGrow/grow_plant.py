@@ -116,6 +116,9 @@ class Plant:
         if self.days_in_current_stage > 0:
             self.days_in_current_stage -= 1
 
+    def set_day_current_stage(self, days_current_stage):
+        self.days_in_current_stage = days_current_stage
+
     def get_days_current_stage(self) -> int:
         """
         Returns the days in the current stage of the plant.

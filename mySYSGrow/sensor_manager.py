@@ -4,6 +4,7 @@ from sensors.co2_sensor import CO2Sensor
 from sensors.soil_moisture_sensor import SoilMoistureSensorV2
 from sensors.temp_humidity_sensor import BME280Sensor
 
+
 class Sensor(ABC):
     """
     Abstract base class representing a generic sensor.
@@ -17,6 +18,7 @@ class Sensor(ABC):
         Reads the sensor value(s).
         """
         pass
+
 
 class DHTSensor(Sensor):
     """
@@ -48,24 +50,24 @@ class DHTSensor(Sensor):
             return {'error': 'Failed to get reading. Try again!'}
         return {'temperature': data['temperature'], 'humidity': data['humidity']}
 
+
 class SoilMoistureSensor(Sensor):
     """
     Class to represent a soil moisture sensor for a plant.
     
     Attributes:
-        plant (str): The plant associated with this sensor.
         pin (int): ADC channel where the soil moisture sensor is connected.
+        sensor (SoilMoistureSensorV2): The soil moisture sensor instance.
     """
     def __init__(self, pin):
         """
-        Initializes the SoilMoistureSensor with a plant name.
+        Initializes the SoilMoistureSensor with a specified ADC channel.
 
         Args:
-            plant (str): The name of the plant associated with this sensor.
+            pin (int): The ADC channel where the soil moisture sensor is connected.
         """
         self.pin = pin
         self.sensor = SoilMoistureSensorV2(self.pin)
-        print("Soild moisture pin:", self.pin ) 
 
     def read(self):
         """
@@ -81,6 +83,7 @@ class SoilMoistureSensor(Sensor):
             print(f"Error reading soil moisture level: {e}")
             return {'error': str(e)}
 
+
 class CO2Sensor(Sensor):
     """
     Class to represent a CO2 sensor for monitoring CO2 levels.
@@ -94,6 +97,7 @@ class CO2Sensor(Sensor):
         """
         Initializes the CO2Sensor with a specified IP address.
 
+        Args:
             pin (int): The GPIO pin number to which the CO2 sensor is connected.
             ip (str): The IP address for wireless control of the CO2 sensor.
         """
@@ -112,6 +116,7 @@ class CO2Sensor(Sensor):
         if data is None:
             return {'error': 'Failed to get reading. Try again!'}
         return {'CO2': data['CO2']}
+
 
 class SensorManager:
     """
@@ -149,17 +154,18 @@ class SensorManager:
         for config in sensor_configs:
             if config['sensor_type'] == 'BME280':
                 sensor = BME280Sensor(i2c_bus=1)
-            if config['sensor_type'] == 'DHT':
+            elif config['sensor_type'] == 'DHT':
                 sensor = DHTSensor(pin=config['gpio'])
             elif config['sensor_type'] == 'Soil-Moisture':
                 sensor = SoilMoistureSensor(pin=config['gpio'])
             elif config['sensor_type'] == 'CO2':
-                sensor = CO2Sensor(ip=config['ip_address'])
+                sensor = CO2Sensor(pin=config['gpio'], ip=config['ip_address'])
             else:
+                print(f"Unknown sensor type: {config['sensor_type']}")
                 continue
             sensors[config['sensor_type']] = sensor
         return sensors
-    
+
     def get_sensors(self):
         """
         Returns the names of all managed sensors.
@@ -180,23 +186,33 @@ class SensorManager:
             Sensor: The Sensor object with the specified type, or None if not found.
         """
         return self.sensors.get(sensor_type)
-    
+
     def get_sensor_by_id(self, sensor_id):
-            """
-            Retrieves sensor information by its ID.
+        """
+        Retrieves sensor information by its ID.
 
-            Args:
-                sensor_id (int): The ID of the sensor.
+        Args:
+            sensor_id (int): The ID of the sensor.
 
-            Returns:
-                Sensor: The sensor object.
-            """
-            sensor_info = self.database_manager.get_sensor(sensor_id)
-            if sensor_info:
-                return Sensor(sensor_info['sensor_type'], sensor_info['gpio'], sensor_info['ip_address'])
-            return None
+        Returns:
+            Sensor: The sensor object.
+        """
+        sensor_info = self.database_manager.get_sensor(sensor_id)
+        if sensor_info:
+            sensor_type = sensor_info['sensor_type']
+            gpio = sensor_info['gpio']
+            ip_address = sensor_info['ip_address']
+            if sensor_type == 'BME280':
+                return BME280Sensor(i2c_bus=1)
+            elif sensor_type == 'DHT':
+                return DHTSensor(pin=gpio)
+            elif sensor_type == 'Soil-Moisture':
+                return SoilMoistureSensor(pin=gpio)
+            elif sensor_type == 'CO2':
+                return CO2Sensor(pin=gpio, ip=ip_address)
+        return None
 
-    def add_sensor(self, sensor_type, gpio, ip_address):
+    def add_sensor(self, sensor_type, gpio, ip_address=None):
         """
         Adds a new sensor to the manager.
 
@@ -207,7 +223,7 @@ class SensorManager:
         """
         if sensor_type == 'BME280':
             sensor = BME280Sensor(i2c_bus=1)
-        if sensor_type == 'DHT':
+        elif sensor_type == 'DHT':
             sensor = DHTSensor(pin=gpio)
         elif sensor_type == 'Soil-Moisture':
             sensor = SoilMoistureSensor(pin=gpio)
@@ -216,7 +232,7 @@ class SensorManager:
         else:
             print(f"Unknown sensor type: {sensor_type}")
             return
-        
+
         self.sensors[sensor_type] = sensor
         self.database_manager.insert_sensor(sensor_type, gpio, ip_address)
 
@@ -225,7 +241,7 @@ class SensorManager:
         Removes the specified sensor by type.
 
         Args:
-            Sensor_type (str): The type or name of the sensor to remove.
+            sensor_type (str): The type or name of the sensor to remove.
         """
         if sensor_type in self.sensors:
             del self.sensors[sensor_type]
@@ -245,7 +261,7 @@ class SensorManager:
             try:
                 reading = sensor.read()
                 print("Sensor manager", "name: ", sensor_type, "Reading: ", reading)
-                
+
                 # Check if reading contains the necessary keys before using them
                 if sensor_type in ['DHT', 'BME280']:
                     if 'temperature' in reading and 'humidity' in reading:
@@ -260,3 +276,4 @@ class SensorManager:
             except Exception as e:
                 print(f"Error reading {sensor_type} sensor: {e}")
         return readings
+

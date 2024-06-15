@@ -121,6 +121,7 @@ class GrowthManager:
         """
         plant = Plant(row['name'])
         plant.set_stage(row['current_stage'])
+        plant.set_day_current_stage(row['days_in_current_stage'])
         pin = row.get('pin')
         if pin:
             plant.soil_moisture_sensor = SoilMoistureSensor(plant, pin=pin) 

@@ -1,9 +1,9 @@
-% extends 'base.html' %}
+{% extends 'base.html' %}
 
 {% block content %}
 <h1>Link Soil Moisture Sensor</h1>
 <form id="link-sensor-form" method="POST" action="{{ url_for('link_sensor') }}">
-    <label for="plant_id">{Select Plant:</label>
+    <label for="plant_id">Select Plant:</label>
     <select id="plant_id" name="plant_id">
         {% for plant in plants %}
         <option value="{{ plant.id }}">{{ plant.name }}</option>

@@ -178,7 +178,7 @@ class GrowthManager:
             sensor_id (int): The ID of the sensor.
         """
         plant = self.database_manager.get_plant_by_id(plant_id)
-        sensor = self.device_manager.get_device_by_id(sensor_id)
+        sensor = self.sensor_manager.get_device_by_id(sensor_id)
 
         if plant and sensor:
             self.database_manager.link_sensor_to_plant(plant_id, sensor_id)

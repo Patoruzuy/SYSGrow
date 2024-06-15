@@ -242,10 +242,21 @@ class SensorManager:
         """
         readings = {}
         for sensor_type, sensor in self.sensors.items():
-            reading = sensor.read()
-            if reading['temperature'] is None or reading['humidity'] is None:
-                print(f"Invalid {sensor_type} readings: {reading}")
-                continue
-            readings[sensor_type] = reading
-            print(f"Sensor manager name: {sensor_type} Reading: {readings}")
+            try:
+                reading = sensor.read()
+                print("Sensor manager", "name: ", sensor_type, "Reading: ", reading)
+                
+                # Check if reading contains the necessary keys before using them
+                if sensor_type in ['DHT', 'BME280']:
+                    if 'temperature' in reading and 'humidity' in reading:
+                        if reading['temperature'] is None or reading['humidity'] is None:
+                            print(f"Invalid {sensor_type} readings: temperature={reading.get('temperature')}, humidity={reading.get('humidity')}")
+                        else:
+                            readings[sensor_type] = reading
+                    else:
+                        print(f"Missing keys in {sensor_type} readings: {reading}")
+                else:
+                    readings[sensor_type] = reading
+            except Exception as e:
+                print(f"Error reading {sensor_type} sensor: {e}")
         return readings

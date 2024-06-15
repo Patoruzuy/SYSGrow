@@ -96,7 +96,7 @@
     <select id="sensor_type" name="sensor_type">
         <!-- Options will be dynamically populated based on sensor name selection -->
     </select>
-    <div id="adc_channel_div">
+    <div id="adc_channel_div" style="display: none;">
         <label for="adc_channel">ADC Channel:</label>
         <select id="adc_channel" name="adc_channel">
             <option value="P0">ADS.P0</option>
@@ -142,21 +142,21 @@ const sensorTypeOptions = {
     ]
 };
 document.addEventListener('DOMContentLoaded', function() {
-    const sensorNameSelect = document.getElementById('sensor_name');
+    const sensorTypeSelect = document.getElementById('sensor_type');
     const adcChannelDiv = document.getElementById('adc_channel_div');
 
     // Function to show or hide the ADC channel dropdown
     function toggleAdcChannelDropdown() {
-        const selectedSensorName = sensorNameSelect.value;
-        if (selectedSensorName === 'soil_sensor') {
+        const selectedSensorType = sensorTypeSelect.value;
+        if (selectedSensorType === 'Soil-Moisture') {
             adcChannelDiv.style.display = 'block';
         } else {
             adcChannelDiv.style.display = 'none';
         }
     }
 
-    // Add event listener to sensor name dropdown
-    sensorNameSelect.addEventListener('change', toggleAdcChannelDropdown);
+    // Add event listener to sensor type dropdown
+    sensorTypeSelect.addEventListener('change', toggleAdcChannelDropdown);
 
     // Initialize the form with the correct state
     toggleAdcChannelDropdown();

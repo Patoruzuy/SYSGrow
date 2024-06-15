@@ -35,7 +35,7 @@ class Plant:
                                 'Vegetative' : 23,
                                 'Flowering': 30}
         self.days_in_current_stage = 0
-        self.days_left = self.stage_durations['seedling']
+        self.days_left = self.stage_durations['Seedling']
 
     def set_sensor(self, sensor):
         if isinstance(sensor, SoilMoistureSensor):

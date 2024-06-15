@@ -273,9 +273,12 @@ def add_sensor():
     sensor_name = request.form['sensor_name']
     sensor_type = request.form['sensor_type']
     sensor_pin = request.form.get('sensor_pin', type=int)
+    adc_channel = request.form.get('adc_channel')
     sensor_ip = request.form.get('sensor_ip', None)
     if sensor_pin in used_pins:
         return jsonify({"status": "error", "message": "GPIO pin already used"}), 400
+        # Map the ADC channel string to the actual ADS constant
+    sensor_pin = DefaultValues.ADC_CHANNEL_MAP.get(adc_channel, None)
     manager.sensor_manager.add_sensor(sensor_type, sensor_pin, sensor_ip)
     used_pins.add(sensor_pin)
     return jsonify({'status': 'success', 'sensor': sensor_name}), 200

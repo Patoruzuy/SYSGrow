@@ -11,7 +11,14 @@ class DefaultValues():
     HYSTERESIS = 2  # Example hysteresis value
     DHT11_PIN = 4  # Example GPIO pin for DHT11 sensor
 
-        # Mapping of GPIO pins to their names
+    ADC_CHANNEL_MAP = {
+    'P0': ADS.P0,
+    'P1': ADS.P1,
+    'P2': ADS.P2,
+    'P3': ADS.P3
+    }   
+
+    # Mapping of GPIO pins to their names
     GPIO_PINS = {
         2: 'GPIO2',
         3: 'GPIO3',

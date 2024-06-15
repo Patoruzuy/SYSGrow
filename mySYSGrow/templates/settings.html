@@ -96,6 +96,15 @@
     <select id="sensor_type" name="sensor_type">
         <!-- Options will be dynamically populated based on sensor name selection -->
     </select>
+    <div id="adc_channel_div">
+        <label for="adc_channel">ADC Channel:</label>
+        <select id="adc_channel" name="adc_channel">
+            <option value="P0">ADS.P0</option>
+            <option value="P1">ADS.P1</option>
+            <option value="P2">ADS.P2</option>
+            <option value="P3">ADS.P3</option>
+        </select>
+    </div>
     <label for="sensor_pin">GPIO Pin:</label>
     <select id="sensor_pin" name="sensor_pin">
         {% for pin, name in available_gpio_pins.items() %}
@@ -132,6 +141,26 @@ const sensorTypeOptions = {
         { value: 'CO2', text: 'CO2 Sensor' }
     ]
 };
+document.addEventListener('DOMContentLoaded', function() {
+    const sensorNameSelect = document.getElementById('sensor_name');
+    const adcChannelDiv = document.getElementById('adc_channel_div');
+
+    // Function to show or hide the ADC channel dropdown
+    function toggleAdcChannelDropdown() {
+        const selectedSensorName = sensorNameSelect.value;
+        if (selectedSensorName === 'soil_sensor') {
+            adcChannelDiv.style.display = 'block';
+        } else {
+            adcChannelDiv.style.display = 'none';
+        }
+    }
+
+    // Add event listener to sensor name dropdown
+    sensorNameSelect.addEventListener('change', toggleAdcChannelDropdown);
+
+    // Initialize the form with the correct state
+    toggleAdcChannelDropdown();
+});
 
 function updateSensorTypeOptions() {
     const sensorName = document.getElementById('sensor_name').value;

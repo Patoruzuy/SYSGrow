@@ -66,6 +66,7 @@ class SoilMoistureSensor(Sensor):
         """
         self.pin = pin
         self.sensor = SoilMoistureSensorV2(self.pin)
+        self.sensor.set_sea_level_pressure(1013.25) 
 
     def read(self):
         """

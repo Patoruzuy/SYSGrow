@@ -133,6 +133,7 @@ class GrowthManager:
             list: A list of Plant objects.
         """
         rows = self.database_manager.get_all_plants()
+        print("Rows in get_all_plants: ", rows)
         plants = [self.create_plant_from_row(row) for row in rows]
         return plants
     
@@ -275,8 +276,8 @@ class GrowthManager:
             moisture_level (float): The current soil moisture level.
         """
         self.database_manager.insert_soil_moisture_history(plant.plant_id, moisture_level)
+        self.database_manager.update_plant_soil_moisture(plant.name, moisture_level)
         print("sensor reading soil:", plant, moisture_level)
-        self.database_manager.insert_sensor_data(moisture_level=moisture_level)
 
     def monitor_environment(self):
         """

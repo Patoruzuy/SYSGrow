@@ -385,6 +385,16 @@ class DatabaseManager:
             db.commit()
         except sqlite3.Error as e:
             logging.error(f"Error updating plant days: {e}")
+
+    def update_plant_soil_moisture(self, plant_name, moisture_level):
+        """Updates the soil moisture reading for a specific plant."""
+        try:
+            db = self.get_db()
+            db.execute('''UPDATE Plants SET moisture_level = ? WHERE name = ?''',
+                       (moisture_level, plant_name))
+            db.commit()
+        except sqlite3.Error as e:
+            logging.error(f"Error updating plant moisture: {e}")
         
     def get_light_schedule(self):
         """

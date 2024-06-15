@@ -73,18 +73,36 @@ def set_thresholds():
 @app.route('/add_plant', methods=['GET', 'POST'])
 def add_plant():
     """
-    Add a new plant to the system.
+    Add a plant and link soil moisture sensors to plants.
 
     Returns:
-        str: Rendered HTML template.
+        redirect: Redirect to the index page or re-renders the add_plant page.
+    """
+    if request.method == 'POST':
+        plant_type = request.form.get('plant_type')
+        plant_stage = request.form.get('plant_stage')
+        manager.add_plant(plant_type, plant_stage)
+        return redirect(url_for('index'))
+
+    plants = manager.database_manager.get_all_plants()
+    sensors = manager.database_manager.get_sensors_by_type('Soil-Moisture')
+    print("Plants retrieved:", plants)
+    print("Soil moisture sensors retrieved:", sensors)
+    return render_template('add_plant.html', plants=plants, sensors=sensors)
+
+@app.route('/link_sensor', methods=['POST'])
+def link_sensor():
+    """
+    Link a soil moisture sensor to a plant.
+
+    Returns:
         redirect: Redirect to the index page.
     """
     if request.method == 'POST':
-        plant_type = request.form['plant_type']
-        plant_stage = request.form['plant_stage']
-        manager.add_plant(plant_type, plant_stage)
+        plant_id = request.form['plant_id']
+        sensor_id = request.form['sensor_id']
+        manager.link_sensor_to_plant(plant_id, sensor_id)
         return redirect(url_for('index'))
-    return render_template('add_plant.html')
 
 @app.route('/increase_days/<plant_name>', methods=['POST'])
 def increase_days(plant_name):
@@ -109,26 +127,6 @@ def soil_moisture_history(plant_id):
     history = database_manager.get_soil_moisture_history(plant_id)
     plant = database_manager.get_plant(plant_id)
     return render_template('index.html', history=history, plant=plant)
-
-@app.route('/link_sensor', methods=['GET', 'POST'])
-def link_sensor():
-    """
-    Link a soil moisture sensor to a plant.
-
-    Returns:
-        redirect: Redirect to the index page.
-    """
-    if request.method == 'POST':
-        plant_id = request.form['plant_id']
-        sensor_id = request.form['sensor_id']
-        manager.link_sensor_to_plant(plant_id, sensor_id)
-        return redirect(url_for('index'))
-    
-    plants = manager.database_manager.get_all_plants()
-    sensors = manager.database_manager.get_sensors_by_type('Soil-Moisture')
-    print("Plants retrieved:", plants)
-    print("Soil moisture sensors retrieved:", sensors)
-    return render_template('add_plant.html', plants=plants, sensors=sensors)
 
 @app.route('/reading_update')
 def reading_update():

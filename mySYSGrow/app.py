@@ -61,6 +61,19 @@ def schedule_lights():
     manager.set_light_schedule(start_time, end_time)
     return redirect(url_for('index'))
 
+@app.route('/schedule_fan', methods=['GET', 'POST'])
+def schedule_fan():
+    """
+    Schedule fan based on user input.
+
+    Returns:
+        redirect: Redirect to the settings page.
+    """
+    start_time = request.form['start_time']
+    end_time = request.form['end_time']
+    manager.set_fan_schedule(start_time, end_time)
+    return redirect(url_for('settings'))
+
 @app.route('/set_thresholds', methods=['POST'])
 def set_thresholds():
     """

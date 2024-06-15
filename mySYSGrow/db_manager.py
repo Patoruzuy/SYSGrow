@@ -93,6 +93,8 @@ class DatabaseManager:
                                 id INTEGER PRIMARY KEY,
                                 light_start_time TEXT,
                                 light_end_time TEXT,
+                                fan_start_time TEXT,
+                                fan_end_time TEXT,
                                 temperature_threshold REAL,
                                 humidity_threshold REAL,
                                 soil_moisture_threshold REAL
@@ -126,16 +128,6 @@ class DatabaseManager:
             db.commit()
         except sqlite3.Error as e:
             logging.error(f"Error removing actuator: {e}")
-
-    def insert_device(self, name, gpio, ip_address, type, functionality):
-        """Inserts a new device into the Devices table."""
-        try:
-            db = self.get_db()
-            db.execute("INSERT INTO Device (name, gpio, ip_address, type, functionality) VALUES (?, ?, ?, ?, ?)",
-                            (name, gpio, ip_address, type, functionality))
-            db.commit()
-        except sqlite3.Error as e:
-            logging.error(f"Error inserting device: {e}")
 
     def insert_sensor(self, sensor_type, gpio, ip_address):
         """Inserts a new sensor into the Sensor table."""
@@ -411,7 +403,7 @@ class DatabaseManager:
             logging.error(f"Error getting light schedule: {e}")
             return None
     
-    def save_settings(self, light_start_time, light_end_time, temperature_threshold, humidity_threshold, soil_moisture_threshold):
+    def save_settings(self, light_start_time, light_end_time, fan_start_time, fan_end_time, temperature_threshold, humidity_threshold, soil_moisture_threshold):
         """
         Saves the settings to the database, replacing existing settings if they exist.
 
@@ -425,10 +417,10 @@ class DatabaseManager:
         try:
             db = self.get_db()
             db.execute('''
-            INSERT OR REPLACE INTO Settings (id, light_start_time, light_end_time, temperature_threshold, humidity_threshold, soil_moisture_threshold)
-            VALUES (1, ?, ?, ?, ?, ?)
+            INSERT OR REPLACE INTO Settings (id, light_start_time, light_end_time, fan_start_time, fan_end_time, temperature_threshold, humidity_threshold, soil_moisture_threshold)
+            VALUES (1, ?, ?, ?, ?, ?, ?, ?)
             ''', 
-            (light_start_time, light_end_time, temperature_threshold, humidity_threshold, soil_moisture_threshold))
+            (light_start_time, light_end_time, fan_start_time, fan_end_time, temperature_threshold, humidity_threshold, soil_moisture_threshold))
             db.commit()
         except sqlite3.Error as e:
             logging.error(f"Error saving settings: {e}")

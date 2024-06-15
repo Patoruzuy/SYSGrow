@@ -55,7 +55,7 @@
                 <th>Plant Name</th>
                 <th>Current Stage</th>
                 <th>Days Left in Stage</th>
-                <th>Soil Moisture %</th>
+                <th>Soil Moisture</th>
                 <th>Last update</th>
             </tr>
         </thead>
@@ -64,9 +64,9 @@
             <tr>
                 <td>{{ plant.name }}</td>
                 <td>{{ plant.current_stage }}</td>
-                <td><button onclick="adjustDays('{{ plant.name }}', 'increase')">+</button>{{ plant.days_left }}<button onclick="adjustDays('{{ plant.name }}', 'decrease')">-</button></td>
+                <td><button onclick="adjustDays('{{ plant.name }}', 'decrease')">+</button>{{ plant.days_left }}<button onclick="adjustDays('{{ plant.name }}', 'increase')">-</button></td>
                 <td>{{ plant.moisture_level }}%</td>
-                <tr>{{ plant.last_updated }}</tr>
+                <td>{{ plant.last_updated }}</td>
             </tr>
             {% endfor %}
         </tbody>

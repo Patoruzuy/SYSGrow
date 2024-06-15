@@ -70,12 +70,32 @@ class Timer:
         schedule.every().day.at(end_time).do(self.turn_off_lights)
         print(f"Light scheduled from {start_time} to {end_time}")
 
+    def schedule_fan(self, start_time, end_time):
+        """
+        Schedules fan for plants and notifies observers.
+
+        Args:
+            start_time (str): The start time for the fan schedule in 'HH:MM' format.
+            end_time (str): The end time for the fan schedule in 'HH:MM' format.
+        """
+        schedule.every().day.at(start_time).do(self.turn_on_fan)
+        schedule.every().day.at(end_time).do(self.turn_off_fan)
+        print(f"Fan scheduled from {start_time} to {end_time}")
+
     def turn_on_lights(self):
         print("Turning on lights")
         self.notify("on")
 
     def turn_off_lights(self):
         print("Turning off lights")
+        self.notify("off")
+
+    def turn_on_fan(self):
+        print("Turning on fan")
+        self.notify("on")
+
+    def turn_off_fan(self):
+        print("Turning off fan")
         self.notify("off")
 
     @staticmethod
@@ -111,6 +131,35 @@ class LightObserver:
             self.actuator_manager.activate_actuator("Light")
         elif message == "off":
             self.actuator_manager.deactivate_actuator("Light")
+
+class FanObserver:
+    """
+    Observer class that responds to timer notifications by turning the fan on and off.
+    
+    Attributes:
+        actuator_manager (ActuatorManager): The actuator manager to control actuators.
+    """
+    def __init__(self, actuator_manager):
+        """
+        Initializes the FanObserver with actuator manager.
+
+        Args:
+            actuator_manager (ActuatorManager): The actuator manager to control actuators.
+        """
+        self.actuator_manager = actuator_manager
+
+    def update(self, message):
+        """
+        Updates the fan state based on the timer notification.
+
+        Args:
+            message (str): The desired state of the fan ('on' or 'off').
+        """
+        if message == "on":
+            self.actuator_manager.activate_actuator("Fan")
+        elif message == "off":
+            self.actuator_manager.deactivate_actuator("Fan")
+
 
 class PlantTimerObserver:
     """

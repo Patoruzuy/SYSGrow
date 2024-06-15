@@ -37,6 +37,7 @@ class GrowthManager:
         self.tent = Tent()
         self.timer = Timer()
         self.light_observer = None
+        self.fan_observer = None
         self.actuator_manager = ActuatorManager(database_manager)
         self.sensor_manager = SensorManager(database_manager)
         self.temperature_threshold = 24
@@ -49,6 +50,8 @@ class GrowthManager:
         #self.controller = MLController(model=your_model, setpoint=22.0)
         self.light_start_time = "08:00"
         self.light_end_time = "20:00"
+        self.fan_start_time = "08:00"
+        self.fan_end_time = "20:00"
         self.hysteresis = 2
         self.add_plant("Cannabies", "Seedling")
         self.load_settings() 
@@ -65,6 +68,8 @@ class GrowthManager:
             # Apply the settings
             self.light_start_time = settings['light_start_time']
             self.light_end_time = settings['light_end_time']
+            self.fan_start_time = settings['fan_start_time']
+            self.fan_end_time = settings['fan_end_time']
             self.temperature_threshold = settings['temperature_threshold']
             self.humidity_threshold = settings['humidity_threshold']
             self.soil_moisture_threshold = settings['soil_moisture_threshold']
@@ -82,6 +87,8 @@ class GrowthManager:
         self.database_manager.save_settings(
             self.light_start_time, 
             self.light_end_time, 
+            self.fan_start_time,
+            self.fan_end_time,
             self.temperature_threshold, 
             self.humidity_threshold, 
             self.soil_moisture_threshold
@@ -206,17 +213,21 @@ class GrowthManager:
         self.soil_moisture_threshold = soil_moisture_threshold
         self.save_settings()
 
-    def create_light_observer(self):
+    def create_observer(self, actuator):
         """
-        Creates the LightObserver if a light device is available.
+        Creates the Fan and Light Observer if actuator are available.
         """
-        light_device = self.actuator_manager.get_actuator("Light")
-        if light_device:
-            self.light_observer = LightObserver(self.device_manager, functionality="light")
+        device = self.actuator_manager.get_actuator(actuator)
+
+        if device == 'Light':
+            self.light_observer = LightObserver(device)
             self.timer.attach(self.light_observer)
             print("LightObserver created and attached to the timer.")
+        elif actuator == 'Fan':
+            self.fan_observer = FanObserver(device)
+            self.timer.attach(self.fan_observer)
         else:
-            print("No light device found. LightObserver not created.")
+            print(f"No device found. '{actuator}'Observer not created.")
 
     def set_light_schedule(self, start_time, end_time):
         """
@@ -227,7 +238,7 @@ class GrowthManager:
             end_time (str): The end time for the light schedule in 'HH:MM' format.
         """
         if not self.light_observer:
-            self.create_light_observer()
+            self.create_observer('Light')
         
         if self.light_observer:
             self.light_start_time = start_time
@@ -238,6 +249,10 @@ class GrowthManager:
         else:
             print("Cannot schedule light. No LightObserver available.")
 
+    def set_fan_schedule(self, start_time, end_time):
+        if not self.fan_observer:
+            self.create_observer('Fan')
+        self.timer.schedule_fan(start_time, end_time)
 
     def get_light_schedule(self):
         return self.database_manager.get_light_schedule()

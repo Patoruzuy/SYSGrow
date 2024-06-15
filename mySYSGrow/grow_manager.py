@@ -53,7 +53,7 @@ class GrowthManager:
         self.fan_start_time = "08:00"
         self.fan_end_time = "20:00"
         self.hysteresis = 2
-        self.add_plant("Cannabies", "Seedling")
+        self.add_plant("Cannabies", "Seedling", "1")
         self.load_settings() 
 
     def load_settings(self):

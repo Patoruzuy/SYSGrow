@@ -273,7 +273,7 @@ class GrowthManager:
             plant (Plant): The plant being monitored.
             moisture_level (float): The current soil moisture level.
         """
-        self.database_manager.insert_soil_moisture_history(plant.id, moisture_level)
+        self.database_manager.insert_soil_moisture_history(plant.plant_id, moisture_level)
         print("sensor reading soil:", plant, moisture_level)
         self.database_manager.insert_sensor_data(moisture_level=moisture_level)
 

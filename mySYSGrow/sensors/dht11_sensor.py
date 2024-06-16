@@ -18,6 +18,7 @@ class DHT11Sensor:
         Returns:
             dict: A dictionary containing the temperature and humidity.
         """
+        print("pin dht11:", self.pin)
         for _ in range(retries):
             try:
                 temperature = self.sensor.temperature

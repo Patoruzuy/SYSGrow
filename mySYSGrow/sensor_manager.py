@@ -254,7 +254,7 @@ class SensorManager:
         Reads data from all sensors.
 
         Returns:
-            dict: A dictionary containing the readings from all sensors.
+            dict: A dictionary containing the readings from all sensors, including pin numbers.
         """
         readings = {}
         for sensor_type, sensor in self.sensors.items():
@@ -271,8 +271,8 @@ class SensorManager:
                             readings[sensor_type] = reading
                     else:
                         print(f"Missing keys in {sensor_type} readings: {reading}")
+                else:
                     readings[sensor_type] = reading
-                    print("Sensor manager 2", "name: ", sensor_type, "Reading: ", reading)
             except Exception as e:
                 print(f"Error reading {sensor_type} sensor: {e}")
         return readings

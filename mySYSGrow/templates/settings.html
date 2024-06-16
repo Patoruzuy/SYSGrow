@@ -130,123 +130,118 @@
 </form>
 
 <script>
-const sensorTypeOptions = {
-    'humidity_temp_sensor': [
-        { value: 'DHT11', text: 'DHT11 Sensor' },
-        { value: 'DHT22', text: 'DHT22 Sensor' },
-        { value: 'BME280', text: 'BME280 Sensor' }
-    ],
-    'soil_sensor': [
-        { value: 'Soil-Moisture', text: 'Soil Moisture Sensor' }
-    ],
-    'co2_sensor': [
-        { value: 'CO2', text: 'CO2 Sensor' }
-    ]
-};
+    const sensorTypeOptions = {
+        'humidity_temp_sensor': [
+            { value: 'DHT11', text: 'DHT11 Sensor' },
+            { value: 'DHT22', text: 'DHT22 Sensor' },
+            { value: 'BME280', text: 'BME280 Sensor' }
+        ],
+        'soil_sensor': [
+            { value: 'Soil-Moisture', text: 'Soil Moisture Sensor' }
+        ],
+        'co2_sensor': [
+            { value: 'CO2', text: 'CO2 Sensor' }
+        ]
+    };
 
-function updateSensorTypeOptions() {
-    const sensorName = document.getElementById('sensor_name').value;
-    const sensorTypeSelect = document.getElementById('sensor_type');
-
-    // Clear previous options
-    sensorTypeSelect.innerHTML = '';
-
-    // Populate new options
-    sensorTypeOptions[sensorName].forEach(option => {
-        const opt = document.createElement('option');
-        opt.value = option.value;
-        opt.text = option.text;
-        sensorTypeSelect.add(opt);
+    document.addEventListener('DOMContentLoaded', function() {
+        updateSensorTypeOptions();  // Initialize sensor types based on default selection
     });
 
-    // Show or hide the ADC channel dropdown based on the selected sensor name
-    toggleAdcChannelDropdown();
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-    const sensorTypeSelect = document.getElementById('sensor_type');
-    const adcChannelDiv = document.getElementById('adc_channel_div');
-
-    // Function to show or hide the ADC channel dropdown
-    function toggleAdcChannelDropdown() {
+    function updateSensorTypeOptions() {
         const sensorName = document.getElementById('sensor_name').value;
+        const sensorTypeSelect = document.getElementById('sensor_type');
+        sensorTypeSelect.innerHTML = '';  // Clear existing options
+
+        // Populate sensor type options based on selected sensor name
+        sensorTypeOptions[sensorName].forEach(option => {
+            let opt = document.createElement('option');
+            opt.value = option.value;
+            opt.textContent = option.text;
+            sensorTypeSelect.appendChild(opt);
+        });
+
+        toggleAdcChannelVisibility();  // Update visibility of ADC channel selector
+    }
+
+    function toggleAdcChannelVisibility() {
+        const sensorName = document.getElementById('sensor_name').value;
+        const adcChannelDiv = document.getElementById('adc_channel_div');
+        const gpioPinDiv = document.getElementById('gpio_pin_div');
+
         if (sensorName === 'soil_sensor') {
             adcChannelDiv.style.display = 'block';
-            document.getElementById('gpio_pin_div').style.display = 'none';
+            gpioPinDiv.style.display = 'none';
         } else {
             adcChannelDiv.style.display = 'none';
-            document.getElementById('gpio_pin_div').style.display = 'block';
+            gpioPinDiv.style.display = 'block';
         }
     }
 
-    // Add event listener to sensor type dropdown
-    sensorTypeSelect.addEventListener('change', toggleAdcChannelDropdown);
-
-    // Initialize the form with the correct state
-    toggleAdcChannelDropdown();
-    updateSensorTypeOptions();
-});
-
-document.getElementById('add-sensor-form').addEventListener('submit', function(event) {
-    event.preventDefault();
-    const formData = new FormData(event.target);
-    fetch('/add_sensor', {
-        method: 'POST',
-        body: formData
-    }).then(response => response.json())
-    .then(data => {
-        alert(data.status);
-        location.reload();
+    document.getElementById('sensor_name').addEventListener('change', function() {
+        updateSensorTypeOptions();  // Call update function when sensor name changes
     });
-});
 
-function removeSensor(sensorType) {
-    fetch('/remove_sensor', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({sensor_type: sensorType})
-    }).then(response => response.json())
-    .then(data => {
-        alert(data.status);
-        location.reload();
+    document.getElementById('add-sensor-form').addEventListener('submit', function(event) {
+        event.preventDefault();
+        const formData = new FormData(event.target);
+        fetch('/add_sensor', {
+            method: 'POST',
+            body: formData
+        }).then(response => response.json())
+        .then(data => {
+            alert(data.status);
+            location.reload();
+        });
     });
-}
 
-document.getElementById('add-actuator-form').addEventListener('submit', function(event) {
-    event.preventDefault();
-    const formData = new FormData(event.target);
-    fetch('/add_actuator', {
-        method: 'POST',
-        body: formData
-    }).then(response => response.json())
-    .then(data => {
-        alert(data.status);
-        location.reload();
-    });
-});
+    function removeSensor(sensorType) {
+        fetch('/remove_sensor', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({sensor_type: sensorType})
+        }).then(response => response.json())
+        .then(data => {
+            alert(data.status);
+            location.reload();
+        });
+    }
 
-function removeActuator(actuatorType) {
-    fetch('/remove_actuator', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({actuator_type: actuatorType})
-    }).then(response => response.json())
-    .then(data => {
-        alert(data.status);
-        location.reload();
+    document.getElementById('add-actuator-form').addEventListener('submit', function(event) {
+        event.preventDefault();
+        const formData = new FormData(event.target);
+        fetch('/add_actuator', {
+            method: 'POST',
+            body: formData
+        }).then(response => response.json())
+        .then(data => {
+            alert(data.status);
+            location.reload();
+        });
     });
-}
 
-function controlActuator(actuatorType, action) {
-    fetch('/control_actuator', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({actuator_type: actuatorType, action: action})
-    }).then(response => response.json())
-    .then(data => {
-        alert(data.status);
-    });
-}
+    function removeActuator(actuatorType) {
+        fetch('/remove_actuator', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({actuator_type: actuatorType})
+        }).then(response => response.json())
+        .then(data => {
+            alert(data.status);
+            location.reload();
+        });
+    }
+
+    function controlActuator(actuatorType, action) {
+        fetch('/control_actuator', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({actuator_type: actuatorType, action: action})
+        }).then(response => response.json())
+        .then(data => {
+            alert(data.status);
+        });
+    }
 </script>
 
 {% endblock %}

@@ -54,6 +54,7 @@ class GrowthManager:
         self.fan_end_time = "20:00"
         self.hysteresis = 2
         self.add_plant("Cannabies", "Seedling", "1")
+        self.plants = None
         self.load_settings() 
 
     def load_settings(self):
@@ -77,6 +78,7 @@ class GrowthManager:
             self.set_thresholds(self.temperature_threshold, self.humidity_threshold, self.soil_moisture_threshold)
             self.sensor_manager._load_sensors_from_db()
             self.actuator_manager._load_actuators_from_db()
+            self.plants = self.load_plants()
         else:
             print("Cannot load the settings, setted the threshold values by default")
 
@@ -93,6 +95,23 @@ class GrowthManager:
             self.humidity_threshold, 
             self.soil_moisture_threshold
             )
+    
+    def load_plants(self):
+        plants = []
+        rows = self.database_manager.get_all_plants()
+        plant_sensors = self.database_manager.get_plant_sensors()
+        sensor_map = {ps['sensor_id']: ps['plant_id'] for ps in plant_sensors}
+
+        for row in rows:
+            plant_id = row['plant_id']
+            sensor_id = None
+            for sid, pid in sensor_map.items():
+                if pid == plant_id:
+                    sensor_id = sid
+                    break
+            plant = Plant(plant_id, row['name'], row['current_stage'], row['days_in_current_stage'], row['moisture_level'], sensor_id)
+            plants.append(plant)
+        return plants
 
     def get_plant(self, id) -> Plant:
         """
@@ -301,10 +320,11 @@ class GrowthManager:
                 self.control_humidity(humidity)
                 self.database_manager.insert_sensor_data(temperature=temperature, humidity=humidity)
             elif sensor_type == 'Soil-Moisture':
-                for plant in self.get_all_plants():
-                    moisture_level = readings.get('moisture_level')
-                    self.update_soil_moisture(plant, moisture_level)
-                    print("Monitor enviromenet, sensor reading soil:", plant, moisture_level)
+                for plant in self.plants:
+                    if plant.sensor_id and self.sensor_manager.get_sensor_by_id(plant.sensor_id):
+                        moisture_level = readings.get('soil_moisture')
+                        self.update_soil_moisture(plant, moisture_level)
+                        print("Monitor environment, sensor reading soil:", plant, moisture_level)
             elif sensor_type == 'CO2':
                 co2_level = readings.get('co2')
                 self.database_manager.insert_sensor_data(co2_level=co2_level)

@@ -92,7 +92,7 @@ class Plant:
         """
         Reads the moisture level from the soil moisture sensor.
         """
-        moisture_level = self.soil_moisture_sensor.read_moisture_level()
+        moisture_level = self.soil_moisture_sensor.read()
         if moisture_level is not None:
             return moisture_level
         print(f"Error reading moisture level for plant {self.name}")

@@ -275,4 +275,3 @@ class SensorManager:
             except Exception as e:
                 print(f"Error reading {sensor_type} sensor: {e}")
         return readings
-

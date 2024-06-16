@@ -331,6 +331,11 @@ class DatabaseManager:
         except sqlite3.Error as e:
             logging.error(f"Error getting plant by ID: {e}")
             return None
+        
+    def get_plant_sensors(self):
+        db = self.get_db()
+        cursor = db.execute('SELECT * FROM PlantSensors')
+        return cursor.fetchall()
 
     def remove_sensor(self, functionality):
         """Removes a sensor from the Sensor table based on its functionality."""

@@ -166,24 +166,24 @@ function updateSensorTypeOptions() {
 document.addEventListener('DOMContentLoaded', function() {
     const sensorTypeSelect = document.getElementById('sensor_type');
     const adcChannelDiv = document.getElementById('adc_channel_div');
-    const gpioPinDiv = document.getElementById('gpio_pin_div');
 
     // Function to show or hide the ADC channel dropdown
     function toggleAdcChannelDropdown() {
-        const selectedSensorType = document.getElementById('sensor_name').value;
-        if (selectedSensorType === 'soil_sensor') {
+        const sensorName = document.getElementById('sensor_name').value;
+        if (sensorName === 'soil_sensor') {
             adcChannelDiv.style.display = 'block';
-            gpioPinDiv.style.display = 'none';
+            document.getElementById('gpio_pin_div').style.display = 'none';
         } else {
             adcChannelDiv.style.display = 'none';
-            gpioPinDiv.style.display = 'block';
+            document.getElementById('gpio_pin_div').style.display = 'block';
         }
     }
 
-    // Add event listener to sensor name dropdown
-    document.getElementById('sensor_name').addEventListener('change', updateSensorTypeOptions);
+    // Add event listener to sensor type dropdown
+    sensorTypeSelect.addEventListener('change', toggleAdcChannelDropdown);
 
     // Initialize the form with the correct state
+    toggleAdcChannelDropdown();
     updateSensorTypeOptions();
 });
 

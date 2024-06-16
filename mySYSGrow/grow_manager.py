@@ -127,23 +127,6 @@ class GrowthManager:
         if row:
             return self.create_plant_from_row(row)
         return None
-    
-    def get_plant_by_sensor_id(self, sensor_id):
-        """
-        Retrieves the plant associated with a specific sensor ID.
-
-        Args:
-            sensor_id (int): The ID of the sensor.
-
-        Returns:
-            Plant: The plant associated with the sensor, or None if not found.
-        """
-        plant_sensors = self.database_manager.get_plant_sensors()
-        for ps in plant_sensors:
-            if ps['sensor_id'] == sensor_id:
-                plant_id = ps['plant_id']
-                return next((plant for plant in self.plants if plant.plant_id == plant_id), None)
-        return None
 
     def create_plant_from_row(self, row) -> Plant:
         """
@@ -249,6 +232,8 @@ class GrowthManager:
         sensor = self.sensor_manager.get_sensor_by_id(sensor_id)
 
         if plant and sensor:
+            for p in plant:
+                print("p:", p)
             self.database_manager.link_sensor_to_plant(plant_id, sensor_id)
             sensor_name = f"{sensor_id} {plant.name}"
             self.sensor_manager.set_name(sensor_name)

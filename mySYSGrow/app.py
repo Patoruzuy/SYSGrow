@@ -148,7 +148,7 @@ def decrease_days(plant_name):
 @app.route('/soil_moisture_history/<int:plant_id>')
 def soil_moisture_history(plant_id):
     history = database_manager.get_soil_moisture_history(plant_id)
-    plant = database_manager.get_plant(plant_id)
+    plant = database_manager.get_plant_by_id(plant_id)
     return render_template('index.html', history=history, plant=plant)
 
 @app.route('/reading_update')

@@ -241,37 +241,6 @@ class DatabaseManager:
         except sqlite3.Error as e:
             logging.error(f"Error getting sensor data: {e}")
             return []
-    
-    def get_plant(self, id) -> tuple:
-        """
-        Retrieves a specific plant's information from the Plants table.
-
-        Args:
-            id (int): The ID of the plant.
-
-        Returns:
-            tuple: A tuple containing the plant's name and current stage.
-        """
-        try:
-            db = self.get_db()
-            return db.execute('SELECT name, current_stage FROM Plants WHERE id = ?', (id,)).fetchone()
-        except sqlite3.Error as e:
-            logging.error(f"Error getting plant: {e}")
-            return None
-        
-    def get_all_plants(self) -> list:
-        """
-        Retrieves all plants from the Plants table.
-
-        Returns:
-            list: A list of tuples containing plant records.
-        """
-        try:
-            db = self.get_db()
-            return db.execute('SELECT * FROM Plants').fetchall()
-        except sqlite3.Error as e:
-            logging.error(f"Error getting plants: {e}")
-            return []
         
     def get_sensor(self, sensor_id):
         """
@@ -288,6 +257,18 @@ class DatabaseManager:
         if sensor:
             return dict(sensor)
         return None
+    
+    def get_all_sensors(self):
+        """
+        Retrieves all sensors from the database.
+
+        Returns:
+            list: A list of dictionaries containing sensor data.
+        """
+        db = self.get_db()
+        cursor = db.execute('SELECT * FROM Sensor')
+        sensors = cursor.fetchall()
+        return [dict(row) for row in sensors]
     
     def get_sensors_by_type(self, sensor_type):
         """Retrieves sensors by type from the database."""
@@ -334,17 +315,20 @@ class DatabaseManager:
         except sqlite3.Error as e:
             logging.error(f"Error getting plant by ID: {e}")
             return None
-    def get_all_sensors(self):
-            """
-            Retrieves all sensors from the database.
+        
+    def get_all_plants(self) -> list:
+        """
+        Retrieves all plants from the Plants table.
 
-            Returns:
-                list: A list of dictionaries containing sensor data.
-            """
+        Returns:
+            list: A list of tuples containing plant records.
+        """
+        try:
             db = self.get_db()
-            cursor = db.execute('SELECT * FROM Sensor')
-            sensors = cursor.fetchall()
-            return [dict(row) for row in sensors]
+            return db.execute('SELECT * FROM Plants').fetchall()
+        except sqlite3.Error as e:
+            logging.error(f"Error getting plants: {e}")
+            return []
         
     def get_plant_sensors(self):
         """
@@ -358,11 +342,11 @@ class DatabaseManager:
         plant_sensors = cursor.fetchall()
         return [dict(row) for row in plant_sensors]
 
-    def remove_sensor(self, functionality):
-        """Removes a sensor from the Sensor table based on its functionality."""
+    def remove_sensor(self, name):
+        """Removes a sensor from the Sensor table based on its name."""
         try:
             db = self.get_db()
-            db.execute("DELETE FROM Sensor WHERE functionality = ?", (functionality,))
+            db.execute("DELETE FROM Sensor WHERE name = ?", (name,))
             db.commit()
         except sqlite3.Error as e:
             logging.error(f"Error removing sensor: {e}")

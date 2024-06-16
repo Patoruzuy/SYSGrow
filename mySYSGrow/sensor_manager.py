@@ -271,7 +271,6 @@ class SensorManager:
                             readings[sensor_type] = reading
                     else:
                         print(f"Missing keys in {sensor_type} readings: {reading}")
-                else:
                     readings[sensor_type] = reading
             except Exception as e:
                 print(f"Error reading {sensor_type} sensor: {e}")

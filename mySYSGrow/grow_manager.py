@@ -277,6 +277,7 @@ class GrowthManager:
         """
         self.database_manager.insert_soil_moisture_history(plant.plant_id, moisture_level)
         self.database_manager.update_plant_soil_moisture(plant.name, moisture_level)
+        print("update_soil_moisture: ", plant.name, "reading: ", moisture_level)
         print("sensor reading soil:", plant, moisture_level)
 
     def monitor_environment(self):
@@ -303,6 +304,7 @@ class GrowthManager:
                 for plant in self.get_all_plants():
                     moisture_level = readings.get('moisture_level')
                     self.update_soil_moisture(plant, moisture_level)
+                    print("Monitor enviromenet, sensor reading soil:", plant, moisture_level)
             elif sensor_type == 'CO2':
                 co2_level = readings.get('co2')
                 self.database_manager.insert_sensor_data(co2_level=co2_level)

@@ -20,7 +20,7 @@ class SoilMoistureSensorV2:
         self.adc = ADC.ADS1115(i2c)
 
          # Calibration values (these should be determined experimentally)
-        self.dry_value = 20000  # Example value, should be measured when the soil is completely dry
+        self.dry_value = 15000  # Example value, should be measured when the soil is completely dry
         self.wet_value = 8000   # Example value, should be measured when the soil is completely wet
 
     def read(self):

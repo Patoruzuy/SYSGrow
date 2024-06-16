@@ -47,8 +47,8 @@ class DHTSensor(Sensor):
         """
         data = self.dht11.read()
         if data is None:
-            return {'error': 'Failed to get reading. Try again!'}
-        return {'temperature': data['temperature'], 'humidity': data['humidity']}
+            return {'error': 'Failed to get reading. Try again!', 'pin': self.pin}
+        return {'temperature': data['temperature'], 'humidity': data['humidity'], 'pin': self.pin}
 
 
 class SoilMoistureSensor(Sensor):
@@ -78,7 +78,7 @@ class SoilMoistureSensor(Sensor):
         """
         try:
             moisture_level = self.sensor.read()
-            return moisture_level
+            return {'soil_moisture': moisture_level, 'pin': self.pin}
         except Exception as e:
             print(f"Error reading soil moisture level: {e}")
             return {'error': str(e)}
@@ -115,7 +115,7 @@ class CO2Sensor(Sensor):
         data = self.co2_sensor.read()
         if data is None:
             return {'error': 'Failed to get reading. Try again!'}
-        return {'CO2': data['CO2']}
+        return {'CO2': data['CO2'], 'pin': self.pin}
 
 
 class SensorManager:
@@ -272,6 +272,7 @@ class SensorManager:
                     else:
                         print(f"Missing keys in {sensor_type} readings: {reading}")
                     readings[sensor_type] = reading
+                    print("Sensor manager 2", "name: ", sensor_type, "Reading: ", reading)
             except Exception as e:
                 print(f"Error reading {sensor_type} sensor: {e}")
         return readings

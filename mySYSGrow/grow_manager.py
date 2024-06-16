@@ -179,6 +179,39 @@ class GrowthManager:
                 return plant
         return None
     
+    def get_sensor_id_by_pin(self, pin):
+        """
+        Retrieves the sensor ID associated with a specific GPIO pin.
+
+        Args:
+            pin (int): The GPIO pin number.
+
+        Returns:
+            int: The sensor ID associated with the pin, or None if not found.
+        """
+        sensors = self.database_manager.get_all_sensors()
+        for sensor in sensors:
+            if sensor['gpio'] == pin:
+                return sensor['sensor_id']
+        return None
+
+    def get_plant_by_sensor_id(self, sensor_id):
+        """
+        Retrieves the plant associated with a specific sensor ID.
+
+        Args:
+            sensor_id (int): The ID of the sensor.
+
+        Returns:
+            Plant: The plant associated with the sensor, or None if not found.
+        """
+        plant_sensors = self.database_manager.get_plant_sensors()
+        for ps in plant_sensors:
+            if ps['sensor_id'] == sensor_id:
+                plant_id = ps['plant_id']
+                return next((plant for plant in self.get_all_plants() if plant.plant_id == plant_id), None)
+        return None
+    
     def add_plant(self, plant_type, current_stage, days_in_current_stage):
         """
         Adds a plant to the tent and sets up monitoring for it.
@@ -337,8 +370,9 @@ class GrowthManager:
                 self.control_humidity(humidity)
                 self.database_manager.insert_sensor_data(temperature=temperature, humidity=humidity)
             elif sensor_type == 'Soil-Moisture':
-                moisture_reading = readings.get('reading')
-                sensor_id = readings.get('sensor_id')
+                moisture_reading = readings.get('soil_moisture')
+                pin = readings.get('pin')
+                sensor_id = self.get_sensor_id_by_pin(pin)
                 plant = self.get_plant_by_sensor_id(sensor_id)
                 if plant:
                     self.update_soil_moisture(plant, moisture_reading.get('soil_moisture'))

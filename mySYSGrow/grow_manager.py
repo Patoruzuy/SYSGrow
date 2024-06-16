@@ -250,7 +250,7 @@ class GrowthManager:
 
         if plant and sensor:
             self.database_manager.link_sensor_to_plant(plant_id, sensor_id)
-            sensor_name = sensor_id + " " + plant.name
+            sensor_name = f"{sensor_id} {plant.name}"
             self.sensor_manager.set_name(sensor_name)
             print(f"Linked sensor '{sensor.name}' to plant '{plant.name}'.")
 

@@ -170,6 +170,9 @@ class SensorManager:
             sensors[config['sensor_type']] = sensor
         return sensors
 
+    def set_name_soil_moisture(self, name):
+        SoilMoistureSensor.set_name(name)
+        
     def get_sensors(self):
         """
         Returns the names of all managed sensors.

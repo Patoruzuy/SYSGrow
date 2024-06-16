@@ -275,15 +275,23 @@ def add_sensor():
     sensor_pin = request.form.get('sensor_pin', type=int)
     adc_channel = request.form.get('adc_channel', None)
     sensor_ip = request.form.get('sensor_ip', None)
+
     print("sensor pin 1: app.py:", sensor_pin)
+
     if sensor_pin in used_pins:
         return jsonify({"status": "error", "message": "GPIO pin already used"}), 400
-    if adc_channel is not None:
-        # Map the ADC channel string to the actual ADS constant
-        sensor_pin = DefaultValues.ADC_CHANNEL_MAP.get(adc_channel, None)
+    
+    # Only override sensor_pin if adc_channel is provided and valid
+    if adc_channel:
+        sensor_pin_mapped = DefaultValues.ADC_CHANNEL_MAP.get(adc_channel, None)
+        if sensor_pin_mapped is not None:
+            sensor_pin = sensor_pin_mapped
+    
+    print("sensor pin 2: app.py:", sensor_pin)
+
     manager.sensor_manager.add_sensor(sensor_type, sensor_pin, sensor_ip)
     used_pins.add(sensor_pin)
-    print("sensor pin 2: app.py:", sensor_pin)
+
     return jsonify({'status': 'success', 'sensor': sensor_name}), 200
 
 @app.route('/remove_actuator', methods=['POST'])

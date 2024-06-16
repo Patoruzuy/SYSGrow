@@ -178,7 +178,7 @@ class GrowthManager:
             if plant.name == name:
                 return plant
         return None
-    
+        
     def get_sensor_id_by_pin(self, pin):
         """
         Retrieves the sensor ID associated with a specific GPIO pin.
@@ -374,6 +374,7 @@ class GrowthManager:
                 pin = readings.get('pin')
                 sensor_id = self.get_sensor_id_by_pin(pin)
                 plant = self.get_plant_by_sensor_id(sensor_id)
+                print("monitor: ", moisture_reading, "sensorID:", sensor_id, "plant: ", plant)
                 if plant:
                     self.update_soil_moisture(plant, moisture_reading.get('soil_moisture'))
                     print("Monitor environment, sensor reading soil:", plant, moisture_reading)

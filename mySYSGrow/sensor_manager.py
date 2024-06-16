@@ -59,7 +59,7 @@ class SoilMoistureSensor(Sensor):
         pin (int): ADC channel where the soil moisture sensor is connected.
         sensor (SoilMoistureSensorV2): The soil moisture sensor instance.
     """
-    def __init__(self, pin, sensor_id=sensor_id):
+    def __init__(self, pin):
         """
         Initializes the SoilMoistureSensor with a specified ADC channel.
 
@@ -67,7 +67,6 @@ class SoilMoistureSensor(Sensor):
             pin (int): The ADC channel where the soil moisture sensor is connected.
         """
         self.pin = pin
-        self.sensor_id= sensor_id
         self.sensor = SoilMoistureSensorV2(self.pin)
 
     def read(self):
@@ -158,7 +157,7 @@ class SensorManager:
             elif config['sensor_type'] == 'DHT11':
                 sensor = DHTSensor(pin=config['gpio'])
             elif config['sensor_type'] == 'Soil-Moisture':
-                sensor = SoilMoistureSensor(pin=config['gpio'], sensor_id=config['sensor_id'])
+                sensor = SoilMoistureSensor(pin=config['gpio'])
             elif config['sensor_type'] == 'CO2':
                 sensor = CO2Sensor(pin=config['gpio'], ip=config['ip_address'])
             else:
@@ -227,7 +226,7 @@ class SensorManager:
         elif sensor_type == 'DHT11':
             sensor = DHTSensor(pin=gpio)
         elif sensor_type == 'Soil-Moisture':
-            sensor = SoilMoistureSensor(pin=gpio, sensor_id=sensor_id)
+            sensor = SoilMoistureSensor(pin=gpio)
         elif sensor_type == 'CO2':
             sensor = CO2Sensor(pin=gpio, ip=ip_address)
         else:

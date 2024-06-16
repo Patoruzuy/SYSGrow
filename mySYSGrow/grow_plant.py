@@ -43,6 +43,9 @@ class Plant:
             self.sensor_id = sensor.sensor_id
             database_manager.update_plant_sensor_link(self.name, sensor.sensor_id)
 
+    def set_sensor_id(self, sensor_id):
+        self.sensor_id = sensor_id
+
     def set_stage(self, stage):
         """
         Sets the current stage of the plant.

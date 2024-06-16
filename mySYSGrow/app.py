@@ -123,6 +123,7 @@ def link_sensor():
     if request.method == 'POST':
         plant_id = request.form['plant_id']
         sensor_id = request.form['sensor_id']
+        print("plant_id: ", plant_id, "SENSOR_ID: ", sensor_id)
         manager.link_sensor_to_plant(plant_id, sensor_id)
         return redirect(url_for('index'))
 

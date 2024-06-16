@@ -154,7 +154,7 @@ class SensorManager:
         for config in sensor_configs:
             if config['sensor_type'] == 'BME280':
                 sensor = BME280Sensor(i2c_bus=1)
-            elif config['sensor_type'] == 'DHT':
+            elif config['sensor_type'] == 'DHT11':
                 sensor = DHTSensor(pin=config['gpio'])
             elif config['sensor_type'] == 'Soil-Moisture':
                 sensor = SoilMoistureSensor(pin=config['gpio'])
@@ -204,7 +204,7 @@ class SensorManager:
             ip_address = sensor_info['ip_address']
             if sensor_type == 'BME280':
                 return BME280Sensor(i2c_bus=1)
-            elif sensor_type == 'DHT':
+            elif sensor_type == 'DHT11':
                 return DHTSensor(pin=gpio)
             elif sensor_type == 'Soil-Moisture':
                 return SoilMoistureSensor(pin=gpio)
@@ -223,7 +223,7 @@ class SensorManager:
         """
         if sensor_type == 'BME280':
             sensor = BME280Sensor(i2c_bus=1)
-        elif sensor_type == 'DHT':
+        elif sensor_type == 'DHT11':
             sensor = DHTSensor(pin=gpio)
         elif sensor_type == 'Soil-Moisture':
             sensor = SoilMoistureSensor(pin=gpio)
@@ -263,7 +263,7 @@ class SensorManager:
                 print("Sensor manager", "name: ", sensor_type, "Reading: ", reading)
 
                 # Check if reading contains the necessary keys before using them
-                if sensor_type in ['DHT', 'BME280']:
+                if sensor_type in ['DHT11', 'BME280']:
                     if 'temperature' in reading and 'humidity' in reading:
                         if reading['temperature'] is None or reading['humidity'] is None:
                             print(f"Invalid {sensor_type} readings: temperature={reading.get('temperature')}, humidity={reading.get('humidity')}")

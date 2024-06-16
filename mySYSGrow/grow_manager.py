@@ -293,7 +293,7 @@ class GrowthManager:
             return {}
 
         for sensor_type, readings in sensor_readings.items():
-            if sensor_type == 'DHT':
+            if sensor_type == 'DHT11':
                 temperature = readings.get('temperature')
                 humidity = readings.get('humidity')
                 self.control_temperature(temperature)

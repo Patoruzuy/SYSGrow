@@ -170,8 +170,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Function to show or hide the ADC channel dropdown
     function toggleAdcChannelDropdown() {
-        const selectedSensorType = sensorTypeSelect.value;
-        if (selectedSensorType === 'Soil-Moisture') {
+        const selectedSensorType = document.getElementById('sensor_name').value;
+        if (selectedSensorType === 'soil_sensor') {
             adcChannelDiv.style.display = 'block';
             gpioPinDiv.style.display = 'none';
         } else {
@@ -180,8 +180,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Add event listener to sensor type dropdown
-    sensorTypeSelect.addEventListener('change', toggleAdcChannelDropdown);
+    // Add event listener to sensor name dropdown
+    document.getElementById('sensor_name').addEventListener('change', updateSensorTypeOptions);
 
     // Initialize the form with the correct state
     updateSensorTypeOptions();

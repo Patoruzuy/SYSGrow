@@ -275,6 +275,7 @@ def add_sensor():
     sensor_pin = request.form.get('sensor_pin', type=int)
     adc_channel = request.form.get('adc_channel')
     sensor_ip = request.form.get('sensor_ip', None)
+    print("sensor pin: app.py:", sensor_pin)
     if sensor_pin in used_pins:
         return jsonify({"status": "error", "message": "GPIO pin already used"}), 400
     if adc_channel:

@@ -88,7 +88,7 @@ class DatabaseManager:
                                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
                                 soil_moisture REAL,
                                 FOREIGN KEY (plant_id) REFERENCES Plants(plant_id)
-                            ''')
+                                )''')
             db.execute('''CREATE TABLE IF NOT EXISTS Settings (
                                 id INTEGER PRIMARY KEY,
                                 light_start_time TEXT,

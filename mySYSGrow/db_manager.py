@@ -332,11 +332,29 @@ class DatabaseManager:
         except sqlite3.Error as e:
             logging.error(f"Error getting plant by ID: {e}")
             return None
+    def get_all_sensors(self):
+            """
+            Retrieves all sensors from the database.
+
+            Returns:
+                list: A list of dictionaries containing sensor data.
+            """
+            db = self.get_db()
+            cursor = db.execute('SELECT * FROM Sensor')
+            sensors = cursor.fetchall()
+            return [dict(row) for row in sensors]
         
     def get_plant_sensors(self):
+        """
+        Retrieves all plant-sensor mappings from the database.
+
+        Returns:
+            list: A list of dictionaries containing plant-sensor mappings.
+        """
         db = self.get_db()
         cursor = db.execute('SELECT * FROM PlantSensors')
-        return cursor.fetchall()
+        plant_sensors = cursor.fetchall()
+        return [dict(row) for row in plant_sensors]
 
     def remove_sensor(self, functionality):
         """Removes a sensor from the Sensor table based on its functionality."""

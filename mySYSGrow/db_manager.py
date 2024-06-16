@@ -64,6 +64,7 @@ class DatabaseManager:
                                 )''')
             db.execute('''CREATE TABLE IF NOT EXISTS Sensor (
                                 sensor_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                name TEXT,
                                 sensor_type TEXT NOT NULL,
                                 gpio INTEGER,
                                 ip_address TEXT
@@ -129,12 +130,12 @@ class DatabaseManager:
         except sqlite3.Error as e:
             logging.error(f"Error removing actuator: {e}")
 
-    def insert_sensor(self, sensor_type, gpio, ip_address):
+    def insert_sensor(self, name, sensor_type, gpio, ip_address):
         """Inserts a new sensor into the Sensor table."""
         try:
             db = self.get_db()
-            db.execute("INSERT INTO Sensor (sensor_type, gpio, ip_address) VALUES (?, ?, ?)",
-                            (sensor_type, gpio, ip_address))
+            db.execute("INSERT INTO Sensor (name, sensor_type, gpio, ip_address) VALUES (?, ?, ?, ?)",
+                            (name, sensor_type, gpio, ip_address))
             db.commit()
             return db.lastrowid
         except sqlite3.Error as e:
@@ -211,11 +212,12 @@ class DatabaseManager:
         """Retrieves sensor configurations from the database."""
         try:
             db = self.get_db()
-            cursor = db.execute("SELECT sensor_type, gpio, ip_address FROM Sensor")
+            cursor = db.execute("SELECT name, sensor_type, gpio, ip_address FROM Sensor")
             rows = cursor.fetchall()
             sensor_configs = []
             for row in rows:
                 config = {
+                    'name': row ['name'],
                     'sensor_type': row['sensor_type'],
                     'gpio': row['gpio'],
                     'ip_address': row['ip_address']

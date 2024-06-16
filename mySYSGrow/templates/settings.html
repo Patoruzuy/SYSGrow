@@ -96,7 +96,7 @@
     <select id="sensor_type" name="sensor_type">
         <!-- Options will be dynamically populated based on sensor name selection -->
     </select>
-    <div id="adc_channel_div">
+    <div id="adc_channel_div" style="display: none;">
         <label for="adc_channel">ADC Channel:</label>
         <select id="adc_channel" name="adc_channel">
             <option value="P0">ADS.P0</option>
@@ -105,12 +105,14 @@
             <option value="P3">ADS.P3</option>
         </select>
     </div>
-    <label for="sensor_pin">GPIO Pin:</label>
-    <select id="sensor_pin" name="sensor_pin">
-        {% for pin, name in available_gpio_pins.items() %}
-        <option value="{{ pin }}">{{ name }}</option>
-        {% endfor %}
-    </select>
+    <div id="gpio_pin_div">
+        <label for="sensor_pin">GPIO Pin:</label>
+        <select id="sensor_pin" name="sensor_pin">
+            {% for pin, name in available_gpio_pins.items() %}
+            <option value="{{ pin }}">{{ name }}</option>
+            {% endfor %}
+        </select>
+    </div>
     <label for="sensor_ip">IP Address:</label>
     <input type="text" id="sensor_ip" name="sensor_ip">
     <button type="submit">Add Sensor</button>
@@ -141,26 +143,6 @@ const sensorTypeOptions = {
         { value: 'CO2', text: 'CO2 Sensor' }
     ]
 };
-document.addEventListener('DOMContentLoaded', function() {
-    const sensorTypeSelect = document.getElementById('sensor_type');
-    const adcChannelDiv = document.getElementById('adc_channel_div');
-
-    // Function to show or hide the ADC channel dropdown
-    function toggleAdcChannelDropdown() {
-        const selectedSensorType = sensorTypeSelect.value;
-        if (selectedSensorType === 'Soil-Moisture') {
-            adcChannelDiv.style.display = 'block';
-        } else {
-            adcChannelDiv.style.display = 'none';
-        }
-    }
-
-    // Add event listener to sensor type dropdown
-    sensorTypeSelect.addEventListener('change', toggleAdcChannelDropdown);
-
-    // Initialize the form with the correct state
-    toggleAdcChannelDropdown();
-});
 
 function updateSensorTypeOptions() {
     const sensorName = document.getElementById('sensor_name').value;
@@ -176,9 +158,34 @@ function updateSensorTypeOptions() {
         opt.text = option.text;
         sensorTypeSelect.add(opt);
     });
+
+    // Show or hide the ADC channel dropdown based on the selected sensor name
+    toggleAdcChannelDropdown();
 }
 
-document.addEventListener('DOMContentLoaded', updateSensorTypeOptions);
+document.addEventListener('DOMContentLoaded', function() {
+    const sensorTypeSelect = document.getElementById('sensor_type');
+    const adcChannelDiv = document.getElementById('adc_channel_div');
+    const gpioPinDiv = document.getElementById('gpio_pin_div');
+
+    // Function to show or hide the ADC channel dropdown
+    function toggleAdcChannelDropdown() {
+        const selectedSensorType = sensorTypeSelect.value;
+        if (selectedSensorType === 'Soil-Moisture') {
+            adcChannelDiv.style.display = 'block';
+            gpioPinDiv.style.display = 'none';
+        } else {
+            adcChannelDiv.style.display = 'none';
+            gpioPinDiv.style.display = 'block';
+        }
+    }
+
+    // Add event listener to sensor type dropdown
+    sensorTypeSelect.addEventListener('change', toggleAdcChannelDropdown);
+
+    // Initialize the form with the correct state
+    updateSensorTypeOptions();
+});
 
 document.getElementById('add-sensor-form').addEventListener('submit', function(event) {
     event.preventDefault();

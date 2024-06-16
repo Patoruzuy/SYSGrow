@@ -9,6 +9,9 @@ from flask import Flask, render_template, request, redirect, url_for, jsonify
 from grow_manager import GrowthManager, DatabaseManager
 from actuator_manager import RelayActuator
 import matplotlib.pyplot as plt
+import threading
+import signal
+import sys
 import io
 import base64
 import atexit
@@ -281,8 +284,9 @@ def add_sensor():
     if sensor_pin in used_pins:
         return jsonify({"status": "error", "message": "GPIO pin already used"}), 400
     
-    # Only override sensor_pin if adc_channel is provided and valid
-    if adc_channel:
+    # Only override sensor_pin if the sensor_type is Soil-Moisture
+    if sensor_type == 'Soil-Moisture' and adc_channel:
+        print(f"Mapping ADC channel {adc_channel} for Soil-Moisture sensor")
         sensor_pin_mapped = DefaultValues.ADC_CHANNEL_MAP.get(adc_channel, None)
         if sensor_pin_mapped is not None:
             sensor_pin = sensor_pin_mapped
@@ -332,6 +336,17 @@ def not_found_error(error):
 @app.errorhandler(400)
 def bad_request_error(error):
     return jsonify({'status': 'error', 'message': 'Bad request'}), 400
+
+def cleanup_resources(signal, frame):
+    print("Cleaning up resources...")
+    for sensor in manager.sensor_manager.sensors.values():
+        if hasattr(sensor, 'cleanup'):
+            sensor.cleanup()
+    sys.exit(0)
+
+# Register the signal handlers for cleanup
+signal.signal(signal.SIGINT, cleanup_resources)
+signal.signal(signal.SIGTERM, cleanup_resources)
 
     
 if __name__ == '__main__':

@@ -127,6 +127,23 @@ class GrowthManager:
         if row:
             return self.create_plant_from_row(row)
         return None
+    
+    def get_plant_by_sensor_id(self, sensor_id):
+        """
+        Retrieves the plant associated with a specific sensor ID.
+
+        Args:
+            sensor_id (int): The ID of the sensor.
+
+        Returns:
+            Plant: The plant associated with the sensor, or None if not found.
+        """
+        plant_sensors = self.database_manager.get_plant_sensors()
+        for ps in plant_sensors:
+            if ps['sensor_id'] == sensor_id:
+                plant_id = ps['plant_id']
+                return next((plant for plant in self.plants if plant.plant_id == plant_id), None)
+        return None
 
     def create_plant_from_row(self, row) -> Plant:
         """
@@ -298,7 +315,7 @@ class GrowthManager:
         self.database_manager.update_plant_soil_moisture(plant.name, moisture_level)
         print("update_soil_moisture: ", plant.name, "reading: ", moisture_level)
         print("sensor reading soil:", plant, moisture_level)
-
+        
     def monitor_environment(self):
         """
         Monitors the environment and updates devices accordingly.
@@ -307,7 +324,7 @@ class GrowthManager:
             dict: The current environmental data.
         """
         sensor_readings = self.sensor_manager.read_all_sensors()
-        
+
         if not sensor_readings:
             print("No sensor readings available.")
             return {}
@@ -320,14 +337,17 @@ class GrowthManager:
                 self.control_humidity(humidity)
                 self.database_manager.insert_sensor_data(temperature=temperature, humidity=humidity)
             elif sensor_type == 'Soil-Moisture':
-                for plant in self.plants:
-                    if plant.sensor_id and self.sensor_manager.get_sensor_by_id(plant.sensor_id):
-                        moisture_level = readings.get('soil_moisture')
-                        self.update_soil_moisture(plant, moisture_level)
-                        print("Monitor environment, sensor reading soil:", plant, moisture_level)
+                moisture_reading = readings.get('reading')
+                sensor_id = readings.get('sensor_id')
+                plant = self.get_plant_by_sensor_id(sensor_id)
+                if plant:
+                    self.update_soil_moisture(plant, moisture_reading.get('soil_moisture'))
+                    print("Monitor environment, sensor reading soil:", plant, moisture_reading)
             elif sensor_type == 'CO2':
-                co2_level = readings.get('co2')
+                co2_level = readings.get('CO2')
                 self.database_manager.insert_sensor_data(co2_level=co2_level)
+
+        return sensor_readings
         
         return sensor_readings
 

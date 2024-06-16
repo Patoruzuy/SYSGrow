@@ -136,6 +136,7 @@ class DatabaseManager:
             db.execute("INSERT INTO Sensor (sensor_type, gpio, ip_address) VALUES (?, ?, ?)",
                             (sensor_type, gpio, ip_address))
             db.commit()
+            return db.lastrowid
         except sqlite3.Error as e:
             logging.error(f"Error inserting sensor: {e}")
 

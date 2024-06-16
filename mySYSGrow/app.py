@@ -273,7 +273,7 @@ def add_sensor():
     sensor_name = request.form['sensor_name']
     sensor_type = request.form['sensor_type']
     sensor_pin = request.form.get('sensor_pin', type=int)
-    adc_channel = request.form.get('adc_channel'n None)
+    adc_channel = request.form.get('adc_channel', None)
     sensor_ip = request.form.get('sensor_ip', None)
     print("sensor pin: app.py:", sensor_pin)
     if sensor_pin in used_pins:

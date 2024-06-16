@@ -66,8 +66,12 @@ class SoilMoistureSensor(Sensor):
         Args:
             pin (int): The ADC channel where the soil moisture sensor is connected.
         """
+        self.name = None
         self.pin = pin
         self.sensor = SoilMoistureSensorV2(self.pin)
+
+    def set_name(self, name):
+        self.name = name
 
     def read(self):
         """

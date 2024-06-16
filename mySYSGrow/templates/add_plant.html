@@ -6,7 +6,7 @@
     <label for="plant_id">Select Plant:</label>
     <select id="plant_id" name="plant_id">
         {% for plant in plants %}
-        <option value="{{ plant.id }}">{{ plant.name }}</option>
+        <option value="{{ plant.plant_id }}">{{ plant.name }}</option>
         {% endfor %}
     </select>
     <label for="sensor_id">Select Soil Moisture Sensor:</label>

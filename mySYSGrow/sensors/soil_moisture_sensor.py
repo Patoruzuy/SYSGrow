@@ -2,6 +2,7 @@ import board
 import busio
 import adafruit_ads1x15.ads1115 as ADC
 from adafruit_ads1x15.analog_in import AnalogIn
+import time
 
 class SoilMoistureSensorV2:
     def __init__(self, adc_channel):
@@ -23,28 +24,34 @@ class SoilMoistureSensorV2:
         self.dry_value = 15000  # Example value, should be measured when the soil is completely dry
         self.wet_value = 8000   # Example value, should be measured when the soil is completely wet
 
-    def read(self):
+    def read(self, retries=3, delay=1):
         """
-        Reads the soil moisture level from the sensor.
-        
+        Reads the soil moisture level from the sensor with retry logic.
+
+        Args:
+            retries (int): The number of retries before failing.
+            delay (int): The delay between retries in seconds.
+
         Returns:
-            dict: A dictionary containing 'soil_moisture'.
+            dict: A dictionary containing 'soil_moisture' and 'pin'.
         """
-        try:
-            # Create an analog input channel on the specified ADC channel
-            chan = AnalogIn(self.adc, self.adc_channel)
-            moisture_level = chan.value
-            print(f"Raw ADC Value: {moisture_level}")
-            # Convert raw_value to voltage (for ADS1115, default range is +/- 4.096V)
-            voltage = chan.voltage
-            print(f"Voltage: {voltage:.2f} V")
-            # Normalize and convert to percentage
-            soil_moisture = self._map(moisture_level, self.dry_value, self.wet_value, 0, 100)
-            soil_moisture = max(0, min(100, soil_moisture))  # Clamp to 0-100%
-            return {'soil_moisture': soil_moisture}
-        except Exception as e:
-            print(f"Error reading soil moisture level: {e}")
-            return {'error': str(e)}
+        for attempt in range(retries):   
+            try:
+                # Create an analog input channel on the specified ADC channel
+                chan = AnalogIn(self.adc, self.adc_channel)
+                moisture_level = chan.value
+                print(f"Raw ADC Value: {moisture_level}")
+                # Convert raw_value to voltage (for ADS1115, default range is +/- 4.096V)
+                voltage = chan.voltage
+                print(f"Voltage: {voltage:.2f} V")
+                # Normalize and convert to percentage
+                soil_moisture = self._map(moisture_level, self.dry_value, self.wet_value, 0, 100)
+                soil_moisture = max(0, min(100, soil_moisture))  # Clamp to 0-100%
+                return {'soil_moisture': moisture_level, 'pin': self.adc_channel}
+            except OSError as e:
+                print(f"Error reading soil moisture sensor on attempt {attempt + 1}: {e}")
+                time.sleep(delay)
+        return {'soil_moisture': {'error': '[Errno 5] Input/output error'}, 'pin': self.adc_channel}
 
     def _map(self, x, in_min, in_max, out_min, out_max):
             """

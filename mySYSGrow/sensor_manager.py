@@ -78,7 +78,7 @@ class SoilMoistureSensor(Sensor):
         """
         try:
             moisture_level = self.sensor.read()
-            return {'soil_moisture': moisture_level, 'pin': self.pin}
+            return {'soil_moisture': moisture_level}
         except Exception as e:
             print(f"Error reading soil moisture level: {e}")
             return {'error': str(e)}
@@ -261,7 +261,12 @@ class SensorManager:
             try:
                 reading = sensor.read()
                 print("Sensor manager", "name: ", sensor_type, "Reading: ", reading)
-
+                
+                # Include the sensor type in the readings for soil moisture
+                if sensor_type == 'Soil-Moisture':
+                    reading['sensor_type'] = sensor_type
+                readings[sensor_type] = reading
+                
                 # Check if reading contains the necessary keys before using them
                 if sensor_type in ['DHT11', 'BME280']:
                     if 'temperature' in reading and 'humidity' in reading:
@@ -271,8 +276,6 @@ class SensorManager:
                             readings[sensor_type] = reading
                     else:
                         print(f"Missing keys in {sensor_type} readings: {reading}")
-                else:
-                    readings[sensor_type] = reading
             except Exception as e:
                 print(f"Error reading {sensor_type} sensor: {e}")
         return readings

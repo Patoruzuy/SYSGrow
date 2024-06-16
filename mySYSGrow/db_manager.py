@@ -327,7 +327,7 @@ class DatabaseManager:
         """
         try:
             db = self.get_db()
-            cursor = db.execute("SELECT * FROM Plants WHERE id = ?", (plant_id,))
+            cursor = db.execute("SELECT * FROM Plants WHERE plant_id = ?", (plant_id,))
             return cursor.fetchone()
         except sqlite3.Error as e:
             logging.error(f"Error getting plant by ID: {e}")

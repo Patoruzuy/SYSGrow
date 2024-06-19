@@ -175,8 +175,8 @@ def sensor_data():
         str: Rendered HTML template.
     """
     sensor_data = manager.database_manager.get_sensor_data()
-    plant_sensor_data = manager.database_manager.get_all_plants()
-    return render_template('sensor_data.html', sensor_data=sensor_data, plant_sensor_data=plant_sensor_data)
+    readings = manager.database_manager.get_all_plant_readings()
+    return render_template('sensor_data.html', sensor_data=sensor_data, readings=readings)
 
 @app.route('/sensor_data_graph')
 def sensor_data_graph():

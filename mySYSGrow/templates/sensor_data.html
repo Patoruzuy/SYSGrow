@@ -26,16 +26,18 @@
     <thead>
         <tr>
             <th>Timestamp</th>
-            <th>Plant name</th>
+            <th>Reading ID</th>
+            <th>Plant Name</th>
             <th>Soil Moisture</th>
         </tr>
     </thead>
     <tbody>
-        {% for data in plant_sensor_data %}
+        {% for reading in readings %}
         <tr>
-            <td>{{ data[1] }}</td>
-            <td>{{ data[2] }}</td>
-            <td>{{ data[3] }}</td>
+            <td>{{ reading.timestamp }}</td>
+            <td>{{ reading.reading_id }}</td>
+            <td>{{ reading.plant_name }}</td>
+            <td>{{ reading.soil_moisture }}</td>
         </tr>
         {% endfor %}
     </tbody>

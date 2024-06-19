@@ -145,11 +145,11 @@ def decrease_days(plant_name):
         return jsonify({"status": "success", "message": f"Decreased days for {plant_name}."})
     return jsonify({"status": "error", "message": f"Plant {plant_name} not found."})
 
-@app.route('/sensor_data/<int:plant_id>')
-def soil_moisture_history(plant_id):
-    history = database_manager.get_soil_moisture_history(plant_id)
-    plant = database_manager.get_plant_by_id(plant_id)
-    return render_template('sensor_data.html', history=history, plant=plant)
+# @app.route('/sensor_data/<int:plant_id>')
+# def soil_moisture_history(plant_id):
+#     history = database_manager.get_soil_moisture_history(plant_id)
+#     plant = database_manager.get_plant_by_id(plant_id)
+#     return render_template('sensor_data.html', history=history, plant=plant)
 
 @app.route('/reading_update')
 def reading_update():

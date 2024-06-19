@@ -237,7 +237,7 @@ class GrowthManager:
             self.database_manager.link_sensor_to_plant(plant_id, sensor_id)
             sensor_name = f"{sensor_id} {plant['name']}"
             # Add a Function db_manager to update sensor name
-            print(f"Linked sensor '{sensor.sensor_type}' to plant '{plant.name}'.")
+            # print(f"Linked sensor '{sensor.sensor_type}' to plant '{plant.name}'.")
 
     def set_stage_durations(self, plant_name, seed_days, veg_days, flowering_days):
         """

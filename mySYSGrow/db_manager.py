@@ -297,6 +297,11 @@ class DatabaseManager:
         except sqlite3.Error as e:
             logging.error(f"Error getting sensors for plant: {e}")
             return []
+        
+    def get_soil_moisture_history(self, plant_id):
+        """Fetches the historical soil moisture data for a plant."""
+        db = self.get_db()
+        return db.execute("SELECT * FROM SoilMoistureHistory WHERE plant_id = ? ORDER BY timestamp", (plant_id,)).fetchall()
 
     def get_plant_by_id(self, plant_id):
         """

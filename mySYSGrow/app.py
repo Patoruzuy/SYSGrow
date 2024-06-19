@@ -145,11 +145,11 @@ def decrease_days(plant_name):
         return jsonify({"status": "success", "message": f"Decreased days for {plant_name}."})
     return jsonify({"status": "error", "message": f"Plant {plant_name} not found."})
 
-@app.route('/soil_moisture_history/<int:plant_id>')
+@app.route('/sensor_data/<int:plant_id>')
 def soil_moisture_history(plant_id):
     history = database_manager.get_soil_moisture_history(plant_id)
     plant = database_manager.get_plant_by_id(plant_id)
-    return render_template('index.html', history=history, plant=plant)
+    return render_template('sensor_data.html', history=history, plant=plant)
 
 @app.route('/reading_update')
 def reading_update():
@@ -166,7 +166,7 @@ def reading_update():
     print(f"Reading update in app.py: {data}")
     return jsonify(data)
 
-@app.route('/sensor_data')
+@app.route('/sensor_data/<int:plant_id>')
 def sensor_data():
     """
     Display sensor data in tabular format.

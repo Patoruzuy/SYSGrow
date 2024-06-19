@@ -336,36 +336,18 @@ class DatabaseManager:
             return []
         
     def get_all_plant_readings(self):
-        """
-        Retrieves all plant readings with plant names.
-
-        Returns:
-            list: A list of dictionaries containing the readings and plant names.
-        """
-        db = self.get_db()
-        query = '''
-        SELECT 
-            PlantReadings.reading_id,
-            Plants.name AS plant_name,
-            PlantReadings.timestamp,
-            PlantReadings.soil_moisture
-        FROM 
-            PlantReadings
-        INNER JOIN 
-            Plants ON PlantReadings.plant_id = Plants.plant_id
-        ORDER BY 
-            PlantReadings.timestamp DESC
-        '''
-        rows = db.execute(query).fetchall()
-        readings = []
-        for row in rows:
-            readings.append({
-                'reading_id': row['reading_id'],
-                'plant_name': row['plant_name'],
-                'timestamp': row['timestamp'],
-                'soil_moisture': row['soil_moisture']
-            })
-        return readings
+        try:
+            db = self.get_db()
+            query = '''
+            SELECT pr.reading_id, pr.timestamp, p.name as plant_name, pr.soil_moisture
+            FROM PlantReadings pr
+            JOIN Plants p ON pr.plant_id = p.plant_id
+            '''
+            rows = db.execute(query).fetchall()
+            return rows
+        except sqlite3.Error as e:
+            logging.error(f"Error retrieving plant readings: {e}")
+            return []
         
     def get_plant_sensors(self):
         """

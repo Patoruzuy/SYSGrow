@@ -310,7 +310,8 @@ def remove_sensor():
     data = request.json
     sensor_type = data['sensor_type']
     sensor_pin = data['sensor_pin']
-    used_pins.remove(sensor_pin)
+    if sensor_pin:
+        used_pins.remove(sensor_pin)
     manager.sensor_manager.remove_sensor(sensor_type)
     return jsonify({"status": "success", "actuator": sensor_type})
 

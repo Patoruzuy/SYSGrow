@@ -6,6 +6,7 @@ Date: 26/05/2024
 """
 
 from timer import *
+import logging
 from grow_tent import Tent
 from grow_plant import *
 from db_manager import DatabaseManager
@@ -332,10 +333,19 @@ class GrowthManager:
             plant (Plant): The plant being monitored.
             moisture_level (float): The current soil moisture level.
         """
-        self.database_manager.insert_soil_moisture_history(plant.plant_id, moisture_level)
-        self.database_manager.update_plant_soil_moisture(plant.name, moisture_level)
-        print("update_soil_moisture: ", plant.name, "reading: ", moisture_level)
-        print("sensor reading soil:", plant, moisture_level)
+        if isinstance(moisture_level, float):
+            # Insert soil moisture history
+            self.database_manager.insert_soil_moisture_history(plant.plant_id, moisture_level)
+            
+            # Update the plant's current soil moisture level
+            self.database_manager.update_plant_soil_moisture(plant.name, moisture_level)
+            
+            # Logging the update
+            print("update_soil_moisture:", plant.name, "reading:", moisture_level)
+            print("sensor reading soil:", plant, moisture_level)
+        else:
+            logging.error(f"Invalid moisture level: {moisture_level}. Expected a float value.")
+
         
     def monitor_environment(self):
         """

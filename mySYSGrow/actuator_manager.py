@@ -115,6 +115,7 @@ class ActuatorManager:
             actuator (Actuator): The actuator object to be added.
         """
         self.actuators[name] = actuator
+        print("add_actuator:", name, actuator.relay.pin)
         self.database_manager.insert_actuator(name, actuator.relay.pin, actuator.relay.ip)
     
     def remove_actuator(self, name):

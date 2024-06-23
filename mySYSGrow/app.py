@@ -9,6 +9,7 @@ from flask import Flask, render_template, request, redirect, url_for, jsonify
 from grow_manager import GrowthManager, DatabaseManager
 from actuator_manager import RelayActuator
 import matplotlib.pyplot as plt
+import logging
 import threading
 import signal
 import sys
@@ -21,6 +22,8 @@ app = Flask(__name__, static_folder='static')
 app.config['DATABASE'] = 'database/grow_tent.db'
 database_manager = DatabaseManager()
 database_manager.init_app(app)
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)
 
 with app.app_context():
     global manager

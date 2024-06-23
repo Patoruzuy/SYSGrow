@@ -159,6 +159,7 @@ class GrowthManager:
     def get_plant_by_name(self, name):
         for plant in self.get_all_plants():
             if plant.name == name:
+                print("Manager get_all_plants:", plant.name)
                 return plant
         return None
         

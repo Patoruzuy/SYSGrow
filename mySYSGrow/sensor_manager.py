@@ -82,7 +82,7 @@ class SoilMoistureSensor(Sensor):
         """
         try:
             moisture_level = self.sensor.read()
-            return {'soil_moisture': moisture_level}
+            return {'soil_moisture': moisture_level, 'pin': self.pin}
         except Exception as e:
             print(f"Error reading soil moisture level: {e}")
             return {'error': str(e)}
@@ -264,7 +264,7 @@ class SensorManager:
         for sensor_type, sensor in self.sensors.items():
             try:
                 reading = sensor.read()
-                print("Sensor manager", "name: ", sensor_type, "Reading: ", reading)
+                print("Sensor manager", sensor, "sensor type: ", sensor_type, "Reading: ", reading)
                 
                 # Include the sensor type in the readings for soil moisture
                 if sensor_type == 'Soil-Moisture':

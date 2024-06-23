@@ -166,7 +166,7 @@ def reading_update():
     print(f"Reading update in app.py: {data}")
     return jsonify(data)
 
-@app.route('/sensor_data/<int:plant_id>')
+@app.route('/sensor_data')
 def sensor_data():
     """
     Display sensor data in tabular format.

@@ -216,7 +216,7 @@ class SensorManager:
                 return CO2Sensor(pin=gpio, ip=ip_address)
         return None
 
-    def add_sensor(self, sensor_type, gpio, ip_address=None):
+    def add_sensor(self, sensor_name, sensor_type, gpio, ip_address=None):
         """
         Adds a new sensor to the manager.
 
@@ -238,7 +238,7 @@ class SensorManager:
             return
 
         self.sensors[sensor_type] = sensor
-        self.database_manager.insert_sensor(sensor_type, gpio, ip_address)
+        self.database_manager.insert_sensor(sensor_name, sensor_type, gpio, ip_address)
 
     def remove_sensor(self, sensor_type):
         """

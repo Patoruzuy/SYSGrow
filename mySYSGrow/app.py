@@ -166,7 +166,7 @@ def reading_update():
     print(f"Reading update in app.py: {data}")
     return jsonify(data)
 
-@app.route('/sensor_data')
+@app.route('/sensor_data') 
 def sensor_data():
     """
     Display sensor data in tabular format.
@@ -294,7 +294,7 @@ def add_sensor():
     
     print("sensor pin 2: app.py:", sensor_pin)
 
-    manager.sensor_manager.add_sensor(sensor_type, sensor_pin, sensor_ip)
+    manager.sensor_manager.add_sensor(sensor_name, sensor_type, sensor_pin, sensor_ip)
     used_pins.add(sensor_pin)
 
     return jsonify({'status': 'success', 'sensor': sensor_name}), 200

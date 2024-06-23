@@ -141,6 +141,15 @@ class DatabaseManager:
         except sqlite3.Error as e:
             logging.error(f"Error inserting sensor: {e}")
 
+    def remove_sensor(self, name):
+        """Removes a sensor from the Sensor table based on its name."""
+        try:
+            db = self.get_db()
+            db.execute("DELETE FROM Sensor WHERE name = ?", (name,))
+            db.commit()
+        except sqlite3.Error as e:
+            logging.error(f"Error removing sensor: {e}")
+
     def insert_plant(self, name, current_stage, days_in_current_stage, moisture_level):
         """
         Inserts a new plant into the Plants table.
@@ -160,12 +169,12 @@ class DatabaseManager:
         except sqlite3.Error as e:
             logging.error(f"Error inserting plant: {e}")
 
-    def insert_soil_moisture_history(self, plant_id, moisture_level):
+    def insert_soil_moisture_history(self, plant_id, soil_moisture):
         """Inserts a new soil moisture reading into the PlantReadings table."""
         try:
             db = self.get_db()
-            db.execute("INSERT INTO PlantReadings (plant_id, moisture_level) VALUES (?, ?)",
-                       (plant_id, moisture_level))
+            db.execute("INSERT INTO PlantReadings (plant_id, soil_moisture) VALUES (?, ?)",
+                       (plant_id, soil_moisture))
             db.commit()
         except sqlite3.Error as e:
             logging.error(f"Error inserting soil moisture history: {e}")
@@ -360,15 +369,6 @@ class DatabaseManager:
         cursor = db.execute('SELECT * FROM PlantSensors')
         plant_sensors = cursor.fetchall()
         return [dict(row) for row in plant_sensors]
-
-    def remove_sensor(self, name):
-        """Removes a sensor from the Sensor table based on its name."""
-        try:
-            db = self.get_db()
-            db.execute("DELETE FROM Sensor WHERE name = ?", (name,))
-            db.commit()
-        except sqlite3.Error as e:
-            logging.error(f"Error removing sensor: {e}")
 
     def link_sensor_to_plant(self, plant_id, sensor_id):
         """

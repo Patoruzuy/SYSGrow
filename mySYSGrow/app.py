@@ -259,17 +259,16 @@ def settings():
     
     return render_template('settings.html', available_gpio_pins=available_gpio_pins, available_actuators=available_actuators, active_actuators=active_actuators, active_sensors=active_sensors, actuator_states=actuator_states)
 
-# @app.route('/sensors')
-# def sensors():
-#     active_sensors = manager.sensor_manager.get_sensors()
-
 @app.route('/add_actuator', methods=['POST'])
 def add_actuator():
     actuator_type = request.form['actuator_type']
     actuator_pin = int(request.form['actuator_pin'])
     actuator_ip = request.form.get('actuator_ip', None)
+    if actuator_pin in used_pins:
+        return jsonify({"status": "error", "message": "GPIO pin already used"}), 400
     actuator = RelayActuator(actuator_type, actuator_pin, actuator_ip)
     manager.actuator_manager.add_actuator(actuator_type, actuator)
+    used_pins.add(actuator_pin)
     return jsonify({"status": "success", "actuator": actuator_type})
 
 @app.route('/add_sensor', methods=['POST'])
@@ -303,6 +302,8 @@ def add_sensor():
 def remove_actuator():
     data = request.json
     actuator_type = data['actuator_type']
+    actuator_pin = data['actuator_pin']
+    used_pins.remove(actuator_pin)
     manager.actuator_manager.remove_actuator(actuator_type)
     return jsonify({"status": "success", "actuator": actuator_type})
 
@@ -310,6 +311,8 @@ def remove_actuator():
 def remove_sensor():
     data = request.json
     sensor_type = data['sensor_type']
+    sensor_pin = data['sensor_pin']
+    used_pins.remove(sensor_pin)
     manager.sensor_manager.remove_sensor(sensor_type)
     return jsonify({"status": "success", "actuator": sensor_type})
 

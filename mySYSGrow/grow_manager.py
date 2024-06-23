@@ -283,7 +283,7 @@ class GrowthManager:
             self.fan_observer = FanObserver(device)
             self.timer.attach(self.fan_observer)
         else:
-            print(f"No device found. '{actuator}'Observer not created.")
+            print(f"No device found. '{actuator}' Observer not created.")
 
     def set_light_schedule(self, start_time, end_time):
         """

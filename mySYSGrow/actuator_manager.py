@@ -75,116 +75,141 @@ class ActuatorManager:
 
     Attributes:
         database_manager (DatabaseManager): An instance of the database manager.
-        actuators (dict): Dictionary to store actuators with their names as keys.
+        actuators (dict): Dictionary to store actuators with their IDs as keys.
     
     Methods:
-        add_actuator(name, actuator): Adds an actuator to the manager.
-        remove_actuator(name): Removes an actuator from the manager by name.
-        activate_actuator(name): Activates a specified actuator by name.
-        deactivate_actuator(name): Deactivates a specified actuator by name.
-        get_actuators(): Returns the names of all managed actuators.
-        get_actuator_by_name(name): Retrieves an actuator by its name.
+        add_actuator(name, gpio, ip_address): Adds an actuator to the manager.
+        remove_actuator(actuator_id): Removes an actuator from the manager by its ID.
+        activate_actuator(actuator_id): Activates a specified actuator by its ID.
+        deactivate_actuator(actuator_id): Deactivates a specified actuator by its ID.
+        get_actuator(actuator_id): Retrieves an actuator by its ID.
+        get_actuators(): Returns the IDs of all managed actuators.
+        get_actuator_states(): Returns the states of all managed actuators.
     """
+    count = 0  # Class variable to keep track of the number of actuators created
+
     def __init__(self, database_manager):
         """
         Initializes the ActuatorManager with an empty dictionary of actuators.
         """
         self.database_manager = database_manager
-        self.actuators = {}
+        self.actuators = self._load_actuators_from_db()
 
     def _load_actuators_from_db(self):
         """
         Loads actuator configurations from the database and creates Actuator objects.
 
         Returns:
-            dict: A dictionary of Actuator objects keyed by their names.
+            dict: A dictionary of Actuator objects keyed by their unique IDs.
         """
         actuators = {}
         actuator_configs = self.database_manager.get_actuator_configs()
         for config in actuator_configs:
             actuator = RelayActuator(device=config['name'], pin=config['gpio'], ip=config['ip_address'])
-            actuators[config['name']] = actuator
+            actuators[config['id']] = actuator  # Use the actuator ID from the database as the key
+
+            # Ensure the count reflects the highest ID loaded from the database
+            if config['id'] > ActuatorManager.count:
+                ActuatorManager.count = config['id']
+
         return actuators
     
-    def add_actuator(self, name, actuator):
+    def add_actuator(self, name, gpio, ip_address=None):
         """
-        Adds an actuator to the manager.
+        Adds a new actuator to the manager.
 
         Args:
             name (str): The name of the actuator.
-            actuator (Actuator): The actuator object to be added.
-        """
-        self.actuators[name] = actuator
-        print("add_actuator:", name, actuator.relay.pin)
-        self.database_manager.insert_actuator(name, actuator.relay.pin, actuator.relay.ip)
-    
-    def remove_actuator(self, name):
-        """
-        Removes an actuator from the manager by name.
-
-        Args:
-            name (str): The name of the actuator to be removed.
-        """
-        if name in self.actuators:
-            del self.actuators[name]
-            self.database_manager.remove_actuator(name)
-    
-    def activate_actuator(self, name):
-        """
-        Activates a specified actuator by name.
-
-        Args:
-            name (str): The name of the actuator to be activated.
-        """
-        if name in self.actuators:
-            self.actuators[name].activate()
-            print("Activate name: ", name)
-    
-    def deactivate_actuator(self, name):
-        """
-        Deactivates a specified actuator by name.
-
-        Args:
-            name (str): The name of the actuator to be deactivated.
-        """
-        if name in self.actuators:
-            self.actuators[name].deactivate()
-            print("Deactivate name: ", name)
-
-    def get_actuator(self, name):
-        """
-        Retrieves an actuator by its name.
-
-        Args:
-            name (str): The name of the actuator to retrieve.
+            gpio (int): The GPIO pin number to which the actuator is connected.
+            ip_address (str, optional): The IP address for wireless control.
 
         Returns:
-            Actuator: The actuator object with the specified name, or None if not found.
+            int: The unique ID of the newly added actuator.
         """
-        return self.actuators.get(name)
+        ActuatorManager.count += 1  # Increment the count for the next actuator ID
+        actuator_id = ActuatorManager.count  # Use the updated count as the actuator ID
+
+        actuator = RelayActuator(device=name, pin=gpio, ip=ip_address)
+        self.actuators[actuator_id] = actuator
+
+        # Store the actuator in the database
+        self.database_manager.insert_actuator(actuator_id, name, gpio, ip_address)
+        print(f"Added actuator '{name}' with ID {actuator_id}.")
+        return actuator_id
+    
+    def remove_actuator(self, actuator_id):
+        """
+        Removes an actuator from the manager by its ID.
+
+        Args:
+            actuator_id (int): The ID of the actuator to be removed.
+        """
+        if actuator_id in self.actuators:
+            del self.actuators[actuator_id]
+            self.database_manager.remove_actuator(actuator_id)
+            print(f"Removed actuator with ID {actuator_id}.")
+        else:
+            print(f"Actuator with ID '{actuator_id}' not found.")
+    
+    def activate_actuator(self, actuator_id):
+        """
+        Activates a specified actuator by its ID.
+
+        Args:
+            actuator_id (int): The ID of the actuator to be activated.
+        """
+        if actuator_id in self.actuators:
+            self.actuators[actuator_id].activate()
+            print(f"Activated actuator with ID {actuator_id}.")
+        else:
+            print(f"Actuator with ID '{actuator_id}' not found.")
+    
+    def deactivate_actuator(self, actuator_id):
+        """
+        Deactivates a specified actuator by its ID.
+
+        Args:
+            actuator_id (int): The ID of the actuator to be deactivated.
+        """
+        if actuator_id in self.actuators:
+            self.actuators[actuator_id].deactivate()
+            print(f"Deactivated actuator with ID {actuator_id}.")
+        else:
+            print(f"Actuator with ID '{actuator_id}' not found.")
+
+    def get_actuator(self, actuator_id):
+        """
+        Retrieves an actuator by its ID.
+
+        Args:
+            actuator_id (int): The ID of the actuator to retrieve.
+
+        Returns:
+            Actuator: The actuator object with the specified ID, or None if not found.
+        """
+        return self.actuators.get(actuator_id)
     
     def get_actuators(self):
         """
-        Returns the names of all managed actuators.
+        Returns the IDs of all managed actuators.
 
         Returns:
-            list: A list of actuator names.
+            list: A list of actuator IDs.
         """
-        print("ActuatorManager value: ",self.actuators.values())
-        return self.actuators.keys()
+        return list(self.actuators.keys())
     
     def get_actuator_states(self):
         """
         Returns the states of all managed actuators.
 
         Returns:
-            dict: A dictionary with actuator names as keys and their states as values.
+            dict: A dictionary with actuator IDs as keys and their states as values.
         """
-        return {name: actuator.get_state() for name, actuator in self.actuators.items()}
+        return {actuator_id: actuator.get_state() for actuator_id, actuator in self.actuators.items()}
 
     def cleanup(self):
         """
-        Cleans up all actuator managed by the ActuatorManager.
+        Cleans up all actuators managed by the ActuatorManager.
         """
         for actuator in self.actuators.values():
             actuator.relay.cleanup()

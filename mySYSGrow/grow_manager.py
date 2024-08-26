@@ -35,7 +35,7 @@ class GrowthManager:
     def __init__(self, database_manager):
         """Initializes the GrowthManager with default settings and attaches the sensor."""
         self.database_manager = database_manager
-        self.tent = Tent()
+        self.tent = Tent(database_manager)
         self.timer = Timer()
         self.light_observer = None
         self.fan_observer = None
@@ -54,7 +54,6 @@ class GrowthManager:
         self.fan_start_time = "08:00"
         self.fan_end_time = "20:00"
         self.hysteresis = 2
-        self.add_plant("Cannabies", "Seedling", "1")
         self.plants = None
         self.load_settings() 
 
@@ -77,9 +76,6 @@ class GrowthManager:
             self.soil_moisture_threshold = settings['soil_moisture_threshold']
             self.set_light_schedule(self.light_start_time, self.light_end_time)
             self.set_thresholds(self.temperature_threshold, self.humidity_threshold, self.soil_moisture_threshold)
-            self.sensor_manager._load_sensors_from_db()
-            self.actuator_manager._load_actuators_from_db()
-            self.plants = self.load_plants()
         else:
             print("Cannot load the settings, setted the threshold values by default")
 
@@ -197,19 +193,17 @@ class GrowthManager:
                 return next((plant for plant in self.get_all_plants() if plant.plant_id == plant_id), None)
         return None
     
-    def add_plant(self, plant_type, current_stage, days_in_current_stage):
+    def add_plant(self, plant_name, current_stage, days_in_current_stage):
         """
         Adds a plant to the tent and sets up monitoring for it.
 
         Args:
-            plant_type (str): The type of plant to add.
+            plant_name (str): The name of plant to add.
             current_stage (str): The stage of plant is in.
-            details (str): Plant details (optional)
         """
-        plant = PlantFactory.create_plant(plant_type)
+        plant = PlantFactory.create_plant(plant_name, database_manager, current_stage, days_in_current_stage, moisture_level=None)
         self.tent.add_plant(plant)
         self.timer.attach(PlantTimerObserver(plant))
-        self.database_manager.insert_plant(plant.name, current_stage, days_in_current_stage, moisture_level=None)
 
     def remove_plant(self, plant):
         """
@@ -380,8 +374,6 @@ class GrowthManager:
                 co2_level = readings.get('CO2')
                 self.database_manager.insert_sensor_data(co2_level=co2_level)
 
-        return sensor_readings
-        
         return sensor_readings
 
     def control_temperature(self, current_temperature):

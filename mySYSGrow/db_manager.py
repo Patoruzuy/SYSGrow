@@ -76,7 +76,7 @@ class DatabaseManager:
                                 humidity REAL
                                 )''')
             db.execute('''CREATE TABLE IF NOT EXISTS Plants (
-                                plant_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                plant_id INTEGER PRIMARY KEY,
                                 name TEXT,
                                 current_stage TEXT,
                                 days_in_current_stage,
@@ -149,21 +149,22 @@ class DatabaseManager:
         except sqlite3.Error as e:
             logging.error(f"Error removing sensor: {e}")
 
-    def insert_plant(self, name, current_stage, days_in_current_stage, moisture_level):
+    def insert_plant(self, plant_id, name, current_stage, days_in_current_stage, moisture_level=None):
         """
         Inserts a new plant into the Plants table.
 
         Args:
+            plant_id (int): The unique ID of the plant.
             name (str): The name of the plant.
             current_stage (str): The current growth stage of the plant.
+            days_in_current_stage (int): The number of days the plant has been in its current stage.
             moisture_level (float, optional): The soil moisture level.
         """
         try:
             db = self.get_db()
-            db.execute('''INSERT INTO Plants (name, current_stage, days_in_current_stage, moisture_level)
-                                VALUES (?, ?, ?, ?)
-                                ''', 
-                                (name, current_stage, days_in_current_stage, moisture_level))
+            db.execute('''INSERT INTO Plants (plant_id, name, current_stage, days_in_current_stage, moisture_level)
+                        VALUES (?, ?, ?, ?, ?)''', 
+                        (plant_id, name, current_stage, days_in_current_stage, moisture_level))
             db.commit()
         except sqlite3.Error as e:
             logging.error(f"Error inserting plant: {e}")
@@ -396,10 +397,9 @@ class DatabaseManager:
         try:
             db = self.get_db()
             db.execute('''UPDATE Plants
-                                SET current_stage = ?
-                                WHERE name = ?
-                                ''', 
-                                (current_stage, name))
+                          SET current_stage = ?
+                          WHERE name = ?''', 
+                          (current_stage, name))
             db.commit()
         except sqlite3.Error as e:
             logging.error(f"Error updating plant growth stage: {e}")

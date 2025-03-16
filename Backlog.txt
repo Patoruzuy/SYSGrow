@@ -1,0 +1,1 @@
+I have to organise the sensor manager script, I need to put together all the scripts with different model but the same function. In the scripts of the sensor manager only have the type of sensor and not the models. It will be more organised.

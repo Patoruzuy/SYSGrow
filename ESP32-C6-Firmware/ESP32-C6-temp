@@ -1,0 +1,107 @@
+#include <WiFi.h>
+#include <PubSubClient.h>
+
+#define NUM_RELAYS 4
+
+// Map relay devices to GPIO pins
+struct RelayDevice {
+    String name;
+    int pin;
+} relayDevices[NUM_RELAYS] = {
+    {"grow_light", 2},
+    {"ventilation_fan", 4},
+    {"water_pump", 5},
+    {"co2_injector", 18}
+};
+
+const char* ssid = "YourWiFiSSID";
+const char* password = "YourWiFiPassword";
+const char* mqtt_broker = "192.168.1.100";  // Replace with your MQTT broker IP
+const int mqtt_port = 1883;
+const char* device_id = "ESP32-C6-Relay";
+
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+// Function to handle incoming MQTT messages
+void callback(char* topic, byte* payload, unsigned int length) {
+    payload[length] = '\0';  // Null-terminate payload
+    String message = String((char*)payload);
+
+    Serial.print("Received message: ");
+    Serial.println(message);
+    Serial.print("On topic: ");
+    Serial.println(topic);
+
+    // Extract device name from topic
+    String topicStr = String(topic);
+    int lastSlash = topicStr.lastIndexOf('/');
+    String deviceName = topicStr.substring(lastSlash + 1);
+
+    // Find the relay assigned to this device name
+    for (int i = 0; i < NUM_RELAYS; i++) {
+        if (relayDevices[i].name == deviceName) {
+            int relayPin = relayDevices[i].pin;
+            if (message == "ON") {
+                digitalWrite(relayPin, HIGH);
+                client.publish(("zigbee2mqtt/" + String(device_id) + "/" + deviceName + "/state").c_str(), "ON");
+            } else if (message == "OFF") {
+                digitalWrite(relayPin, LOW);
+                client.publish(("zigbee2mqtt/" + String(device_id) + "/" + deviceName + "/state").c_str(), "OFF");
+            }
+            return;
+        }
+    }
+
+    Serial.println("Unknown device name in topic!");
+}
+
+// Connect to WiFi
+void setup_wifi() {
+    Serial.print("Connecting to WiFi...");
+    WiFi.begin(ssid, password);
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        Serial.print(".");
+    }
+    Serial.println("Connected!");
+}
+
+// Connect to MQTT broker
+void reconnect() {
+    while (!client.connected()) {
+        Serial.print("Connecting to MQTT...");
+        if (client.connect(device_id)) {
+            Serial.println("Connected!");
+            for (int i = 0; i < NUM_RELAYS; i++) {
+                String topic = "zigbee2mqtt/" + String(device_id) + "/" + relayDevices[i].name + "/set";
+                client.subscribe(topic.c_str());
+                Serial.println("Subscribed to: " + topic);
+            }
+        } else {
+            Serial.print("Failed, retrying in 5 seconds...");
+            delay(5000);
+        }
+    }
+}
+
+void setup() {
+    Serial.begin(115200);
+
+    // Set relay pins as output
+    for (int i = 0; i < NUM_RELAYS; i++) {
+        pinMode(relayDevices[i].pin, OUTPUT);
+        digitalWrite(relayDevices[i].pin, LOW);  // Ensure all relays start OFF
+    }
+
+    setup_wifi();
+    client.setServer(mqtt_broker, mqtt_port);
+    client.setCallback(callback);
+}
+
+void loop() {
+    if (!client.connected()) {
+        reconnect();
+    }
+    client.loop();
+}

@@ -1,0 +1,382 @@
+:root {
+    --background-color: #E6FAE1;
+    --primary-text-color: #2C6D2C;
+    --secondary-text-color: #4F4F4F;
+    --nav-bg-color: #1E3A5F;
+    --nav-active-color: #FF8C42;
+    --button-color: #1E4A78;
+    --button-hover-color: #1F618D;
+    --link-color: #008080;
+    --shadow-color: #536878;
+}
+
+/* Set the basic styles for the page */
+body {
+    font-family: 'Roboto', sans-serif;
+    font-size: 1rem;
+    background-color: var(--background-color);
+    color: var(--primary-text-color);
+    display: flex;
+    align-content: space-between;
+    flex-wrap: wrap;
+    font-size: 0.85rem;
+    width: 1024px;
+    max-height: 768px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* HEADER **************************************************/
+/* Set the styles for the page header */
+header {
+    display: flex;
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    margin-bottom: 0px;
+    padding-bottom: 0px;
+}
+
+.logo-image {
+    width: 100px;
+    height: 100px;
+}
+
+/* Set the styles for the logo */
+.site-logo {
+    display: flex;
+    align-items: flex-start;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    margin-left: 2px;
+}
+
+.session {
+    align-items: flex-end;
+}
+
+/* Set the styles for the logo text */
+.logo-text {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Set the styles for the heading in the header */
+h1.heading {
+    margin: 0;
+    color: var(--primary-text-color);
+    margin-left: 10px;
+}
+
+/* Set the styles for the subtitle in the header */
+p.subtitle {
+    margin: 0;
+    color: var(--secondary-text-color);
+    margin-left: 10px;
+}
+
+.nav-item.active .nav-link {
+    font-weight: bold;
+    color: var(--nav-active-color); /* Highlight active nav item */
+}
+
+nav {
+    background-color: var(--nav-bg-color);
+    width: 100%;
+    color: white;
+    padding: 1em;
+}
+
+nav ul {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+}
+
+nav ul li {
+    display: inline;
+    margin-right: 1em;
+}
+
+nav ul li a {
+    color: white;
+    text-decoration: none;
+}
+
+nav ul li a:hover {
+    color: var(--nav-active-color); /* Change link color on hover */
+}
+
+.main-top-container {
+    width: 100%;
+    margin-bottom: 2%;
+}
+
+.current_reading {
+    text-align: center; /* Center the container for demonstration */
+}
+
+.top-container {
+    display: inline-block;
+    width: 33%; /* Adjust width to fit three divs in one line */;
+    margin: 0 auto; /* Remove default margin */
+    vertical-align: top; /* Align the divs to the top */
+    align-self: center;
+    box-sizing: border-box; /* Include padding and border in the element's total width and height */
+    padding: 10px;
+}
+
+.top-container h2 {
+    margin-top: 8px;
+    text-align: center;
+    color: var(--primary-text-color);
+    padding-bottom: 15px;
+}
+
+h2 {
+    color: var(--primary-text-color);
+}
+
+h3 {
+    color: var(--secondary-text-color);
+}
+
+.humidity_table,
+.temperature_table {
+    margin-left: auto;
+    margin-right: auto;
+}
+
+main {
+    width: 70%;
+    margin-bottom: 10px;
+}
+/* MAIN CONTENT FLEXBOX *****************************************************/
+.main-content {
+    display: flex;
+    width: 100%;
+    justify-content: space-between;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.main-content > fieldset, div {
+    width: 100%;
+    margin: 2px;
+}
+
+.main-content-forms {
+    display: flex;
+    flex-direction: column;
+}
+
+/* PLANTS TABLE */
+.plants {
+    width: 100%;
+    margin-right: 10px; /* Add a right margin for spacing */
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    flex-direction: column;
+}
+
+th, td {
+    border: 1px solid #000;
+    padding: 8px;
+    text-align: center;
+}
+
+/* Styling for the section form */
+.section-form {
+    width: 100%;
+    margin: 5px;
+}
+
+/* Styling for the fieldset element */
+fieldset {
+    box-shadow: 4px 4px 5px var(--shadow-color);
+    border: none;
+    margin: 0px 0px 5px 0px;
+    padding: 20px 20px 20px 20px;
+}
+
+/* Styling for the form */
+form {
+    display: flex;
+    flex-direction: column;   
+    border: none;
+}
+
+/* Styling for the form rows */
+.form-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 18px;
+}
+
+/* Styling for the asterisk (*)*/
+span.required {
+    color: red;
+    margin-left: 5px;
+    margin-right: 5px;
+}
+
+/* Styling for text inputs and select elements */
+input[type="text"], 
+select {
+    flex-grow: 0;
+}
+
+/* Align the submit button to the right */
+.form-row:last-of-type {
+    display: flex;
+    margin-bottom: 8px;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+/* Set the styles for the submit button on hover*/
+.submitbtn {
+    background-color: var(--button-color);
+    color: white;
+}
+
+.submitbtn:hover {
+    color: #fff;
+    box-shadow: 4px 4px 5px var(--shadow-color);
+    background-color: var(--button-hover-color);
+}
+
+a {
+    color: var(--link-color);
+}
+
+a:hover {
+    color: var(--nav-active-color);
+}
+
+#temperature, #humidity {
+    font-size: 2.85rem;
+}
+
+.form-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.form-group label {
+    margin-top: 5px;
+    margin-left: 8px;
+    color: var(--secondary-text-color);
+}
+
+button {
+    margin-top: 10px;
+}
+
+.pagination {
+    margin-top: 20px;
+    text-align: center;
+}
+
+.pagination .btn {
+    padding: 10px 15px;
+    margin: 5px;
+    background-color: var(--button-color);
+    color: white;
+    text-decoration: none;
+    border-radius: 5px;
+}
+
+.pagination .btn:hover {
+    background-color: var(--button-hover-color);
+}
+
+
+/* ASIDE ********************************************************************/
+aside {
+    background: var(--background-color);
+    display: flex;
+    justify-content: space-between;
+    box-shadow: 4px 4px 5px var(--shadow-color);
+    color: var(--font-link-color);
+    width: 25%; /* Set width to 25% to fit alongside the table */
+    margin-top: 50; /* Align the top with the main content */
+    margin-left: auto;
+    flex-direction: column; /* Ensure the inside elements stack vertically */
+}
+
+.camera,
+.enviroment,
+.actuators {
+    background: linear-gradient(var(--bg-secondary-nav), #fff);
+    margin-right: 5px;
+    min-width: 100px;
+    box-shadow: 4px 4px 5px var(--shadow-color);
+}
+
+.camera h5,
+.enviroment h5,
+.actuators h5 {
+    background: var(--bg-primary-nav);
+    box-shadow: 4px 4px 5px var(--shadow-color);
+    display: block;
+    color: inherit;
+    line-height: 1.5;
+    font-weight: 550;
+    padding: 2px 20px 3px 14px;
+    margin-top: 5px;
+    margin-bottom: 6px;
+}
+
+.camera-container,
+.enviroment-container,
+.actuators-container {
+    padding-right: 4px;
+    padding-left: 5px;
+    margin-bottom: 10px;
+}
+
+/* Set styles for unordered lists inside the aside element */
+aside ul {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+}
+
+/* Set styles for the instance images, name, and state */
+.actuator-instance img,
+.actuator-name,
+.state {
+    display: inline-block;
+    vertical-align: middle;
+    padding: 6px 0px 6px 4px;
+}
+
+/* Styles the instance image */
+.actuator-instance img {
+    width: 25px;
+    height: 25px;
+}
+
+
+#footer {
+    font-size: 80%;
+    text-align: center;
+    width: 100%;
+    box-shadow: 4px 4px 5px var(--shadow-color);
+    border-top: 1px solid black;
+    margin-top: 5px;
+    padding-top: 8px;
+}

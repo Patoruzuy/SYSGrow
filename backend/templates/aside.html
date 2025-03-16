@@ -1,0 +1,42 @@
+<!-- templates/aside.html -->
+<section class="camera-container">
+    <div class="camera">
+        <h5>Camera</h5>
+        {% if camera_running %}
+        <p>Camera is running. <a href="{{ url_for('stop_camera') }}">Stop Camera</a></p>
+        {% else %}
+        <p>Camera is not running. <a href="{{ url_for('start_camera') }}">Start Camera</a></p>
+        {% endif %}
+        
+        <img src="{{ url_for('video_feed') }}" style="width: 100%; max-width: 600px;">
+        
+        {% if camera_running %}
+        <p><a href="{{ url_for('fullscreen') }}" target="_blank">Open Fullscreen Video</a></p>
+        {% endif %}
+</section>
+<section class="enviroment-container">
+    <div class="enviroment">
+        <h5>Enviaroment readings</h5>
+        <ul class="enviroment-readings">
+            <li class="readings">
+
+            </li>
+        </ul>
+    </div>
+</section>
+<section class="actuators-container">
+    <div class="actuators">
+        <h5>Active Actuators states</h5>
+        {% for name, actuator in active_actuators.items() %}
+        <ul class="actuators-state">
+            <li class="state">
+                <div class="actuator-instance">
+                    <img src="static/images/actuator.jpg" alt="actuator photo" class="actuator-icon" />
+                    <div class="actuator-name">{{ name }}</div>
+                    <div class="state">{{ actuator.get_state() }}</div>
+                </div>
+            </li>
+        </ul>
+        {% endfor %}
+    </div>
+</section>

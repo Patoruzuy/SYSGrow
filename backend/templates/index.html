@@ -1,0 +1,153 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="main-top-container">
+    <div class="current_reading">
+        <div class="top-container">
+            <table class="temperature_table">
+                <thead>
+                    <tr>
+                        <th>Temperature <img src="static/images/thermometer.png" style="width: 10%;"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td id="temperature" data-threshold="{{ thresholds.temperature_threshold }}">Loading...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="top-container">
+            <h2>Light intencity</h2>
+            <form method="post" action="{{ url_for('schedule_lights') }}">
+                <div class="form-container">
+                    <div class="form-group">
+                        <input type="time" id="start_time" name="start_time" value="{{ light_schedule['start_time'] }}">
+                        <label for="start_time">Start Time</label>
+                    </div>
+                    <div class="form-group">
+                        <input type="time" id="end_time" name="end_time" value="{{ light_schedule['end_time'] }}">
+                        <label for="end_time">End Time</label>
+                    </div>
+                </div>
+                <button type="submit">Set Schedule</button>
+            </form>
+        </div>
+        <div class="top-container">
+            <table class="humidity_table">
+                <thead>
+                    <tr>
+                        <th>Humidity <img src="static/images/humidity.png" style="width: 10%;"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td id="humidity" data-threshold="{{ thresholds.humidity_threshold }}">Loading...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+<main>
+    <div class="main-content">
+        <div class="main_info">
+            <h2>Information</h2>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th colspan="2">Schedule</th>
+                        <th colspan="3">Thresholds</th>
+                    </tr>
+                    <tr>
+                        <th>Light</th>
+                        <th>Fan</th>
+                        <th>Temperature</th>
+                        <th>Humidity</th>
+                        <th>Soil Moisture</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>{{ light_schedule }}</td>
+                        <td>{{ fan_schedule }}</td>
+                        <td>{{ thresholds.temperature_threshold }}</td>
+                        <td>{{ thresholds.humidity_threshold }}</td>
+                        <td>{{ thresholds.soil_moisture_threshold }}</td>
+                    </tr>
+                </tbody>                
+            </table>
+        </div>
+        <div class="plants">
+            <h2>Plants</h2>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Plant Name</th>
+                        <th>Current Stage</th>
+                        <th>Days Left in Stage</th>
+                        <th>Soil Moisture</th>
+                        <th>Sensor Linked</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for plant in plants %}
+                    <tr>
+                        <td>{{ plant.id }}</td> <!-- Use plant.id here -->
+                        <td>{{ plant.name }}</td>
+                        <td>{{ plant.get_stage_name() }}</td>
+                        <td><button onclick="adjustDays('decrease', {{ plant.id }})">-</button> {{ plant.days_left }} <button onclick="adjustDays('increase', {{ plant.id }})">+</button></td>
+                        <td>{{ plant.moisture_level }}%</td>
+                        <td>{{ plant.sensor_name }}</td>
+                        <td>
+                            {% if plant.get_stage_name() == 'FloweringStage' %}
+                            <a href="{{ url_for('harvest_plant', plant_id=plant.id) }}" class="btn btn-primary">Harvest</a>
+                            {% else -%}
+                            <button onclick="removePlant('{{ plant.id }}')">Remove</button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>                
+            </table>
+        </div>
+    </div>
+</main>
+<script>
+    function removePlant(plantId) {
+        fetch('/remove-plant', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({plant_id: plantId})
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert(data.status);
+            location.reload();
+        })
+        .catch(error => {
+            console.error('Error removing plant:', error);
+        });
+    }
+
+    function adjustDays(action, plantID) {
+        fetch(`/${action}_days/${plantID}`, {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === "success") {
+                location.reload();
+            } else {
+                alert(data.message);
+            }
+        })
+        .catch(error => console.error('Error adjusting days:', error));
+    }
+
+</script>    
+{% endblock %}

@@ -1,0 +1,275 @@
+#include <WiFi.h>
+#include <WiFiUdp.h>
+#include <NTPClient.h>
+#include <PubSubClient.h>
+#include <EEPROM.h>
+#include <ArduinoJson.h>
+#include <ESPmDNS.h>
+#include <HTTPClient.h>
+#include <Update.h>
+#include <BLEDevice.h>
+#include <BLEServer.h>
+#include <BLEUtils.h>
+#include <BLE2902.h>
+#include "Crypto.h"
+
+#define FW_VERSION "1.0.0"
+#define EEPROM_SIZE 128
+#define AP_SSID "ESP32-Setup"
+#define AP_PASSWORD "12345678"
+#define BATTERY_PIN 6  // ADC1 Pin for battery monitoring
+#define DEFAULT_SLEEP_DURATION 300e6  // 5 minutes deep sleep
+
+// Relay GPIOs
+const int relayPins[] = {2, 4, 5, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21};
+
+// BLE Configuration
+#define BLE_SERVICE_UUID        "12345678-1234-5678-1234-56789abcdef0"
+#define BLE_CHARACTERISTIC_UUID "12345678-1234-5678-1234-56789abcdef1"
+
+// User-selected communication method
+enum ConnectionMode { ZIGBEE, WIFI, BLE };
+ConnectionMode selectedMode;
+
+// Wi-Fi & MQTT
+WiFiClient espClient;
+PubSubClient client(espClient);
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP, "pool.ntp.org", 0, 60000);
+String mqtt_broker, ota_url;
+const int mqtt_port = 1883;
+const char* device_id = "ESP32-C6-Relay";
+bool isBLEActive = false;
+
+// AES Encryption Key
+const byte aes_key[16] = { 0xA1, 0xB2, 0xC3, 0xD4, 0xE5, 0xF6, 0xA7, 0xB8, 0xC9, 0xD0, 0xE1, 0xF2, 0xA3, 0xB4, 0xC5, 0xD6 };
+
+// BLE Server
+BLEServer* bleServer;
+BLECharacteristic* relayCharacteristic;
+
+// Store Wi-Fi Credentials
+char stored_ssid[32], stored_password[32];
+long SLEEP_DURATION = DEFAULT_SLEEP_DURATION;
+
+// Load communication mode from EEPROM
+void loadConnectionMode() {
+    EEPROM.begin(EEPROM_SIZE);
+    selectedMode = static_cast<ConnectionMode>(EEPROM.read(0));
+    EEPROM.end();
+}
+
+// Save communication mode to EEPROM
+void saveConnectionMode(ConnectionMode mode) {
+    EEPROM.begin(EEPROM_SIZE);
+    EEPROM.write(0, mode);
+    EEPROM.commit();
+    EEPROM.end();
+}
+
+// Load Wi-Fi from EEPROM
+void loadWiFiConfig() {
+    EEPROM.begin(EEPROM_SIZE);
+    for (int i = 0; i < 32; i++) {
+        stored_ssid[i] = EEPROM.read(i);
+        stored_password[i] = EEPROM.read(i + 32);
+    }
+    stored_ssid[31] = '\0';
+    stored_password[31] = '\0';
+    EEPROM.end();
+}
+
+// Save Wi-Fi to EEPROM
+void saveWiFiConfig(const char* ssid, const char* password) {
+    EEPROM.begin(EEPROM_SIZE);
+    for (int i = 0; i < 32; i++) {
+        EEPROM.write(i, ssid[i]);
+        EEPROM.write(i + 32, password[i]);
+    }
+    EEPROM.commit();
+    EEPROM.end();
+}
+
+// Function to read battery voltage
+float readBatteryVoltage() {
+    int raw = analogRead(BATTERY_PIN);
+    float voltage = (raw / 4095.0) * 3.3 * (100.0 + 47.0) / 47.0;
+    return voltage;
+}
+
+// Check if the ESP32 is running on battery
+bool isBatteryPowered() {
+    return readBatteryVoltage() < 4.5; // If voltage < 4.5V, assume battery-powered
+}
+
+// Adjust sleep duration based on time
+void adjustSleepDuration() {
+    timeClient.update();
+    int hour = timeClient.getHours();
+    SLEEP_DURATION = (hour >= 18 || hour < 6) ? 1800e6 : DEFAULT_SLEEP_DURATION;  // 30 minutes at night, 5 minutes during the day
+}
+
+// Handle MQTT Messages
+void mqtt_callback(char* topic, byte* payload, unsigned int length) {
+    if (selectedMode == WIFI || selectedMode == ZIGBEE) {
+        String topicStr = String(topic);
+        Serial.println("Received MQTT message on topic: " + topicStr);
+
+        if (topicStr == "zigbee2mqtt/" + String(device_id) + "/wifi_config") {
+            wifi_config(payload, length);
+        } else if (topicStr == "zigbee2mqtt/" + String(device_id) + "/ota_update") {
+            performOTA();
+        } else {
+            int lastSlash = topicStr.lastIndexOf('/');
+            int pin = topicStr.substring(lastSlash + 1).toInt();
+
+            for (int pinNum : relayPins) {
+                if (pin == pinNum) {
+                    digitalWrite(pin, (String((char*)payload) == "ON") ? HIGH : LOW);
+                }
+            }
+        }
+    }
+}
+
+// Handle BLE Write for Relay Control
+class RelayBLECallbacks : public BLECharacteristicCallbacks {
+    void onWrite(BLECharacteristic* pCharacteristic) override {
+        if (selectedMode == BLE) {
+          String receivedValue = pCharacteristic->getValue().c_str();
+          Serial.println("BLE Received: " + receivedValue);
+
+          int pin, state;
+          sscanf(receivedValue.c_str(), "%d,%d", &pin, &state);
+          for (int i = 0; i < sizeof(relayPins) / sizeof(relayPins[0]); i++) {
+              if (pin == relayPins[i]) {
+                  digitalWrite(pin, (state == 1) ? HIGH : LOW);
+              }
+          }
+        }
+    }
+};
+
+// Handle Wi-Fi Config Update
+void wifi_config(byte* payload, unsigned int length) {
+    char decrypted[64];
+    Crypto::AES_Decrypt(aes_key, payload, decrypted, length);
+    DynamicJsonDocument doc(256);
+    deserializeJson(doc, decrypted);
+
+    saveWiFiConfig(doc["ssid"], doc["password"]);
+    ESP.restart();
+}
+
+// Perform OTA Update
+void performOTA() {
+    String latestVersion = getLatestFirmwareVersion();
+    if (latestVersion == FW_VERSION) {
+        Serial.println("No update needed, already on latest version.");
+        return;
+    }
+    HTTPClient http;
+    http.begin(ota_url);
+    int httpCode = http.GET();
+
+    if (httpCode == HTTP_CODE_OK) {
+        WiFiClient* stream = http.getStreamPtr();
+        Update.begin(UPDATE_SIZE_UNKNOWN);
+        size_t written = Update.writeStream(*stream);
+        if (written == Update.size()) {
+            Serial.println("Update Successful. Restarting...");
+            Update.end();
+            ESP.restart();
+        } else {
+            Serial.println("Update Failed");
+        }
+    }
+    http.end();
+}
+
+// Get latest firmware version from OTA server
+String getLatestFirmwareVersion() {
+    HTTPClient http;
+    http.begin("http://ota-server.local:5000/version");
+    int httpCode = http.GET();
+
+    if (httpCode == HTTP_CODE_OK) {
+        DynamicJsonDocument doc(256);
+        deserializeJson(doc, http.getString());
+        return doc["version"].as<String>();
+    }
+    return FW_VERSION;
+}
+
+// Setup BLE
+void setupBLE() {
+    BLEDevice::init("ESP32-C6-Relay");
+    bleServer = BLEDevice::createServer();
+    BLEService *relayService = bleServer->createService(BLE_SERVICE_UUID);
+    relayCharacteristic = relayService->createCharacteristic(
+        BLE_CHARACTERISTIC_UUID,
+        BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE
+    );
+
+    relayCharacteristic->setCallbacks(new RelayBLECallbacks());
+    relayService->start();
+    BLEAdvertising *advertising = BLEDevice::getAdvertising();
+    advertising->addServiceUUID(BLE_SERVICE_UUID);
+    advertising->start();
+
+    isBLEActive = true;
+    Serial.println("BLE Ready!");
+}
+
+// Setup Function
+void setup() {
+    Serial.begin(115200);
+    loadConnectionMode();
+    loadWiFiConfig();
+
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(stored_ssid, stored_password);
+
+    int wifiTimeout = 10; // Retry for 10 seconds before switching to BLE
+    while (WiFi.status() != WL_CONNECTED && wifiTimeout > 0) {
+        delay(1000);
+        Serial.print(".");
+        wifiTimeout--;
+    }
+
+    if (WiFi.status() == WL_CONNECTED) {
+        Serial.println("\nConnected to Wi-Fi");
+        client.setServer(mqtt_broker.c_str(), mqtt_port);
+        client.setCallback(mqtt_callback);
+        client.connect(device_id);
+    } else {
+        Serial.println("\nWi-Fi Failed. Starting BLE Mode...");
+        setupBLE();
+    }
+
+    if (!MDNS.begin(device_id)) {
+        Serial.println("Error starting mDNS");
+    }
+
+    timeClient.begin();
+    adjustSleepDuration();
+
+    for (int pin : relayPins) {
+        pinMode(pin, OUTPUT);
+        digitalWrite(pin, LOW);
+    }
+}
+
+// Main Loop
+void loop() {
+    if ((selectedMode == WIFI || selectedMode == ZIGBEE) && !client.connected()) {
+        client.connect(device_id);
+    }
+    client.loop();
+    MDNS.update();
+
+    if (!isBLEActive && isBatteryPowered()) {
+        Serial.println("Running on Battery, Entering Deep Sleep...");
+        ESP.deepSleep(SLEEP_DURATION);
+    }
+}

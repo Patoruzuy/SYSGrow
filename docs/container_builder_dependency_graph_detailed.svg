@@ -1,0 +1,427 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2600" height="1720" viewBox="0 0 2600 1720">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#4b5563" />
+    </marker>
+    <style>
+      .title { font: 16px Verdana, Arial, sans-serif; fill: #111827; }
+      .group-label { font: 13px Verdana, Arial, sans-serif; fill: #111827; font-weight: bold; }
+      .node-title { font: 11px Verdana, Arial, sans-serif; fill: #111827; font-weight: bold; }
+      .node { fill: #f8fafc; stroke: #cbd5f5; stroke-width: 1.2; }
+      .node-ai { fill: #eef2ff; stroke: #a5b4fc; stroke-width: 1.2; }
+      .node-opt { fill: #fff7ed; stroke: #fdba74; stroke-width: 1.2; }
+      .node-temp { fill: #fefce8; stroke: #eab308; stroke-width: 1.2; stroke-dasharray: 6 4; }
+      .group { fill: #f9fafb; stroke: #e5e7eb; stroke-width: 1; }
+      .edge { stroke: #4b5563; stroke-width: 1.3; fill: none; marker-end: url(#arrow); }
+      .edge-dashed { stroke: #6b7280; stroke-width: 1.2; fill: none; stroke-dasharray: 6 4; marker-end: url(#arrow); }
+      .legend { font: 11px Verdana, Arial, sans-serif; fill: #374151; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="2600" height="1720" fill="#ffffff" />
+  <text class="title" x="1300" y="26" text-anchor="middle">Container Builder Detailed Dependency Graph (container_builder.py)</text>
+
+  <!-- AppConfig -->
+  <rect class="node" x="1180" y="20" width="240" height="44" rx="8" />
+  <text class="node-title" x="1300" y="47" text-anchor="middle">AppConfig</text>
+
+  <!-- Group Boxes -->
+  <rect class="group" x="40" y="70" width="760" height="620" rx="10" />
+  <text class="group-label" x="60" y="95">Infrastructure</text>
+
+  <rect class="group" x="830" y="70" width="330" height="200" rx="10" />
+  <text class="group-label" x="850" y="95">MQTT</text>
+
+  <rect class="group" x="1180" y="70" width="420" height="320" rx="10" />
+  <text class="group-label" x="1200" y="95">Shared Utilities</text>
+
+  <rect class="group" x="830" y="300" width="760" height="560" rx="10" />
+  <text class="group-label" x="850" y="325">AI Components</text>
+
+  <rect class="group" x="1610" y="300" width="930" height="360" rx="10" />
+  <text class="group-label" x="1630" y="325">Optional AI Components (config gated)</text>
+
+  <rect class="group" x="40" y="720" width="760" height="360" rx="10" />
+  <text class="group-label" x="60" y="745">Hardware Components</text>
+
+  <rect class="group" x="830" y="900" width="1710" height="700" rx="10" />
+  <text class="group-label" x="850" y="925">Application Components</text>
+
+  <!-- Infrastructure Nodes -->
+  <rect class="node" x="60" y="110" width="220" height="40" rx="6" />
+  <text class="node-title" x="170" y="135" text-anchor="middle">SQLiteDatabaseHandler</text>
+
+  <rect class="node" x="300" y="110" width="220" height="40" rx="6" />
+  <text class="node-title" x="410" y="135" text-anchor="middle">AuditLogger</text>
+
+  <rect class="node" x="540" y="110" width="220" height="40" rx="6" />
+  <text class="node-title" x="650" y="135" text-anchor="middle">EmailService</text>
+
+  <rect class="node" x="60" y="170" width="220" height="36" rx="6" />
+  <text class="node-title" x="170" y="193" text-anchor="middle">SettingsRepository</text>
+
+  <rect class="node" x="300" y="170" width="220" height="36" rx="6" />
+  <text class="node-title" x="410" y="193" text-anchor="middle">AIHealthDataRepository</text>
+
+  <rect class="node" x="540" y="170" width="220" height="36" rx="6" />
+  <text class="node-title" x="650" y="193" text-anchor="middle">NotificationRepository</text>
+
+  <rect class="node" x="60" y="214" width="220" height="36" rx="6" />
+  <text class="node-title" x="170" y="237" text-anchor="middle">GrowthRepository</text>
+
+  <rect class="node" x="300" y="214" width="220" height="36" rx="6" />
+  <text class="node-title" x="410" y="237" text-anchor="middle">AITrainingDataRepository</text>
+
+  <rect class="node" x="540" y="214" width="220" height="36" rx="6" />
+  <text class="node-title" x="650" y="237" text-anchor="middle">IrrigationWorkflowRepository</text>
+
+  <rect class="node" x="60" y="258" width="220" height="36" rx="6" />
+  <text class="node-title" x="170" y="281" text-anchor="middle">DeviceRepository</text>
+
+  <rect class="node" x="300" y="258" width="220" height="36" rx="6" />
+  <text class="node-title" x="410" y="281" text-anchor="middle">PlantJournalRepository</text>
+
+  <rect class="node" x="540" y="258" width="220" height="36" rx="6" />
+  <text class="node-title" x="650" y="281" text-anchor="middle">ActivityRepository</text>
+
+  <rect class="node" x="60" y="302" width="220" height="36" rx="6" />
+  <text class="node-title" x="170" y="325" text-anchor="middle">AnalyticsRepository</text>
+
+  <rect class="node" x="300" y="302" width="220" height="36" rx="6" />
+  <text class="node-title" x="410" y="325" text-anchor="middle">CameraRepository</text>
+
+  <rect class="node" x="540" y="302" width="220" height="36" rx="6" />
+  <text class="node-title" x="650" y="325" text-anchor="middle">AlertRepository</text>
+
+  <rect class="node" x="60" y="360" width="220" height="40" rx="6" />
+  <text class="node-title" x="170" y="385" text-anchor="middle">ActivityLogger</text>
+
+  <rect class="node" x="300" y="360" width="220" height="40" rx="6" />
+  <text class="node-title" x="410" y="385" text-anchor="middle">AlertService</text>
+
+  <rect class="node" x="540" y="360" width="220" height="40" rx="6" />
+  <text class="node-title" x="650" y="385" text-anchor="middle">NotificationsService</text>
+
+  <rect class="node" x="300" y="420" width="220" height="40" rx="6" />
+  <text class="node-title" x="410" y="445" text-anchor="middle">IrrigationWorkflowService</text>
+
+  <!-- MQTT Nodes -->
+  <rect class="node" x="850" y="110" width="260" height="40" rx="6" />
+  <text class="node-title" x="980" y="135" text-anchor="middle">MQTTClientWrapper</text>
+
+  <rect class="node" x="850" y="160" width="260" height="40" rx="6" />
+  <text class="node-title" x="980" y="185" text-anchor="middle">ZigbeeManagementService</text>
+
+  <!-- Shared Utilities Nodes -->
+  <rect class="node" x="1200" y="110" width="180" height="40" rx="6" />
+  <text class="node-title" x="1290" y="135" text-anchor="middle">EmitterService</text>
+
+  <rect class="node" x="1200" y="160" width="180" height="40" rx="6" />
+  <text class="node-title" x="1290" y="185" text-anchor="middle">EventBus</text>
+
+  <rect class="node" x="1200" y="210" width="180" height="50" rx="6" />
+  <text class="node-title" x="1290" y="240" text-anchor="middle">SensorProcessor</text>
+
+  <rect class="node" x="1390" y="110" width="190" height="32" rx="6" />
+  <text class="node-title" x="1485" y="130" text-anchor="middle">ValidationProcessor</text>
+
+  <rect class="node" x="1390" y="150" width="190" height="32" rx="6" />
+  <text class="node-title" x="1485" y="170" text-anchor="middle">CalibrationProcessor</text>
+
+  <rect class="node" x="1390" y="190" width="190" height="32" rx="6" />
+  <text class="node-title" x="1485" y="210" text-anchor="middle">TransformationProcessor</text>
+
+  <rect class="node" x="1390" y="230" width="190" height="32" rx="6" />
+  <text class="node-title" x="1485" y="250" text-anchor="middle">EnrichmentProcessor</text>
+
+  <rect class="node" x="1390" y="270" width="190" height="32" rx="6" />
+  <text class="node-title" x="1485" y="290" text-anchor="middle">PriorityProcessor</text>
+
+  <!-- AI Nodes -->
+  <rect class="node-ai" x="850" y="340" width="220" height="40" rx="6" />
+  <text class="node-title" x="960" y="365" text-anchor="middle">ModelRegistry</text>
+
+  <rect class="node-ai" x="1100" y="340" width="220" height="40" rx="6" />
+  <text class="node-title" x="1210" y="365" text-anchor="middle">FeatureEngineer</text>
+
+  <rect class="node-ai" x="1350" y="340" width="220" height="40" rx="6" />
+  <text class="node-title" x="1460" y="365" text-anchor="middle">EnvironmentalFeatureExtractor</text>
+
+  <rect class="node-ai" x="850" y="400" width="220" height="40" rx="6" />
+  <text class="node-title" x="960" y="425" text-anchor="middle">ClimateOptimizer</text>
+
+  <rect class="node-ai" x="1100" y="400" width="220" height="40" rx="6" />
+  <text class="node-title" x="1210" y="425" text-anchor="middle">PlantHealthMonitor</text>
+
+  <rect class="node-ai" x="1350" y="400" width="220" height="40" rx="6" />
+  <text class="node-title" x="1460" y="425" text-anchor="middle">PlantGrowthPredictor</text>
+
+  <rect class="node-ai" x="850" y="460" width="220" height="40" rx="6" />
+  <text class="node-title" x="960" y="485" text-anchor="middle">DiseasePredictor</text>
+
+  <rect class="node-ai" x="1100" y="460" width="220" height="40" rx="6" />
+  <text class="node-title" x="1210" y="485" text-anchor="middle">MLTrainerService</text>
+
+  <rect class="node-ai" x="1350" y="460" width="220" height="40" rx="6" />
+  <text class="node-title" x="1460" y="485" text-anchor="middle">ModelDriftDetectorService</text>
+
+  <rect class="node-ai" x="850" y="520" width="220" height="40" rx="6" />
+  <text class="node-title" x="960" y="545" text-anchor="middle">ABTestingService</text>
+
+  <!-- Optional AI Nodes -->
+  <rect class="node-opt" x="1630" y="340" width="280" height="40" rx="6" />
+  <text class="node-title" x="1770" y="365" text-anchor="middle">ContinuousMonitoringService</text>
+
+  <rect class="node-opt" x="1630" y="410" width="280" height="40" rx="6" />
+  <text class="node-title" x="1770" y="435" text-anchor="middle">AutomatedRetrainingService</text>
+
+  <rect class="node-opt" x="1930" y="340" width="280" height="40" rx="6" />
+  <text class="node-title" x="2070" y="365" text-anchor="middle">PersonalizedLearningService</text>
+
+  <rect class="node-opt" x="1930" y="410" width="280" height="40" rx="6" />
+  <text class="node-title" x="2070" y="435" text-anchor="middle">TrainingDataCollector</text>
+
+  <!-- Hardware Nodes -->
+  <rect class="node" x="60" y="760" width="260" height="40" rx="6" />
+  <text class="node-title" x="190" y="785" text-anchor="middle">SensorManagementService</text>
+
+  <rect class="node" x="60" y="820" width="260" height="40" rx="6" />
+  <text class="node-title" x="190" y="845" text-anchor="middle">ActuatorManagementService</text>
+
+  <rect class="node" x="60" y="880" width="260" height="40" rx="6" />
+  <text class="node-title" x="190" y="905" text-anchor="middle">MQTTSensorService</text>
+
+  <rect class="node-temp" x="60" y="940" width="260" height="40" rx="6" />
+  <text class="node-title" x="190" y="965" text-anchor="middle">SystemHealthService (temp)</text>
+
+  <!-- Application Nodes -->
+  <rect class="node" x="850" y="940" width="240" height="40" rx="6" />
+  <text class="node-title" x="970" y="965" text-anchor="middle">UserAuthManager</text>
+
+  <rect class="node" x="850" y="1000" width="240" height="40" rx="6" />
+  <text class="node-title" x="970" y="1025" text-anchor="middle">PlantCatalog</text>
+
+  <rect class="node" x="850" y="1060" width="240" height="40" rx="6" />
+  <text class="node-title" x="970" y="1085" text-anchor="middle">AnomalyDetectionService</text>
+
+  <rect class="node" x="850" y="1120" width="240" height="40" rx="6" />
+  <text class="node-title" x="970" y="1145" text-anchor="middle">SystemHealthService</text>
+
+  <rect class="node" x="850" y="1180" width="240" height="40" rx="6" />
+  <text class="node-title" x="970" y="1205" text-anchor="middle">ThresholdService</text>
+
+  <rect class="node" x="850" y="1240" width="240" height="40" rx="6" />
+  <text class="node-title" x="970" y="1265" text-anchor="middle">PlantJournalService</text>
+
+  <rect class="node" x="850" y="1300" width="240" height="40" rx="6" />
+  <text class="node-title" x="970" y="1325" text-anchor="middle">AnalyticsService</text>
+
+  <rect class="node" x="850" y="1360" width="240" height="40" rx="6" />
+  <text class="node-title" x="970" y="1385" text-anchor="middle">HarvestService</text>
+
+  <rect class="node" x="1130" y="940" width="240" height="40" rx="6" />
+  <text class="node-title" x="1250" y="965" text-anchor="middle">GrowthService</text>
+
+  <rect class="node" x="1130" y="1000" width="240" height="40" rx="6" />
+  <text class="node-title" x="1250" y="1025" text-anchor="middle">DeviceHealthService</text>
+
+  <rect class="node" x="1130" y="1060" width="240" height="40" rx="6" />
+  <text class="node-title" x="1250" y="1085" text-anchor="middle">DeviceCoordinator</text>
+
+  <rect class="node" x="1130" y="1120" width="240" height="40" rx="6" />
+  <text class="node-title" x="1250" y="1145" text-anchor="middle">SettingsService</text>
+
+  <rect class="node" x="1130" y="1180" width="240" height="40" rx="6" />
+  <text class="node-title" x="1250" y="1205" text-anchor="middle">PlantViewService</text>
+
+  <rect class="node" x="1130" y="1240" width="240" height="40" rx="6" />
+  <text class="node-title" x="1250" y="1265" text-anchor="middle">CameraService</text>
+
+  <rect class="node" x="1130" y="1300" width="240" height="40" rx="6" />
+  <text class="node-title" x="1250" y="1325" text-anchor="middle">Scheduler</text>
+
+  <rect class="node" x="1410" y="940" width="240" height="40" rx="6" />
+  <text class="node-title" x="1530" y="965" text-anchor="middle">BayesianThresholdAdjuster</text>
+
+  <!-- ServiceContainer -->
+  <rect class="node" x="1140" y="1625" width="320" height="60" rx="10" />
+  <text class="node-title" x="1300" y="1658" text-anchor="middle">ServiceContainer</text>
+
+  <!-- Edges: AppConfig -->
+  <line class="edge-dashed" x1="1300" y1="64" x2="170" y2="130" />
+  <line class="edge-dashed" x1="1300" y1="64" x2="410" y2="130" />
+  <line class="edge-dashed" x1="1300" y1="64" x2="980" y2="130" />
+  <line class="edge-dashed" x1="1300" y1="64" x2="960" y2="360" />
+
+  <!-- Edges: Infrastructure wiring -->
+  <line class="edge" x1="170" y1="130" x2="170" y2="188" />
+  <line class="edge" x1="170" y1="130" x2="170" y2="232" />
+  <line class="edge" x1="170" y1="130" x2="170" y2="276" />
+  <line class="edge" x1="170" y1="130" x2="170" y2="320" />
+  <line class="edge" x1="170" y1="130" x2="410" y2="188" />
+  <line class="edge" x1="170" y1="130" x2="410" y2="232" />
+  <line class="edge" x1="170" y1="130" x2="410" y2="276" />
+  <line class="edge" x1="170" y1="130" x2="410" y2="320" />
+  <line class="edge" x1="170" y1="130" x2="650" y2="188" />
+  <line class="edge" x1="170" y1="130" x2="650" y2="232" />
+  <line class="edge" x1="170" y1="130" x2="650" y2="276" />
+  <line class="edge" x1="170" y1="130" x2="650" y2="320" />
+
+  <line class="edge" x1="650" y1="276" x2="170" y2="380" />
+  <line class="edge" x1="650" y1="320" x2="410" y2="380" />
+  <line class="edge" x1="650" y1="188" x2="650" y2="380" />
+  <line class="edge" x1="650" y1="232" x2="410" y2="440" />
+  <line class="edge" x1="650" y1="380" x2="410" y2="440" />
+  <line class="edge" x1="650" y1="130" x2="650" y2="380" />
+
+  <!-- Edges: MQTT -->
+  <line class="edge" x1="980" y1="130" x2="980" y2="180" />
+
+  <!-- Edges: Shared Utilities -->
+  <line class="edge" x1="1290" y1="235" x2="1485" y2="126" />
+  <line class="edge" x1="1290" y1="235" x2="1485" y2="166" />
+  <line class="edge" x1="1290" y1="235" x2="1485" y2="206" />
+  <line class="edge" x1="1290" y1="235" x2="1485" y2="246" />
+  <line class="edge" x1="1290" y1="235" x2="1485" y2="286" />
+
+  <!-- Edges: AI -->
+  <line class="edge" x1="960" y1="360" x2="960" y2="420" />
+  <line class="edge" x1="960" y1="360" x2="1460" y2="420" />
+  <line class="edge" x1="960" y1="360" x2="960" y2="480" />
+  <line class="edge" x1="960" y1="360" x2="1210" y2="480" />
+  <line class="edge" x1="960" y1="360" x2="1460" y2="480" />
+  <line class="edge" x1="960" y1="360" x2="960" y2="540" />
+
+  <line class="edge" x1="170" y1="320" x2="960" y2="420" />
+  <line class="edge" x1="410" y1="188" x2="1210" y2="420" />
+  <line class="edge" x1="410" y1="188" x2="960" y2="480" />
+  <line class="edge" x1="410" y1="188" x2="1460" y2="480" />
+  <line class="edge" x1="410" y1="188" x2="960" y2="540" />
+  <line class="edge" x1="410" y1="232" x2="1210" y2="480" />
+  <line class="edge" x1="410" y1="232" x2="1460" y2="480" />
+
+  <!-- Edges: Optional AI (dashed) -->
+  <line class="edge-dashed" x1="1770" y1="360" x2="960" y2="480" />
+  <line class="edge-dashed" x1="1770" y1="360" x2="960" y2="420" />
+  <line class="edge-dashed" x1="1770" y1="360" x2="1210" y2="420" />
+  <line class="edge-dashed" x1="1770" y1="360" x2="1460" y2="420" />
+  <line class="edge-dashed" x1="1770" y1="360" x2="170" y2="320" />
+
+  <line class="edge-dashed" x1="1770" y1="430" x2="960" y2="360" />
+  <line class="edge-dashed" x1="1770" y1="430" x2="1460" y2="480" />
+  <line class="edge-dashed" x1="1770" y1="430" x2="1210" y2="480" />
+
+  <line class="edge-dashed" x1="2070" y1="360" x2="960" y2="360" />
+  <line class="edge-dashed" x1="2070" y1="360" x2="410" y2="232" />
+  <line class="edge-dashed" x1="2070" y1="430" x2="410" y2="232" />
+  <line class="edge-dashed" x1="2070" y1="430" x2="1210" y2="360" />
+
+  <line class="edge-dashed" x1="2070" y1="360" x2="960" y2="420" />
+  <line class="edge-dashed" x1="2070" y1="360" x2="960" y2="480" />
+
+  <!-- Edges: Hardware -->
+  <line class="edge" x1="170" y1="276" x2="190" y2="780" />
+  <line class="edge" x1="170" y1="276" x2="190" y2="840" />
+  <line class="edge" x1="170" y1="276" x2="190" y2="900" />
+  <line class="edge" x1="170" y1="320" x2="190" y2="840" />
+  <line class="edge" x1="1290" y1="130" x2="190" y2="780" />
+  <line class="edge" x1="1290" y1="180" x2="190" y2="780" />
+  <line class="edge" x1="1290" y1="235" x2="190" y2="780" />
+  <line class="edge" x1="980" y1="130" x2="190" y2="780" />
+  <line class="edge" x1="980" y1="130" x2="190" y2="840" />
+  <line class="edge" x1="980" y1="130" x2="190" y2="900" />
+  <line class="edge" x1="980" y1="180" x2="190" y2="780" />
+  <line class="edge" x1="980" y1="180" x2="190" y2="840" />
+
+  <line class="edge" x1="190" y1="780" x2="190" y2="900" />
+  <line class="edge-dashed" x1="190" y1="900" x2="1290" y2="235" />
+
+  <line class="edge-dashed" x1="410" y1="380" x2="190" y2="960" />
+  <line class="edge-dashed" x1="970" y1="1080" x2="190" y2="960" />
+  <line class="edge" x1="190" y1="960" x2="190" y2="780" />
+
+  <!-- Edges: Application -->
+  <line class="edge" x1="170" y1="130" x2="970" y2="960" />
+  <line class="edge" x1="410" y1="130" x2="970" y2="960" />
+
+  <line class="edge" x1="970" y1="1080" x2="970" y2="1140" />
+  <line class="edge" x1="410" y1="380" x2="970" y2="1140" />
+
+  <line class="edge" x1="970" y1="1020" x2="970" y2="1200" />
+  <line class="edge" x1="960" y1="420" x2="970" y2="1200" />
+
+  <line class="edge-dashed" x1="970" y1="1200" x2="1210" y2="420" />
+  <line class="edge" x1="1210" y1="420" x2="970" y2="1260" />
+
+  <line class="edge" x1="410" y1="276" x2="970" y2="1260" />
+
+  <line class="edge" x1="170" y1="320" x2="970" y2="1320" />
+  <line class="edge" x1="170" y1="276" x2="970" y2="1320" />
+
+  <line class="edge" x1="170" y1="320" x2="970" y2="1380" />
+
+  <line class="edge" x1="170" y1="232" x2="1250" y2="960" />
+  <line class="edge" x1="170" y1="320" x2="1250" y2="960" />
+  <line class="edge" x1="410" y1="130" x2="1250" y2="960" />
+  <line class="edge" x1="170" y1="276" x2="1250" y2="960" />
+  <line class="edge" x1="1290" y1="180" x2="1250" y2="960" />
+  <line class="edge" x1="980" y1="130" x2="1250" y2="960" />
+  <line class="edge" x1="980" y1="180" x2="1250" y2="960" />
+  <line class="edge" x1="970" y1="1200" x2="1250" y2="960" />
+  <line class="edge" x1="190" y1="780" x2="1250" y2="960" />
+  <line class="edge" x1="190" y1="840" x2="1250" y2="960" />
+  <line class="edge" x1="1290" y1="235" x2="1250" y2="960" />
+  <line class="edge" x1="410" y1="188" x2="1250" y2="960" />
+
+  <line class="edge" x1="170" y1="276" x2="1250" y2="1020" />
+  <line class="edge" x1="980" y1="130" x2="1250" y2="1020" />
+  <line class="edge" x1="410" y1="380" x2="1250" y2="1020" />
+  <line class="edge" x1="970" y1="1140" x2="1250" y2="1020" />
+  <line class="edge" x1="190" y1="780" x2="1250" y2="1020" />
+  <line class="edge" x1="190" y1="840" x2="1250" y2="1020" />
+  <line class="edge" x1="980" y1="180" x2="1250" y2="1020" />
+
+  <line class="edge" x1="170" y1="276" x2="1250" y2="1080" />
+  <line class="edge" x1="1290" y1="180" x2="1250" y2="1080" />
+
+  <line class="edge" x1="170" y1="188" x2="1250" y2="1140" />
+  <line class="edge" x1="1250" y1="960" x2="1250" y2="1140" />
+  <line class="edge" x1="190" y1="780" x2="1250" y2="1140" />
+
+  <line class="edge" x1="1250" y1="960" x2="1250" y2="1200" />
+  <line class="edge" x1="190" y1="780" x2="1250" y2="1200" />
+  <line class="edge" x1="1290" y1="180" x2="1250" y2="1200" />
+  <line class="edge" x1="170" y1="380" x2="1250" y2="1200" />
+
+  <line class="edge" x1="410" y1="320" x2="1250" y2="1260" />
+
+  <line class="edge" x1="410" y1="232" x2="1530" y2="960" />
+  <line class="edge" x1="970" y1="1200" x2="1530" y2="960" />
+  <line class="edge-dashed" x1="1530" y1="960" x2="410" y2="440" />
+
+  <line class="edge-dashed" x1="1250" y1="1320" x2="410" y2="440" />
+  <line class="edge-dashed" x1="190" y1="840" x2="410" y2="440" />
+
+  <line class="edge-dashed" x1="1290" y1="130" x2="650" y2="380" />
+
+  <!-- ServiceContainer aggregation (dashed) -->
+  <line class="edge-dashed" x1="170" y1="130" x2="1300" y2="1625" />
+  <line class="edge-dashed" x1="980" y1="130" x2="1300" y2="1625" />
+  <line class="edge-dashed" x1="1290" y1="130" x2="1300" y2="1625" />
+  <line class="edge-dashed" x1="960" y1="360" x2="1300" y2="1625" />
+  <line class="edge-dashed" x1="190" y1="780" x2="1300" y2="1625" />
+  <line class="edge-dashed" x1="1250" y1="960" x2="1300" y2="1625" />
+
+  <!-- Legend -->
+  <rect x="2100" y="1400" width="440" height="260" fill="#f9fafb" stroke="#e5e7eb" rx="10" />
+  <text class="legend" x="2120" y="1430">Legend</text>
+  <line class="edge" x1="2120" y1="1450" x2="2200" y2="1450" />
+  <text class="legend" x="2210" y="1454">Direct constructor dependency</text>
+  <line class="edge-dashed" x1="2120" y1="1475" x2="2200" y2="1475" />
+  <text class="legend" x="2210" y="1479">Post-build wiring or optional</text>
+  <text class="legend" x="2120" y="1510">Notes:</text>
+  <text class="legend" x="2120" y="1528">- Hardware uses a temp SystemHealthService instance</text>
+  <text class="legend" x="2120" y="1546">- NotificationsService emitter wired after SharedUtilities</text>
+  <text class="legend" x="2120" y="1564">- Irrigation workflow wired with actuator manager + scheduler</text>
+  <text class="legend" x="2120" y="1582">- Optional AI components are config gated</text>
+</svg>

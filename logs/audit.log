@@ -1,0 +1,15 @@
+2026-01-17T10:54:01Z | INFO | {"actor": "demouser", "action": "logout", "resource": "session", "outcome": "success"}
+2026-01-17T10:54:50Z | INFO | {"actor": "demouser", "action": "login", "resource": "user", "outcome": "success"}
+2026-01-17T10:54:50Z | INFO | {"actor": "demouser", "action": "login", "resource": "session", "outcome": "success"}
+2026-01-17T10:55:08Z | INFO | {"actor": "demouser", "action": "login", "resource": "user", "outcome": "success"}
+2026-01-17T10:55:08Z | INFO | {"actor": "1", "action": "recovery_codes_generated", "resource": "user", "outcome": "success"}
+2026-01-17T11:09:28Z | INFO | {"actor": "demouser", "action": "logout", "resource": "session", "outcome": "success"}
+2026-01-17T11:35:22Z | INFO | {"actor": "demouser", "action": "login", "resource": "user", "outcome": "success"}
+2026-01-17T11:35:22Z | INFO | {"actor": "demouser", "action": "login", "resource": "session", "outcome": "success"}
+2026-01-17T12:15:00Z | INFO | {"actor": "demouser", "action": "logout", "resource": "session", "outcome": "success"}
+2026-01-17T12:20:30Z | INFO | {"actor": "demouser", "action": "login", "resource": "user", "outcome": "success"}
+2026-01-17T12:20:30Z | INFO | {"actor": "demouser", "action": "login", "resource": "session", "outcome": "success"}
+2026-01-18T13:39:53Z | INFO | {"actor": "demouser", "action": "login", "resource": "user", "outcome": "success"}
+2026-01-18T13:39:53Z | INFO | {"actor": "demouser", "action": "login", "resource": "session", "outcome": "success"}
+2026-01-24T13:47:52Z | INFO | {"actor": "demouser", "action": "login", "resource": "user", "outcome": "success"}
+2026-01-24T13:47:52Z | INFO | {"actor": "demouser", "action": "login", "resource": "session", "outcome": "success"}

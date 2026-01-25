@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3:*)",
+      "Bash(grep:*)",
+      "Bash(node --check:*)",
+      "Bash(find:*)",
+      "Bash(tree:*)",
+      "Bash(wc:*)",
+      "Bash(du:*)",
+      "Bash(ls:*)",
+      "Bash(sqlite3:*)",
+      "Bash(python:*)",
+      "Bash(node -e:*)",
+      "Bash(xargs:*)",
+      "WebFetch(domain:www.zigbee2mqtt.io)"
+    ]
+  },
+  "spinnerTipsEnabled": true
+}

@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{ csrf_token if csrf_token is defined else '' }}">
+  <title>{% block title %}SYSGrow - Smart Agriculture Platform{% endblock %}</title>
+
+  <!-- Core design tokens + base components -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/tokens.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
+
+  <!-- Shared layout/components -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/navigation.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/forms.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/tables.css') }}">
+
+  <!-- Feature / page styles -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/sensors.css') }}">
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/unit-selector.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/units.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/analytics.css') }}">
+
+  <!-- Reusable component styles -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/components/kpi-cards.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/components/actuators.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/components/plants.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/components/timeline.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/components/alerts.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/components/energy.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/components/vpd-zones.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/components/correlation-matrix.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/components/anomaly-panel.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/components/notifications.css') }}">
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+
+  {# Page-specific styles injected by child templates #}
+  {% block styles %}{% endblock %}
+  {% block extra_css %}{% endblock %}
+</head>
+
+{# Resolve an authoritative "active unit id" for base layout rendering #}
+{% set _active_unit_id =
+  (selected_unit_id if selected_unit_id is defined and selected_unit_id)
+  or (selected_unit.unit_id if selected_unit is defined and selected_unit)
+  or session.get('selected_unit')
+%}
+
+{# Resolve a units list for header navigation (fallback to injected nav_units) #}
+{% set _nav_units =
+  (units if units is defined and units)
+  or (nav_units if nav_units is defined and nav_units)
+  or []
+%}
+
+<body
+  class="{% block body_class %}{% endblock %}"
+  {% if _active_unit_id %}data-active-unit-id="{{ _active_unit_id }}"{% endif %}
+>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+
+
+  <!-- Header -->
+  <header class="modern-header">
+    <div class="header-container">
+      <!-- Mobile menu toggle -->
+      <button class="mobile-menu-toggle" id="mobile-menu-toggle" type="button"
+              aria-label="Toggle navigation menu" aria-controls="sidebar" aria-expanded="false">
+        <i class="fas fa-bars" aria-hidden="true"></i>
+      </button>
+      <!-- Left side: logo -->
+      <div class="site-logo">
+        <i class="fas fa-seedling logo-icon"></i>
+        <div class="logo-text">
+          <h1>SYSGrow</h1>
+          <p>Smart Agriculture Platform</p>
+        </div>
+      </div>
+
+      <!-- Right side: global tools + user section -->
+      <div class="header-right">
+        <div class="header-actions">
+          {% if session.get('user') %}
+
+            {# GLOBAL UNIT SWITCHER (authoritative: updates session, reloads current page) #}
+            <form class="header-unit-switcher"
+                  id="global-unit-switcher-form"
+                  method="post"
+                  action="{{ url_for('ui.select_unit') }}"
+                  aria-label="Select growth unit">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token if csrf_token is defined else '' }}">
+              <input type="hidden" name="next" value="{{ request.full_path }}">
+
+              <span class="header-unit-switcher__label">Unit</span>
+
+              <select class="header-unit-switcher__select"
+                      id="global-unit-switcher"
+                      name="unit_id"
+                      aria-label="Growth unit"
+                      {% if not _nav_units %}disabled{% endif %}>
+                {% if _nav_units %}
+                  {% for u in _nav_units %}
+                    {# units may be dicts; normalize access defensively #}
+                    {% set uid = (u.unit_id if u.unit_id is defined else u.get('unit_id')) %}
+                    {% set uname = (u.name if u.name is defined else u.get('name')) %}
+                    <option value="{{ uid }}"
+                      {% if _active_unit_id and uid and (uid|int) == (_active_unit_id|int) %}selected{% endif %}>
+                      {{ uname or ('Unit ' ~ uid) }}
+                    </option>
+                  {% endfor %}
+                {% else %}
+                  <option value="">No units</option>
+                {% endif %}
+              </select>
+
+              <span class="header-unit-switcher__meta" id="global-unit-meta">
+                {% if _active_unit_id %}Active: #{{ _active_unit_id }}{% else %}No unit selected{% endif %}
+              </span>
+            </form>
+
+            <button class="header-btn" id="refresh-all" title="Refresh All Data">
+              <i class="fas fa-sync-alt" aria-hidden="true"></i>
+            </button>
+
+            <div class="connection-status" aria-label="Connection status">
+              <span class="status-indicator connected" id="connection-status">
+                <i class="fas fa-wifi" aria-hidden="true"></i>
+                <span>Connected</span>
+              </span>
+            </div>
+
+          {% endif %}
+        </div>
+
+        <!-- User section + header tools -->
+        <div class="user-section">
+          {% if session.get('user') %}
+            <div class="notification-wrapper">
+              <button class="header-btn header-notification" id="notifications-toggle" type="button"
+                      title="View notifications" aria-label="View notifications" aria-expanded="false" aria-controls="notifications-dropdown">
+                <i class="fas fa-bell" aria-hidden="true"></i>
+                <span class="notification-badge hidden" id="notification-badge" aria-label="Unread notifications">0</span>
+              </button>
+
+              <!-- Notification Dropdown -->
+              <div class="notification-dropdown" id="notifications-dropdown" aria-hidden="true">
+                <div class="notification-dropdown-header">
+                  <h3>Notifications</h3>
+                  <div class="notification-dropdown-actions">
+                    <button type="button" class="btn-link" id="mark-all-read-btn" title="Mark all as read">
+                      <i class="fas fa-check-double" aria-hidden="true"></i>
+                    </button>
+                    <a href="{{ url_for('ui.settings') }}?tab=notifications" class="btn-link" title="Notification settings">
+                      <i class="fas fa-cog" aria-hidden="true"></i>
+                    </a>
+                  </div>
+                </div>
+
+                <div class="notification-dropdown-body" id="notifications-list">
+                  <div class="notification-empty">
+                    <i class="fas fa-bell-slash" aria-hidden="true"></i>
+                    <p>No notifications</p>
+                  </div>
+                </div>
+
+                <div class="notification-dropdown-footer">
+                  <a href="{{ url_for('ui.notifications') }}" class="view-all-link">
+                    View All Notifications
+                    <i class="fas fa-arrow-right" aria-hidden="true"></i>
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            <button class="header-btn theme-toggle-btn" id="theme-toggle" type="button"
+                    title="Toggle light/dark mode" aria-label="Toggle color theme">
+              <i class="fas fa-moon" aria-hidden="true"></i>
+            </button>
+
+            <div class="user-info" role="button" aria-expanded="false" aria-controls="user-menu" tabindex="0">
+              <div class="user-avatar">
+                <i class="fas fa-user" aria-hidden="true"></i>
+              </div>
+              <div class="user-details">
+                <span class="user-name">{{ session.get('user') }}</span>
+                <span class="user-role">Administrator</span>
+              </div>
+            </div>
+
+            <div class="user-menu" id="user-menu">
+              <a href="{{ url_for('ui.settings') }}" class="user-menu-item">
+                <i class="fas fa-cog" aria-hidden="true"></i> Settings
+              </a>
+              <a href="{{ url_for('auth.logout') }}" class="user-menu-item logout">
+                <i class="fas fa-sign-out-alt" aria-hidden="true"></i> Logout
+              </a>
+            </div>
+          {% else %}
+            <a href="{{ url_for('auth.login') }}" class="btn btn-login">
+              <i class="fas fa-sign-in-alt" aria-hidden="true"></i> Login
+            </a>
+            <a href="{{ url_for('auth.register') }}" class="btn btn-register">
+              <i class="fas fa-user-plus" aria-hidden="true"></i> Register
+            </a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Sidebar Navigation -->
+  {% if session.get('user') %}
+  <aside class="sidebar" id="sidebar">
+    <nav class="sidebar-nav" aria-label="Sidebar">
+
+      <!-- Dashboard Section -->
+      <div class="nav-section">
+        <h3 class="nav-section-title">
+          <i class="fas fa-tachometer-alt" aria-hidden="true"></i>
+          Dashboard
+        </h3>
+        <ul class="nav-list">
+          <li class="nav-item">
+            <a href="{{ url_for('ui.index') }}"
+               class="nav-link {% if request.endpoint == 'ui.index' %}active{% endif %}"
+               {% if request.endpoint == 'ui.index' %}aria-current="page"{% endif %}>
+              <i class="fas fa-home" aria-hidden="true"></i>
+              <span>Main Dashboard</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="{{ url_for('ui.ml_dashboard') }}"
+               class="nav-link {% if request.endpoint == 'ui.ml_dashboard' %}active{% endif %}"
+               {% if request.endpoint == 'ui.ml_dashboard' %}aria-current="page"{% endif %}>
+              <i class="fas fa-robot" aria-hidden="true"></i>
+              <span>ML Dashboard</span>
+              <span class="nav-badge info hidden" id="ml-alerts-badge" aria-label="ML notifications">0</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Managment Section -->
+      <div class="nav-section">
+        <h4 class="nav-section-title">
+          <i class="fas fa-leaf" aria-hidden="true"></i>
+          Plant Management
+        </h4>
+        <ul class="nav-list">
+          <li class="nav-item">
+            <a href="{{ url_for('ui.growth_units') }}"
+               class="nav-link {% if request.endpoint == 'ui.growth_units' %}active{% endif %}"
+               {% if request.endpoint == 'ui.growth_units' %}aria-current="page"{% endif %}>
+              <i class="fas fa-cubes" aria-hidden="true"></i>
+              <span>Growth Units</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="{{ url_for('ui.plants_hub') }}"
+               class="nav-link {% if request.endpoint == 'ui.plants_hub' %}active{% endif %}"
+               {% if request.endpoint == 'ui.plants_hub' %}aria-current="page"{% endif %}>
+              <i class="fas fa-seedling" aria-hidden="true"></i>
+              <span>Plants</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="{{ url_for('ui.devices') }}"
+               class="nav-link {% if request.endpoint == 'ui.devices' %}active{% endif %}"
+               {% if request.endpoint == 'ui.devices' %}aria-current="page"{% endif %}>
+              <i class="fas fa-microchip" aria-hidden="true"></i>
+              <span>Devices</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Analytics Section -->
+      <div class="nav-section">
+        <h4 class="nav-section-title">
+          <i class="fas fa-chart-line" aria-hidden="true"></i>
+          Analytics
+        </h4>
+        <ul class="nav-list">
+          <li class="nav-item">
+            <a href="{{ url_for('ui.sensor_analytics') }}"
+               class="nav-link {% if request.endpoint == 'ui.sensor_analytics' %}active{% endif %}"
+               {% if request.endpoint == 'ui.sensor_analytics' %}aria-current="page"{% endif %}>
+              <i class="fas fa-chart-line" aria-hidden="true"></i>
+              <span>Sensor Analytics</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="{{ url_for('ui.energy_analytics') }}"
+               class="nav-link {% if request.endpoint == 'ui.energy_analytics' %}active{% endif %}"
+               {% if request.endpoint == 'ui.energy_analytics' %}aria-current="page"{% endif %}>
+              <i class="fas fa-bolt" aria-hidden="true"></i>
+              <span>Energy Analytics</span>
+              <span class="nav-badge warning hidden" id="energy-alerts-badge" aria-label="Energy warnings count">0</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Health Section -->
+      <div class="nav-section">
+        <h4 class="nav-section-title">
+          <i class="fas fa-heart-pulse" aria-hidden="true"></i>
+          Health
+        </h4>
+        <ul class="nav-list" role="list">
+          <li class="nav-item">
+            <a href="{{ url_for('ui.device_health') }}"
+               class="nav-link {% if request.endpoint == 'ui.device_health' %}active{% endif %}"
+               {% if request.endpoint == 'ui.device_health' %}aria-current="page"{% endif %}>
+              <i class="fas fa-stethoscope" aria-hidden="true"></i>
+              <span>Device Health</span>
+              <span class="nav-badge danger hidden" id="device-alerts-badge" aria-label="Device issues count">0</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="{{ url_for('ui.system_health') }}"
+               class="nav-link {% if request.endpoint == 'ui.system_health' %}active{% endif %}"
+               {% if request.endpoint == 'ui.system_health' %}aria-current="page"{% endif %}>
+              <i class="fas fa-heartbeat" aria-hidden="true"></i>
+              <span>System Health</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Settings Section -->
+      <div class="nav-section">
+        <h4 class="nav-section-title">
+          <i class="fas fa-cog" aria-hidden="true"></i>
+          Configuration
+        </h4>
+        <ul class="nav-list">
+          <li class="nav-item">
+            <a href="{{ url_for('ui.settings') }}"
+               class="nav-link {% if request.endpoint == 'ui.settings' %}active{% endif %}"
+               {% if request.endpoint == 'ui.settings' %}aria-current="page"{% endif %}>
+              <i class="fas fa-sliders-h" aria-hidden="true"></i>
+              <span>Settings</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="{{ url_for('ui.activity') }}"
+               class="nav-link {% if request.endpoint == 'ui.activity' %}active{% endif %}"
+               {% if request.endpoint == 'ui.activity' %}aria-current="page"{% endif %}>
+              <i class="fas fa-history" aria-hidden="true"></i>
+              <span>Activity Log</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="{{ url_for('ui.notifications') }}"
+               class="nav-link {% if request.endpoint == 'ui.notifications' %}active{% endif %}"
+               {% if request.endpoint == 'ui.notifications' %}aria-current="page"{% endif %}>
+              <i class="fas fa-bell" aria-hidden="true"></i>
+              <span>Notifications</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+
+    </nav>
+  </aside>
+  {% endif %}
+
+  <!-- Main Content Area -->
+  <main id="main-content" class="main-content {% if session.get('user') %}with-sidebar{% endif %}">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-messages" role="status" aria-live="polite" aria-atomic="true">
+          {% for category, message in messages %}
+            <div class="flash-message flash-{{ category }}">
+              <span class="flash-icon">
+                {% if category == 'error' %}
+                  <i class="fas fa-exclamation-circle" aria-hidden="true"></i>
+                {% elif category == 'success' %}
+                  <i class="fas fa-check-circle" aria-hidden="true"></i>
+                {% elif category == 'warning' %}
+                  <i class="fas fa-exclamation-triangle" aria-hidden="true"></i>
+                {% else %}
+                  <i class="fas fa-info-circle" aria-hidden="true"></i>
+                {% endif %}
+              </span>
+              <span class="flash-text">{{ message }}</span>
+              <button class="flash-close" title="Close notification" aria-label="Close notification" type="button">
+                <i class="fas fa-times" aria-hidden="true"></i>
+              </button>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Footer -->
+  <footer class="modern-footer {% if session.get('user') %}with-sidebar{% endif %}">
+    <div class="footer-container">
+      <div class="footer-content">
+        <p>&copy; 2025 SYSGrow. Smart Agriculture Platform. All rights reserved.</p>
+        <div class="footer-links">
+          <a href="{{ url_for('ui.help_page') }}" class="footer-link">
+            <i class="fas fa-question-circle" aria-hidden="true"></i> Help
+          </a>
+          <a href="{{ url_for('ui.blog_page') }}" class="footer-link">
+            <i class="fas fa-newspaper" aria-hidden="true"></i> Blog
+          </a>
+          <a href="{{ url_for('ui.help_category', category='getting-started') }}" class="footer-link">
+            <i class="fas fa-book" aria-hidden="true"></i> Documentation
+          </a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- JavaScript -->
+  <script src="{{ url_for('static', filename='js/base.js') }}"></script>
+
+  <!-- Shared Utilities (load before components) -->
+  <script src="{{ url_for('static', filename='js/utils/html-utils.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/utils/date-utils.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/utils/sensor-fields.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/utils/notification-utils.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/utils/form-validator.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/utils/chart-service.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/constants/vpd-zones.js') }}"></script>
+
+  <!-- ML Status Manager (Global) -->
+  <script src="{{ url_for('static', filename='js/components/ml_status.js') }}"></script>
+
+  <!-- Notifications Component -->
+  <script src="{{ url_for('static', filename='js/components/notifications.js') }}"></script>
+
+  <!-- Global unit switcher submit handler -->
+  <script>
+    (function() {
+      const form = document.getElementById('global-unit-switcher-form');
+      const select = document.getElementById('global-unit-switcher');
+      if (!form || !select) return;
+
+      select.addEventListener('change', function() {
+        // Persist for socket.js fallback on pages without data-selected-unit-id.
+        try {
+          if (select.value) localStorage.setItem('selected_unit_id', select.value);
+          else localStorage.removeItem('selected_unit_id');
+        } catch {}
+
+        // Clear visible real-time values immediately (prevents "stale readings" perception during navigation).
+        try {
+          const statusClasses = ['normal', 'warning', 'critical', 'low', 'high', 'unknown', 'error', 'offline', 'healthy'];
+          document.querySelectorAll('[data-sensor]').forEach((card) => {
+            const valueEl = card.querySelector('.sensor-value');
+            if (valueEl) valueEl.textContent = '--';
+
+            const statusEl = card.querySelector('.sensor-status');
+            if (statusEl) {
+              statusEl.textContent = 'Switching…';
+              statusEl.classList.remove(...statusClasses);
+            }
+
+            const trendEl = card.querySelector('.sensor-trend');
+            if (trendEl) trendEl.textContent = '--';
+
+            const timeEl = card.querySelector('.last-update-value');
+            if (timeEl) timeEl.textContent = '--:--';
+
+            card.classList.remove(...statusClasses);
+            card.classList.add('no-data');
+          });
+        } catch {}
+
+        document.body.classList.add('is-unit-switching');
+
+        // Always submit to /select-unit so session becomes the source of truth.
+        requestAnimationFrame(() => {
+          if (typeof form.requestSubmit === 'function') form.requestSubmit();
+          else form.submit();
+        });
+      });
+    })();
+  </script>
+
+  {% block scripts %}{% endblock %}
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

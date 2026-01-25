@@ -1,0 +1,489 @@
+{% extends "base.html" %}
+
+{% block title %}System Health - SYSGrow{% endblock %}
+{% block body_class %}system-health-page{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/system_health.css') }}">
+<style>
+    /* Design system overrides for health score */
+    .health-score-circle {
+        width: 150px;
+        height: 150px;
+        position: relative;
+        margin: 0 auto;
+    }
+    .score-svg {
+        transform: rotate(-90deg);
+        width: 100%;
+        height: 100%;
+    }
+    .score-track {
+        fill: none;
+        stroke: var(--bs-gray-200);
+        stroke-width: 10;
+    }
+    .score-indicator {
+        fill: none;
+        stroke: var(--bs-success);
+        stroke-width: 10;
+        stroke-linecap: round;
+        stroke-dasharray: 565.48; /* 2 * PI * 90 */
+        stroke-dashoffset: 565.48;
+        transition: stroke-dashoffset 1s ease-out, stroke 0.5s;
+    }
+    .score-display {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+    }
+    .score-value {
+        font-size: 2.5rem;
+        font-weight: 800;
+        line-height: 1;
+        color: var(--bs-dark);
+    }
+    .score-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--bs-gray-600);
+    }
+</style>
+{% endblock %}
+
+{% import "macros.html" as ui %}
+
+{% block content %}
+<div id="system-health-page" aria-labelledby="health-heading">
+    
+    {# Standardized Page Header #}
+    {% set header_actions %}
+        <div class="d-flex align-items-center gap-2">
+            {{ ui.ui_button("Refresh", id="refresh-btn", icon="fas fa-sync-alt", variant="secondary", size="sm") }}
+            <div class="form-check form-switch mb-0 ms-2 d-none d-md-flex align-items-center">
+                <input class="form-check-input me-2" type="checkbox" id="auto-refresh" checked>
+                <label class="form-check-label small text-muted mb-0" for="auto-refresh">Auto-refresh (30s)</label>
+            </div>
+        </div>
+    {% endset %}
+    {{ ui.page_header(
+      title="System Health & Status",
+      icon="fas fa-heartbeat",
+      subtitle="Real-time monitoring of your growing system",
+      actions=header_actions
+    ) }}
+
+    <!-- Alert Banner -->
+    <div id="alert-banner" class="alert alert-warning d-flex align-items-center justify-content-between mb-4 d-none">
+        <div>
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <span id="alert-message">System alerts detected</span>
+        </div>
+        <a href="{{ url_for('ui.settings') }}#alerts" class="btn btn-sm btn-outline-warning">
+            View Details
+        </a>
+    </div>
+
+    <!-- Hero Status Row -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-4">
+            {% call ui.content_card(title="Overall System Health", icon="fas fa-microchip", class="h-100") %}
+                <div class="py-4">
+                    <div class="health-score-circle mb-3">
+                        <svg viewBox="0 0 200 200" class="score-svg">
+                            <circle cx="100" cy="100" r="90" class="score-track"></circle>
+                            <circle cx="100" cy="100" r="90" class="score-indicator" id="score-circle"></circle>
+                        </svg>
+                        <div class="score-display">
+                            <div class="score-value" id="health-score">--</div>
+                            <div class="score-label">Health</div>
+                        </div>
+                    </div>
+                    <div class="text-center">
+                        <span class="badge bg-light text-dark p-2" id="system-status">
+                            <i class="fas fa-circle-notch fa-spin me-2 text-primary"></i>
+                            Initializing...
+                        </span>
+                    </div>
+                </div>
+            {% endcall %}
+        </div>
+        
+        <div class="col-lg-8">
+            <div class="row g-4 h-100">
+                <div class="col-md-6">
+                    {{ ui.kpi_card(id='uptime', label='System Uptime', value='--', value_id='system-uptime', icon='fas fa-clock', variant='primary') }}
+                </div>
+                <div class="col-md-6">
+                    {{ ui.kpi_card(id='version', label='System Version', value='--', value_id='system-version', icon='fas fa-code-branch', variant='info') }}
+                </div>
+                <!-- Mini Stats inside the Hero area -->
+                <div class="col-3">
+                    <div class="p-3 bg-light rounded text-center">
+                        <div class="text-muted small mb-1">Units</div>
+                        <div class="h5 mb-0 fw-bold" id="metric-units">--</div>
+                    </div>
+                </div>
+                <div class="col-3">
+                    <div class="p-3 bg-light rounded text-center">
+                        <div class="text-muted small mb-1">Plants</div>
+                        <div class="h5 mb-0 fw-bold" id="metric-plants">--</div>
+                    </div>
+                </div>
+                <div class="col-3">
+                    <div class="p-3 bg-light rounded text-center">
+                        <div class="text-muted small mb-1">Devices</div>
+                        <div class="h5 mb-0 fw-bold" id="metric-devices">--</div>
+                    </div>
+                </div>
+                <div class="col-3">
+                    <div class="p-3 bg-light rounded text-center border-start border-4 border-warning">
+                        <div class="text-muted small mb-1">Alerts</div>
+                        <div class="h5 mb-0 fw-bold" id="metric-alerts">--</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Two-Column Grid -->
+    <div class="row g-4 mb-4">
+        <!-- Infrastructure Column -->
+        <div class="col-lg-6">
+            {% call ui.content_card(title="Infrastructure Status", icon="fas fa-server", class="h-100") %}
+                <div class="list-group list-group-flush">
+                    <div class="list-group-item d-flex justify-content-between align-items-center px-0 border-0 py-3">
+                        <span class="text-dark">
+                            <i class="fas fa-broadcast-tower me-2 text-muted"></i> API Server
+                        </span>
+                        <span class="badge rounded-pill bg-light text-dark" id="status-api">--</span>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center px-0 border-0 py-3">
+                        <span class="text-dark">
+                            <i class="fas fa-database me-2 text-muted"></i> Database
+                        </span>
+                        <span class="badge rounded-pill bg-light text-dark" id="status-db">--</span>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center px-0 border-0 py-3">
+                        <span class="text-dark">
+                            <i class="fas fa-exchange-alt me-2 text-muted"></i> MQTT Broker
+                        </span>
+                        <span class="badge rounded-pill bg-light text-dark" id="status-mqtt">--</span>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center px-0 border-0 py-3">
+                        <span class="text-dark">
+                            <i class="fas fa-brain me-2 text-muted"></i> ML Services
+                        </span>
+                        <span class="badge rounded-pill bg-light text-dark" id="status-ml">--</span>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center px-0 border-0 py-3">
+                        <span class="text-dark">
+                            <i class="fas fa-satellite-dish me-2 text-muted"></i> Zigbee Service
+                        </span>
+                        <span class="badge rounded-pill bg-light text-dark" id="status-zigbee">--</span>
+                    </div>
+                </div>
+            {% endcall %}
+        </div>
+
+        <!-- Resources Column -->
+        <div class="col-lg-6">
+            {% call ui.content_card(title="Resource Utilization", icon="fas fa-chart-bar", class="h-100") %}
+                <div class="mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-dark fw-medium">
+                            <i class="fas fa-hdd me-2 text-muted"></i> Storage
+                        </span>
+                        <span class="text-dark small fw-bold" id="storage-percent">--%</span>
+                    </div>
+                    <div class="progress" style="height: 10px;">
+                        <div class="progress-bar bg-primary" id="storage-bar" role="progressbar" style="width: 0%"></div>
+                    </div>
+                    <div class="text-muted small mt-1" id="storage-detail">-- / --</div>
+                </div>
+                
+                <div class="mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-dark fw-medium">
+                            <i class="fas fa-tachometer-alt me-2 text-muted"></i> API Performance
+                        </span>
+                        <span class="text-dark small fw-bold" id="api-response">--ms</span>
+                    </div>
+                    <div class="p-3 bg-light rounded">
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <div class="text-muted small">Daily Requests</div>
+                                <div class="fw-bold" id="api-requests">--</div>
+                            </div>
+                            <div class="col-6 text-end">
+                                <div class="text-muted small">Error Rate</div>
+                                <div class="fw-bold text-danger" id="api-errors">--%</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="health-breakdown mt-3">
+                    <div class="text-muted small text-uppercase fw-bold mb-3 ls-wide">Metric Health Scores</div>
+                    <div class="d-flex flex-column gap-3">
+                        <div>
+                            <div class="d-flex justify-content-between small mb-1">
+                                <span>Infrastructure</span>
+                                <span class="fw-bold" id="score-infra">--</span>
+                            </div>
+                            <div class="progress" style="height: 4px;">
+                                <div class="progress-bar bg-success" id="mini-infra" role="progressbar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="d-flex justify-content-between small mb-1">
+                                <span>Connectivity</span>
+                                <span class="fw-bold" id="score-conn">--</span>
+                            </div>
+                            <div class="progress" style="height: 4px;">
+                                <div class="progress-bar bg-success" id="mini-conn" role="progressbar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="d-flex justify-content-between small mb-1">
+                                <span>Sensors</span>
+                                <span class="fw-bold" id="score-sensor">--</span>
+                            </div>
+                            <div class="progress" style="height: 4px;">
+                                <div class="progress-bar bg-success" id="mini-sensor" role="progressbar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endcall %}
+        </div>
+    </div>
+
+    <!-- Growth Units Section -->
+    {% call ui.content_card(
+        title="Active Growth Units", 
+        icon="fas fa-cube", 
+        class="mb-4",
+        header_extra='<span class="badge bg-light text-dark" id="units-count">--</span>'
+    ) %}
+        <div id="units-list" class="row g-4">
+            <div class="col-12 text-center py-5">
+                <i class="fas fa-spinner fa-spin fa-2x text-primary mb-3"></i>
+                <p class="text-muted">Loading units...</p>
+            </div>
+        </div>
+    {% endcall %}
+
+    <!-- Devices Overview Section -->
+    {% call ui.content_card(
+        title="Devices Summary", 
+        icon="fas fa-microchip", 
+        class="mb-4",
+        header_extra='<a href="' ~ url_for('ui.devices') ~ '" class="btn btn-link btn-sm text-decoration-none">View Details <i class="fas fa-arrow-right ms-1"></i></a>'
+    ) %}
+        <div class="row g-4">
+            <div class="col-md-6">
+                <div class="p-3 border rounded d-flex align-items-center">
+                    <div class="icon-box bg-light text-primary me-3 p-3 rounded-circle" style="width: 60px; height: 60px; display: flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-thermometer-half fa-lg"></i>
+                    </div>
+                    <div>
+                        <div class="h4 mb-0" id="sensors-total">--</div>
+                        <div class="text-muted small">Total Sensors</div>
+                        <div class="small text-success"><span id="sensors-online">--</span> Online</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="p-3 border rounded d-flex align-items-center">
+                    <div class="icon-box bg-light text-success me-3 p-3 rounded-circle" style="width: 60px; height: 60px; display: flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-plug fa-lg"></i>
+                    </div>
+                    <div>
+                        <div class="h4 mb-0" id="actuators-total">--</div>
+                        <div class="text-muted small">Total Actuators</div>
+                        <div class="small text-primary"><span id="actuators-active">--</span> Active</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endcall %}
+
+    <!-- Alert Timeline Section -->
+    {% call ui.content_card(
+        title="System Event Timeline", 
+        icon="fas fa-bell", 
+        class="mb-4",
+        header_extra='
+            <div class="d-flex gap-2">
+                <button class="btn btn-outline-secondary btn-sm" id="refresh-alerts-btn" title="Refresh alerts">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+                <button class="btn btn-outline-danger btn-sm" id="clear-alerts-btn" title="Clear all alerts">
+                    <i class="fas fa-trash-alt"></i> Clear All
+                </button>
+            </div>
+        '
+    ) %}
+        <div id="alert-timeline-container" class="alert-timeline">
+            <div class="text-center py-5">
+                <i class="fas fa-spinner fa-spin fa-2x text-primary mb-3"></i>
+                <p class="text-muted">Loading event timeline...</p>
+            </div>
+        </div>
+    {% endcall %}
+
+    <!-- Page Footer -->
+    <div class="mt-5 pt-3 border-top d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
+        <div class="text-muted small">
+            <i class="fas fa-clock me-1"></i>
+            Last updated: <span id="last-updated" class="fw-bold">--</span>
+        </div>
+        <div class="d-flex align-items-center">
+            <span class="badge bg-light text-success border me-2" id="refresh-status">
+                <i class="fas fa-check-circle me-1"></i> Auto-refresh enabled
+            </span>
+        </div>
+    </div>
+</div>
+
+<!-- Load API -->
+<script src="{{ url_for('static', filename='js/api.js') }}?v=20251214c"></script>
+<script src="{{ url_for('static', filename='js/components/alert-timeline.js') }}"></script>
+
+<script type="module">
+    import { SystemHealthDashboard } from "{{ url_for('static', filename='js/system_health.js') }}?v=20251216010000";
+    
+    // Initialize
+    SystemHealthDashboard.init();
+    
+    // Initialize Alert Timeline
+    initAlertTimeline();
+    
+    function initAlertTimeline() {
+        const container = document.getElementById('alert-timeline-container');
+        if (!container) return;
+
+        const alertTimeline = new window.AlertTimeline('alert-timeline-container', {
+            maxVisible: 20,
+            showActions: true,
+            onDismiss: handleAlertDismiss,
+            onAction: handleAlertAction
+        });
+
+        // Load initial alerts
+        loadAndRenderAlerts();
+
+        // Auto-refresh alerts
+        setInterval(() => loadAndRenderAlerts(), 60000);
+
+        // Bind toolbar events
+        document.getElementById('refresh-alerts-btn')?.addEventListener('click', () => loadAndRenderAlerts());
+        document.getElementById('clear-alerts-btn')?.addEventListener('click', () => {
+            if (confirm('Are you sure you want to clear all alerts? This action cannot be undone.')) {
+                clearAllAlerts();
+            }
+        });
+
+        async function loadAndRenderAlerts() {
+            try {
+                const params = new URLSearchParams({ limit: '100' });
+                const response = await fetch(`/api/system/alerts?${params}`);
+                if (!response.ok) throw new Error('Failed to fetch alerts');
+
+                const data = await response.json();
+                const alerts = data?.data?.alerts || [];
+
+                // Transform alerts to match AlertTimeline format
+                const transformedAlerts = alerts.map(alert => ({
+                    id: alert.alert_id,
+                    severity: alert.severity || 'info',
+                    type: alert.alert_type || 'system',
+                    message: alert.title || alert.message || 'Alert',
+                    description: alert.message,
+                    timestamp: alert.timestamp,
+                    source: alert.source_type || 'system',
+                    source_name: alert.source_name,
+                    resolved: alert.resolved || false
+                }));
+
+                // Filter out resolved alerts
+                const activeAlerts = transformedAlerts.filter(a => !a.resolved);
+
+                alertTimeline.update(activeAlerts);
+            } catch (error) {
+                console.error('[SystemHealth] Failed to load alerts:', error);
+            }
+        }
+
+        async function handleAlertDismiss(alertId) {
+            try {
+                const response = await fetch(`/api/system/alerts/${alertId}/resolve`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                    }
+                });
+
+                if (response.ok) {
+                    console.log(`[SystemHealth] Alert ${alertId} resolved`);
+                    loadAndRenderAlerts();
+                } else {
+                    throw new Error('Failed to resolve alert');
+                }
+            } catch (error) {
+                console.error('[SystemHealth] Failed to resolve alert:', error);
+                alert('Failed to resolve alert. Please try again.');
+            }
+        }
+
+        async function handleAlertAction(alertId, action) {
+            console.log(`[SystemHealth] Alert action: ${action} for alert ${alertId}`);
+
+            switch (action) {
+                case 'view':
+                case 'details':
+                    console.log(`View details for alert ${alertId}`);
+                    break;
+                case 'calibrate':
+                    window.location.href = '/devices';
+                    break;
+                case 'restart':
+                    window.location.href = '/devices';
+                    break;
+                default:
+                    console.log(`Unknown action: ${action}`);
+            }
+        }
+
+        async function clearAllAlerts() {
+            try {
+                const response = await fetch('/api/system/alerts/clear-all', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                    }
+                });
+
+                if (response.ok) {
+                    console.log('[SystemHealth] All alerts cleared');
+                    alertTimeline.clear();
+                    setTimeout(() => loadAndRenderAlerts(), 500);
+                } else {
+                    throw new Error('Failed to clear alerts');
+                }
+            } catch (error) {
+                console.error('[SystemHealth] Failed to clear all alerts:', error);
+                alert('Failed to clear alerts. Please try again.');
+            }
+        }
+    }
+</script>
+
+{% endblock %}

@@ -1,0 +1,137 @@
+{
+  "enhanced_tomato_example": {
+    "id": 2,
+    "species": "Solanum lycopersicum",
+    "common_name": "Tomatoes",
+    "variety": "Cherry Tomato",
+    "pH_range": "6.2-6.8",
+    "water_requirements": "Regular watering, avoid waterlogging",
+    
+    "sensor_requirements": {
+      "soil_moisture_range": {"min": 65, "max": 80},
+      "soil_temperature_C": {"min": 18, "max": 24},
+      "air_quality_sensitivity": "medium",
+      "co2_requirements": {"min": 600, "max": 1200},
+      "light_spectrum": {
+        "blue_percent": 20,
+        "red_percent": 50,
+        "green_percent": 20,
+        "far_red_percent": 10
+      },
+      "vpd_range": {"min": 0.8, "max": 1.2}
+    },
+
+    "yield_data": {
+      "expected_yield_per_plant": {"min": 500, "max": 2000, "unit": "grams"},
+      "harvest_frequency": "continuous",
+      "harvest_period_weeks": 8,
+      "market_value_per_kg": 12.00,
+      "storage_life_days": 14,
+      "difficulty_level": "intermediate",
+      "space_requirement_cm": {"width": 40, "depth": 40, "height": 150}
+    },
+
+    "nutritional_info": {
+      "calories_per_100g": 18,
+      "protein_g": 0.9,
+      "vitamin_c_mg": 14,
+      "lycopene_mg": 2.57,
+      "key_nutrients": ["Lycopene", "Vitamin C", "Potassium", "Folate"],
+      "health_benefits": ["Heart health", "Cancer protection", "Skin health"]
+    },
+
+    "automation": {
+      "watering_schedule": {
+        "frequency_hours": 24,
+        "amount_ml_per_plant": 200,
+        "soil_moisture_trigger": 70,
+        "early_morning_boost": true
+      },
+      "lighting_schedule": {
+        "seedling": {"hours": 14, "intensity": 60},
+        "vegetative": {"hours": 16, "intensity": 80},
+        "flowering": {"hours": 16, "intensity": 100},
+        "fruiting": {"hours": 14, "intensity": 85}
+      },
+      "alert_thresholds": {
+        "temperature_min": 18,
+        "temperature_max": 32,
+        "humidity_min": 35,
+        "humidity_max": 70,
+        "soil_moisture_critical": 50
+      },
+      "environmental_controls": {
+        "ventilation_trigger_temp": 28,
+        "heating_trigger_temp": 16,
+        "dehumidify_trigger": 75
+      }
+    },
+
+    "growth_stages": [
+      {
+        "stage": "Germination",
+        "duration": {"min_days": 5, "max_days": 10},
+        "conditions": {
+          "temperature_C": {"min": 22, "max": 28},
+          "humidity_percent": {"min": 40, "max": 60},
+          "hours_per_day": 16
+        },
+        "sensor_targets": {
+          "soil_moisture": 80,
+          "soil_temp": 25,
+          "vpd": 0.6
+        },
+        "care_instructions": [
+          "Keep soil consistently moist but not waterlogged",
+          "Maintain warm temperature for faster germination",
+          "Cover seeds lightly with growing medium"
+        ]
+      }
+    ],
+
+    "common_issues": [
+      {
+        "problem": "Blossom End Rot",
+        "symptoms": ["Dark, sunken spots on fruit bottom"],
+        "causes": ["Calcium deficiency", "Inconsistent watering"],
+        "solutions": ["Ensure consistent watering", "Add calcium supplement"],
+        "prevention": "Maintain steady soil moisture levels",
+        "sensor_indicators": {
+          "soil_moisture_fluctuation": "> 20%",
+          "ec_levels": "< 1.2"
+        }
+      },
+      {
+        "problem": "Yellowing Lower Leaves",
+        "symptoms": ["Yellow leaves starting from bottom"],
+        "causes": ["Natural aging", "Nitrogen deficiency", "Overwatering"],
+        "solutions": ["Remove affected leaves", "Check fertilization schedule"],
+        "prevention": "Balanced fertilization program"
+      }
+    ],
+
+    "companion_plants": {
+      "beneficial": ["Basil", "Marigold", "Parsley"],
+      "avoid": ["Fennel", "Walnut trees"],
+      "reasoning": "Basil improves flavor and repels pests"
+    },
+
+    "harvest_guide": {
+      "indicators": [
+        "Firm fruit with full color",
+        "Slight give when gently squeezed",
+        "Easy separation from vine"
+      ],
+      "storage_tips": [
+        "Store at room temperature until fully ripe",
+        "Refrigerate only when fully ripe",
+        "Keep stem end up to prevent bruising"
+      ],
+      "processing_options": ["Fresh eating", "Sauces", "Canning", "Dehydrating"]
+    },
+
+    "tips": "Support plants with stakes or cages. Ensure good airflow to prevent fungal diseases. Prune suckers for better fruit development.",
+    "disease_prevention": "Rotate crops yearly to prevent soil diseases. Avoid wetting leaves to reduce blight risk. Ensure good air circulation.",
+    "fertilizer_recommendations": "High phosphorus (5-10-10) for root and fruit development. Apply calcium to prevent blossom end rot. Weekly liquid feeding during fruiting."
+  }
+}

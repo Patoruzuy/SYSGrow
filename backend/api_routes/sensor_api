@@ -1,0 +1,51 @@
+# Flask route for API endpoint to provide historical sensor readings
+from flask import Blueprint, request, jsonify
+from datetime import datetime, timedelta
+
+sensor_api = Blueprint("sensor_api", __name__)
+
+# This should be set or passed in from your main app
+database_handler = None  # Replace with your actual DatabaseHandler instance
+
+@sensor_api.route("/api/sensor_history", methods=["GET"])
+def get_sensor_history():
+    """
+    Returns time-series data for sensor readings.
+    Supports optional filtering by start_date and end_date.
+    """
+    if database_handler is None:
+        return jsonify({"error": "Database handler not available"}), 503
+
+    try:
+        # Optional date range filter (defaults to last 24h)
+        end = datetime.now()
+        start = end - timedelta(hours=24)
+
+        if request.args.get("start_date"):
+            start = datetime.fromisoformat(request.args.get("start_date"))
+        if request.args.get("end_date"):
+            end = datetime.fromisoformat(request.args.get("end_date"))
+
+        data = database_handler.get_sensor_data(start, end)  # You must implement this
+
+        # Organize readings by type
+        timestamps = []
+        readings = {
+            "temperature": [],
+            "humidity": [],
+            "co2": [],
+            "voc": [],
+            "soil_moisture": [],
+            "lux": []
+        }
+
+        for row in data:
+            ts = row["timestamp"]
+            if ts not in timestamps:
+                timestamps.append(ts)
+            for key in readings:
+                readings[key].append(row.get(key, None))
+
+        return jsonify({"timestamps": timestamps, "readings": readings})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500

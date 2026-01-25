@@ -56,11 +56,30 @@ def format_row(key: str, origin: str, value: str) -> str:
     return f"{key:40} {origin:12} {v}"
 
 
+def _coerce_type(name: str, value: str, hint: str) -> Tuple[bool, str]:
+    """Attempt to coerce `value` to hint type. Return (ok, normalized_str)."""
+    try:
+        if hint == "int":
+            int(value)
+            return True, str(int(value))
+        if hint == "bool":
+            if value.lower() in {"1", "true", "t", "yes", "on"}:
+                return True, "True"
+            if value.lower() in {"0", "false", "f", "no", "off"}:
+                return True, "False"
+            return False, value
+        # default: string
+        return True, value
+    except Exception:
+        return False, value
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Inspect and merge env files for SYSGrow")
     ap.add_argument("--write", action="store_true", help="Write merged output to target file")
     ap.add_argument("--target", default=".env", help="Target path to write merged file (default: .env)")
     ap.add_argument("--show-all", action="store_true", help="Show all variables including those only in examples")
+    ap.add_argument("--validate", action="store_true", help="Validate required keys and basic types")
     args = ap.parse_args()
 
     root = Path(__file__).resolve().parent.parent
@@ -90,6 +109,33 @@ def main() -> int:
         else:
             # key not present anywhere (shouldn't happen because we built keys from sources)
             print(format_row(k, "(missing)", ""))
+
+    # Validation: simple schema checks
+    if args.validate:
+        schema = {
+            "SYSGROW_SECRET_KEY": "str",
+            "SYSGROW_DATABASE_PATH": "str",
+            "SYSGROW_ENABLE_MQTT": "bool",
+            "SYSGROW_MQTT_PORT": "int",
+            "SYSGROW_PORT": "int",
+            "SYSGROW_HOST": "str",
+        }
+        print("\nValidation:\n")
+        errors = []
+        for key, hint in schema.items():
+            if key not in merged:
+                errors.append(f"Missing required variable: {key}")
+                continue
+            origin, val = merged[key]
+            ok, norm = _coerce_type(key, val, "int" if hint == "int" else ("bool" if hint == "bool" else "str"))
+            if not ok:
+                errors.append(f"Invalid type for {key}: expected {hint}, got '{val}' (from {origin})")
+        if errors:
+            for e in errors:
+                print("- ", e)
+            print("\nValidation failed. Fix the variables above or run without --validate to inspect.")
+        else:
+            print("All required variables present with expected basic types.")
 
     if args.write:
         target = Path(args.target)

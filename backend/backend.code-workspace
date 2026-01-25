@@ -1,16 +1,7 @@
 {
-	"folders": [
-		{
-			"path": "."
-		},
-		{
-			"path": "../ESP32-C6-Firmware"
-		},
-		{
-			"path": "../mobile-app"
-		}
-	],
-	"settings": {
-		"powershell.cwd": "backend"
-	}
+    "folders": [
+        {
+            "path": "."
+        }
+    ]
 }

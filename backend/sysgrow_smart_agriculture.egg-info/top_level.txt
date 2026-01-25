@@ -1,2 +1,13 @@
 app
+database
+docs
 infrastructure
+integrations
+logs
+migrations
+models
+releases
+scripts
+static
+templates
+tests

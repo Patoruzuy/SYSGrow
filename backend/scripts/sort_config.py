@@ -20,6 +20,9 @@ import argparse
 import os
 from pathlib import Path
 from typing import Dict, Tuple
+import dataclasses
+import importlib
+import re
 
 
 def parse_env_file(path: Path) -> Dict[str, str]:
@@ -110,18 +113,89 @@ def main() -> int:
             # key not present anywhere (shouldn't happen because we built keys from sources)
             print(format_row(k, "(missing)", ""))
 
-    # Validation: simple schema checks
+    # Validation: derive schema from app/config.py when possible
     if args.validate:
-        schema = {
-            "SYSGROW_SECRET_KEY": "str",
-            "SYSGROW_DATABASE_PATH": "str",
-            "SYSGROW_ENABLE_MQTT": "bool",
-            "SYSGROW_MQTT_PORT": "int",
-            "SYSGROW_PORT": "int",
-            "SYSGROW_HOST": "str",
-        }
         print("\nValidation:\n")
         errors = []
+
+        def build_schema_from_appconfig() -> Dict[str, str]:
+            """Try to import AppConfig and parse app/config.py source to map env var names to basic types."""
+            schema: Dict[str, str] = {}
+            # Attempt to import the module and dataclass
+            try:
+                mod = importlib.import_module("app.config")
+                AppConfig = getattr(mod, "AppConfig", None)
+            except Exception:
+                AppConfig = None
+
+            src_text = ""
+            try:
+                src_path = Path(mod.__file__) if AppConfig is not None else None
+                if src_path and src_path.exists():
+                    src_text = src_path.read_text(encoding="utf-8")
+            except Exception:
+                src_text = ""
+
+            if AppConfig is not None:
+                for f in dataclasses.fields(AppConfig):
+                    name = f.name
+                    # search for explicit os.getenv/_env_bool/_env_int references for this field
+                    hint = "str"
+                    t = getattr(f.type, "__name__", str(f.type))
+                    if "int" in t.lower():
+                        hint = "int"
+                    elif "bool" in t.lower():
+                        hint = "bool"
+                    elif "float" in t.lower():
+                        hint = "float"
+
+                    env_names = []
+                    if src_text:
+                        # look for patterns like '<name>: .* = field(default_factory=lambda: os.getenv("VAR"'
+                        pat1 = re.compile(rf"{re.escape(name)}\s*:.*=\s*field\(default_factory=lambda:.*os\.getenv\(\s*\"([A-Z0-9_]+)\"",
+                                          flags=re.IGNORECASE)
+                        m1 = pat1.search(src_text)
+                        if m1:
+                            env_names.append(m1.group(1))
+                        # look for _env_bool("VAR") or _env_int("VAR") uses
+                        pat2 = re.compile(rf"{re.escape(name)}\s*:.*=\s*field\(default_factory=lambda:.*_env_(?:bool|int|int_multi)\(\s*(\(?[\"\'A-Z0-9_,\s\)]+)",
+                                          flags=re.IGNORECASE)
+                        m2 = pat2.search(src_text)
+                        if m2:
+                            # extract first quoted name if present
+                            found = re.findall(r'"([A-Z0-9_]+)"|\'([A-Z0-9_]+)\'', m2.group(1))
+                            if found:
+                                # found is list of tuples from the alternation; pick non-empty
+                                for a, b in found:
+                                    env_names.append(a or b)
+
+                    # fallback: try an uppercased env name matching common patterns
+                    if not env_names:
+                        candidate = name.upper()
+                        if not candidate.startswith("SYSGROW_"):
+                            candidate = f"SYSGROW_{candidate}"
+                        env_names = [candidate]
+
+                    # register schema entries for discovered env names
+                    for en in env_names:
+                        schema[en] = hint
+
+            # If import failed or no AppConfig, fallback to example files
+            if not schema:
+                # use a small default set as fallback
+                schema = {
+                    "SYSGROW_SECRET_KEY": "str",
+                    "SYSGROW_DATABASE_PATH": "str",
+                    "SYSGROW_ENABLE_MQTT": "bool",
+                    "SYSGROW_MQTT_PORT": "int",
+                    "SYSGROW_PORT": "int",
+                    "SYSGROW_HOST": "str",
+                }
+
+            return schema
+
+        schema = build_schema_from_appconfig()
+
         for key, hint in schema.items():
             if key not in merged:
                 errors.append(f"Missing required variable: {key}")
@@ -130,6 +204,7 @@ def main() -> int:
             ok, norm = _coerce_type(key, val, "int" if hint == "int" else ("bool" if hint == "bool" else "str"))
             if not ok:
                 errors.append(f"Invalid type for {key}: expected {hint}, got '{val}' (from {origin})")
+
         if errors:
             for e in errors:
                 print("- ", e)

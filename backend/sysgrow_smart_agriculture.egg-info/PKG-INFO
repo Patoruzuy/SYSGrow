@@ -49,7 +49,6 @@ Requires-Dist: psutil>=7.1.3
 Requires-Dist: structlog<24.0.0,>=23.1.0
 Requires-Dist: colorlog<7.0.0,>=6.7.0
 Requires-Dist: beautifulsoup4<5.0.0,>=4.12.0
-Requires-Dist: lxml<5.0.0,>=4.9.0
 Requires-Dist: asyncio-mqtt<1.0.0,>=0.16.0
 Requires-Dist: aiohttp<4.0.0,>=3.8.0
 Requires-Dist: aiofiles<24.0.0,>=23.2.0
@@ -62,6 +61,8 @@ Requires-Dist: black>=23.7.0; extra == "dev"
 Requires-Dist: flake8>=6.0.0; extra == "dev"
 Requires-Dist: mypy>=1.5.0; extra == "dev"
 Requires-Dist: isort>=5.12.0; extra == "dev"
+Provides-Extra: parsing
+Requires-Dist: lxml<5.0.0,>=4.9.0; extra == "parsing"
 Provides-Extra: hardware
 Requires-Dist: RPi.GPIO>=0.7.1; extra == "hardware"
 Requires-Dist: gpiozero>=1.6.0; extra == "hardware"

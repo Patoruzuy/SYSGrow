@@ -1,0 +1,1075 @@
+/* AI Insights Styles */
+
+.ai-banner {
+    margin-bottom: 2rem;
+}
+
+.ai-health-banner {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 1.5rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 12px;
+    color: white;
+    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+    transition: background 0.3s ease, box-shadow 0.3s ease;
+}
+
+.ai-health-banner.normal {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    box-shadow: 0 10px 30px rgba(16, 185, 129, 0.3);
+}
+
+.ai-health-banner.warning {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    box-shadow: 0 10px 30px rgba(245, 158, 11, 0.3);
+}
+
+.ai-health-banner.critical {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    box-shadow: 0 10px 30px rgba(239, 68, 68, 0.3);
+}
+
+.ai-banner-icon {
+    font-size: 3rem;
+    opacity: 0.9;
+}
+
+.ai-banner-content {
+    flex: 1;
+}
+
+.ai-banner-title {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    opacity: 0.9;
+}
+
+.ai-score-display {
+    display: flex;
+    align-items: baseline;
+    gap: 0.25rem;
+    margin-bottom: 0.5rem;
+}
+
+.ai-score-value {
+    font-size: 3rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.ai-score-label {
+    font-size: 1.5rem;
+    opacity: 0.7;
+}
+
+.ai-banner-subtitle {
+    margin: 0;
+    opacity: 0.9;
+}
+
+.ai-banner-actions .btn {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.ai-banner-actions .btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* Insights Carousel */
+.insights-carousel {
+    display: flex;
+    gap: 1rem;
+    overflow-x: auto;
+    padding-bottom: 1rem;
+    scroll-snap-type: x mandatory;
+}
+
+.insight-card {
+    flex: 0 0 350px;
+    padding: 1.5rem;
+    background: var(--surface-color);
+    border-radius: 8px;
+    border-left: 4px solid var(--primary-600);
+    scroll-snap-align: start;
+}
+
+.insight-card.critical {
+    border-left-color: var(--danger-600);
+    background: linear-gradient(to right, rgba(239, 68, 68, 0.05), transparent);
+}
+
+.insight-card.warning {
+    border-left-color: var(--warning-600);
+    background: linear-gradient(to right, rgba(245, 158, 11, 0.05), transparent);
+}
+
+.insight-card.info {
+    border-left-color: var(--info-600);
+}
+
+.insight-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.insight-icon {
+    font-size: 1.5rem;
+}
+
+.insight-title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.insight-time {
+    font-size: 0.75rem;
+    opacity: 0.6;
+}
+
+.insight-message {
+    margin-bottom: 1rem;
+    line-height: 1.5;
+}
+
+.insight-actions {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.insight-actions li {
+    padding: 0.5rem 0;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.insight-actions li:first-child {
+    border-top: none;
+}
+
+.insights-loading {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-muted);
+}
+
+/* Predictions Grid */
+.predictions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+
+.prediction-card {
+    background: var(--surface-color);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.prediction-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.prediction-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.prediction-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+.prediction-icon.disease {
+    background: linear-gradient(135deg, #fef3c7, #fbbf24);
+}
+
+.prediction-icon.growth {
+    background: linear-gradient(135deg, #d1fae5, #10b981);
+}
+
+.prediction-icon.harvest {
+    background: linear-gradient(135deg, #fce7f3, #ec4899);
+}
+
+.prediction-icon.optimize {
+    background: linear-gradient(135deg, #dbeafe, #3b82f6);
+}
+
+.prediction-title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.prediction-subtitle {
+    margin: 0.25rem 0 0 0;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+.prediction-body {
+    padding: 1.5rem;
+}
+
+.prediction-value {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.prediction-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--border-color);
+}
+
+/* Risk Meter */
+.risk-meter {
+    height: 8px;
+    background: var(--surface-soft);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 1rem;
+}
+
+.risk-meter-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #10b981, #fbbf24, #ef4444);
+    transition: width 0.5s ease;
+}
+
+.risk-level {
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.risk-score {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+.prediction-details {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+}
+
+/* Stage Progress */
+.stage-progress {
+    margin-bottom: 1rem;
+}
+
+.stage-timeline {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.stage-marker {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    color: white;
+}
+
+.stage-marker.completed {
+    background: var(--success-600);
+}
+
+.stage-marker.current {
+    background: var(--primary-600);
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
+}
+
+.stage-marker.upcoming {
+    background: var(--surface-soft);
+    color: var(--text-muted);
+}
+
+.stage-line {
+    flex: 1;
+    height: 2px;
+    background: var(--border-color);
+}
+
+.stage-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+}
+
+.stage-label.completed {
+    color: var(--success-600);
+}
+
+.stage-label.current {
+    color: var(--primary-600);
+    font-weight: 600;
+}
+
+.stage-label.upcoming {
+    color: var(--text-muted);
+}
+
+.days-remaining {
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.next-stage {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+/* Harvest Countdown */
+.harvest-countdown {
+    text-align: center;
+    padding: 1rem 0;
+}
+
+.countdown-value {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.countdown-number {
+    font-size: 3rem;
+    font-weight: 700;
+    line-height: 1;
+    background: linear-gradient(135deg, #ec4899, #f59e0b);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.countdown-label {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+.harvest-date {
+    font-weight: 600;
+}
+
+.confidence-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+/* Optimization Ring */
+.optimization-score {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    margin: 0 auto 1rem;
+}
+
+.optimization-ring {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+}
+
+.ring-background {
+    fill: none;
+    stroke: var(--surface-soft);
+    stroke-width: 8;
+}
+
+.ring-progress {
+    fill: none;
+    stroke: url(#optimizationGradient);
+    stroke-width: 8;
+    stroke-linecap: round;
+    stroke-dasharray: 283;
+    stroke-dashoffset: 283;
+    transition: stroke-dashoffset 1s ease;
+}
+
+.ring-value {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 2rem;
+    font-weight: 700;
+}
+
+.optimization-status {
+    text-align: center;
+    font-weight: 600;
+}
+
+.quick-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.quick-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem;
+    background: var(--surface-soft);
+    border-radius: 6px;
+    font-size: 0.875rem;
+    text-decoration: none;
+    color: inherit;
+    transition: background 0.2s;
+}
+
+.quick-action-btn:hover {
+    background: var(--surface-hover);
+}
+
+/* Recommendations */
+.recommendations-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+}
+
+.recommendation-card {
+    padding: 1.5rem;
+    background: var(--surface-color);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    display: flex;
+    gap: 1rem;
+}
+
+.recommendation-card.success {
+    border-left: 4px solid var(--success-600);
+    background: linear-gradient(to right, rgba(16, 185, 129, 0.05), transparent);
+}
+
+.recommendation-card.warning {
+    border-left: 4px solid var(--warning-600);
+    background: linear-gradient(to right, rgba(245, 158, 11, 0.05), transparent);
+}
+
+.recommendation-card.info {
+    border-left: 4px solid var(--info-600);
+    background: linear-gradient(to right, rgba(59, 130, 246, 0.05), transparent);
+}
+
+.recommendation-icon {
+    font-size: 2rem;
+}
+
+.recommendation-content {
+    flex: 1;
+}
+
+.recommendation-content h4 {
+    margin: 0 0 1rem 0;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.recommendation-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.recommendation-list li {
+    padding: 0.5rem 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+}
+
+.recommendation-list li:before {
+    content: "•";
+    color: currentColor;
+    font-weight: bold;
+}
+
+.learning-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.learning-stat {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.learning-stat-label {
+    font-size: 0.875rem;
+}
+
+.learning-stat-value {
+    font-weight: 600;
+}
+
+/* Forecast Timeline */
+.forecast-timeline {
+    display: flex;
+    gap: 1rem;
+    overflow-x: auto;
+    padding-bottom: 1rem;
+}
+
+.forecast-day {
+    flex: 0 0 140px;
+    padding: 1.5rem;
+    background: var(--surface-color);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    text-align: center;
+}
+
+.forecast-day-header {
+    margin-bottom: 1rem;
+}
+
+.forecast-day-name {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.forecast-day-date {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+.forecast-conditions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.forecast-metric {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.875rem;
+}
+
+.forecast-metric-value {
+    font-weight: 600;
+}
+
+.forecast-alert {
+    margin-top: 1rem;
+    padding: 0.5rem;
+    background: var(--warning-50);
+    border-radius: 6px;
+    font-size: 0.75rem;
+    color: var(--warning-700);
+}
+
+.forecast-loading {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-muted);
+}
+
+/* Similar Growers */
+.similar-growers-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1.5rem;
+}
+
+.similar-grower-card {
+    padding: 1.5rem;
+    background: var(--surface-color);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+}
+
+.similarity-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.75rem;
+    background: var(--success-50);
+    color: var(--success-700);
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.grower-info {
+    margin-bottom: 1rem;
+}
+
+.grower-plant {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.grower-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.grower-stat {
+    display: flex;
+    justify-content: space-between;
+}
+
+.key-tips {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.key-tips h5 {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.key-tips ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    font-size: 0.875rem;
+}
+
+.key-tips li {
+    padding: 0.25rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.key-tips li:before {
+    content: "✓";
+    color: var(--success-600);
+    font-weight: bold;
+}
+
+/* Dashboard AI Grid Layout */
+.dashboard-ai-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.dashboard-ai-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 1.5rem;
+}
+
+/* AI Prediction Card */
+.ai-prediction-card .card-body {
+    padding: 1.5rem;
+}
+
+/* Risk Meter */
+.risk-meter {
+    height: 8px;
+    background: var(--surface-muted, #e5e7eb);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 1rem;
+}
+
+.risk-meter-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--success-500) 0%, var(--warning-500) 50%, var(--danger-500) 100%);
+    border-radius: 4px;
+    transition: width 0.5s ease;
+}
+
+.risk-stats {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.risk-level {
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.risk-level.low { background: var(--success-100); color: var(--success-700); }
+.risk-level.medium { background: var(--warning-100); color: var(--warning-700); }
+.risk-level.high { background: var(--danger-100); color: var(--danger-700); }
+
+.risk-score {
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+
+.risk-details {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+/* Growth Stage Display */
+.growth-stage-display {
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+.current-stage {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--primary-600);
+    margin-bottom: 0.5rem;
+}
+
+.stage-progress {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+.stage-timeline {
+    padding-top: 1rem;
+}
+
+.stage-timeline-track {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    padding: 0 1rem;
+}
+
+.stage-timeline-track::before {
+    content: '';
+    position: absolute;
+    left: 1rem;
+    right: 1rem;
+    top: 50%;
+    height: 2px;
+    background: var(--border-color);
+    z-index: 0;
+}
+
+.stage-marker {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--surface-muted, #e5e7eb);
+    border: 2px solid var(--border-color);
+    z-index: 1;
+}
+
+.stage-marker.active {
+    background: var(--primary-600);
+    border-color: var(--primary-600);
+    width: 16px;
+    height: 16px;
+}
+
+.stage-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+/* Harvest Countdown */
+.harvest-countdown {
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+.countdown-number {
+    font-size: 3rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--primary-600);
+}
+
+.countdown-label {
+    display: block;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    margin-top: 0.25rem;
+}
+
+.harvest-details {
+    text-align: center;
+    font-size: 0.875rem;
+}
+
+.harvest-date {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.harvest-confidence {
+    color: var(--text-muted);
+}
+
+/* Optimization Ring */
+.optimization-ring {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    margin: 0 auto 1rem;
+}
+
+.optimization-ring-svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+}
+
+.ring-bg {
+    fill: none;
+    stroke: var(--surface-muted, #e5e7eb);
+    stroke-width: 8;
+}
+
+.ring-progress {
+    fill: none;
+    stroke: var(--primary-600);
+    stroke-width: 8;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.5s ease;
+}
+
+.optimization-value {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+}
+
+.optimization-score-value {
+    font-size: 2rem;
+    font-weight: 700;
+}
+
+.optimization-label {
+    font-size: 1rem;
+    color: var(--text-muted);
+}
+
+.optimization-status {
+    text-align: center;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+}
+
+.optimization-quick-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.quick-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    background: var(--surface-muted, #f3f4f6);
+    border-radius: 8px;
+    text-decoration: none;
+    color: inherit;
+    font-size: 0.875rem;
+    transition: background 0.2s;
+}
+
+.quick-action-btn:hover {
+    background: var(--primary-100);
+}
+
+/* Recommendations Grid */
+.recommendations-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.recommendation-section h4 {
+    margin: 0 0 1rem 0;
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.success-list, .attention-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    font-size: 0.875rem;
+}
+
+.success-list li, .attention-list li {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.success-list li:last-child, .attention-list li:last-child {
+    border-bottom: none;
+}
+
+.learning-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.learning-stat {
+    text-align: center;
+}
+
+.learning-stat-label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-bottom: 0.25rem;
+}
+
+.learning-stat-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+
+/* Forecast Timeline */
+.forecast-timeline {
+    display: flex;
+    gap: 1rem;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+}
+
+.forecast-day {
+    flex: 0 0 140px;
+    padding: 1rem;
+    background: var(--surface-muted, #f9fafb);
+    border-radius: 8px;
+    text-align: center;
+}
+
+.forecast-day-header {
+    margin-bottom: 0.75rem;
+}
+
+.forecast-day-name {
+    font-weight: 600;
+}
+
+.forecast-day-date {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.forecast-conditions {
+    font-size: 0.875rem;
+}
+
+.forecast-metric {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.25rem 0;
+}
+
+.forecast-metric-value {
+    font-weight: 600;
+}
+
+.forecast-alert {
+    margin-top: 0.75rem;
+    padding: 0.5rem;
+    background: var(--warning-100);
+    color: var(--warning-700);
+    border-radius: 4px;
+    font-size: 0.75rem;
+}
+
+.forecast-loading {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-muted);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .ai-health-banner {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .predictions-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .recommendations-container {
+        grid-template-columns: 1fr;
+    }
+    
+    .forecast-timeline {
+        flex-wrap: nowrap;
+    }
+
+    .dashboard-ai-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .dashboard-ai-detail-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .recommendations-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .learning-stats-grid {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+}

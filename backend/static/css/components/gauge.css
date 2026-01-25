@@ -1,0 +1,139 @@
+/**
+ * Gauge Component Styles
+ * ============================================================================
+ * Styles for VPD gauge and other gauge-type displays
+ */
+
+/* VPD Gauge Container */
+.vpd-gauge-container {
+  position: relative;
+  width: 120px;
+  height: 80px;
+  margin: 0 auto;
+}
+
+.vpd-gauge-container canvas {
+  width: 100%;
+  height: 100%;
+}
+
+/* VPD Value Display */
+.vpd-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-align: center;
+  margin-top: 0.25rem;
+}
+
+/* VPD Zone Badge */
+.vpd-zone {
+  font-size: 0.7rem;
+  font-weight: 500;
+  text-align: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--radius-full);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  display: inline-block;
+  margin-top: 0.25rem;
+}
+
+.vpd-zone.optimal {
+  background: var(--status-success-bg, rgba(34, 197, 94, 0.1));
+  color: var(--status-success, #22c55e);
+}
+
+.vpd-zone.low {
+  background: var(--info-300, rgba(59, 130, 246, 0.1));
+  color: var(--status-info, #3b82f6);
+}
+
+.vpd-zone.high {
+  background: var(--status-warning-bg, rgba(245, 158, 11, 0.1));
+  color: var(--status-warning, #f59e0b);
+}
+
+.vpd-zone.unknown,
+.vpd-zone.error {
+  background: var(--bg-tertiary);
+  color: var(--text-tertiary);
+}
+
+/* Generic Gauge Styles */
+.gauge-container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.gauge-value {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.gauge-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 0.5rem;
+}
+
+/* Gauge Zones Legend */
+.gauge-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  justify-content: center;
+}
+
+.gauge-legend__item {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.625rem;
+  color: var(--text-tertiary);
+}
+
+.gauge-legend__color {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+/* Small Gauge Variant */
+.gauge-container--sm .vpd-gauge-container {
+  width: 80px;
+  height: 50px;
+}
+
+.gauge-container--sm .vpd-value {
+  font-size: 1rem;
+}
+
+.gauge-container--sm .vpd-zone {
+  font-size: 0.625rem;
+  padding: 0.125rem 0.5rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .vpd-gauge-container {
+    width: 100px;
+    height: 65px;
+  }
+
+  .vpd-value {
+    font-size: 1.25rem;
+  }
+
+  .vpd-zone {
+    font-size: 0.625rem;
+  }
+}

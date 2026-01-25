@@ -1,5 +1,11 @@
+<<<<<<< HEAD
 import unittest
 from utils.event_bus import EventBus
+=======
+import time
+import unittest
+from app.utils.event_bus import EventBus
+>>>>>>> update
 
 class TestEventBus(unittest.TestCase):
     """Unit tests for the EventBus module."""
@@ -19,7 +25,10 @@ class TestEventBus(unittest.TestCase):
         self.event_bus.publish("test_event", {"key": "value"})
 
         # Wait for event processing
+<<<<<<< HEAD
         import time
+=======
+>>>>>>> update
         time.sleep(0.1)
 
         self.assertEqual(self.received_data, {"key": "value"})

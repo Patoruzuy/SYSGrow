@@ -1,0 +1,303 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui %}
+
+{% block title %}ML Dashboard - SYSGrow{% endblock %}
+
+{% block body_class %}ml-dashboard-page{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/ml_dashboard.css') }}">
+<style>
+    /* Design system overrides for ML Dashboard */
+    .health-dot, .ws-status-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: inline-block;
+    }
+    .health-dot.healthy { background-color: var(--bs-success); box-shadow: 0 0 5px var(--bs-success); }
+    .ws-status-dot.connected { background-color: var(--bs-primary); box-shadow: 0 0 5px var(--bs-primary); }
+    
+    .metric-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid var(--bs-gray-100);
+    }
+    .metric-row:last-child { border-bottom: none; }
+    .metric-label { font-weight: 500; color: var(--bs-gray-600); }
+    .metric-value { font-weight: 700; color: var(--bs-dark); }
+    
+    .chart-container-ml {
+        position: relative;
+        height: 350px;
+        width: 100%;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="ml-dashboard-page" aria-labelledby="ml-dashboard-heading">
+    
+    {# Using standardized page header #}
+    {{ ui.page_header(
+      title="ML Infrastructure Dashboard",
+      icon="fas fa-robot",
+      subtitle="Monitor and manage machine learning models, drift detection, and retraining jobs.",
+      actions='
+        <div class="d-flex align-items-center gap-4">
+          <div class="d-flex align-items-center gap-2">
+            <div class="health-dot healthy" id="health-indicator"></div>
+            <span id="health-status" class="small text-muted fw-medium">Checking...</span>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <div class="ws-status-dot connected" id="websocket-status"></div>
+            <span class="small text-muted fw-medium">Real-time</span>
+          </div>
+        </div>
+      '
+    ) }}
+
+    <!-- Alert Container -->
+    <div id="alert-container" class="mb-4"></div>
+
+    <!-- Training Progress Card -->
+    <div class="mb-4" id="training-progress-card" style="display:none;" role="status" aria-live="polite">
+        {% call ui.content_card(title="Training in Progress", icon="fas fa-graduation-cap", variant="info") %}
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h5 class="mb-1" id="training-model-name">Model Name</h5>
+                    <span class="badge bg-info-subtle text-info border border-info" id="training-stage">Preparing...</span>
+                </div>
+                {{ ui.ui_button("Cancel Training", id="btn-cancel-training", icon="fas fa-times", variant="outline-danger", size="sm") }}
+            </div>
+            
+            <div class="progress mb-3" style="height: 1.5rem;">
+                <div class="progress-bar progress-bar-striped progress-bar-animated bg-info" 
+                     id="training-progress-bar" 
+                     role="progressbar"
+                     style="width: 0%">0%</div>
+            </div>
+            
+            <div class="d-flex justify-content-between align-items-end">
+                <p class="mb-0 text-muted small" id="training-status">Initializing training environment...</p>
+                <div class="text-end">
+                    <div class="text-muted small">
+                        <span id="training-elapsed" class="me-2">Elapsed: 0s</span>
+                        <span id="training-eta" class="fw-bold text-dark">ETA: --</span>
+                    </div>
+                </div>
+            </div>
+        {% endcall %}
+    </div>
+
+    <!-- Main Dashboard Grid -->
+    <div class="row g-4 mb-4">
+        <!-- Models Overview Card -->
+        <div class="col-lg-6">
+            {% call ui.content_card(
+                title="Models Overview", 
+                icon="fas fa-chart-pie",
+                header_extra='<span class="badge bg-primary rounded-pill" id="models-count">0 Models</span>'
+            ) %}
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="btn-group btn-group-sm" role="group" id="filter-models-group">
+                        <button type="button" class="btn btn-outline-secondary active" data-filter="all">All</button>
+                        <button type="button" class="btn btn-outline-secondary" data-filter="disease">Disease</button>
+                        <button type="button" class="btn btn-outline-secondary" data-filter="climate">Climate</button>
+                        <button type="button" class="btn btn-outline-secondary" data-filter="yield">Yield</button>
+                    </div>
+                </div>
+                
+                <div id="models-list-container" class="min-vh-25 overflow-auto mb-4" style="max-height: 400px;">
+                    <div class="text-center py-5 text-muted">
+                        <i class="fas fa-box-open fa-3x mb-3 opacity-25"></i>
+                        <p>No models registered yet</p>
+                    </div>
+                </div>
+                
+                <div class="d-flex flex-wrap gap-2 pt-3 border-top">
+                    {{ ui.ui_button("Train New Model", id="btn-train-new-model", icon="fas fa-crosshairs", variant="primary", size="sm") }}
+                    {{ ui.ui_button("Compare Models", id="btn-compare-models", icon="fas fa-chart-column", variant="outline-secondary", size="sm") }}
+                    {{ ui.ui_button("Refresh", id="btn-refresh-models", icon="fas fa-sync-alt", variant="outline-secondary", size="sm") }}
+                </div>
+            {% endcall %}
+        </div>
+
+        <!-- Drift Monitoring Card -->
+        <div class="col-lg-6">
+            {% call ui.content_card(
+                title="Drift Monitoring", 
+                icon="fas fa-chart-line",
+                header_extra='<span class="badge bg-success" id="drift-status">Healthy</span>'
+            ) %}
+                <div id="drift-metrics-container" class="mb-4">
+                    <div class="metric-row">
+                        <span class="metric-label">Prediction Accuracy</span>
+                        <span class="metric-value" id="drift-accuracy">--</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Mean Confidence</span>
+                        <div class="text-end">
+                            <span class="badge bg-success-subtle text-success border border-success px-2 py-1" id="drift-confidence">--</span>
+                            <div class="text-muted smallest mt-1" id="confidence-threshold">(threshold: 70%)</div>
+                        </div>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Error Rate</span>
+                        <span class="metric-value text-danger" id="drift-error-rate">--</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Data Quality</span>
+                        <div class="text-end">
+                            <span class="badge bg-primary-subtle text-primary border border-primary px-2 py-1" id="data-quality">--</span>
+                            <div class="text-muted smallest mt-1" id="training-samples">(-- samples)</div>
+                        </div>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">System Recommendation</span>
+                        <span class="metric-value text-primary fs-7" id="drift-recommendation">--</span>
+                    </div>
+                    
+                    <!-- Drift Alert -->
+                    <div class="alert alert-warning mt-3 mb-0 d-none" id="drift-alert" role="alert">
+                        <div class="d-flex align-items-start gap-3">
+                            <i class="fas fa-exclamation-triangle mt-1"></i>
+                            <div>
+                                <h6 class="alert-heading fw-bold mb-1">Drift Detected!</h6>
+                                <p class="small mb-2" id="drift-alert-message">Model accuracy dropped below threshold.</p>
+                                {{ ui.ui_button("Trigger Retraining", id="btn-trigger-retraining", icon="fas fa-sync-alt", variant="warning", size="sm") }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="pt-3 border-top">
+                    {{ ui.ui_button("View Accuracy History", id="btn-view-drift-history", icon="fas fa-history", variant="outline-primary", size="sm", class="w-100") }}
+                </div>
+            {% endcall %}
+        </div>
+
+        <!-- Retraining Jobs Card -->
+        <div class="col-12">
+            {% call ui.content_card(
+                title="Active Retraining Jobs", 
+                icon="fas fa-cog",
+                header_extra='<span class="badge bg-info-subtle text-info border border-info rounded-pill" id="jobs-count">0 Jobs</span>'
+            ) %}
+                <div id="jobs-list-container">
+                    <div class="text-center py-4 text-muted border border-dashed rounded bg-light-subtle">
+                        <i class="far fa-calendar-alt fa-2x mb-2 opacity-50"></i>
+                        <p class="mb-0 small">No retraining jobs configured</p>
+                    </div>
+                </div>
+            {% endcall %}
+        </div>
+
+        <!-- Drift Chart (Full Width) -->
+        <div class="col-12">
+            {% call ui.content_card(
+                title="Model Performance Metrics Over Time", 
+                icon="fas fa-chart-area",
+                header_extra='
+                    <div class="d-flex align-items-center gap-2">
+                        <label for="drift-model-select" class="visually-hidden">Select Model</label>
+                        <select id="drift-model-select" class="form-select form-select-sm" style="min-width: 200px;">
+                            <option value="">Select Model to View</option>
+                        </select>
+                    </div>
+                '
+            ) %}
+                <div class="chart-container-ml">
+                    <canvas id="drift-chart"></canvas>
+                </div>
+            {% endcall %}
+        </div>
+
+        <!-- Training History (Full Width) -->
+        <div class="col-12">
+            {% call ui.content_card(
+                title="Training & Version History", 
+                icon="fas fa-book",
+                header_extra=ui.ui_button("Refresh History", id="btn-refresh-training-history", icon="fas fa-sync-alt", variant="link", size="sm", class="text-decoration-none p-0")
+            ) %}
+                <div id="training-history-container">
+                    <div class="text-center py-4 text-muted border border-dashed rounded bg-light-subtle">
+                        <i class="fas fa-history fa-2x mb-2 opacity-50"></i>
+                        <p class="mb-0 small">No training events recorded</p>
+                    </div>
+                </div>
+            {% endcall %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal for Model Details -->
+<div class="modal fade" id="model-details-modal" tabindex="-1" aria-labelledby="model-details-title" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content shadow-lg border-0">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title fw-bold" id="model-details-title">Model Specification & Metrics</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4" id="model-details-content">
+                <!-- Content loaded dynamically -->
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-top-0">
+                <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for Model Comparison -->
+<div class="modal fade" id="comparison-modal" tabindex="-1" aria-labelledby="comparison-title" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered p-md-5">
+        <div class="modal-content shadow-lg border-0 h-100">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title fw-bold" id="comparison-title">Model Performance Benchmarks</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4 overflow-auto">
+                <div id="model-comparison-chart" class="chart-container-ml" style="height: 600px;"></div>
+            </div>
+            <div class="modal-footer border-top-0">
+                <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for Feature Importance -->
+<div class="modal fade" id="features-modal" tabindex="-1" aria-labelledby="features-title" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content shadow-lg border-0">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title fw-bold" id="features-title">Explaining Model Decision Factors</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4 overflow-auto">
+                <div id="feature-importance-chart" class="chart-container-ml" style="height: 600px;"></div>
+            </div>
+            <div class="modal-footer border-top-0">
+                <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+<script src="{{ url_for('static', filename='js/api.js') }}?v=20251214c"></script>
+<script src="{{ url_for('static', filename='js/ml/data-service.js') }}?v=20251214c"></script>
+<script src="{{ url_for('static', filename='js/ml/ui-manager.js') }}?v=20251214c"></script>
+<script src="{{ url_for('static', filename='js/ml/main.js') }}?v=20251214c"></script>
+{% endblock %}

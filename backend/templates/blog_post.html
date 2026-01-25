@@ -1,0 +1,145 @@
+{% extends 'base.html' %}
+
+{% block title %}Blog Post - SYSGrow{% endblock %}
+
+{% block body_class %}blog-page blog-post-page{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/blog.css') }}">
+{% endblock %}
+
+{% block content %}
+<!-- Reading Progress Bar -->
+<div class="reading-progress-container">
+    <div class="reading-progress" id="reading-progress"></div>
+</div>
+
+<div class="page-shell">
+    <!-- Breadcrumb -->
+    <nav class="blog-breadcrumb" aria-label="Breadcrumb">
+        <ol class="breadcrumb-list">
+            <li><a href="{{ url_for('ui.blog_page') }}"><i class="fas fa-newspaper"></i> Blog</a></li>
+            <li><a href="{{ url_for('ui.blog_page') }}#category-" id="breadcrumb-category">Category</a></li>
+            <li aria-current="page" id="breadcrumb-title">Loading...</li>
+        </ol>
+    </nav>
+
+    <div class="post-layout">
+        <!-- Main Article -->
+        <main class="post-main">
+            <article class="blog-post">
+                <!-- Featured Image Hero -->
+                <div class="post-hero hidden" id="post-hero">
+                    <img src="" alt="" id="post-hero-image" class="post-hero-image">
+                </div>
+
+                <header class="post-header">
+                    <div class="post-meta">
+                        <span class="post-emoji" id="post-emoji"></span>
+                        <span class="post-category" id="post-category">
+                            <i class="fas fa-folder"></i>
+                            <span>Loading...</span>
+                        </span>
+                        <span class="post-date" id="post-date">
+                            <i class="fas fa-calendar"></i>
+                            <span>Loading...</span>
+                        </span>
+                        <span class="post-reading-time" id="post-reading-time">
+                            <i class="fas fa-clock"></i>
+                            <span>Loading...</span>
+                        </span>
+                    </div>
+                    <h1 id="post-title">Loading post...</h1>
+                    <p class="post-summary" id="post-summary"></p>
+                    <div class="post-author" id="post-author">
+                        <i class="fas fa-user-circle"></i>
+                        <span>Loading...</span>
+                    </div>
+                </header>
+
+                <div class="post-body markdown-content" id="post-content">
+                    <div class="loading-state">
+                        <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
+                        <p>Loading post content...</p>
+                    </div>
+                </div>
+
+                <footer class="post-footer">
+                    <div class="post-tags" id="post-tags">
+                        <!-- Tags rendered dynamically -->
+                    </div>
+                </footer>
+            </article>
+
+            <!-- Post Navigation -->
+            <nav class="post-nav">
+                <a href="{{ url_for('ui.blog_page') }}" class="btn btn-outline">
+                    <i class="fas fa-arrow-left"></i>
+                    Back to Blog
+                </a>
+            </nav>
+        </main>
+
+        <!-- Sidebar -->
+        <aside class="post-sidebar">
+            <div class="sidebar-section irrigation-help-card">
+                <h3><i class="fas fa-tint"></i> Irrigation Quick Guide</h3>
+                <ul class="irrigation-help-list">
+                    <li><strong>Detect:</strong> Moisture is checked for stale data and cooldowns.</li>
+                    <li><strong>Approve:</strong> You can approve, delay, or cancel requests.</li>
+                    <li><strong>Execute:</strong> Lock → valve → pump, non-blocking.</li>
+                    <li><strong>Verify:</strong> Post-capture measures results.</li>
+                    <li><strong>Improve:</strong> Feedback tunes duration or thresholds.</li>
+                </ul>
+                <a href="{{ url_for('ui.settings') }}#automation" class="btn btn-outline btn-sm">
+                    Adjust irrigation settings
+                </a>
+            </div>
+
+            <!-- Table of Contents -->
+            <div class="sidebar-section toc-section">
+                <h3><i class="fas fa-list"></i> Contents</h3>
+                <ul class="table-of-contents" id="table-of-contents">
+                    <!-- TOC generated dynamically -->
+                </ul>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>Related Posts</h3>
+                <ul class="related-posts-list" id="related-posts">
+                    <li class="loading"><i class="fas fa-spinner fa-spin"></i> Loading...</li>
+                </ul>
+            </div>
+
+            <div class="sidebar-section categories-widget">
+                <h3>Categories</h3>
+                <ul class="categories-list" id="sidebar-categories">
+                    <li class="loading"><i class="fas fa-spinner fa-spin"></i> Loading...</li>
+                </ul>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>Popular Tags</h3>
+                <div class="tags-cloud" id="tags-cloud">
+                    <!-- Tags rendered dynamically -->
+                </div>
+            </div>
+        </aside>
+    </div>
+</div>
+
+<!-- Back to Top Button -->
+<button class="back-to-top" id="back-to-top" aria-label="Back to top">
+    <i class="fas fa-arrow-up"></i>
+</button>
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+    // Pass post slug from URL
+    window.BLOG_POST_SLUG = {{ slug | tojson }};
+</script>
+<script type="module">
+    import { initBlogPost } from "{{ url_for('static', filename='js/blog.js') }}";
+    initBlogPost();
+</script>
+{% endblock %}

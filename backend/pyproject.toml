@@ -130,20 +130,25 @@ where = ["."]
 exclude = ["tests", "docs"]
 
 [tool.setuptools.package-data]
-"" = ["*.json", "*.yaml", "*.yml", "*.md", "*.txt"]
-templates = ["*.html"]
-static = [
-  "css/*.css",
-  "css/components/*.css",
-  "css/sensor-analytics/*.css",
-  "js/*.js",
-  "js/components/*.js",
-  "js/dashboard/*.js",
-  "js/devices/*.js",
-  "js/plants/*.js",
-  "js/sensor-analytics/*.js",
-  "js/settings/*.js",
-  "js/utils/*.js",
-  "images/*",
+"*" = [
+  "*.json",
+  "*.yaml",
+  "*.yml",
+  "*.md",
+  "*.txt",
+  "templates/*.html",
+  "static/css/*.css",
+  "static/css/components/*.css",
+  "static/css/sensor-analytics/*.css",
+  "static/js/*.js",
+  "static/js/components/*.js",
+  "static/js/dashboard/*.js",
+  "static/js/devices/*.js",
+  "static/js/plants/*.js",
+  "static/js/sensor-analytics/*.js",
+  "static/js/settings/*.js",
+  "static/js/utils/*.js",
+  "static/images/*",
+  "config/*.json",
+  "config/*.yaml",
 ]
-config = ["*.json", "*.yaml"]

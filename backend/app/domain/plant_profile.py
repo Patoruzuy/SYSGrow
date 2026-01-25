@@ -183,6 +183,17 @@ class PlantProfile:
             except (TypeError, ValueError):
                 logger.debug("Skipping invalid override %s=%s", threshold_key, value)
 
+    def increase_days_in_stage(self):
+        """Increases the days in the current stage by 1."""
+        self.days_in_stage += 1
+        self._update_day_left()
+
+    def decrease_days_in_stage(self):
+        """Decreases the days in the current stage by 1."""
+        if self.days_in_stage > 0:
+            self.days_in_stage -= 1
+            self._update_day_left()
+
     # -------------------------- Helpers ---------------------------
     def get_current_stage_name(self) -> str:
         if not self.growth_stages:
@@ -278,6 +289,14 @@ class PlantProfile:
             max_days = self.stage_durations[stage_name]["max_days"]
             return max(max_days - self.days_in_stage, 0)
         return 0
+
+    def _update_days_left(self):
+        """
+        Update the days left in the current stage of the plant.
+        """
+        stage_name = self.get_current_stage_index()
+        stage_duration = self.stage_durations.get(stage_name, 0)
+        self.days_left = max(stage_duration - self.days_in_stage, 0)
 
     def _advance_stage(self) -> None:
         """Move to the next stage locally."""

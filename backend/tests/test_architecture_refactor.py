@@ -88,7 +88,7 @@ def test_growth_service_loads_plants():
     # Check PlantService methods exist
     logger.info("\n📋 Test 2.1: PlantService has required methods")
     
-    required_methods = ['list_plants', 'get_plant', 'add_plant', 'remove_plant', 'get_active_plant']
+    required_methods = ['list_plants', 'get_plant', 'create_plant_profile', 'remove_plant', 'get_active_plant']
     for method in required_methods:
         assert hasattr(PlantService, method), f"❌ PlantService missing {method} method!"
         logger.info(f"   ✅ PlantService.{method}() exists")
@@ -150,7 +150,7 @@ def test_full_integration():
     # Mock plant data via PlantService
     from app.domain.plant_profile import PlantProfile
     mock_plant = PlantProfile(
-        id=1,
+        plant_id=1,
         plant_name='Test Tomato',
         plant_type='Tomatoes',
         current_stage='Seedling',
@@ -162,7 +162,7 @@ def test_full_integration():
     
     logger.info("\n📋 Test 4.1: Create GrowthService")
     service = GrowthService(
-        growth_repo=mock_growth,
+        unit_repo=mock_growth,
         analytics_repo=mock_analytics,
         audit_logger=mock_audit,
         devices_repo=mock_devices,

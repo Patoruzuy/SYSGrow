@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from infrastructure.database.repositories.ai import AIHealthDataRepository
     from app.services.application.threshold_service import ThresholdService
     from app.services.application.plant_journal_service import PlantJournalService
+    from app.services.ai.recommendation_provider import RecommendationProvider
 
 logger = logging.getLogger(__name__)
 
@@ -112,6 +113,7 @@ class PlantHealthMonitor:
         repo_health: "AIHealthDataRepository",
         journal_service: Optional["PlantJournalService"] = None,
         threshold_service: Optional["ThresholdService"] = None,
+        recommendation_provider: Optional["RecommendationProvider"] = None,
     ):
         """
         Initialize plant health monitor.
@@ -120,10 +122,12 @@ class PlantHealthMonitor:
             repo_health: AI health data repository (for AI-specific correlation data)
             journal_service: Plant journal service for recording observations
             threshold_service: Optional threshold service for plant-specific thresholds
+            recommendation_provider: Optional pluggable recommendation provider
         """
         self.repo_health = repo_health
         self.journal_service = journal_service
         self.threshold_service = threshold_service
+        self.recommendation_provider = recommendation_provider
 
     def record_observation(
         self, observation: PlantHealthObservation
@@ -299,26 +303,69 @@ class PlantHealthMonitor:
 
             # Analyze symptom patterns
             symptom_counts = {}
+            all_symptoms = []
             for obs in recent_observations:
                 for symptom in obs.get("symptoms", []):
                     symptom_counts[symptom] = symptom_counts.get(symptom, 0) + 1
+                    all_symptoms.append(symptom)
 
-            # Generate recommendations
-            recommendations = []
-            for symptom, count in symptom_counts.items():
-                if count >= 2 and symptom in self.SYMPTOM_DATABASE:
-                    symptom_info = self.SYMPTOM_DATABASE[symptom]
+            # Get environmental data for context
+            env_data = self._get_recent_environmental_data(unit_id)
+
+            # Use RecommendationProvider if available
+            if self.recommendation_provider:
+                from app.services.ai.recommendation_provider import RecommendationContext
+
+                context = RecommendationContext(
+                    plant_id=0,  # Unit-level recommendations
+                    unit_id=unit_id,
+                    plant_type=plant_type,
+                    growth_stage=growth_stage,
+                    symptoms=list(set(all_symptoms)),
+                    health_status=recent_observations[0].get("health_status"),
+                    severity_level=max(
+                        (o.get("severity_level", 1) for o in recent_observations),
+                        default=1
+                    ),
+                    environmental_data=env_data,
+                    recent_observations=recent_observations,
+                )
+
+                provider_recs = self.recommendation_provider.get_recommendations(context)
+                treatment_recs = self.recommendation_provider.get_treatment_suggestions(
+                    list(set(all_symptoms)), context
+                )
+
+                # Convert provider recommendations to expected format
+                recommendations = []
+                for rec in provider_recs + treatment_recs:
                     recommendations.append({
-                        "issue": symptom,
-                        "frequency": count,
-                        "likely_causes": symptom_info["likely_causes"],
-                        "recommended_actions": self.TREATMENT_MAP.get(
-                            symptom, ["Consult plant care specialist"]
-                        ),
+                        "action": rec.action,
+                        "priority": rec.priority,
+                        "category": rec.category,
+                        "confidence": rec.confidence,
+                        "rationale": rec.rationale,
+                        "source": rec.source,
                     })
 
+                provider_name = self.recommendation_provider.provider_name
+            else:
+                # Fallback to built-in SYMPTOM_DATABASE / TREATMENT_MAP
+                recommendations = []
+                for symptom, count in symptom_counts.items():
+                    if count >= 2 and symptom in self.SYMPTOM_DATABASE:
+                        symptom_info = self.SYMPTOM_DATABASE[symptom]
+                        recommendations.append({
+                            "issue": symptom,
+                            "frequency": count,
+                            "likely_causes": symptom_info["likely_causes"],
+                            "recommended_actions": self.TREATMENT_MAP.get(
+                                symptom, ["Consult plant care specialist"]
+                            ),
+                        })
+                provider_name = "builtin"
+
             # Get environmental recommendations
-            env_data = self._get_recent_environmental_data(unit_id)
             env_recommendations = self._analyze_environmental_issues(
                 env_data, plant_type, growth_stage
             )
@@ -330,6 +377,7 @@ class PlantHealthMonitor:
                 "symptom_recommendations": recommendations,
                 "environmental_recommendations": env_recommendations,
                 "trend": self._analyze_health_trend(unit_id),
+                "provider": provider_name,
             }
 
         except Exception as e:

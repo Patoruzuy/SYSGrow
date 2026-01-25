@@ -39,6 +39,18 @@ class FakeGrowthService:
 class FakePlantService:
     def __init__(self):
         self.updated = []
+    def __init__(self, growth_service=None):
+        self.updated = []
+        self.growth_service = growth_service
+
+    def list_plants(self, unit_id):
+        # Return plants from the provided growth_service runtimes if available
+        if self.growth_service:
+            runtimes = self.growth_service.get_unit_runtimes()
+            runtime = runtimes.get(unit_id)
+            if runtime:
+                return runtime.get_all_plants()
+        return []
 
     def update_plant_stage(self, plant_id, current_stage, days_in_stage):
         self.updated.append((plant_id, current_stage, days_in_stage))
@@ -59,7 +71,7 @@ def test_plant_grow_single_run(tmp_path, monkeypatch):
     plants = [FakePlant(1, "A"), FakePlant(2, "B")]
     runtime = FakeRuntime(plants)
     growth = FakeGrowthService({10: runtime})
-    plant_service = FakePlantService()
+    plant_service = FakePlantService(growth)
     container = FakeContainer(growth, plant_service)
 
     # Ensure no last-runs exist
@@ -82,7 +94,7 @@ def test_plant_grow_missed_days(tmp_path, monkeypatch):
     plants = [FakePlant(3, "C")]
     runtime = FakeRuntime(plants)
     growth = FakeGrowthService({20: runtime})
-    plant_service = FakePlantService()
+    plant_service = FakePlantService(growth)
     container = FakeContainer(growth, plant_service)
 
     # Seed last run to two days ago

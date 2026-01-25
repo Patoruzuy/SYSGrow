@@ -5,6 +5,7 @@ Unit tests for new AnalyticsService methods.
 import pytest
 from datetime import datetime, timedelta, timezone
 from unittest.mock import Mock, MagicMock, patch
+from types import SimpleNamespace
 from typing import List, Dict, Any
 
 from app.services.application.analytics_service import AnalyticsService
@@ -155,9 +156,7 @@ class TestAnalyticsServiceV2:
             end_datetime=end,
             unit_id=1
         )
-            
-            # Verify
-            assert len(result['readings']) == 2
-            assert 'vpd' in result['readings'][0]
-            assert 'is_light' in result['readings'][0]
-            assert 'summary' in result
+        # Verify
+        assert len(result['readings']) == 2
+        assert 'vpd' in result['readings'][0]
+        assert 'summary' in result

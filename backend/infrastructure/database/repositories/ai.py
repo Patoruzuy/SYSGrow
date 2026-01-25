@@ -2018,6 +2018,283 @@ class AITrainingDataRepository:
             logger.error(f"Failed to get disease summary stats: {e}", exc_info=True)
             return {"error": str(e)}
 
+    # ==================== Health Score ML Training Data ====================
+
+    def get_health_score_training_data(
+        self,
+        unit_id: Optional[int] = None,
+        plant_type: Optional[str] = None,
+        days_limit: int = 365,
+        min_quality: int = 1,
+    ) -> List[Dict[str, Any]]:
+        """
+        Collect training data from harvests with quality ratings.
+
+        Returns samples with environmental snapshot at harvest time
+        and quality rating as target (1-5 → 20-100).
+
+        Args:
+            unit_id: Optional filter by unit
+            plant_type: Optional filter by plant type
+            days_limit: How far back to look (default 365 days)
+            min_quality: Minimum quality rating to include (default 1)
+
+        Returns:
+            List of training sample dictionaries
+        """
+        try:
+            db = self._backend.get_db()
+            cursor = db.cursor()
+
+            conditions = [
+                f"phs.harvested_date >= date('now', '-{days_limit} days')",
+                "phs.quality_rating >= ?",
+            ]
+            params = [min_quality]
+
+            if unit_id is not None:
+                conditions.append("phs.unit_id = ?")
+                params.append(unit_id)
+
+            if plant_type:
+                conditions.append("p.plant_type = ?")
+                params.append(plant_type)
+
+            where_clause = " AND ".join(conditions)
+
+            cursor.execute(
+                f"""
+                SELECT
+                    phs.harvest_id,
+                    phs.plant_id,
+                    phs.unit_id,
+                    phs.planted_date,
+                    phs.harvested_date,
+                    phs.total_days,
+                    phs.quality_rating,
+                    phs.harvest_weight_grams,
+                    phs.avg_temperature,
+                    phs.avg_humidity,
+                    phs.avg_co2,
+                    phs.avg_health_score,
+                    p.plant_type,
+                    p.current_stage AS final_stage
+                FROM PlantHarvestSummary phs
+                LEFT JOIN Plants p ON phs.plant_id = p.plant_id
+                WHERE {where_clause}
+                ORDER BY phs.harvested_date DESC
+                """,
+                params,
+            )
+
+            columns = [desc[0] for desc in cursor.description]
+            rows = cursor.fetchall()
+
+            return [dict(zip(columns, row)) for row in rows]
+
+        except Exception as e:
+            logger.error(f"Failed to get health score training data: {e}", exc_info=True)
+            return []
+
+    def get_health_status_training_data(
+        self,
+        unit_id: Optional[int] = None,
+        days_limit: int = 365,
+        confirmed_only: bool = True,
+    ) -> List[Dict[str, Any]]:
+        """
+        Collect training data from user health observations.
+
+        Returns samples with environmental conditions at observation time
+        and user-assigned health status as target.
+
+        Args:
+            unit_id: Optional filter by unit
+            days_limit: How far back to look
+            confirmed_only: Only include user-confirmed observations
+
+        Returns:
+            List of training sample dictionaries
+        """
+        try:
+            db = self._backend.get_db()
+            cursor = db.cursor()
+
+            conditions = [
+                f"pj.created_at >= date('now', '-{days_limit} days')",
+                "pj.entry_type = 'observation'",
+                "pj.observation_type = 'health'",
+                "pj.health_status IS NOT NULL",
+            ]
+            params = []
+
+            if unit_id is not None:
+                conditions.append("pj.unit_id = ?")
+                params.append(unit_id)
+
+            if confirmed_only:
+                # Confirmed observations have user_id set
+                conditions.append("pj.user_id IS NOT NULL")
+
+            where_clause = " AND ".join(conditions)
+
+            cursor.execute(
+                f"""
+                SELECT
+                    pj.entry_id,
+                    pj.plant_id,
+                    pj.unit_id,
+                    pj.health_status,
+                    pj.severity_level,
+                    pj.symptoms,
+                    pj.disease_type,
+                    pj.affected_parts,
+                    pj.environmental_factors,
+                    pj.plant_type,
+                    pj.growth_stage,
+                    pj.created_at AS observation_date
+                FROM plant_journal pj
+                WHERE {where_clause}
+                ORDER BY pj.created_at DESC
+                """,
+                params,
+            )
+
+            columns = [desc[0] for desc in cursor.description]
+            rows = cursor.fetchall()
+
+            results = []
+            for row in rows:
+                record = dict(zip(columns, row))
+                # Parse JSON fields
+                if record.get("symptoms"):
+                    try:
+                        record["symptoms"] = json.loads(record["symptoms"])
+                    except (TypeError, ValueError):
+                        record["symptoms"] = []
+                if record.get("environmental_factors"):
+                    try:
+                        record["environmental_factors"] = json.loads(record["environmental_factors"])
+                    except (TypeError, ValueError):
+                        record["environmental_factors"] = {}
+                results.append(record)
+
+            return results
+
+        except Exception as e:
+            logger.error(f"Failed to get health status training data: {e}", exc_info=True)
+            return []
+
+    def generate_health_baseline_samples(
+        self,
+        unit_id: Optional[int] = None,
+        num_samples: int = 100,
+    ) -> List[Dict[str, Any]]:
+        """
+        Generate synthetic 'healthy' samples from periods without issues.
+
+        Uses times with no health observations as negative examples
+        (assuming no observation means plant was healthy).
+
+        Args:
+            unit_id: Optional filter by unit
+            num_samples: Number of samples to generate
+
+        Returns:
+            List of synthetic healthy sample dictionaries
+        """
+        try:
+            db = self._backend.get_db()
+            cursor = db.cursor()
+
+            # Get recent sensor readings from times without health issues
+            unit_filter = "AND sr.unit_id = ?" if unit_id else ""
+            params = [num_samples]
+            if unit_id:
+                params.insert(0, unit_id)
+
+            cursor.execute(
+                f"""
+                SELECT
+                    sr.timestamp,
+                    s.unit_id,
+                    sr.reading_data
+                FROM SensorReading sr
+                JOIN Sensor s ON s.sensor_id = sr.sensor_id
+                WHERE sr.timestamp >= date('now', '-90 days')
+                {unit_filter}
+                AND NOT EXISTS (
+                    SELECT 1 FROM plant_journal pj
+                    WHERE pj.unit_id = s.unit_id
+                    AND pj.entry_type = 'observation'
+                    AND pj.health_status IN ('stressed', 'critical', 'diseased')
+                    AND date(pj.created_at) = date(sr.timestamp)
+                )
+                ORDER BY RANDOM()
+                LIMIT ?
+                """,
+                params,
+            )
+
+            rows = cursor.fetchall()
+            samples = []
+
+            for row in rows:
+                timestamp, row_unit_id, reading_data = row
+                payload = self._decode_sensor_payload(reading_data)
+                if not payload:
+                    continue
+
+                samples.append({
+                    "observation_date": timestamp,
+                    "unit_id": row_unit_id,
+                    "health_status": "healthy",
+                    "severity_level": 1,
+                    "symptoms": [],
+                    "environmental_factors": {
+                        "temperature": payload.get("temperature"),
+                        "humidity": payload.get("humidity"),
+                    },
+                    "synthetic": True,
+                })
+
+            return samples
+
+        except Exception as e:
+            logger.error(f"Failed to generate baseline samples: {e}", exc_info=True)
+            return []
+
+    def count_health_training_samples(
+        self,
+        unit_id: Optional[int] = None,
+    ) -> Dict[str, int]:
+        """
+        Count available health training samples for readiness check.
+
+        Args:
+            unit_id: Optional filter by unit
+
+        Returns:
+            Dict with counts by source
+        """
+        try:
+            harvest_data = self.get_health_score_training_data(
+                unit_id=unit_id, days_limit=365
+            )
+            observation_data = self.get_health_status_training_data(
+                unit_id=unit_id, days_limit=365
+            )
+
+            return {
+                "harvest_samples": len(harvest_data),
+                "observation_samples": len(observation_data),
+                "total": len(harvest_data) + len(observation_data),
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to count training samples: {e}", exc_info=True)
+            return {"harvest_samples": 0, "observation_samples": 0, "total": 0}
+
     # ==================== A/B Testing Persistence ====================
 
     def save_ab_test(self, test_data: Dict[str, Any]) -> bool:

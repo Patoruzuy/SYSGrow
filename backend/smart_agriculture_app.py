@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 """
 Flask application for managing plant growth environment.
 
@@ -672,7 +671,7 @@ signal.signal(signal.SIGTERM, cleanup_resources)
     
 if __name__ == '__main__':
     app.run(host="192.168.0.40", debug=True, use_reloader=False)
-=======
+
 """WSGI entry point for the SYSGrow backend application.
 
 This module provides a minimal, robust CLI entrypoint used both in
@@ -753,4 +752,4 @@ if __name__ == "__main__":
     # Allow direct execution for development, mirror behavior used by
     # our console script `sysgrow-backend`.
     raise SystemExit(main())
->>>>>>> update
+

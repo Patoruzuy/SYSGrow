@@ -223,12 +223,6 @@ class ThresholdService:
             if "lux_threshold" in thresholds:
                 thresholds = dict(thresholds)
                 thresholds["lux_threshold"] = thresholds.get("lux_threshold")
-            elif "light_threshold" in thresholds:
-                thresholds = dict(thresholds)
-                thresholds["lux_threshold"] = thresholds.get("light_threshold")
-            elif "lux" in thresholds:
-                thresholds = dict(thresholds)
-                thresholds["lux_threshold"] = thresholds.get("lux")
         payload: Dict[str, float] = {}
         for key in THRESHOLD_KEYS:
             if key not in thresholds:

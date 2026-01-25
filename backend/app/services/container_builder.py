@@ -94,6 +94,7 @@ from app.services.ai import (
     EnvironmentalLeafHealthScorer,
     PlantHealthScorer,
     PlantHealthFeatureExtractor,
+    RuleBasedRecommendationProvider,
 )
 
 
@@ -397,10 +398,14 @@ class ContainerBuilder:
             model_registry=model_registry
         )
 
+        # Recommendation provider for plant health (rule-based, LLM-ready)
+        recommendation_provider = RuleBasedRecommendationProvider()
+
         # Plant health monitor (threshold_service will be set later)
         plant_health_monitor = PlantHealthMonitor(
             repo_health=infra.ai_health_repo,
-            threshold_service=None  # Will be set after threshold_service initialization
+            threshold_service=None,  # Will be set after threshold_service initialization
+            recommendation_provider=recommendation_provider,
         )
 
         # Growth predictor

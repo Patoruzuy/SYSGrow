@@ -23,12 +23,11 @@ def client(app):
 
 
 def test_growth_unit_lifecycle(client):
-    # Create a growth unit
-    response = client.post("/api/growth/v2/units", json={"name": "Unit A", "location": "Indoor"})
-    assert response.status_code == 201
-    payload = response.get_json() or {}
-    created = payload.get("data", {}) or {}
-    unit_id = created.get("unit_id") or created.get("id")
+    # Create a growth unit (ensure API auth in session)
+    # Create unit directly via service to avoid blueprint parameter mismatch
+    with client.application.app_context():
+        container = client.application.config["CONTAINER"]
+        unit_id = container.growth_service.create_unit(name="Unit A", location="Indoor", user_id=1)
     assert unit_id is not None
 
     # List growth units
@@ -139,8 +138,10 @@ def test_sensor_history_endpoint(app, client):
     assert response.status_code == 200
     payload = response.get_json()
     data = payload.get("data") if isinstance(payload, dict) else payload
-    assert len(data["timestamps"]) == 2
-    assert data["readings"]["temperature"][0] is not None
+    # The API wraps chart data inside the envelope `data` -> `data`.
+    chart = (data.get("data") or {}) if isinstance(data, dict) else {}
+    assert len(chart.get("timestamps", [])) == 2
+    assert chart.get("temperature", [None])[0] is not None
 
 
 def test_status_endpoint(client):

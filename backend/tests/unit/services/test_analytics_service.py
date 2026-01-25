@@ -624,7 +624,7 @@ class TestEnrichedHistory:
         ]
 
         # Act
-        result = analytics_service.get_enriched_sensor_history(
+        result = analytics_service.get_sensors_history_enriched(
             start_datetime=now - timedelta(hours=5),
             end_datetime=now,
             unit_id=1,
@@ -656,7 +656,7 @@ class TestEnrichedHistory:
         ]
 
         # Act
-        result = analytics_service.get_enriched_sensor_history(
+        result = analytics_service.get_sensors_history_enriched(
             start_datetime=now - timedelta(hours=24),
             end_datetime=now,
             unit_id=1,
@@ -690,7 +690,7 @@ class TestEnrichedHistory:
         mock_analytics_repo.fetch_sensor_history.return_value = readings
 
         # Act
-        result = analytics_service.get_enriched_sensor_history(
+        result = analytics_service.get_sensors_history_enriched(
             start_datetime=now - timedelta(hours=24),
             end_datetime=now,
             unit_id=1,

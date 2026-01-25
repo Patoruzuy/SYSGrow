@@ -30,7 +30,13 @@ from app.services.ai.climate_optimizer import (
 from app.services.ai.ml_trainer import MLTrainerService, TrainingMetrics
 from app.services.ai.drift_detector import ModelDriftDetectorService, DriftMetrics
 from app.services.ai.ab_testing import ABTestingService, ABTest, TestStatus
-from app.services.ai.feature_engineering import FeatureEngineer, FeatureSet, EnvironmentalFeatureExtractor
+from app.services.ai.feature_engineering import (
+    FeatureEngineer,
+    FeatureSet,
+    EnvironmentalFeatureExtractor,
+    PlantHealthFeatureExtractor,
+    PLANT_HEALTH_FEATURES_V1,
+)
 from app.services.ai.plant_growth_predictor import PlantGrowthPredictor, GrowthStage, GrowthConditions, StageTransition
 from app.services.ai.automated_retraining import AutomatedRetrainingService, RetrainingJob, RetrainingEvent, RetrainingTrigger, RetrainingStatus
 from app.services.ai.continuous_monitor import ContinuousMonitoringService
@@ -61,6 +67,13 @@ from app.services.ai.environmental_health_scorer import (
 from app.services.ai.plant_health_scorer import (
     PlantHealthScorer,
     PlantHealthScore,
+)
+from app.services.ai.recommendation_provider import (
+    RecommendationProvider,
+    RuleBasedRecommendationProvider,
+    LLMRecommendationProvider,
+    RecommendationContext,
+    Recommendation,
 )
 
 __all__ = [
@@ -97,6 +110,8 @@ __all__ = [
     "FeatureEngineer",
     "FeatureSet",
     "EnvironmentalFeatureExtractor",
+    "PlantHealthFeatureExtractor",
+    "PLANT_HEALTH_FEATURES_V1",
     # Growth Prediction
     "PlantGrowthPredictor",
     "GrowthStage",
@@ -134,4 +149,10 @@ __all__ = [
     # Plant Health Scoring
     "PlantHealthScorer",
     "PlantHealthScore",
+    # Recommendation Providers
+    "RecommendationProvider",
+    "RuleBasedRecommendationProvider",
+    "LLMRecommendationProvider",
+    "RecommendationContext",
+    "Recommendation",
 ]

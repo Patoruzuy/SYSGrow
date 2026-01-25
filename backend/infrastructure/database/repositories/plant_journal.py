@@ -603,5 +603,298 @@ class PlantJournalRepository:
         
         # Sort by timestamp descending
         combined.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
-        
+
         return combined
+
+    # ========================================================================
+    # Extended Entry Types (Phase 7)
+    # ========================================================================
+
+    def create_watering_entry(
+        self,
+        plant_id: int,
+        amount_ml: float,
+        method: str = "manual",
+        source: str = "user",
+        ph_level: Optional[float] = None,
+        ec_level: Optional[float] = None,
+        notes: str = "",
+        user_id: Optional[int] = None
+    ) -> Optional[int]:
+        """
+        Record a watering event.
+
+        Args:
+            plant_id: Plant ID
+            amount_ml: Amount of water in milliliters
+            method: Watering method (manual, automatic, drip)
+            source: Event source (user, sensor_triggered, schedule)
+            ph_level: pH level of water (optional)
+            ec_level: EC level of water (optional)
+            notes: Additional notes
+            user_id: User who performed watering
+
+        Returns:
+            entry_id if successful, None otherwise
+        """
+        try:
+            # Store additional data as JSON in notes or dedicated fields
+            import json
+            extra_data = {
+                "amount_ml": amount_ml,
+                "method": method,
+                "source": source,
+                "ph_level": ph_level,
+                "ec_level": ec_level,
+            }
+
+            with self.db.connection() as conn:
+                cursor = conn.execute("""
+                    INSERT INTO plant_journal (
+                        plant_id, entry_type, treatment_type, treatment_name,
+                        amount, unit, notes, user_id
+                    )
+                    VALUES (?, 'watering', ?, ?, ?, 'ml', ?, ?)
+                """, (
+                    plant_id, method, source, amount_ml,
+                    f"{notes}\n---\n{json.dumps(extra_data)}" if notes else json.dumps(extra_data),
+                    user_id
+                ))
+                conn.commit()
+                return cursor.lastrowid
+        except Exception as e:
+            logger.error(f"Failed to create watering entry: {e}")
+            return None
+
+    def create_pruning_entry(
+        self,
+        plant_id: int,
+        pruning_type: str,
+        parts_removed: Optional[List[str]] = None,
+        notes: str = "",
+        image_path: Optional[str] = None,
+        user_id: Optional[int] = None
+    ) -> Optional[int]:
+        """
+        Record a pruning/training event.
+
+        Args:
+            plant_id: Plant ID
+            pruning_type: Type of pruning (topping, lollipopping, defoliation, lst, scrog)
+            parts_removed: List of parts removed (leaves, branches, fan_leaves, etc.)
+            notes: Additional notes
+            image_path: Path to image
+            user_id: User who performed pruning
+
+        Returns:
+            entry_id if successful, None otherwise
+        """
+        try:
+            import json
+            parts_json = json.dumps(parts_removed) if parts_removed else None
+
+            with self.db.connection() as conn:
+                cursor = conn.execute("""
+                    INSERT INTO plant_journal (
+                        plant_id, entry_type, treatment_type, treatment_name,
+                        affected_parts, notes, image_path, user_id
+                    )
+                    VALUES (?, 'pruning', ?, ?, ?, ?, ?, ?)
+                """, (
+                    plant_id, pruning_type, pruning_type, parts_json,
+                    notes, image_path, user_id
+                ))
+                conn.commit()
+                return cursor.lastrowid
+        except Exception as e:
+            logger.error(f"Failed to create pruning entry: {e}")
+            return None
+
+    def create_stage_change_entry(
+        self,
+        plant_id: int,
+        from_stage: str,
+        to_stage: str,
+        trigger: str = "manual",
+        notes: str = "",
+        user_id: Optional[int] = None
+    ) -> Optional[int]:
+        """
+        Record a growth stage transition.
+
+        Args:
+            plant_id: Plant ID
+            from_stage: Previous growth stage
+            to_stage: New growth stage
+            trigger: What triggered the change (manual, automatic, time_based)
+            notes: Additional notes
+            user_id: User who recorded the change
+
+        Returns:
+            entry_id if successful, None otherwise
+        """
+        try:
+            with self.db.connection() as conn:
+                cursor = conn.execute("""
+                    INSERT INTO plant_journal (
+                        plant_id, entry_type, observation_type, growth_stage,
+                        treatment_type, notes, user_id
+                    )
+                    VALUES (?, 'stage_change', ?, ?, ?, ?, ?)
+                """, (
+                    plant_id, from_stage, to_stage, trigger, notes, user_id
+                ))
+                conn.commit()
+                return cursor.lastrowid
+        except Exception as e:
+            logger.error(f"Failed to create stage change entry: {e}")
+            return None
+
+    def create_harvest_entry(
+        self,
+        plant_id: int,
+        harvest_type: str,
+        weight_grams: Optional[float] = None,
+        quality_rating: Optional[int] = None,
+        notes: str = "",
+        image_path: Optional[str] = None,
+        user_id: Optional[int] = None
+    ) -> Optional[int]:
+        """
+        Record a harvest event.
+
+        Args:
+            plant_id: Plant ID
+            harvest_type: Type of harvest (partial, full)
+            weight_grams: Harvest weight in grams
+            quality_rating: Quality rating (1-5)
+            notes: Additional notes
+            image_path: Path to image
+            user_id: User who performed harvest
+
+        Returns:
+            entry_id if successful, None otherwise
+        """
+        try:
+            import json
+            extra_data = {
+                "harvest_type": harvest_type,
+                "weight_grams": weight_grams,
+                "quality_rating": quality_rating,
+            }
+
+            with self.db.connection() as conn:
+                cursor = conn.execute("""
+                    INSERT INTO plant_journal (
+                        plant_id, entry_type, treatment_type, amount,
+                        severity_level, notes, image_path, user_id
+                    )
+                    VALUES (?, 'harvest', ?, ?, ?, ?, ?, ?)
+                """, (
+                    plant_id, harvest_type, weight_grams, quality_rating,
+                    f"{notes}\n---\n{json.dumps(extra_data)}" if notes else json.dumps(extra_data),
+                    image_path, user_id
+                ))
+                conn.commit()
+                return cursor.lastrowid
+        except Exception as e:
+            logger.error(f"Failed to create harvest entry: {e}")
+            return None
+
+    def create_environmental_adjustment_entry(
+        self,
+        plant_id: int,
+        adjustment_type: str,
+        old_value: str,
+        new_value: str,
+        reason: str = "",
+        user_id: Optional[int] = None
+    ) -> Optional[int]:
+        """
+        Record an environmental control adjustment.
+
+        Args:
+            plant_id: Plant ID
+            adjustment_type: Type of adjustment (fan_speed, light_intensity, light_schedule, temperature_target)
+            old_value: Previous setting value
+            new_value: New setting value
+            reason: Reason for the adjustment
+            user_id: User who made the adjustment
+
+        Returns:
+            entry_id if successful, None otherwise
+        """
+        try:
+            import json
+            extra_data = {
+                "adjustment_type": adjustment_type,
+                "old_value": old_value,
+                "new_value": new_value,
+            }
+
+            with self.db.connection() as conn:
+                cursor = conn.execute("""
+                    INSERT INTO plant_journal (
+                        plant_id, entry_type, treatment_type,
+                        environmental_factors, notes, user_id
+                    )
+                    VALUES (?, 'environmental_adjustment', ?, ?, ?, ?)
+                """, (
+                    plant_id, adjustment_type, json.dumps(extra_data),
+                    reason, user_id
+                ))
+                conn.commit()
+                return cursor.lastrowid
+        except Exception as e:
+            logger.error(f"Failed to create environmental adjustment entry: {e}")
+            return None
+
+    def create_transplant_entry(
+        self,
+        plant_id: int,
+        from_container: str,
+        to_container: str,
+        new_medium: Optional[str] = None,
+        notes: str = "",
+        user_id: Optional[int] = None
+    ) -> Optional[int]:
+        """
+        Record a transplanting event.
+
+        Args:
+            plant_id: Plant ID
+            from_container: Original container/pot
+            to_container: New container/pot
+            new_medium: New growing medium (optional)
+            notes: Additional notes
+            user_id: User who performed transplant
+
+        Returns:
+            entry_id if successful, None otherwise
+        """
+        try:
+            import json
+            extra_data = {
+                "from_container": from_container,
+                "to_container": to_container,
+                "new_medium": new_medium,
+            }
+
+            with self.db.connection() as conn:
+                cursor = conn.execute("""
+                    INSERT INTO plant_journal (
+                        plant_id, entry_type, treatment_type, treatment_name,
+                        notes, user_id
+                    )
+                    VALUES (?, 'transplant', 'transplant', ?, ?, ?)
+                """, (
+                    plant_id,
+                    f"{from_container} -> {to_container}",
+                    f"{notes}\n---\n{json.dumps(extra_data)}" if notes else json.dumps(extra_data),
+                    user_id
+                ))
+                conn.commit()
+                return cursor.lastrowid
+        except Exception as e:
+            logger.error(f"Failed to create transplant entry: {e}")
+            return None

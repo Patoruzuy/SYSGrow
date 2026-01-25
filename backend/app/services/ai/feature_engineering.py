@@ -1821,3 +1821,7 @@ class PlantHealthFeatureExtractor:
     def get_feature_names(self) -> List[str]:
         """Return list of feature names in order."""
         return FeatureEngineer.PLANT_HEALTH_FEATURES_V1.copy()
+
+
+# Module-level alias for convenient imports
+PLANT_HEALTH_FEATURES_V1 = FeatureEngineer.PLANT_HEALTH_FEATURES_V1

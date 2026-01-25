@@ -143,7 +143,7 @@ def test_valve_failure_prevents_pump_start():
 
     service = IrrigationWorkflowService(
         workflow_repo=repo,
-        actuator_manager=actuator_manager,
+        actuator_service=actuator_manager,
         plant_service=plant_service,
     )
 

@@ -29,6 +29,8 @@ if TYPE_CHECKING:
     from app.services.ai.disease_predictor import DiseasePredictor
     from app.services.ai.environmental_health_scorer import EnvironmentalLeafHealthScorer
     from app.services.application.plant_service import PlantViewService
+    from app.services.ai.model_registry import ModelRegistry
+    from app.services.ai.feature_engineering import PlantHealthFeatureExtractor
 
 logger = logging.getLogger(__name__)
 
@@ -137,13 +139,20 @@ class PlantHealthScorer:
         'healthy': 100.0,
     }
 
+    # ML model names
+    MODEL_NAME_REGRESSOR = "plant_health_regressor"
+    MODEL_NAME_CLASSIFIER = "plant_health_classifier"
+    MIN_ML_CONFIDENCE = 0.6
+
     def __init__(
         self,
-        analytics_repo: Optional[AnalyticsRepository] = None,
-        threshold_service: Optional[ThresholdService] = None,
-        disease_predictor: Optional[DiseasePredictor] = None,
-        environmental_scorer: Optional[EnvironmentalLeafHealthScorer] = None,
-        plant_service: Optional[PlantViewService] = None,
+        analytics_repo: Optional["AnalyticsRepository"] = None,
+        threshold_service: Optional["ThresholdService"] = None,
+        disease_predictor: Optional["DiseasePredictor"] = None,
+        environmental_scorer: Optional["EnvironmentalLeafHealthScorer"] = None,
+        plant_service: Optional["PlantViewService"] = None,
+        model_registry: Optional["ModelRegistry"] = None,
+        feature_extractor: Optional["PlantHealthFeatureExtractor"] = None,
     ):
         """
         Initialize the plant health scorer.
@@ -154,12 +163,278 @@ class PlantHealthScorer:
             disease_predictor: For disease risk assessment
             environmental_scorer: For environmental health scoring
             plant_service: For plant profile access
+            model_registry: For loading trained ML models
+            feature_extractor: For extracting ML features
         """
         self.analytics_repo = analytics_repo
         self.threshold_service = threshold_service
         self.disease_predictor = disease_predictor
         self.environmental_scorer = environmental_scorer
         self.plant_service = plant_service
+        self.model_registry = model_registry
+        self.feature_extractor = feature_extractor
+
+        # ML model state (loaded lazily)
+        self._regressor_model = None
+        self._classifier_model = None
+        self._regressor_scaler = None
+        self._classifier_scaler = None
+        self._label_encoder = None
+        self._models_loaded = False
+
+    def load_models(self) -> bool:
+        """
+        Load trained ML models from registry.
+
+        Returns:
+            True if at least one model was loaded successfully
+        """
+        if not self.model_registry:
+            return False
+
+        loaded = False
+
+        try:
+            # Load regressor
+            regressor_data = self.model_registry.load_model(self.MODEL_NAME_REGRESSOR)
+            if regressor_data:
+                self._regressor_model = regressor_data.get("model")
+                artifacts = regressor_data.get("artifacts", {})
+                self._regressor_scaler = artifacts.get("scaler")
+                logger.info("Loaded plant health regressor model")
+                loaded = True
+        except Exception as e:
+            logger.warning(f"Could not load health regressor: {e}")
+
+        try:
+            # Load classifier
+            classifier_data = self.model_registry.load_model(self.MODEL_NAME_CLASSIFIER)
+            if classifier_data:
+                self._classifier_model = classifier_data.get("model")
+                artifacts = classifier_data.get("artifacts", {})
+                self._classifier_scaler = artifacts.get("scaler")
+                self._label_encoder = artifacts.get("label_encoder")
+                logger.info("Loaded plant health classifier model")
+                loaded = True
+        except Exception as e:
+            logger.warning(f"Could not load health classifier: {e}")
+
+        self._models_loaded = loaded
+        return loaded
+
+    def has_ml_models(self) -> bool:
+        """Check if ML models are available for prediction."""
+        return self._regressor_model is not None or self._classifier_model is not None
+
+    def _predict_with_ml(
+        self,
+        plant_id: int,
+        unit_id: int,
+        plant_info: Dict[str, Any],
+        plant_metrics: Dict[str, Optional[float]],
+        env_metrics: Dict[str, Optional[float]],
+        thresholds: Dict[str, Dict[str, float]],
+    ) -> Optional[PlantHealthScore]:
+        """
+        ML-based health prediction using ensemble of regressor and classifier.
+
+        Args:
+            plant_id: Plant ID
+            unit_id: Unit ID
+            plant_info: Plant profile info
+            plant_metrics: Plant-specific metrics (soil_moisture, pH, EC)
+            env_metrics: Environmental metrics (temperature, humidity, VPD)
+            thresholds: Threshold configuration
+
+        Returns:
+            PlantHealthScore if ML prediction succeeds, None otherwise
+        """
+        if not self.feature_extractor:
+            return None
+
+        if not self._regressor_model and not self._classifier_model:
+            # Try to load models if not loaded
+            if not self._models_loaded:
+                self.load_models()
+            if not self._regressor_model and not self._classifier_model:
+                return None
+
+        try:
+            import numpy as np
+            from app.services.ai.feature_engineering import FeatureEngineer
+
+            # Extract features
+            features = self.feature_extractor.extract_features(
+                plant_metrics=plant_metrics,
+                env_metrics=env_metrics,
+                plant_profile=plant_info,
+                thresholds=thresholds,
+            )
+
+            # Build feature vector
+            feature_names = FeatureEngineer.PLANT_HEALTH_FEATURES_V1
+            X = np.array([[features.get(f, 0.0) for f in feature_names]])
+
+            score_pred = None
+            status_pred = None
+            confidence = 0.8
+
+            # Get regressor prediction
+            if self._regressor_model and self._regressor_scaler:
+                X_scaled = self._regressor_scaler.transform(X)
+                score_pred = float(self._regressor_model.predict(X_scaled)[0])
+                score_pred = max(0.0, min(100.0, score_pred))
+
+            # Get classifier prediction
+            if self._classifier_model and self._classifier_scaler:
+                X_scaled = self._classifier_scaler.transform(X)
+                status_idx = self._classifier_model.predict(X_scaled)[0]
+                if self._label_encoder:
+                    status_pred = self._label_encoder.inverse_transform([status_idx])[0]
+                else:
+                    status_pred = ["healthy", "stressed", "critical"][int(status_idx)]
+
+                # Get confidence
+                if hasattr(self._classifier_model, "predict_proba"):
+                    proba = self._classifier_model.predict_proba(X_scaled)[0]
+                    confidence = float(np.max(proba))
+
+            # Combine predictions using ensemble strategy
+            if score_pred is not None and status_pred is not None:
+                # Status to score mapping
+                status_score_map = {"healthy": 85.0, "stressed": 50.0, "critical": 20.0}
+                status_score = status_score_map.get(status_pred, 50.0)
+
+                # Weighted average: 60% regressor, 40% classifier (weighted by confidence)
+                final_score = (score_pred * 0.6) + (status_score * 0.4 * confidence)
+                health_status = status_pred
+            elif score_pred is not None:
+                final_score = score_pred
+                health_status = self._determine_health_status(score_pred)
+            elif status_pred is not None:
+                status_score_map = {"healthy": 85.0, "stressed": 50.0, "critical": 20.0}
+                final_score = status_score_map.get(status_pred, 50.0)
+                health_status = status_pred
+            else:
+                return None
+
+            # Calculate component scores from features (deviations)
+            def deviation_to_score(deviation: float, scale: float = 20.0) -> float:
+                """Convert deviation to 0-100 score (lower deviation = higher score)."""
+                return max(0.0, min(100.0, 100.0 - abs(deviation) * scale))
+
+            # Generate ML-informed recommendations
+            recommendations = self._generate_ml_recommendations(features, final_score, health_status)
+            urgent_actions = self._identify_ml_urgent_actions(features, final_score)
+
+            return PlantHealthScore(
+                plant_id=plant_id,
+                unit_id=unit_id,
+                timestamp=utc_now(),
+                overall_score=final_score,
+                soil_moisture_score=deviation_to_score(features.get("soil_moisture_deviation", 0)),
+                ph_score=deviation_to_score(features.get("ph_deviation", 0), 30.0),
+                ec_score=deviation_to_score(features.get("ec_deviation", 0), 30.0),
+                temperature_score=deviation_to_score(features.get("temperature_deviation", 0), 10.0),
+                humidity_score=deviation_to_score(features.get("humidity_deviation", 0), 5.0),
+                vpd_score=deviation_to_score(features.get("vpd_deviation", 0), 50.0),
+                health_status=health_status,
+                disease_risk=self._get_disease_risk_level(unit_id, env_metrics),
+                nutrient_status=self._determine_nutrient_status(
+                    plant_metrics.get("ec"), plant_metrics.get("ph")
+                ),
+                recommendations=recommendations,
+                urgent_actions=urgent_actions,
+                data_completeness=confidence,
+                raw_values={**plant_metrics, **env_metrics},
+                metric_status={"prediction_source": "ml"},
+            )
+
+        except Exception as e:
+            logger.warning(f"ML prediction failed: {e}")
+            return None
+
+    def _generate_ml_recommendations(
+        self,
+        features: Dict[str, float],
+        score: float,
+        status: str,
+    ) -> List[str]:
+        """Generate recommendations based on ML features."""
+        recommendations = []
+
+        # Check feature deviations for specific recommendations
+        if features.get("soil_moisture_deviation", 0) < -10:
+            recommendations.append("Increase watering - soil moisture below optimal")
+        elif features.get("soil_moisture_deviation", 0) > 10:
+            recommendations.append("Reduce watering - soil moisture above optimal")
+
+        if features.get("temperature_deviation", 0) > 3:
+            recommendations.append("Reduce temperature - above optimal range")
+        elif features.get("temperature_deviation", 0) < -3:
+            recommendations.append("Increase temperature - below optimal range")
+
+        if features.get("humidity_deviation", 0) > 10:
+            recommendations.append("Increase ventilation - humidity too high")
+        elif features.get("humidity_deviation", 0) < -10:
+            recommendations.append("Increase humidity - air too dry")
+
+        if features.get("vpd_deviation", 0) > 0.3:
+            recommendations.append("Adjust VPD - outside optimal range for plant health")
+
+        if features.get("consecutive_stress_hours", 0) > 6:
+            recommendations.append("Address prolonged stress conditions")
+
+        if not recommendations:
+            if status == "healthy":
+                recommendations.append("Continue current care routine")
+            else:
+                recommendations.append("Monitor conditions closely")
+
+        return recommendations[:5]  # Limit to 5 recommendations
+
+    def _identify_ml_urgent_actions(
+        self,
+        features: Dict[str, float],
+        score: float,
+    ) -> List[str]:
+        """Identify urgent actions based on ML features."""
+        urgent = []
+
+        if score < 40:
+            urgent.append("Critical health score - immediate attention required")
+
+        if features.get("hours_below_moisture_threshold", 0) > 12:
+            urgent.append("Water immediately - prolonged moisture deficiency")
+
+        if features.get("hours_above_temp_threshold", 0) > 6:
+            urgent.append("Cool environment - prolonged heat stress")
+
+        if features.get("consecutive_stress_hours", 0) > 12:
+            urgent.append("Address stress factors immediately")
+
+        return urgent
+
+    def _get_disease_risk_level(
+        self,
+        unit_id: int,
+        env_metrics: Dict[str, Optional[float]],
+    ) -> str:
+        """Get disease risk level."""
+        if self.disease_predictor:
+            try:
+                risk = self.disease_predictor.assess_risk(unit_id)
+                if isinstance(risk, dict):
+                    return risk.get("risk_level", "low")
+                return str(risk) if risk else "low"
+            except Exception:
+                pass
+
+        # Simple rule-based fallback
+        humidity = env_metrics.get("humidity")
+        if humidity and humidity > 80:
+            return "moderate"
+        return "low"
 
     def score_plant_health(
         self,
@@ -192,6 +467,21 @@ class PlantHealthScorer:
             plant_metrics, plant_status = self._get_plant_metrics(plant_id, plant_info)
             env_metrics = self._get_environmental_metrics(unit_id)
             metric_status = dict(plant_status)
+
+            # Try ML prediction first if models are available
+            if self.feature_extractor and (self._regressor_model or self._classifier_model or not self._models_loaded):
+                ml_result = self._predict_with_ml(
+                    plant_id=plant_id,
+                    unit_id=unit_id,
+                    plant_info=plant_info,
+                    plant_metrics=plant_metrics,
+                    env_metrics=env_metrics,
+                    thresholds=thresholds,
+                )
+                if ml_result and ml_result.data_completeness >= self.MIN_ML_CONFIDENCE:
+                    return ml_result
+
+            # Fall back to rule-based scoring
 
             # Calculate component scores
             scores = {}

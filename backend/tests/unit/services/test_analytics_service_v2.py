@@ -144,17 +144,17 @@ class TestAnalyticsServiceV2:
             'schedules': {'light': {'start_time': '06:00', 'end_time': '18:00', 'enabled': True}}
         }
         
-        # Mock get_schedule utility
-        with patch('app.services.application.analytics_service.get_schedule') as mock_sched:
-            from app.utils.schedules import DeviceSchedule
-            mock_sched.return_value = DeviceSchedule('light', '06:00', '18:00', True)
-            
-            # Execute
-            result = analytics_service.get_sensors_history_enriched(
-                start_datetime=start,
-                end_datetime=end,
-                unit_id=1
-            )
+        # Configure scheduling_service on the analytics_service to supply schedules
+        mock_sched = Mock()
+        mock_sched.get_schedules_for_unit.return_value = [SimpleNamespace(start_time='06:00', end_time='18:00')]
+        analytics_service.scheduling_service = mock_sched
+
+        # Execute
+        result = analytics_service.get_sensors_history_enriched(
+            start_datetime=start,
+            end_datetime=end,
+            unit_id=1
+        )
             
             # Verify
             assert len(result['readings']) == 2

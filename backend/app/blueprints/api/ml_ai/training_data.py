@@ -280,3 +280,180 @@ def get_quality_metrics(dataset_type: str):
     except Exception as e:
         logger.error(f"Error getting quality metrics for {dataset_type}: {e}", exc_info=True)
         return _fail(str(e), 500)
+
+
+# ==============================================================================
+# PLANT HEALTH MODEL TRAINING
+# ==============================================================================
+
+def _get_ml_trainer():
+    """Get ML trainer service from container."""
+    container = _container()
+    if not container:
+        return None
+    return getattr(container, 'ml_trainer', None)
+
+
+@training_data_bp.post("/plant-health/train")
+def train_plant_health_models():
+    """
+    Trigger training of plant health ML models.
+
+    Trains both:
+    - Health score regressor (predicts 0-100 score)
+    - Health status classifier (predicts healthy/stressed/critical)
+
+    Request body (optional):
+        {
+            "unit_id": int,
+            "plant_type": str,
+            "days": int (default 365),
+            "model_type": "both" | "regressor" | "classifier"
+        }
+
+    Returns:
+        {
+            "success": bool,
+            "regressor": {...training metrics...},
+            "classifier": {...training metrics...}
+        }
+    """
+    try:
+        ml_trainer = _get_ml_trainer()
+
+        if not ml_trainer:
+            return _fail("ML trainer service is not available", 503)
+
+        data = request.get_json() or {}
+        unit_id = data.get("unit_id")
+        plant_type = data.get("plant_type")
+        days = data.get("days", 365)
+        model_type = data.get("model_type", "both")
+
+        results = {"success": False}
+
+        # Train regressor
+        if model_type in ("both", "regressor"):
+            regressor_result = ml_trainer.train_health_score_model(
+                unit_id=unit_id,
+                plant_type=plant_type,
+                days=days,
+                save_model=True,
+            )
+            results["regressor"] = regressor_result
+            if regressor_result.get("success"):
+                results["success"] = True
+
+        # Train classifier
+        if model_type in ("both", "classifier"):
+            classifier_result = ml_trainer.train_health_status_classifier(
+                unit_id=unit_id,
+                days=days,
+                save_model=True,
+            )
+            results["classifier"] = classifier_result
+            if classifier_result.get("success"):
+                results["success"] = True
+
+        if results["success"]:
+            return _success(results)
+        else:
+            # Return partial results with error info
+            error_msg = "Training failed - insufficient data"
+            if "regressor" in results and not results["regressor"].get("success"):
+                error_msg = results["regressor"].get("error", error_msg)
+            elif "classifier" in results and not results["classifier"].get("success"):
+                error_msg = results["classifier"].get("error", error_msg)
+            return _fail(error_msg, 400, data=results)
+
+    except Exception as e:
+        logger.error(f"Error training plant health models: {e}", exc_info=True)
+        return _fail(str(e), 500)
+
+
+@training_data_bp.get("/plant-health/status")
+def get_plant_health_training_status():
+    """
+    Get plant health model training readiness status.
+
+    Returns:
+        {
+            "ready_for_training": bool,
+            "harvest_samples": int,
+            "observation_samples": int,
+            "min_samples_required": int,
+            "regressor_model_exists": bool,
+            "classifier_model_exists": bool,
+            "recommendations": [str]
+        }
+    """
+    try:
+        container = _container()
+        if not container:
+            return _fail("Container not available", 503)
+
+        # Check for training data repository
+        training_repo = getattr(container, 'training_data_repo', None)
+        model_registry = getattr(container, 'model_registry', None)
+
+        MIN_SAMPLES = 50
+        harvest_samples = 0
+        observation_samples = 0
+        regressor_exists = False
+        classifier_exists = False
+
+        # Count available training data
+        if training_repo and hasattr(training_repo, 'get_health_score_training_data'):
+            try:
+                harvest_data = training_repo.get_health_score_training_data(days_limit=365)
+                harvest_samples = len(harvest_data) if harvest_data else 0
+            except Exception as e:
+                logger.warning(f"Error getting harvest samples: {e}")
+
+        if training_repo and hasattr(training_repo, 'get_health_status_training_data'):
+            try:
+                obs_data = training_repo.get_health_status_training_data(days_limit=365)
+                observation_samples = len(obs_data) if obs_data else 0
+            except Exception as e:
+                logger.warning(f"Error getting observation samples: {e}")
+
+        # Check if models exist
+        if model_registry:
+            try:
+                regressor_exists = model_registry.model_exists("plant_health_regressor")
+            except Exception:
+                pass
+            try:
+                classifier_exists = model_registry.model_exists("plant_health_classifier")
+            except Exception:
+                pass
+
+        ready_for_training = harvest_samples >= MIN_SAMPLES or observation_samples >= MIN_SAMPLES
+        recommendations = []
+
+        if harvest_samples < MIN_SAMPLES:
+            recommendations.append(
+                f"Need {MIN_SAMPLES - harvest_samples} more harvest records with quality ratings"
+            )
+        if observation_samples < MIN_SAMPLES:
+            recommendations.append(
+                f"Need {MIN_SAMPLES - observation_samples} more health observations"
+            )
+        if ready_for_training and not regressor_exists:
+            recommendations.append("Ready to train health score regressor")
+        if ready_for_training and not classifier_exists:
+            recommendations.append("Ready to train health status classifier")
+
+        return _success({
+            "ready_for_training": ready_for_training,
+            "harvest_samples": harvest_samples,
+            "observation_samples": observation_samples,
+            "min_samples_required": MIN_SAMPLES,
+            "regressor_model_exists": regressor_exists,
+            "classifier_model_exists": classifier_exists,
+            "recommendations": recommendations,
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting plant health training status: {e}", exc_info=True)
+        return _fail(str(e), 500)

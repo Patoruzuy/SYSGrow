@@ -1795,3 +1795,396 @@ class MLTrainerService:
         except Exception as e:
             self.logger.error(f"Failed to fine-tune all plant types: {e}", exc_info=True)
             return {"success": False, "error": str(e)}
+
+    # ========================================================================
+    # Plant Health Score ML Training
+    # ========================================================================
+
+    def train_health_score_model(
+        self,
+        unit_id: Optional[int] = None,
+        plant_type: Optional[str] = None,
+        days: int = 365,
+        save_model: bool = True,
+        *,
+        cancel_event: Optional[threading.Event] = None,
+        progress_callback: Optional[callable] = None,
+    ) -> Dict[str, Any]:
+        """
+        Train plant health score regressor.
+
+        Target: Harvest quality rating × 20 (maps 1-5 to 20-100)
+        Features: PLANT_HEALTH_FEATURES_V1
+        Algorithm: GradientBoostingRegressor
+
+        Args:
+            unit_id: Optional filter by unit
+            plant_type: Optional filter by plant type
+            days: Training data window (default 365)
+            save_model: Whether to save the trained model
+            cancel_event: Optional event to signal cancellation
+            progress_callback: Optional progress update callback
+
+        Returns:
+            Training result dictionary with metrics
+        """
+        import time
+        start_time = time.time()
+
+        try:
+            # Lazy load ML libraries
+            import numpy as np
+            from sklearn.ensemble import GradientBoostingRegressor
+            from sklearn.model_selection import train_test_split, cross_val_score
+            from sklearn.preprocessing import StandardScaler
+            from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+
+            from app.services.ai.feature_engineering import (
+                FeatureEngineer,
+                PlantHealthFeatureExtractor,
+            )
+
+            MIN_SAMPLES = 50
+
+            if progress_callback:
+                progress_callback(0.1, "Collecting training data...")
+
+            # 1. Collect training data from harvests
+            harvest_data = self.training_data_repo.get_health_score_training_data(
+                unit_id=unit_id,
+                plant_type=plant_type,
+                days_limit=days,
+                min_quality=1,
+            )
+
+            if cancel_event and cancel_event.is_set():
+                return {"success": False, "error": "Training cancelled"}
+
+            if len(harvest_data) < MIN_SAMPLES:
+                self.logger.warning(
+                    f"Insufficient training data: {len(harvest_data)} < {MIN_SAMPLES}"
+                )
+                return {
+                    "success": False,
+                    "error": f"Insufficient training data: {len(harvest_data)} samples (need {MIN_SAMPLES})",
+                    "samples_available": len(harvest_data),
+                    "samples_required": MIN_SAMPLES,
+                }
+
+            if progress_callback:
+                progress_callback(0.3, "Extracting features...")
+
+            # 2. Extract features
+            feature_extractor = PlantHealthFeatureExtractor()
+            X_df = feature_extractor.extract_training_features(harvest_data)
+
+            # Target: quality_rating × 20 (maps 1-5 to 20-100)
+            y = np.array([sample.get("quality_rating", 3) * 20 for sample in harvest_data])
+
+            if cancel_event and cancel_event.is_set():
+                return {"success": False, "error": "Training cancelled"}
+
+            if progress_callback:
+                progress_callback(0.5, "Training model...")
+
+            # 3. Split and scale
+            X_train, X_test, y_train, y_test = train_test_split(
+                X_df, y, test_size=0.2, random_state=self.random_state
+            )
+            scaler = StandardScaler()
+            X_train_scaled = scaler.fit_transform(X_train)
+            X_test_scaled = scaler.transform(X_test)
+
+            # 4. Train model
+            model = GradientBoostingRegressor(
+                n_estimators=100,
+                max_depth=5,
+                learning_rate=0.1,
+                random_state=self.random_state,
+            )
+            model.fit(X_train_scaled, y_train)
+
+            if cancel_event and cancel_event.is_set():
+                return {"success": False, "error": "Training cancelled"}
+
+            if progress_callback:
+                progress_callback(0.7, "Evaluating model...")
+
+            # 5. Evaluate
+            train_score = model.score(X_train_scaled, y_train)
+            test_score = model.score(X_test_scaled, y_test)
+            y_pred = model.predict(X_test_scaled)
+            mae = mean_absolute_error(y_test, y_pred)
+            rmse = np.sqrt(mean_squared_error(y_test, y_pred))
+            r2 = r2_score(y_test, y_pred)
+
+            # Cross-validation
+            cv_scores = cross_val_score(
+                model, X_train_scaled, y_train, cv=min(5, len(X_train) // 10)
+            )
+
+            # Feature importance
+            feature_importance = dict(
+                zip(X_df.columns, model.feature_importances_)
+            )
+            sorted_importance = dict(
+                sorted(feature_importance.items(), key=lambda x: x[1], reverse=True)[:10]
+            )
+
+            if progress_callback:
+                progress_callback(0.9, "Saving model...")
+
+            # 6. Save model
+            model_name = "plant_health_regressor"
+            if save_model:
+                self.model_registry.save_model(
+                    model_name,
+                    model,
+                    metadata={
+                        "r2_score": float(test_score),
+                        "mae": float(mae),
+                        "rmse": float(rmse),
+                        "features": list(X_df.columns),
+                        "training_samples": len(X_train),
+                        "test_samples": len(X_test),
+                        "plant_type": plant_type,
+                        "unit_id": unit_id,
+                    },
+                    artifacts={"scaler": scaler},
+                )
+
+            training_time = time.time() - start_time
+
+            self.logger.info(
+                f"✅ Trained plant health regressor: R²={test_score:.3f}, MAE={mae:.1f}, "
+                f"samples={len(harvest_data)}"
+            )
+
+            if progress_callback:
+                progress_callback(1.0, "Training complete")
+
+            return {
+                "success": True,
+                "model_name": model_name,
+                "metrics": {
+                    "r2_score": round(test_score, 4),
+                    "train_r2": round(train_score, 4),
+                    "mae": round(mae, 2),
+                    "rmse": round(rmse, 2),
+                    "cv_mean": round(float(np.mean(cv_scores)), 4),
+                    "cv_std": round(float(np.std(cv_scores)), 4),
+                },
+                "training_samples": len(X_train),
+                "test_samples": len(X_test),
+                "feature_importance": sorted_importance,
+                "training_time_seconds": round(training_time, 2),
+                "plant_type": plant_type,
+                "unit_id": unit_id,
+            }
+
+        except Exception as e:
+            self.logger.error(f"Health score model training error: {e}", exc_info=True)
+            return {"success": False, "error": str(e)}
+
+    def train_health_status_classifier(
+        self,
+        unit_id: Optional[int] = None,
+        days: int = 365,
+        save_model: bool = True,
+        *,
+        cancel_event: Optional[threading.Event] = None,
+        progress_callback: Optional[callable] = None,
+    ) -> Dict[str, Any]:
+        """
+        Train plant health status classifier (ensemble component 2).
+
+        Target: User-reported health status (healthy/stressed/critical)
+        Features: PLANT_HEALTH_FEATURES_V1
+        Algorithm: GradientBoostingClassifier
+
+        Args:
+            unit_id: Optional filter by unit
+            days: Training data window (default 365)
+            save_model: Whether to save the trained model
+            cancel_event: Optional event to signal cancellation
+            progress_callback: Optional progress update callback
+
+        Returns:
+            Training result dictionary with metrics
+        """
+        import time
+        start_time = time.time()
+
+        try:
+            # Lazy load ML libraries
+            import numpy as np
+            from sklearn.ensemble import GradientBoostingClassifier
+            from sklearn.model_selection import train_test_split, cross_val_score
+            from sklearn.preprocessing import StandardScaler, LabelEncoder
+            from sklearn.metrics import accuracy_score, classification_report
+
+            from app.services.ai.feature_engineering import PlantHealthFeatureExtractor
+
+            MIN_SAMPLES = 50
+
+            if progress_callback:
+                progress_callback(0.1, "Collecting training data...")
+
+            # 1. Collect training data from health observations
+            observation_data = self.training_data_repo.get_health_status_training_data(
+                unit_id=unit_id,
+                days_limit=days,
+                confirmed_only=True,
+            )
+
+            if cancel_event and cancel_event.is_set():
+                return {"success": False, "error": "Training cancelled"}
+
+            # 2. Generate synthetic healthy samples from periods without issues
+            healthy_samples = self.training_data_repo.generate_health_baseline_samples(
+                unit_id=unit_id,
+                num_samples=max(len(observation_data), MIN_SAMPLES // 2),
+            )
+
+            all_samples = observation_data + healthy_samples
+
+            if len(all_samples) < MIN_SAMPLES:
+                self.logger.warning(
+                    f"Insufficient training data: {len(all_samples)} < {MIN_SAMPLES}"
+                )
+                return {
+                    "success": False,
+                    "error": f"Insufficient training data: {len(all_samples)} samples (need {MIN_SAMPLES})",
+                    "samples_available": len(all_samples),
+                    "observation_samples": len(observation_data),
+                    "synthetic_samples": len(healthy_samples),
+                    "samples_required": MIN_SAMPLES,
+                }
+
+            if progress_callback:
+                progress_callback(0.3, "Extracting features...")
+
+            # 3. Extract features and labels
+            feature_extractor = PlantHealthFeatureExtractor()
+            X_df = feature_extractor.extract_training_features(all_samples)
+
+            # Encode labels
+            label_encoder = LabelEncoder()
+            labels = [s.get("health_status", "healthy") for s in all_samples]
+            y = label_encoder.fit_transform(labels)
+
+            if cancel_event and cancel_event.is_set():
+                return {"success": False, "error": "Training cancelled"}
+
+            if progress_callback:
+                progress_callback(0.5, "Training classifier...")
+
+            # 4. Split and scale
+            X_train, X_test, y_train, y_test = train_test_split(
+                X_df, y, test_size=0.2, random_state=self.random_state, stratify=y
+            )
+            scaler = StandardScaler()
+            X_train_scaled = scaler.fit_transform(X_train)
+            X_test_scaled = scaler.transform(X_test)
+
+            # 5. Train classifier
+            model = GradientBoostingClassifier(
+                n_estimators=100,
+                max_depth=5,
+                learning_rate=0.1,
+                random_state=self.random_state,
+            )
+            model.fit(X_train_scaled, y_train)
+
+            if cancel_event and cancel_event.is_set():
+                return {"success": False, "error": "Training cancelled"}
+
+            if progress_callback:
+                progress_callback(0.7, "Evaluating classifier...")
+
+            # 6. Evaluate
+            train_accuracy = model.score(X_train_scaled, y_train)
+            test_accuracy = model.score(X_test_scaled, y_test)
+            y_pred = model.predict(X_test_scaled)
+
+            # Classification report
+            class_names = label_encoder.classes_.tolist()
+            report = classification_report(
+                y_test, y_pred, target_names=class_names, output_dict=True
+            )
+
+            # Cross-validation
+            cv_scores = cross_val_score(
+                model, X_train_scaled, y_train, cv=min(5, len(X_train) // 10)
+            )
+
+            # Feature importance
+            feature_importance = dict(
+                zip(X_df.columns, model.feature_importances_)
+            )
+            sorted_importance = dict(
+                sorted(feature_importance.items(), key=lambda x: x[1], reverse=True)[:10]
+            )
+
+            if progress_callback:
+                progress_callback(0.9, "Saving classifier...")
+
+            # 7. Save model
+            model_name = "plant_health_classifier"
+            if save_model:
+                self.model_registry.save_model(
+                    model_name,
+                    model,
+                    metadata={
+                        "accuracy": float(test_accuracy),
+                        "features": list(X_df.columns),
+                        "classes": class_names,
+                        "training_samples": len(X_train),
+                        "test_samples": len(X_test),
+                        "unit_id": unit_id,
+                    },
+                    artifacts={
+                        "scaler": scaler,
+                        "label_encoder": label_encoder,
+                    },
+                )
+
+            training_time = time.time() - start_time
+
+            self.logger.info(
+                f"✅ Trained plant health classifier: accuracy={test_accuracy:.3f}, "
+                f"samples={len(all_samples)}, classes={class_names}"
+            )
+
+            if progress_callback:
+                progress_callback(1.0, "Training complete")
+
+            return {
+                "success": True,
+                "model_name": model_name,
+                "metrics": {
+                    "accuracy": round(test_accuracy, 4),
+                    "train_accuracy": round(train_accuracy, 4),
+                    "cv_mean": round(float(np.mean(cv_scores)), 4),
+                    "cv_std": round(float(np.std(cv_scores)), 4),
+                    "per_class": {
+                        cls: {
+                            "precision": round(report[cls]["precision"], 3),
+                            "recall": round(report[cls]["recall"], 3),
+                            "f1-score": round(report[cls]["f1-score"], 3),
+                        }
+                        for cls in class_names
+                        if cls in report
+                    },
+                },
+                "training_samples": len(X_train),
+                "test_samples": len(X_test),
+                "classes": class_names,
+                "feature_importance": sorted_importance,
+                "training_time_seconds": round(training_time, 2),
+                "unit_id": unit_id,
+            }
+
+        except Exception as e:
+            self.logger.error(f"Health status classifier training error: {e}", exc_info=True)
+            return {"success": False, "error": str(e)}

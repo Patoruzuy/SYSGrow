@@ -93,6 +93,7 @@ from app.services.ai import (
     EnvironmentalFeatureExtractor,
     EnvironmentalLeafHealthScorer,
     PlantHealthScorer,
+    PlantHealthFeatureExtractor,
 )
 
 
@@ -421,6 +422,9 @@ class ContainerBuilder:
             analytics_repo=infra.analytics_repo
         )
 
+        # Plant health feature extractor for ML predictions
+        plant_health_feature_extractor = PlantHealthFeatureExtractor()
+
         # Plant health scorer (threshold_service & plant_service wired later)
         plant_health_scorer = PlantHealthScorer(
             analytics_repo=infra.analytics_repo,
@@ -428,7 +432,11 @@ class ContainerBuilder:
             disease_predictor=disease_predictor,
             environmental_scorer=environmental_health_scorer,
             plant_service=None,
+            model_registry=model_registry,
+            feature_extractor=plant_health_feature_extractor,
         )
+        # Try to load ML models (gracefully handles missing models)
+        plant_health_scorer.load_models()
 
         # ML trainer
         ml_trainer = MLTrainerService(

@@ -61,8 +61,6 @@ dependencies = [
   "aiohttp>=3.8.0,<4.0.0",
   "aiofiles>=23.2.0,<24.0.0",
   "pyserial>=3.5,<4.0.0",
-  "pywin32>=306; platform_system==\"Windows\"",
-  "python-systemd>=234; platform_system==\"Linux\"",
 ]
 
 [project.optional-dependencies]
@@ -90,6 +88,33 @@ complete = [
   "torch>=2.0.0",
   "RPi.GPIO>=0.7.1",
   "adafruit-circuitpython-ads1x15>=2.2.21",
+]
+
+windows = [
+  "pywin32>=306; platform_system=='Windows'",
+]
+
+linux = [
+  "python-systemd>=234; platform_system=='Linux'",
+]
+
+zigbee = [
+  "zigpy>=0.57.0,<1.0.0; platform_system!='Windows'",
+  "zigpy-znp>=0.11.0,<1.0.0; platform_system!='Windows'",
+  "zigpy-deconz>=0.21.0,<1.0.0; platform_system!='Windows'",
+  "bellows>=0.36.0,<1.0.0; platform_system!='Windows'",
+  "zigpy-xbee>=0.20.0,<1.0.0; platform_system!='Windows'",
+  "zigpy-zigate>=0.11.0,<1.0.0; platform_system!='Windows'",
+]
+
+raspberry = [
+  "RPi.GPIO>=0.7.1,<1.0.0; platform_machine=='armv7l' or platform_machine=='aarch64'",
+  "gpiozero>=1.6.0,<2.0.0; platform_machine=='armv7l' or platform_machine=='aarch64'",
+]
+
+adafruit = [
+  "adafruit-circuitpython-ads1x15>=2.2.21,<3.0.0; platform_system!='Windows'",
+  "adafruit-blinka>=8.20.0,<9.0.0; platform_system!='Windows'",
 ]
 
 [project.scripts]

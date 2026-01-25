@@ -1,0 +1,108 @@
+#!/usr/bin/env python3
+"""Utility to inspect, validate and merge project env files.
+
+Usage:
+  python scripts/sort_config.py         # show current merged view
+  python scripts/sort_config.py --write  # write merged variables to .env (root)
+  python scripts/sort_config.py --target app/.env --write  # write to app/.env
+
+Priority (highest -> lowest):
+  1. OS environment variables
+  2. `app/.env` (if present)
+  3. `ops.env.example` (if present)
+  4. `.env.example`
+
+The script prints a table showing where each variable comes from and its value.
+"""
+from __future__ import annotations
+
+import argparse
+import os
+from pathlib import Path
+from typing import Dict, Tuple
+
+
+def parse_env_file(path: Path) -> Dict[str, str]:
+    out: Dict[str, str] = {}
+    if not path.exists():
+        return out
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "=" not in line:
+            continue
+        key, val = line.split("=", 1)
+        out[key.strip()] = val.strip()
+    return out
+
+
+def merge_sources(sources: Tuple[Tuple[str, Dict[str, str]], ...]) -> Dict[str, Tuple[str, str]]:
+    """Merge sources in order; return mapping key -> (source_name, value)."""
+    result: Dict[str, Tuple[str, str]] = {}
+    for name, mapping in sources:
+        for k, v in mapping.items():
+            # don't overwrite higher-priority values
+            if k in result:
+                continue
+            result[k] = (name, v)
+    return result
+
+
+def format_row(key: str, origin: str, value: str) -> str:
+    v = value
+    if len(v) > 80:
+        v = v[:77] + "..."
+    return f"{key:40} {origin:12} {v}"
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description="Inspect and merge env files for SYSGrow")
+    ap.add_argument("--write", action="store_true", help="Write merged output to target file")
+    ap.add_argument("--target", default=".env", help="Target path to write merged file (default: .env)")
+    ap.add_argument("--show-all", action="store_true", help="Show all variables including those only in examples")
+    args = ap.parse_args()
+
+    root = Path(__file__).resolve().parent.parent
+    example = root / ".env.example"
+    ops_example = root / "ops.env.example"
+    app_env = root / "app" / ".env"
+
+    src_example = parse_env_file(example)
+    src_ops = parse_env_file(ops_example)
+    src_app = parse_env_file(app_env)
+    src_env = {k: v for k, v in os.environ.items()}
+
+    # Priority: env > app_env > ops > example
+    merged = merge_sources((("env", src_env), ("app/.env", src_app), ("ops.example", src_ops), ("example", src_example)))
+
+    # Print header
+    print("Key".ljust(40), "Origin".ljust(12), "Value")
+    print("-" * 100)
+    keys = sorted(set(list(src_example.keys()) + list(src_ops.keys()) + list(src_app.keys()) + list(src_env.keys())))
+    for k in keys:
+        if k in merged:
+            origin, val = merged[k]
+            if not args.show_all and origin == "example" and k not in src_app and k not in src_env:
+                # skip pure-example keys unless show_all
+                continue
+            print(format_row(k, origin, val))
+        else:
+            # key not present anywhere (shouldn't happen because we built keys from sources)
+            print(format_row(k, "(missing)", ""))
+
+    if args.write:
+        target = Path(args.target)
+        out_lines = []
+        for k in sorted(merged.keys()):
+            origin, val = merged[k]
+            out_lines.append(f"{k}={val}")
+        content = "\n".join(out_lines) + "\n"
+        target.write_text(content, encoding="utf-8")
+        print(f"Wrote merged {len(out_lines)} keys to {target}")
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

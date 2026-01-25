@@ -1,6 +1,3 @@
-""" Module to configure and manage a wireless hotspot on a Raspberry Pi. This hotspot can be used to connect devices (e.g., ESP32-CAM) to the Raspberry
-Pi when the Wi-Fi signal is weak.
-"""
 import os
 import subprocess
 

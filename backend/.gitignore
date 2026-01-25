@@ -40,3 +40,4 @@ nginx/certbot/www/
 
 # Others
 .DS_Store
+devices_system.log

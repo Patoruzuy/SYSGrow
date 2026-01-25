@@ -1,4 +1,4 @@
-Metadata-Version: 2.1
+Metadata-Version: 2.4
 Name: sysgrow-smart-agriculture
 Version: 3.0.0
 Summary: SYSGrow Smart Agriculture IoT System
@@ -18,12 +18,12 @@ Classifier: Programming Language :: Python :: 3.9
 Classifier: Programming Language :: Python :: 3.10
 Classifier: Programming Language :: Python :: 3.11
 Classifier: Operating System :: OS Independent
-Requires-Python: >=3.8
+Requires-Python: >=3.8,<4
 Description-Content-Type: text/markdown
 Requires-Dist: Flask<3.0.0,>=2.3.0
 Requires-Dist: Flask-SocketIO<6.0.0,>=5.3.0
 Requires-Dist: Werkzeug<3.0.0,>=2.3.0
-Requires-Dist: paho-mqtt<2.0.0,>=1.6.1
+Requires-Dist: paho-mqtt>=2.1.0
 Requires-Dist: requests<3.0.0,>=2.31.0
 Requires-Dist: pymodbus<4.0.0,>=3.1.0
 Requires-Dist: pydantic<3.0.0,>=2.0.0
@@ -53,6 +53,7 @@ Requires-Dist: python-dateutil<3.0.0,>=2.8.0
 Requires-Dist: pytz>=2023.3
 Requires-Dist: click<9.0.0,>=8.1.0
 Requires-Dist: python-dotenv<2.0.0,>=1.0.0
+Requires-Dist: psutil>=7.1.3
 Requires-Dist: pytest<8.0.0,>=7.4.0
 Requires-Dist: pytest-flask<2.0.0,>=1.2.0
 Requires-Dist: pytest-cov<5.0.0,>=4.1.0
@@ -91,6 +92,17 @@ Requires-Dist: tensorflow>=2.13.0; extra == "complete"
 Requires-Dist: torch>=2.0.0; extra == "complete"
 Requires-Dist: RPi.GPIO>=0.7.1; extra == "complete"
 Requires-Dist: adafruit-circuitpython-ads1x15>=2.2.21; extra == "complete"
+Dynamic: author
+Dynamic: author-email
+Dynamic: classifier
+Dynamic: description
+Dynamic: description-content-type
+Dynamic: home-page
+Dynamic: keywords
+Dynamic: provides-extra
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary
 
 # 🌱 SYSGrow - Smart Agriculture
 

@@ -728,7 +728,6 @@ class ContainerBuilder:
             plant_handler=plant_catalog,
             climate_optimizer=ai.climate_optimizer,
             growth_repo=infra.growth_repo,
-            settings_repo=infra.settings_repo,
         )
 
         # Set threshold service on plant health monitor

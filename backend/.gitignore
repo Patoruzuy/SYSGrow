@@ -9,6 +9,7 @@ __pycache__/
 .secrets
 .log
 .pyc
+.coude/
 
 docs/
 venv/
@@ -17,7 +18,7 @@ build/
 dist/
 __pycache__/
 docs/
-
+.env.example
 *.md
 
 # Local runtime artifacts
@@ -34,6 +35,8 @@ database/*.sqlite
 database/*.sqlite3
 database/*.sqlite*
 *.db
+
+.codex.json
 
 # Certbot
 nginx/certbot/conf/

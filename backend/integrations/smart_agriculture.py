@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+DECREPATED: Old implementation of SYSGrow Smart Agriculture Integration.
 SYSGrow Smart Agriculture Integration Module
 ==========================================
 

@@ -24,7 +24,6 @@ from app.schemas.events import ThresholdsPersistPayload
 
 if TYPE_CHECKING:
     from infrastructure.database.repositories.growth import GrowthRepository
-    from infrastructure.database.repositories.settings import SettingsRepository
     from app.services.ai.climate_optimizer import ClimateOptimizer
     from app.services.application.notifications_service import NotificationsService
     from app.utils.event_bus import EventBus
@@ -71,7 +70,6 @@ class ThresholdService:
         plant_handler: Optional[PlantJsonHandler] = None,
         climate_optimizer: Optional["ClimateOptimizer"] = None,
         growth_repo: Optional["GrowthRepository"] = None,
-        settings_repo: Optional["SettingsRepository"] = None,
         notifications_service: Optional["NotificationsService"] = None,
         event_bus: Optional["EventBus"] = None,
     ):
@@ -82,14 +80,12 @@ class ThresholdService:
             plant_handler: Optional PlantJsonHandler instance (creates new if None)
             climate_optimizer: Optional ClimateOptimizer service for AI predictions
             growth_repo: Optional GrowthRepository for persistence
-            settings_repo: Optional SettingsRepository for global thresholds
             notifications_service: Optional NotificationsService for threshold proposals
             event_bus: Optional EventBus for subscribing to threshold events
         """
         self.plant_handler = plant_handler or PlantJsonHandler()
         self.climate_optimizer = climate_optimizer
         self.growth_repo = growth_repo
-        self.settings_repo = settings_repo
         self.notifications_service = notifications_service
         self.event_bus = event_bus
         self._threshold_cache = {}

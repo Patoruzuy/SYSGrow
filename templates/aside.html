@@ -1,60 +1,4 @@
 <!-- templates/aside.html -->
-<<<<<<< HEAD
-<section class="camera-container">
-    <div class="camera">
-        <h5>Camera</h5>
-        {% if camera_running %}
-          <a class="btn btn-outline btn-sm" href="{{ url_for('stop_camera') }}">Stop</a>
-          <a class="btn btn-primary btn-sm" href="{{ url_for('fullscreen') }}" target="_blank" rel="noopener">Fullscreen</a>
-        {% else %}
-          <a class="btn btn-primary btn-sm" href="{{ url_for('start_camera') }}">Start</a>
-        {% endif %}
-      </div>
-    </header>
-
-    {% if camera_running %}
-      <figure class="camera-feed-wrapper">
-        <img src="{{ url_for('video_feed') }}" alt="Live camera feed" class="camera-feed" loading="lazy">
-        <figcaption class="sr-only">Live camera stream</figcaption>
-      </figure>
-    {% else %}
-      <p class="text-muted mt-2">Camera is configured but not running.</p>
-    {% endif %}
-  </section>
-  {% endif %}
-
-  <section class="management-section environment-container" aria-labelledby="environment-title">
-    <h5 id="environment-title" class="section-title">🌡️ Environment readings</h5>
-    {% if environment_readings %}
-      <ul class="environment-readings">
-        {% for reading in environment_readings %}
-          <li class="reading">
-            <span class="label">{{ reading.label }}</span>
-            <span class="value">{{ reading.value }}</span>
-          </li>
-        {% endfor %}
-      </ul>
-    {% else %}
-      <p class="text-muted">No environment readings yet.</p>
-    {% endif %}
-  </section>
-
-  <section class="management-section actuators-container" aria-labelledby="actuators-title">
-    <h5 id="actuators-title" class="section-title">⚙️ Active actuators</h5>
-    {% if active_actuators %}
-      <ul class="actuators-state">
-        {% for name, actuator in active_actuators.items() %}
-          <li class="state">
-            <div class="actuator-instance">
-              <img src="{{ url_for('static', filename='images/actuator.jpg') }}" alt="" class="actuator-thumb" />
-              <div class="actuator-name"><strong>{{ name }}</strong></div>
-              <div class="actuator-status text-muted ml-auto">{{ actuator.get_state() }}</div>
-            </div>
-          </li>
-        {% endfor %}
-    </div>
-</section>
-=======
 <aside class="aside-panels">
   {# Show the whole camera section ONLY if camera is configured #}
   {% if camera_configured %}
@@ -124,4 +68,3 @@
     </ul>
   </section>
 </aside>
->>>>>>> update

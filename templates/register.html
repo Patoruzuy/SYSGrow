@@ -1,27 +1,4 @@
 {% extends 'base.html' %}
-<<<<<<< HEAD
-
-{% block content %}
-<div class="main-content login-container">
-  <div class="login-wrapper">
-    <img src="{{ url_for('static', filename='images/logo.jpg') }}" class="logo-image" alt="SYSGrow logo">
-    <h2 class="auth-title">Create Account</h2>
-    <form method="POST" action="{{ url_for('auth.process_registration') }}" novalidate>
-      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      {{ ui.form_field('username', 'Username', required=True, placeholder='Choose a username') }}
-      {{ ui.form_field('password', 'Password', type='password', required=True, placeholder='Choose a strong password') }}
-      <button type="submit" class="auth-submit">Register</button>
-    </form>
-    <div class="auth-footer">
-      <p>Already have an account?</p>
-      <a href="{{ url_for('auth.login') }}" class="btn-register-link">
-        <i class="fas fa-sign-in-alt"></i> Sign In
-      </a>
-    </div>
-  </div>
-</div>
-{% endblock %}
-=======
 {% import "macros.html" as ui %}
 
 {% block body_class %}auth-page{% endblock %}
@@ -46,4 +23,3 @@
   </div>
 </div>
 {% endblock %}
->>>>>>> update

@@ -915,6 +915,7 @@ class MLTrainerService:
                 metrics = {
                     "train_score": float(train_score),
                     "test_score": float(test_score),
+                    "r2_score": float(test_score),
                     "cv_mean": float(np.mean(cv_scores)),
                     "cv_std": float(np.std(cv_scores)),
                     "mae": float(mae),
@@ -1117,6 +1118,7 @@ class MLTrainerService:
                 metrics = {
                     "train_score": float(train_score),
                     "test_score": float(test_score),
+                    "accuracy": float(test_score),
                     "cv_mean": float(np.mean(cv_scores)),
                     "cv_std": float(np.std(cv_scores)),
                     "macro_f1": float(macro_f1),
@@ -1304,6 +1306,7 @@ class MLTrainerService:
                 report_progress(85, "Saving model...")
                 metrics = {
                     "top1_accuracy": float(top1_accuracy),
+                    "accuracy": float(top1_accuracy),
                     "top3_accuracy": float(top3_accuracy),
                     "mrr": float(mrr),
                     "cv_mean": float(np.mean(cv_scores)),
@@ -1489,6 +1492,7 @@ class MLTrainerService:
                 metrics = {
                     "train_score": float(train_score),
                     "test_score": float(test_score),
+                    "r2_score": float(test_score),
                     "cv_mean": float(np.mean(cv_scores)),
                     "cv_std": float(np.std(cv_scores)),
                     "mae": float(mae),

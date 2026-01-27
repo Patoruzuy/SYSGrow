@@ -1156,7 +1156,31 @@ class IrrigationPredictor:
     ) -> List[str]:
         """Generate actionable recommendations from predictions."""
         recommendations = []
-        
+
+        if self._recommendation_provider and plant_id is not None:
+            try:
+                from app.services.ai.recommendation_provider import RecommendationContext
+
+                context = RecommendationContext(
+                    plant_id=int(plant_id),
+                    unit_id=int(unit_id),
+                    plant_type=plant_type,
+                    growth_stage=growth_stage,
+                    symptoms=[],
+                    severity_level=2,
+                    environmental_data=current_conditions,
+                    irrigation_prediction=prediction,
+                )
+                provider_recs = self._recommendation_provider.get_recommendations(context)
+                for rec in provider_recs[:6]:
+                    recommendations.append(
+                        f"[{rec.category}] {rec.action} ({rec.priority}, {rec.confidence:.2f})"
+                    )
+                if recommendations:
+                    return recommendations
+            except Exception as exc:
+                logger.debug("Recommendation provider failed: %s", exc)
+
         # Threshold recommendations
         if prediction.threshold:
             t = prediction.threshold
@@ -1202,27 +1226,6 @@ class IrrigationPredictor:
                     f"Best irrigation time: {t.preferred_time}. "
                     f"Avoid: {', '.join(t.avoid_times[:3])}"
                 )
-        
-        if self._recommendation_provider and plant_id is not None:
-            try:
-                from app.services.ai.recommendation_provider import RecommendationContext
-
-                context = RecommendationContext(
-                    plant_id=int(plant_id),
-                    unit_id=int(unit_id),
-                    plant_type=plant_type,
-                    growth_stage=growth_stage,
-                    symptoms=[],
-                    severity_level=2,
-                    environmental_data=current_conditions,
-                )
-                provider_recs = self._recommendation_provider.get_recommendations(context)
-                for rec in provider_recs[:3]:
-                    recommendations.append(
-                        f"[{rec.category}] {rec.action} ({rec.priority}, {rec.confidence:.2f})"
-                    )
-            except Exception as exc:
-                logger.debug("Recommendation provider failed: %s", exc)
 
         if not recommendations:
             recommendations.append("Current irrigation settings appear optimal")

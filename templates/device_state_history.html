@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+{% import "macros.html" as ui %}
+
+{% block body_class %}dashboard-page{% endblock %}
+
+{% block content %}
+<div class="page-shell">
+  {{ ui.page_header(
+    title="Device State History",
+    icon="history",
+    subtitle="View historical changes in actuator states across your devices."
+  ) }}
+
+  <section class="management-section">
+  {% call ui.content_card(title="State History Logs", icon="list") %}
+    <form method="get" class="modern-form mb-4">
+      <div class="row g-3 align-items-end">
+        <div class="col-12 col-md-6 col-lg-3">
+          {{ ui.select_field(
+            label="Unit",
+            id="unit_id",
+            name="unit_id",
+            options=[('', 'All Units')] + units|map(attribute='unit_id')|zip(units|map(attribute='name'))|map('join', ' — ')|list,
+            value=current_unit_id
+          ) }}
+        </div>
+        <div class="col-12 col-md-6 col-lg-3">
+          {{ ui.form_field(
+            label="Actuator ID",
+            id="actuator_id",
+            name="actuator_id",
+            type="number",
+            value=actuator_id or '',
+            placeholder="(optional)"
+          ) }}
+        </div>
+        <div class="col-12 col-md-6 col-lg-3">
+          {{ ui.form_field(
+            label="Device Name",
+            id="device_name",
+            name="device_name",
+            value=request.args.get('device_name',''),
+            placeholder="e.g., Grow Light"
+          ) }}
+        </div>
+        <div class="col-12 col-md-6 col-lg-2">
+          {{ ui.form_field(
+            label="Page size",
+            id="per_page",
+            name="per_page",
+            type="number",
+            value=per_page,
+            min=10,
+            max=200
+          ) }}
+        </div>
+        <div class="col-12 col-md-6 col-lg-auto">
+          <button type="submit" class="btn btn-primary w-100">Apply</button>
+        </div>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Actuator ID</th>
+            <th>Device</th>
+            <th>Unit</th>
+            <th>State</th>
+            <th>Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+          <tr>
+            <td>{{ r.timestamp }}</td>
+            <td>{{ r.actuator_id }}</td>
+            <td>{{ r.name or r.device_name or '-' }}</td>
+            <td>{{ r.unit_id or '-' }}</td>
+            <td>{{ r.state|upper }}</td>
+            <td>{{ r.value if r.value is not none else '-' }}</td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="6" class="text-center p-4 text-muted">No state changes found.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="action-buttons d-flex align-items-center flex-wrap mt-3">
+      {% set qbase = request.args.to_dict() %}
+      {% set prev_qs = qbase.copy() %}{% set _ = prev_qs.update({'page': page - 1}) %}
+      {% set next_qs = qbase.copy() %}{% set _ = next_qs.update({'page': page + 1}) %}
+      
+      {% if has_prev %}
+        <a class="btn btn-secondary me-2" href="?{{ prev_qs | urlencode }}">← Prev</a>
+      {% endif %}
+      
+      <span class="mx-2">Page {{ page }}</span>
+      
+      {% if has_next %}
+        <a class="btn btn-secondary ms-2" href="?{{ next_qs | urlencode }}">Next →</a>
+      {% endif %}
+      
+      <span class="flex-grow-1"></span>
+      
+      {% if actuator_id %}
+        <a class="btn btn-secondary" href="{{ url_for('devices_api.export_actuator_state_history_csv', actuator_id=actuator_id) }}?limit={{ per_page }}">
+          <i class="fas fa-file-csv me-2"></i>Export CSV
+        </a>
+      {% elif current_unit_id %}
+        <a class="btn btn-secondary" href="{{ url_for('devices_api.export_unit_actuator_state_history_csv', unit_id=current_unit_id) }}?limit={{ per_page }}{% if request.args.get('device_name') %}&device_name={{ request.args.get('device_name') | urlencode }}{% endif %}">
+          <i class="fas fa-file-csv me-2"></i>Export CSV
+        </a>
+      {% endif %}
+    </div>
+  {% endcall %}
+</div>
+{% endblock %}

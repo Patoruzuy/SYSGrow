@@ -1,0 +1,32 @@
+.table-container, .table-responsive {
+  overflow: auto;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  box-shadow: var(--card-shadow);
+}
+
+.table, .data-table, .modern-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--card-bg);
+  color: var(--color-text);
+}
+
+.table th, .data-table th, .modern-table th {
+  background: var(--card-bg-muted);
+  padding: var(--space-3);
+  text-align: left;
+  font-weight: 700;
+  color: var(--color-text-strong);
+  border-bottom: 2px solid var(--border-200);
+}
+
+.table td, .data-table td, .modern-table td {
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--border-200);
+  color: var(--color-text);
+}
+
+.table tr:hover, .data-table tr:hover, .modern-table tr:hover { background: var(--surface-muted-translucent); }
+.empty-row { text-align: center; color: var(--color-text-muted); font-style: italic; }

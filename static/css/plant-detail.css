@@ -1,0 +1,829 @@
+/* =============================================
+   Plant Detail Page - Comprehensive Plant View
+   ============================================= */
+
+/* Container */
+.plant-detail-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: var(--space-6);
+}
+
+/* Loading & Error States */
+.loading-state,
+.error-state {
+    text-align: center;
+    padding: var(--space-12);
+    color: var(--color-text-muted);
+}
+
+.loading-state i,
+.error-state i {
+    font-size: 3rem;
+    margin-bottom: var(--space-4);
+}
+
+.error-state i {
+    color: var(--error-500);
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* Breadcrumb */
+.breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-5);
+    font-size: 0.875rem;
+}
+
+.breadcrumb a {
+    color: var(--color-text-muted);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+}
+
+.breadcrumb a:hover {
+    color: var(--brand-600);
+}
+
+.breadcrumb i {
+    font-size: 0.625rem;
+    color: var(--color-text-muted);
+}
+
+.breadcrumb span {
+    color: var(--color-text-strong);
+    font-weight: 500;
+}
+
+/* =============================================
+   HERO SECTION
+   ============================================= */
+
+.plant-hero {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: var(--space-6);
+    padding: var(--space-6);
+    background: linear-gradient(135deg, var(--brand-50) 0%, var(--surface-1) 100%);
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--border);
+    margin-bottom: var(--space-6);
+}
+
+[data-theme="dark"] .plant-hero {
+    background: linear-gradient(135deg, var(--brand-900) 0%, var(--surface-2) 100%);
+}
+
+.plant-hero-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.plant-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+}
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 12px;
+    border-radius: var(--radius-full);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.badge-vegetable {
+    background: rgba(34, 197, 94, 0.15);
+    color: var(--success-700);
+}
+
+.badge-herb {
+    background: rgba(139, 92, 246, 0.15);
+    color: #8b5cf6;
+}
+
+.badge-fruit {
+    background: rgba(249, 115, 22, 0.15);
+    color: #f97316;
+}
+
+.badge-flower {
+    background: rgba(236, 72, 153, 0.15);
+    color: #ec4899;
+}
+
+.badge-beginner {
+    background: rgba(34, 197, 94, 0.15);
+    color: var(--success-700);
+}
+
+.badge-intermediate {
+    background: rgba(234, 179, 8, 0.15);
+    color: var(--warning-700);
+}
+
+.badge-advanced {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--error-700);
+}
+
+.plant-title {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: var(--color-text-strong);
+    margin: 0;
+    line-height: 1.2;
+}
+
+.plant-species {
+    font-size: 1.125rem;
+    font-style: italic;
+    color: var(--color-text-muted);
+    margin: 0;
+}
+
+.plant-description {
+    font-size: 1rem;
+    color: var(--color-text);
+    line-height: 1.6;
+    margin: var(--space-2) 0;
+    max-width: 600px;
+}
+
+.plant-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    margin-top: var(--space-3);
+}
+
+.plant-hero-image {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.plant-emoji-large {
+    font-size: 8rem;
+    line-height: 1;
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
+}
+
+/* =============================================
+   DETAIL GRID
+   ============================================= */
+
+.plant-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-5);
+}
+
+/* Card Styles */
+.detail-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-5);
+}
+
+.card-title {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--color-text-strong);
+    margin: 0 0 var(--space-4);
+    padding-bottom: var(--space-3);
+    border-bottom: 1px solid var(--border);
+}
+
+.card-title i {
+    color: var(--brand-600);
+}
+
+/* Full width cards */
+.stages-card,
+.risks-card {
+    grid-column: span 2;
+}
+
+/* =============================================
+   REQUIREMENTS GRID
+   ============================================= */
+
+.requirements-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-4);
+}
+
+.requirement-item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.requirement-label {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.requirement-label i {
+    color: var(--brand-600);
+    width: 16px;
+    text-align: center;
+}
+
+.requirement-value {
+    font-size: 0.9375rem;
+    color: var(--color-text-strong);
+    font-weight: 500;
+    padding-left: 24px;
+}
+
+/* =============================================
+   TIMELINE
+   ============================================= */
+
+.timeline-content {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-4);
+}
+
+.timeline-item {
+    text-align: center;
+    padding: var(--space-4);
+    background: var(--surface-2);
+    border-radius: var(--radius-md);
+}
+
+.timeline-icon {
+    font-size: 1.5rem;
+    margin-bottom: var(--space-2);
+}
+
+.timeline-label {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: var(--space-1);
+}
+
+.timeline-value {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--color-text-strong);
+}
+
+/* =============================================
+   GROWTH STAGES
+   ============================================= */
+
+.stages-timeline {
+    display: flex;
+    gap: var(--space-4);
+    overflow-x: auto;
+    padding-bottom: var(--space-2);
+}
+
+.stage-item {
+    flex: 1;
+    min-width: 180px;
+    padding: var(--space-4);
+    background: var(--surface-2);
+    border-radius: var(--radius-md);
+    border-left: 4px solid var(--brand-600);
+    position: relative;
+}
+
+.stage-item:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    right: -24px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 2px;
+    background: var(--brand-400);
+}
+
+.stage-name {
+    font-weight: 700;
+    color: var(--color-text-strong);
+    margin-bottom: var(--space-1);
+}
+
+.stage-duration {
+    font-size: 0.875rem;
+    color: var(--brand-600);
+    margin-bottom: var(--space-3);
+}
+
+.stage-details {
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+    line-height: 1.6;
+}
+
+.stage-details p {
+    margin: 0 0 var(--space-1);
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+/* =============================================
+   COMPANION PLANTS
+   ============================================= */
+
+.companion-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.companion-group {
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+}
+
+.companion-group.beneficial {
+    background: rgba(34, 197, 94, 0.08);
+    border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.companion-group.avoid {
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.companion-group-title {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-weight: 600;
+    margin-bottom: var(--space-2);
+}
+
+.companion-group.beneficial .companion-group-title {
+    color: var(--success-700);
+}
+
+.companion-group.avoid .companion-group-title {
+    color: var(--error-700);
+}
+
+.companion-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+}
+
+.companion-tag {
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-full);
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.companion-group.beneficial .companion-tag {
+    background: rgba(34, 197, 94, 0.15);
+    color: var(--success-800);
+}
+
+.companion-group.avoid .companion-tag {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--error-800);
+}
+
+.companion-note {
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+    font-style: italic;
+    margin-top: var(--space-3);
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--border);
+}
+
+/* =============================================
+   PEST & DISEASE RISKS
+   ============================================= */
+
+.risks-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.risks-section {
+    margin-bottom: var(--space-3);
+}
+
+.risks-section-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-text-strong);
+    margin-bottom: var(--space-3);
+}
+
+.pest-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+}
+
+.pest-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-2) var(--space-3);
+    background: var(--warning-50);
+    border: 1px solid var(--warning-200);
+    border-radius: var(--radius-md);
+    font-size: 0.8125rem;
+    color: var(--warning-800);
+}
+
+.pest-tag i {
+    font-size: 0.75rem;
+}
+
+.prevention-tips {
+    padding: var(--space-4);
+    background: var(--info-50);
+    border: 1px solid var(--info-200);
+    border-radius: var(--radius-md);
+}
+
+[data-theme="dark"] .prevention-tips {
+    background: rgba(59, 130, 246, 0.1);
+    border-color: rgba(59, 130, 246, 0.2);
+}
+
+.prevention-tips-title {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-weight: 600;
+    color: var(--info-800);
+    margin-bottom: var(--space-2);
+}
+
+[data-theme="dark"] .prevention-tips-title {
+    color: var(--info-400);
+}
+
+.prevention-tips p {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--info-700);
+    line-height: 1.6;
+}
+
+[data-theme="dark"] .prevention-tips p {
+    color: var(--info-300);
+}
+
+/* =============================================
+   AUTOMATION SETTINGS
+   ============================================= */
+
+.automation-content {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-4);
+}
+
+.automation-item {
+    padding: var(--space-4);
+    background: var(--surface-2);
+    border-radius: var(--radius-md);
+}
+
+.automation-item-title {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-weight: 600;
+    color: var(--color-text-strong);
+    margin-bottom: var(--space-3);
+}
+
+.automation-item-title i {
+    color: var(--brand-600);
+}
+
+.automation-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.automation-list li {
+    font-size: 0.875rem;
+    color: var(--color-text);
+    padding: var(--space-1) 0;
+    border-bottom: 1px dashed var(--border);
+}
+
+.automation-list li:last-child {
+    border-bottom: none;
+}
+
+/* =============================================
+   SENSOR REQUIREMENTS
+   ============================================= */
+
+.sensors-content {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-3);
+}
+
+.sensor-item {
+    padding: var(--space-3);
+    background: var(--surface-2);
+    border-radius: var(--radius-md);
+    border-left: 3px solid var(--brand-600);
+}
+
+.sensor-label {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: var(--space-1);
+}
+
+.sensor-value {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--color-text-strong);
+}
+
+/* =============================================
+   YIELD INFORMATION
+   ============================================= */
+
+.yield-content {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-3);
+}
+
+.yield-item {
+    text-align: center;
+    padding: var(--space-4);
+    background: var(--surface-2);
+    border-radius: var(--radius-md);
+}
+
+.yield-icon {
+    font-size: 1.5rem;
+    margin-bottom: var(--space-2);
+}
+
+.yield-value {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--color-text-strong);
+    margin-bottom: var(--space-1);
+}
+
+.yield-label {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+}
+
+/* =============================================
+   NUTRITIONAL INFORMATION
+   ============================================= */
+
+.nutrition-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.nutrition-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-3);
+}
+
+.nutrition-item {
+    text-align: center;
+    padding: var(--space-3);
+    background: var(--surface-2);
+    border-radius: var(--radius-md);
+}
+
+.nutrition-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--brand-600);
+    margin-bottom: var(--space-1);
+}
+
+.nutrition-label {
+    font-size: 0.6875rem;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+}
+
+.nutrition-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+}
+
+.nutrition-tag {
+    padding: var(--space-1) var(--space-3);
+    background: var(--brand-50);
+    color: var(--brand-700);
+    border-radius: var(--radius-full);
+    font-size: 0.8125rem;
+}
+
+[data-theme="dark"] .nutrition-tag {
+    background: var(--brand-900);
+    color: var(--brand-300);
+}
+
+/* =============================================
+   HARVEST GUIDE
+   ============================================= */
+
+.harvest-content {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-4);
+}
+
+.harvest-section {
+    padding: var(--space-4);
+    background: var(--surface-2);
+    border-radius: var(--radius-md);
+}
+
+.harvest-section-title {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-weight: 600;
+    color: var(--color-text-strong);
+    margin-bottom: var(--space-3);
+}
+
+.harvest-section-title i {
+    color: var(--brand-600);
+}
+
+.harvest-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.harvest-list li {
+    font-size: 0.875rem;
+    color: var(--color-text);
+    padding: var(--space-2) 0;
+    border-bottom: 1px dashed var(--border);
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+}
+
+.harvest-list li:last-child {
+    border-bottom: none;
+}
+
+.harvest-list li::before {
+    content: '\f00c';
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    font-size: 0.625rem;
+    color: var(--brand-600);
+    margin-top: 4px;
+}
+
+/* =============================================
+   BACK NAVIGATION
+   ============================================= */
+
+.back-navigation {
+    margin-top: var(--space-6);
+    padding-top: var(--space-5);
+    border-top: 1px solid var(--border);
+    text-align: center;
+}
+
+/* =============================================
+   RESPONSIVE
+   ============================================= */
+
+@media (max-width: 1024px) {
+    .plant-detail-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .stages-card,
+    .risks-card {
+        grid-column: span 1;
+    }
+
+    .harvest-content {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .plant-detail-container {
+        padding: var(--space-4);
+    }
+
+    .plant-hero {
+        grid-template-columns: 1fr;
+        text-align: center;
+    }
+
+    .plant-hero-content {
+        align-items: center;
+    }
+
+    .plant-title {
+        font-size: 1.75rem;
+    }
+
+    .plant-emoji-large {
+        font-size: 5rem;
+    }
+
+    .plant-actions {
+        justify-content: center;
+    }
+
+    .requirements-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .timeline-content {
+        grid-template-columns: 1fr;
+    }
+
+    .stages-timeline {
+        flex-direction: column;
+    }
+
+    .stage-item:not(:last-child)::after {
+        display: none;
+    }
+
+    .automation-content {
+        grid-template-columns: 1fr;
+    }
+
+    .sensors-content {
+        grid-template-columns: 1fr;
+    }
+
+    .yield-content {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .nutrition-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
+    .plant-badges {
+        justify-content: center;
+    }
+
+    .yield-content {
+        grid-template-columns: 1fr;
+    }
+}

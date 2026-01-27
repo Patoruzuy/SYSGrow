@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+
+{% block title %}Device Health - SYSGrow{% endblock %}
+{% block body_class %}device-health-page{% endblock %}
+
+{% import "macros.html" as ui %}
+
+{% block content %}
+<div id="device-health-page" aria-labelledby="device-health-heading">
+    
+    {# Standardized Page Header #}
+    {{ ui.page_header(
+      title="Device Health Monitoring",
+      icon="fas fa-stethoscope",
+      subtitle="Monitor all sensors and actuators for connectivity issues, anomalies, and maintenance needs.",
+      actions='
+          <div class="d-flex align-items-center gap-2">
+            ' ~ ui.ui_button("Refresh All", id="refresh-all-btn", icon="fas fa-sync-alt", variant="secondary") ~ '
+          </div>
+      '
+    ) }}
+
+    <!-- Device Health Statistics -->
+    <section class="row g-4 mb-6" aria-label="Device health statistics">
+        <div class="col-xl-3 col-md-6">
+            {{ ui.kpi_card(
+                id='online',
+                label='Online Devices',
+                value=(devices_summary.actuators|selectattr('status', 'equalto', 'online')|list|length + devices_summary.sensors|selectattr('status', 'equalto', 'online')|list|length) if devices_summary else 0,
+                icon='fas fa-check-circle',
+                variant='success',
+                value_id='online-count'
+            ) }}
+        </div>
+
+        <div class="col-xl-3 col-md-6">
+            {{ ui.kpi_card(
+                id='offline',
+                label='Offline Devices',
+                value=(devices_summary.actuators|selectattr('status', 'equalto', 'offline')|list|length + devices_summary.sensors|selectattr('status', 'equalto', 'offline')|list|length) if devices_summary else 0,
+                icon='fas fa-times-circle',
+                variant='danger',
+                value_id='offline-count'
+            ) }}
+        </div>
+
+        <div class="col-xl-3 col-md-6">
+            {{ ui.kpi_card(
+                id='anomalies',
+                label='Anomalies Detected',
+                value='0',
+                icon='fas fa-exclamation-triangle',
+                variant='warning',
+                value_id='anomaly-count'
+            ) }}
+        </div>
+
+        <div class="col-xl-3 col-md-6">
+            {{ ui.kpi_card(
+                id='total',
+                label='Total Devices',
+                value=(devices_summary.actuators|length + devices_summary.sensors|length) if devices_summary else 0,
+                icon='fas fa-microchip',
+                variant='info',
+                value_id='total-devices'
+            ) }}
+        </div>
+    </section>
+
+    <!-- Health Alerts -->
+    {% call ui.content_card(
+        title="Device Health Alerts",
+        icon="fas fa-bell",
+        class="mb-6",
+        id="alerts-section",
+        header_extra='<button type="button" class="btn btn-link btn-sm text-decoration-none" id="refresh-alerts-btn"><i class="fas fa-sync-alt me-1"></i> Refresh</button>'
+    ) %}
+        <div id="alerts-container">
+            <!-- Alerts will be loaded dynamically in Phase 4 -->
+            <div class="empty-state py-5 text-center">
+                <i class="fas fa-check-circle fa-4x text-success mb-3" aria-hidden="true"></i>
+                <h3 class="h5">No Active Alerts</h3>
+                <p class="text-muted">All devices are functioning normally.</p>
+            </div>
+        </div>
+    {% endcall %}
+
+    <!-- Actuators Section -->
+    {% call ui.content_card(
+        title="Actuators Health Status",
+        icon="fas fa-plug",
+        class="mb-6",
+        header_extra='<button type="button" class="btn btn-link btn-sm text-decoration-none" id="refresh-actuators-btn"><i class="fas fa-sync-alt me-1"></i> Refresh</button>'
+    ) %}
+        {% if devices_summary and devices_summary.actuators and devices_summary.actuators|length > 0 %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Device Name</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Last Seen</th>
+                            <th>State</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for actuator in devices_summary.actuators %}
+                            <tr class="device-row" data-device-id="{{ actuator.actuator_id }}">
+                                <td><div class="fw-bold text-dark">{{ actuator.actuator_name }}</div></td>
+                                <td class="text-muted"><small>{{ actuator.actuator_type|replace('_', ' ')|title }}</small></td>
+                                <td>
+                                    {% set status = actuator.status if actuator.status else 'unknown' %}
+                                    <span class="status-pill status-pill--{{ 'success' if status == 'online' else 'danger' }}">
+                                        {{ status|title }}
+                                    </span>
+                                </td>
+                                <td class="text-muted small">
+                                    {% if actuator.last_seen %}
+                                        <time datetime="{{ actuator.last_seen }}">{{ actuator.last_seen }}</time>
+                                    {% else %}
+                                        Never
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge {{ 'bg-success' if actuator.state == 'on' else 'bg-secondary' }}">
+                                        {{ actuator.state|upper if actuator.state else 'N/A' }}
+                                    </span>
+                                </td>
+                                <td class="text-end">
+                                    {{ ui.ui_button('Details', icon='fas fa-eye', size='sm', class='view-device-btn', attrs='data-device-id="' ~ actuator.actuator_id ~ '" data-device-type="actuator"') }}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state py-5 text-center">
+                <i class="fas fa-plug fa-3x text-muted mb-3" aria-hidden="true"></i>
+                <h3 class="h5">No Actuators Found</h3>
+                <p class="text-muted">Add actuators to your units to monitor their health.</p>
+            </div>
+        {% endif %}
+    {% endcall %}
+
+    <!-- Sensors Section -->
+    {% call ui.content_card(
+        title="Sensors Health Status",
+        icon="fas fa-thermometer-half",
+        class="mb-6",
+        header_extra='<button type="button" class="btn btn-link btn-sm text-decoration-none" id="refresh-sensors-btn"><i class="fas fa-sync-alt me-1"></i> Refresh</button>'
+    ) %}
+        {% if devices_summary and devices_summary.sensors and devices_summary.sensors|length > 0 %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Sensor Name</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Last Reading</th>
+                            <th>Current Value</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for sensor in devices_summary.sensors %}
+                            <tr class="device-row" data-device-id="{{ sensor.sensor_id }}">
+                                <td><div class="fw-bold text-dark">{{ sensor.sensor_name }}</div></td>
+                                <td class="text-muted"><small>{{ sensor.sensor_type|replace('_', ' ')|title }}</small></td>
+                                <td>
+                                    {% set status = sensor.status if sensor.status else 'unknown' %}
+                                    <span class="status-pill status-pill--{{ 'success' if status == 'online' else 'danger' }}">
+                                        {{ status|title }}
+                                    </span>
+                                </td>
+                                <td class="text-muted small">
+                                    {% if sensor.last_reading_time %}
+                                        <time datetime="{{ sensor.last_reading_time }}">{{ sensor.last_reading_time }}</time>
+                                    {% else %}
+                                        N/A
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if sensor.current_value is not none %}
+                                        <div class="fw-bold">{{ sensor.current_value }} <small class="text-muted">{{ sensor.unit or '' }}</small></div>
+                                    {% else %}
+                                        <span class="text-muted small">N/A</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    {{ ui.ui_button('Details', icon='fas fa-eye', size='sm', class='view-device-btn', attrs='data-device-id="' ~ sensor.sensor_id ~ '" data-device-type="sensor"') }}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state py-5 text-center">
+                <i class="fas fa-thermometer-half fa-3x text-muted mb-3" aria-hidden="true"></i>
+                <h3 class="h5">No Sensors Found</h3>
+                <p class="text-muted">Add sensors to your units to monitor their health.</p>
+            </div>
+        {% endif %}
+    {% endcall %}
+
+    <!-- Device Detail Modal -->
+    <div id="device-detail-modal" class="modal" role="dialog" aria-labelledby="device-detail-title" aria-modal="true" hidden>
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="device-detail-title" class="modal-title">Device Health Details</h2>
+                <button type="button" class="modal-close" aria-label="Close modal">
+                    <i class="fas fa-times" aria-hidden="true"></i>
+                </button>
+            </div>
+            <div class="modal-body" id="device-detail-content">
+                <!-- Content will be loaded dynamically -->
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/api.js') }}"></script>
+<script src="{{ url_for('static', filename='js/utils/cache-service.js') }}"></script>
+<script src="{{ url_for('static', filename='js/utils/base-manager.js') }}"></script>
+<script src="{{ url_for('static', filename='js/device-health/data-service.js') }}"></script>
+<script src="{{ url_for('static', filename='js/device-health/ui-manager.js') }}"></script>
+<script src="{{ url_for('static', filename='js/device-health/main.js') }}"></script>
+{% endblock %}

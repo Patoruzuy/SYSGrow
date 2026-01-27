@@ -1,0 +1,924 @@
+/* Primary metrics selection */
+.primary-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.5rem 1rem;
+}
+
+.primary-metric-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface-1);
+}
+
+.primary-metric-option small {
+    color: var(--color-text-muted);
+}
+
+.primary-metrics-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.primary-metrics-chips .metric-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 999px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+}
+
+/* Modal styles (devices) */
+.modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 1.5rem;
+}
+
+.modal.active {
+    display: flex;
+}
+
+.modal-dialog {
+    background: var(--card-bg);
+    border-radius: 12px;
+    width: 100%;
+    max-width: 640px;
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+}
+
+.modal-header,
+.modal-footer {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.modal-footer {
+    border-bottom: none;
+    border-top: 1px solid var(--border);
+    justify-content: flex-end;
+}
+
+.modal-body {
+    padding: 1rem 1.25rem;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    color: var(--color-text-muted);
+}
+
+.conflict-group {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.75rem;
+    background: var(--surface-2);
+}
+
+.conflict-group h4 {
+    margin: 0 0 0.5rem;
+    font-size: 0.95rem;
+}
+
+.conflict-sensor-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0;
+}
+/* =============================================
+   SYSGrow – Devices Management Styles
+   Scoped to .devices-page body class
+   ============================================= */
+
+/* Tab Navigation */
+.devices-page .settings-tabs {
+    display: flex;
+    gap: var(--space-1);
+    margin-bottom: var(--section-gap);
+    border-bottom: 2px solid var(--border-200);
+    overflow-x: auto;
+}
+
+.devices-page .settings-tabs::-webkit-scrollbar {
+    height: 6px;
+}
+
+.devices-page .settings-tabs::-webkit-scrollbar-thumb {
+    background: var(--border-300);
+    border-radius: 999px;
+}
+
+.devices-page .tab-button {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    cursor: pointer;
+    transition: all var(--transition-fast) ease;
+    white-space: nowrap;
+    position: relative;
+}
+
+.devices-page .tab-button:hover {
+    color: var(--primary-text-color);
+    background: color-mix(in srgb, var(--brand-600) 5%, transparent);
+}
+
+.devices-page .tab-button:focus {
+    outline: 2px solid var(--brand-600);
+    outline-offset: 2px;
+}
+
+.devices-page .tab-button.active {
+    color: var(--brand-600);
+    border-bottom-color: var(--brand-600);
+}
+
+.devices-page .tab-icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+/* Tab Panels - hide by default, show only when active */
+.devices-page .tab-panel,
+.tab-panel[role="tabpanel"] {
+    display: none !important;
+}
+
+.devices-page .tab-panel.active,
+.tab-panel[role="tabpanel"].active {
+    display: block !important;
+    animation: fadeIn var(--transition-normal) ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive tabs */
+@media (max-width: 768px) {
+    .devices-page .tab-button {
+        padding: var(--space-2) var(--space-3);
+        font-size: 0.85rem;
+    }
+    
+    .devices-page .tab-icon {
+        width: 16px;
+        height: 16px;
+    }
+}
+
+.devices-page .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: var(--space-3);
+    margin-bottom: var(--section-gap);
+}
+
+.devices-page .device-card {
+    background: var(--color-surface);
+    border: 1px solid var(--border-200);
+    border-radius: var(--radius-lg);
+    padding: var(--space-3);
+    box-shadow: var(--card-shadow);
+}
+
+.devices-page .card-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+    padding-bottom: var(--space-2);
+    border-bottom: 1px solid var(--border-200);
+}
+
+.devices-page .card-icon {
+    font-size: 1.5rem;
+}
+
+.devices-page .card-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--primary-text-color);
+    margin: 0;
+}
+
+.devices-page .form-group {
+    margin-bottom: var(--space-3);
+}
+
+.devices-page .form-group:last-of-type {
+    margin-bottom: 0;
+}
+
+.devices-page .form-label {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    margin-bottom: var(--space-1);
+}
+
+.devices-page .form-input,
+.devices-page .form-select {
+    width: 100%;
+    padding: var(--space-2);
+    font-size: 0.9rem;
+    border: 1px solid var(--border-200);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    color: var(--primary-text-color);
+    transition: all var(--transition-fast) ease;
+}
+
+.devices-page .form-input:focus,
+.devices-page .form-select:focus {
+    outline: none;
+    border-color: var(--brand-600);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-600) 20%, transparent);
+}
+
+.devices-page .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: var(--space-2);
+}
+
+/* Shared settings-style sections (Zigbee / WiFi / ESP32 / Camera) */
+.devices-page .settings-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.devices-page .form-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.devices-page .field-hint {
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    margin-top: var(--space-1);
+}
+
+.devices-page .field-icon {
+    width: 16px;
+    height: 16px;
+    color: var(--brand-600);
+    stroke-width: 2;
+    flex-shrink: 0;
+}
+
+.devices-page .settings-section {
+    background: var(--color-surface);
+    border: 1px solid var(--border-200);
+    border-radius: var(--radius-md);
+    padding: var(--space-4);
+    margin-bottom: var(--space-4);
+}
+
+.devices-page .settings-section .form-grid {
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: var(--space-4);
+}
+
+.devices-page .settings-section .form-grid.form-grid-1 {
+    grid-template-columns: 1fr;
+}
+
+.devices-page .settings-section .form-grid.form-grid-2 {
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+
+.devices-page .settings-section .form-grid.form-grid-3 {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+.devices-page .section-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--primary-text-color);
+    margin: 0 0 var(--space-3) 0;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.devices-page .section-title .field-icon {
+    width: 18px;
+    height: 18px;
+}
+
+.devices-page .subsection-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--primary-text-color);
+    margin-top: var(--space-4);
+    margin-bottom: var(--space-3);
+    padding-bottom: var(--space-2);
+    border-bottom: 1px solid var(--border-200);
+}
+
+.devices-page .required {
+    color: var(--danger-600);
+}
+
+.devices-page .table-container {
+    background: var(--color-surface);
+    border: 1px solid var(--border-200);
+    border-radius: var(--radius-lg);
+    padding: var(--space-3);
+    box-shadow: var(--card-shadow);
+    margin-bottom: var(--section-gap);
+}
+
+.devices-page .table-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--border-200);
+}
+
+.devices-page .table-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--primary-text-color);
+    margin: 0;
+}
+
+.devices-page .devices-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.devices-page .devices-table thead {
+    background: var(--bg-2);
+}
+
+.devices-page .devices-table th {
+    padding: 0.875rem 1rem;
+    text-align: left;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-text-strong);
+    border-bottom: 2px solid var(--border-200);
+}
+
+.devices-page .devices-table td {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-200);
+    color: var(--primary-text-color);
+    font-size: 0.875rem;
+}
+
+.devices-page .devices-table tbody tr:hover {
+    background: var(--bg-2);
+}
+
+.devices-page .devices-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.devices-page .action-buttons {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.devices-page .available-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 0.75rem;
+}
+
+.devices-page .available-list li {
+    padding: 0.625rem 1rem;
+    background: var(--bg-2);
+    border: 1px solid var(--border-200);
+    border-radius: 6px;
+    font-size: 0.875rem;
+    color: var(--primary-text-color);
+    text-align: center;
+}
+
+.devices-page .empty-state.hidden { display: none; }
+
+/* Zigbee Sensors Container */
+.devices-page .virtuoso-scroller {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem;
+}
+
+.devices-page .virtuoso-list-item {
+    width: 100%;
+}
+
+.devices-page .card-dash {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.devices-page .card-dash:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.devices-page .border-warning-40 {
+    border-left: 4px solid color-mix(in srgb, var(--warning-600) 45%, transparent);
+}
+
+.devices-page .sensor-readings {
+    scrollbar-width: thin;
+}
+
+.devices-page .calibration-controls {
+    background: var(--surface-muted-translucent);
+}
+
+.devices-page .thin-scrollbar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.devices-page .thin-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.devices-page .thin-scrollbar::-webkit-scrollbar-thumb {
+    background: var(--border-300);
+    border-radius: 3px;
+}
+
+/* Optional: stable thin scrollbar in modern browsers */
+.devices-page .thin-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-gutter: stable;
+}
+
+/* Status dot (set color from JS by toggling classes) */
+.devices-page .zigbee-status-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--warning-600) 65%, transparent); /* default "warning-ish" */
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--border-200) 65%, transparent);
+}
+
+/* Optional: tighten spacing inside readings section */
+.devices-page .zigbee-readings > .reading-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+}
+.devices-page .zigbee-readings > .reading-row .reading-label {
+  opacity: 0.75;
+}
+.devices-page .zigbee-readings > .reading-row .reading-value {
+  margin-left: auto;
+  font-weight: 600;
+}
+
+/* Optional: make details summary look like a compact header */
+.devices-page .zigbee-calibration > summary {
+  padding: 0.4rem 0.5rem;
+  border-radius: 0.5rem;
+}
+.devices-page .zigbee-calibration[open] > summary {
+  background: var(--surface-muted-translucent);
+}
+
+/* ---------------------------------------------------------------------------
+   Utility class shims (used by templates + devices/ui-manager.js)
+   --------------------------------------------------------------------------- */
+.devices-page .items-center { align-items: center; }
+.devices-page .items-start { align-items: flex-start; }
+.devices-page .justify-around { justify-content: space-around; }
+.devices-page .justify-between { justify-content: space-between; }
+.devices-page .flex-1 { flex: 1 1 0%; }
+.devices-page .flex-none { flex: none; }
+.devices-page .min-w-0 { min-width: 0; }
+.devices-page .grow-1 { flex-grow: 1; }
+.devices-page .shrink-1 { flex-shrink: 1; }
+
+.devices-page .truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.devices-page .overflow-y-auto { overflow-y: auto; }
+.devices-page .overflow-hidden { overflow: hidden; }
+.devices-page .overflow-visible { overflow: visible; }
+.devices-page .object-contain { object-fit: contain; }
+.devices-page .h-full { height: 100%; }
+.devices-page .w-full { width: 100%; }
+
+.devices-page .h-11 { height: 2.75rem; }
+.devices-page .w-11 { width: 2.75rem; }
+.devices-page .max-h-125 { max-height: 125px; }
+.devices-page .max-h-32 { max-height: 8rem; }
+
+.devices-page .text-sm { font-size: 0.875rem; }
+.devices-page .text-xs { font-size: 0.75rem; }
+.devices-page .opacity-0 { opacity: 0; }
+.devices-page .opacity-50 { opacity: 0.5; }
+.devices-page .opacity-60 { opacity: 0.6; }
+.devices-page .font-bold { font-weight: 800; }
+.devices-page .font-semibold { font-weight: 700; }
+
+.devices-page .p-2 { padding: var(--space-2); }
+.devices-page .p-3 { padding: var(--space-3); }
+.devices-page .pt-1 { padding-top: var(--space-1); }
+.devices-page .pt-2 { padding-top: var(--space-2); }
+.devices-page .mx-2 { margin-inline: var(--space-2); }
+.devices-page .ms-1 { margin-left: var(--space-1); }
+
+.devices-page .cursor-default { cursor: default; }
+.devices-page .cursor-pointer { cursor: pointer; }
+.devices-page .select-none { -webkit-user-select: none; user-select: none; }
+.devices-page .place-items-center { place-items: center; }
+
+.devices-page .bg-base-200 { background: var(--card-bg-muted); }
+.devices-page .bg-base-300 { background: var(--surface-muted-translucent); }
+.devices-page .rounded-box { border-radius: var(--radius-lg); }
+.devices-page .shadow-md { box-shadow: var(--shadow-md); }
+.devices-page .border { border: 1px solid var(--border-200); }
+.devices-page .border-t { border-top: 1px solid var(--border-200); }
+
+.devices-page .link { color: inherit; }
+.devices-page .link-hover:hover { text-decoration: underline; }
+
+/* Range slider (calibration controls) */
+.devices-page input[type="range"].range {
+  width: 100%;
+  height: 6px;
+  accent-color: var(--brand-600);
+}
+
+.devices-page input[type="range"].range.range-xs {
+  height: 4px;
+}
+
+.devices-page input[type="range"].range.range-primary {
+  accent-color: var(--brand-600);
+}
+
+/* Small helpers inside Zigbee cards */
+.devices-page .device-image {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-200);
+  background: var(--surface-muted-translucent);
+  object-fit: contain;
+}
+/* ====================================================================
+   Device Health Overview & Table Styles
+   ==================================================================== */
+/* Device Health Overview */
+.devices-page .health-overview {
+    background: var(--color-surface);
+    border: 1px solid var(--border-200);
+    border-radius: var(--radius-lg);
+    padding: var(--space-5);
+    margin-bottom: var(--space-6);
+    box-shadow: var(--card-shadow);
+}
+
+.devices-page .analytics-access {
+    display: flex;
+    gap: var(--space-3);
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--border-200);
+}
+
+/* Device table cells */
+.devices-page .device-name-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.devices-page .device-name {
+    font-weight: 600;
+    color: var(--primary-text-color);
+}
+
+.devices-page .device-type-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    background: var(--bg-2);
+    color: var(--brand-700);
+    font-size: 0.75rem;
+    border-radius: 4px;
+    font-weight: 500;
+    width: fit-content;
+}
+
+.devices-page .device-type-badge.sensor {
+    background: var(--info-100);
+    color: var(--info-600);
+}
+
+.devices-page .status-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.devices-page .status-badge.online {
+    background: var(--success-100);
+    color: var(--success-600);
+}
+
+.devices-page .status-badge.offline {
+    background: var(--danger-100);
+    color: var(--danger-600);
+}
+
+.devices-page .status-badge.warning {
+    background: var(--warning-100);
+    color: var(--warning-600);
+}
+
+.devices-page .status-badge.unknown {
+    background: var(--bg-2);
+    color: var(--color-text-muted);
+}
+
+.devices-page .health-indicator-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.devices-page .health-bar {
+    flex: 1;
+    height: 8px;
+    background: var(--bg-2);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+}
+
+.devices-page .health-fill {
+    height: 100%;
+    background: var(--success-600);
+    transition: width 0.3s ease, background-color 0.3s ease;
+    border-radius: 4px;
+}
+
+.devices-page .health-fill.warning {
+    background: var(--warning-600);
+}
+
+.devices-page .health-fill.critical {
+    background: var(--danger-600);
+}
+
+.devices-page .health-value {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    min-width: 30px;
+    text-align: right;
+}
+
+@media (max-width: 768px) {
+    .devices-page .cards-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .devices-page .form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .devices-page .settings-section .form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .devices-page .analytics-access {
+        flex-direction: column;
+    }
+
+    .devices-page .devices-table {
+        font-size: 0.813rem;
+    }
+
+    .devices-page .devices-table th,
+    .devices-page .devices-table td {
+        padding: 0.625rem 0.75rem;
+    }
+
+    .devices-page .action-buttons {
+        flex-direction: column;
+    }
+}
+
+/* Card Description */
+.devices-page .card-description {
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+    margin-bottom: var(--space-2);
+    line-height: 1.6;
+}
+
+.devices-page .card-description strong {
+    color: var(--primary-text-color);
+    font-weight: 600;
+}
+
+/* Empty States */
+.devices-page .empty-state {
+    text-align: center;
+    padding: var(--space-6) var(--space-3);
+    color: var(--color-text-muted);
+}
+
+.devices-page .empty-state i {
+    color: var(--border-300);
+    margin-bottom: var(--space-3);
+}
+
+.devices-page .empty-state h3 {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--primary-text-color);
+    margin-bottom: var(--space-2);
+}
+
+.devices-page .empty-state p {
+    font-size: 0.95rem;
+    max-width: 500px;
+    margin: 0 auto var(--space-3);
+}
+
+.devices-page .empty-state .btn {
+    margin-top: var(--space-3);
+}
+
+/* Registered devices list (WiFi/MQTT) */
+.devices-page .devices-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: var(--space-3);
+}
+
+.devices-page .devices-list .empty-state {
+    grid-column: 1 / -1;
+}
+
+.devices-page .devices-list .device-card h4 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 650;
+    color: var(--primary-text-color);
+}
+
+.devices-page .devices-list .device-card p {
+    margin: 0;
+    color: var(--color-text-muted);
+}
+
+.devices-page .devices-list .device-card p + p {
+    margin-top: var(--space-1);
+}
+
+/* ESP32-C6 Tab Specific Styles */
+.devices-page #esp32-panel .alert {
+    display: flex;
+    align-items: flex-start;
+    padding: var(--space-3);
+    margin-bottom: var(--space-4);
+    border-radius: var(--radius-md);
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.devices-page #esp32-panel .alert svg {
+    width: 20px;
+    height: 20px;
+    margin-right: var(--space-2);
+    flex-shrink: 0;
+}
+
+.devices-page #esp32-panel .alert-info {
+    background: color-mix(in srgb, var(--brand-600) 8%, var(--color-surface));
+    border: 1px solid color-mix(in srgb, var(--brand-600) 20%, transparent);
+    color: var(--primary-text-color);
+}
+
+.devices-page #esp32-panel .alert-info svg {
+    color: var(--brand-600);
+}
+
+.devices-page #esp32-panel .wifi-setup-controls {
+    background: var(--surface-muted-translucent);
+    border-radius: var(--radius-md);
+    padding: var(--space-3);
+    margin-top: var(--space-3);
+}
+
+.devices-page #esp32-panel .wifi-actions {
+    display: flex;
+    gap: var(--space-2);
+    margin-top: var(--space-3);
+    flex-wrap: wrap;
+}
+
+.devices-page #esp32-panel .conditional-field[data-device="irrigation"] {
+    display: none;
+}
+
+.devices-page #esp32-panel .conditional-field[data-device="irrigation"].visible {
+    display: block;
+}
+
+.devices-page #esp32-panel .conditional-field[data-connection] {
+    display: none;
+}
+
+.devices-page #esp32-panel .conditional-field[data-connection].visible {
+    display: block;
+}
+
+/* Zigbee Tab Specific Styles */
+.devices-page #zigbee-panel .settings-subsection {
+    margin-top: var(--space-3);
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--border-200);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .devices-page #esp32-panel .wifi-actions {
+        flex-direction: column;
+    }
+    
+    
+    .devices-page #esp32-panel .wifi-actions .btn {
+        width: 100%;
+    }
+}
+
+/* ====================================================================
+   WiFi/MQTT Tab Specific Styles
+   ==================================================================== */
+
+/* MQTT Discovered Devices Select */
+.devices-page #wifi-panel #mqtt-discovered-devices {
+    width: 100%;
+    min-height: 150px;
+}

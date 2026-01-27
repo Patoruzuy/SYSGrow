@@ -1,0 +1,31 @@
+:root{
+  /* Layout tokens */
+  --sidebar-w: 230px;          /* one source of truth for sidebar width */
+  --content-max: 1400px;       /* max readable line-length for big screens */
+  --page-pad-x: 0.75rem;       /* page horizontal padding */
+  --header-h: 70px;
+  --footer-h: 70px;
+
+  /* Radius & elevation */
+  --radius: 12px;
+  --elev-1: 0 4px 6px rgba(0,0,0,.08);
+  --elev-2: 0 8px 20px rgba(0,0,0,.12);
+
+  /* Compatibility bridge for navigation.css */
+  --sidebar-width: var(--sidebar-w);
+  --header-height: var(--header-h);
+  --footer-height: var(--footer-h);
+  --header-width: 100%;
+  
+  /* Component spacing - use these for consistency */
+  --section-gap: var(--space-6);
+  --card-padding: var(--space-4);
+  --form-gap: var(--space-4);
+  --button-padding-y: var(--space-3);
+  --button-padding-x: var(--space-5);
+  
+  /* Margins for common elements */
+  --heading-margin-bottom: var(--space-4);
+  --paragraph-margin-bottom: var(--space-3);
+  --card-margin-bottom: var(--space-5);
+}

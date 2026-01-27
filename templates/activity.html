@@ -1,0 +1,572 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui %}
+
+{% block title %}Activity Log - SYSGrow{% endblock %}
+{% block body_class %}activity-page{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/system_health.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/components/timeline.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/components/alerts.css') }}">
+<style>
+/* Follow system_health.css patterns */
+.activity-filters.card {
+  margin-bottom: var(--space-5);
+}
+
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.filter-group label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.filter-group select,
+.filter-group input {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm);
+  background: var(--card-bg);
+  color: var(--color-text);
+  font-size: 0.9375rem;
+  transition: border-color var(--transition-fast);
+}
+
+.filter-group select:focus,
+.filter-group input:focus {
+  outline: none;
+  border-color: var(--brand-600);
+  box-shadow: 0 0 0 3px var(--brand-100);
+}
+
+.filter-actions {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: flex-end;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--card-border);
+}
+
+.feed-meta {
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+.activity-feed {
+  position: relative;
+}
+
+.activity-item {
+  display: flex;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+}
+
+.activity-item:hover {
+  background: var(--bg-2);
+}
+
+.activity-dot-container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 30px;
+}
+
+.activity-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--brand-600);
+  border: 2px solid var(--card-bg);
+  box-shadow: 0 0 0 2px var(--brand-100);
+  z-index: 2;
+}
+
+.activity-line {
+  position: absolute;
+  top: 16px;
+  bottom: -16px;
+  width: 2px;
+  background: var(--card-border);
+}
+
+.activity-item:last-child .activity-line {
+  display: none;
+}
+
+.activity-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.125rem;
+  flex-shrink: 0;
+}
+
+.activity-icon.info { background: var(--info-100); color: var(--info-600); }
+.activity-icon.warning { background: var(--warning-100); color: var(--warning-600); }
+.activity-icon.error { background: var(--danger-100); color: var(--danger-600); }
+.activity-icon.success { background: var(--success-100); color: var(--success-600); }
+
+.activity-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.activity-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--space-2);
+}
+
+.activity-title {
+  font-weight: 500;
+  color: var(--color-text-strong);
+}
+
+.activity-time {
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.activity-description {
+  font-size: 0.9375rem;
+  color: var(--color-text);
+  margin-bottom: var(--space-2);
+}
+
+.activity-meta {
+  display: flex;
+  gap: var(--space-4);
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+.activity-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.activity-badge.info { background: var(--info-100); color: var(--info-600); }
+.activity-badge.warning { background: var(--warning-100); color: var(--warning-600); }
+.activity-badge.error { background: var(--danger-100); color: var(--danger-600); }
+.activity-badge.success { background: var(--success-100); color: var(--success-600); }
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--card-border);
+}
+
+.pagination-btn {
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  color: var(--color-text);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background: var(--brand-600);
+  color: white;
+  border-color: var(--brand-600);
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-info {
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  margin: 0 var(--space-4);
+}
+
+.loading-state,
+.empty-state {
+  text-align: center;
+  padding: var(--space-8);
+  color: var(--color-text-muted);
+}
+
+.loading-state i {
+  font-size: 2rem;
+  margin-bottom: var(--space-4);
+  color: var(--brand-600);
+}
+
+.empty-state i {
+  font-size: 3rem;
+  margin-bottom: var(--space-4);
+  opacity: 0.3;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-shell" data-selected-unit-id="{{ selected_unit_id }}">
+  {{ ui.page_header(
+    title="Activity Log",
+    icon="history",
+    subtitle="Complete system activity with advanced filtering and search",
+    actions='
+      <button class="btn btn-secondary me-2" id="export-activity-btn" title="Export activity log">
+        <i class="fas fa-download me-1"></i> Export
+      </button>
+      <button class="btn btn-secondary" id="refresh-activity-btn" title="Refresh activity">
+        <i class="fas fa-sync-alt me-1"></i> Refresh
+      </button>
+    '
+  ) }}
+
+  <!-- Stats -->
+  <section class="metrics-strip mb-4" aria-label="Activity statistics">
+    <div class="metric-pill">
+      <i class="fas fa-stream"></i>
+      <div>
+        <div class="metric-value" id="stat-total">--</div>
+        <div class="metric-label">Total</div>
+      </div>
+    </div>
+    <div class="metric-pill">
+      <i class="fas fa-exclamation-triangle"></i>
+      <div>
+        <div class="metric-value" id="stat-warnings">--</div>
+        <div class="metric-label">Warnings</div>
+      </div>
+    </div>
+    <div class="metric-pill alert-pill">
+      <i class="fas fa-times-circle"></i>
+      <div>
+        <div class="metric-value" id="stat-errors">--</div>
+        <div class="metric-label">Errors</div>
+      </div>
+    </div>
+    <div class="metric-pill">
+      <i class="fas fa-check-circle"></i>
+      <div>
+        <div class="metric-value" id="stat-success">--</div>
+        <div class="metric-label">Success</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Filters -->
+  {% call ui.content_card(title="Filters", icon="filter") %}
+    <div class="filter-grid">
+      {{ ui.select_field("activity-type-filter", "Activity Type", [
+        ("", "All Types"),
+        ("sensor", "Sensor"),
+        ("actuator", "Actuator"),
+        ("plant", "Plant"),
+        ("system", "System"),
+        ("user", "User Action"),
+        ("alert", "Alert"),
+        ("threshold", "Threshold")
+      ], icon="tag") }}
+
+      {{ ui.select_field("severity-filter", "Severity", [
+        ("", "All Severities"),
+        ("info", "Info"),
+        ("warning", "Warning"),
+        ("error", "Error"),
+        ("success", "Success")
+      ], icon="exclamation-triangle") }}
+
+      {{ ui.form_field("date-from-filter", "From Date", type="date", icon="calendar") }}
+      {{ ui.form_field("date-to-filter", "To Date", type="date", icon="calendar") }}
+      {{ ui.form_field("search-filter", "Search", placeholder="Search activities...", icon="search") }}
+      
+      {{ ui.select_field("limit-filter", "Per Page", [
+        ("25", "25"),
+        ("50", "50"),
+        ("100", "100"),
+        ("200", "200")
+      ], icon="list") }}
+    </div>
+
+    <div class="filter-actions mt-4">
+      <button class="btn btn-secondary" id="reset-filters-btn">
+        <i class="fas fa-undo me-1"></i> Reset
+      </button>
+      <button class="btn btn-primary ms-2" id="apply-filters-btn">
+        <i class="fas fa-check me-1"></i> Apply
+      </button>
+    </div>
+  {% endcall %}
+
+  <!-- Activity Feed -->
+  {% call ui.content_card(
+    title="Recent Activities", 
+    icon="stream",
+    actions='<div class="feed-meta" id="feed-meta">Showing <span id="showing-count">--</span> of <span id="total-count">--</span></div>'
+  ) %}
+    <div class="activity-feed" id="activity-feed">
+      <div class="loading-state text-center py-5">
+        <i class="fas fa-spinner fa-spin fa-2x mb-3 d-block"></i>
+        <p class="text-muted">Loading activities...</p>
+      </div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination d-flex align-items-center justify-content-center mt-4" id="pagination">
+      <button class="btn btn-outline-secondary me-2" id="prev-page-btn" disabled>
+        <i class="fas fa-chevron-left"></i> Previous
+      </button>
+      <span class="pagination-info mx-3" id="pagination-info">Page 1</span>
+      <button class="btn btn-outline-secondary ms-2" id="next-page-btn">
+        Next <i class="fas fa-chevron-right"></i>
+      </button>
+    </div>
+  {% endcall %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/api.js') }}"></script>
+<script>
+(function() {
+    'use strict';
+
+    let currentPage = 1;
+    let currentFilters = {};
+    let totalActivities = 0;
+
+    // Initialize
+    init();
+
+    function init() {
+        bindEvents();
+        loadActivities();
+    }
+
+    function bindEvents() {
+        document.getElementById('apply-filters-btn')?.addEventListener('click', applyFilters);
+        document.getElementById('reset-filters-btn')?.addEventListener('click', resetFilters);
+        document.getElementById('refresh-activity-btn')?.addEventListener('click', () => loadActivities());
+        document.getElementById('export-activity-btn')?.addEventListener('click', exportActivities);
+        document.getElementById('prev-page-btn')?.addEventListener('click', () => changePage(-1));
+        document.getElementById('next-page-btn')?.addEventListener('click', () => changePage(1));
+        
+        // Enter key on search
+        document.getElementById('search-filter')?.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') applyFilters();
+        });
+    }
+
+    function applyFilters() {
+        currentPage = 1;
+        currentFilters = {
+            activity_type: document.getElementById('activity-type-filter')?.value || null,
+            severity: document.getElementById('severity-filter')?.value || null,
+            date_from: document.getElementById('date-from-filter')?.value || null,
+            date_to: document.getElementById('date-to-filter')?.value || null,
+            search: document.getElementById('search-filter')?.value || null,
+            limit: parseInt(document.getElementById('limit-filter')?.value || 50)
+        };
+        loadActivities();
+    }
+
+    function resetFilters() {
+        document.getElementById('activity-type-filter').value = '';
+        document.getElementById('severity-filter').value = '';
+        document.getElementById('date-from-filter').value = '';
+        document.getElementById('date-to-filter').value = '';
+        document.getElementById('search-filter').value = '';
+        document.getElementById('limit-filter').value = '50';
+        currentFilters = {};
+        currentPage = 1;
+        loadActivities();
+    }
+
+    function changePage(delta) {
+        currentPage += delta;
+        if (currentPage < 1) currentPage = 1;
+        loadActivities();
+    }
+
+    async function loadActivities() {
+        const feedEl = document.getElementById('activity-feed');
+        if (!feedEl) return;
+
+        feedEl.innerHTML = '<div class="loading-state"><i class="fas fa-spinner fa-spin"></i><p>Loading activities...</p></div>';
+
+        try {
+            const params = new URLSearchParams({
+                limit: currentFilters.limit || 50,
+                ...currentFilters
+            });
+
+            const response = await fetch(`/api/system/activities?${params}`);
+            if (!response.ok) throw new Error('Failed to fetch activities');
+
+            const data = await response.json();
+            const activities = data?.data?.activities || [];
+            totalActivities = activities.length;
+
+            renderActivities(activities);
+            updateStats(activities);
+            updatePagination();
+
+        } catch (error) {
+            console.error('[Activity] Failed to load activities:', error);
+            feedEl.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Failed to load activities</p></div>';
+        }
+    }
+
+    function renderActivities(activities) {
+        const feedEl = document.getElementById('activity-feed');
+        if (!activities || activities.length === 0) {
+            feedEl.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><p>No activities found</p></div>';
+            return;
+        }
+
+        const limit = currentFilters.limit || 50;
+        const start = (currentPage - 1) * limit;
+        const end = start + limit;
+        const pageActivities = activities.slice(start, end);
+
+        feedEl.innerHTML = pageActivities.map(activity => renderActivity(activity)).join('');
+
+        // Update showing count
+        document.getElementById('showing-count').textContent = pageActivities.length;
+        document.getElementById('total-count').textContent = activities.length;
+    }
+
+    function renderActivity(activity) {
+        const severity = activity.severity || 'info';
+        const type = activity.activity_type || 'system';
+        const icon = getActivityIcon(type);
+        const time = formatTimeAgo(activity.timestamp);
+
+        return `
+            <div class="activity-item">
+                <div class="activity-dot-container">
+                    <div class="activity-dot"></div>
+                    <div class="activity-line"></div>
+                </div>
+                <div class="activity-icon ${severity}">
+                    <i class="${icon}"></i>
+                </div>
+                <div class="activity-content">
+                    <div class="activity-header-row">
+                        <span class="activity-title">${escapeHtml(activity.message || 'Activity')}</span>
+                        <span class="activity-time">${time}</span>
+                    </div>
+                    ${activity.details ? `<div class="activity-description">${escapeHtml(activity.details)}</div>` : ''}
+                    <div class="activity-meta">
+                        <span class="activity-badge ${severity}">
+                            ${severity.toUpperCase()}
+                        </span>
+                        <span><i class="fas fa-tag"></i> ${type}</span>
+                        ${activity.user ? `<span><i class="fas fa-user"></i> ${escapeHtml(activity.user)}</span>` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function getActivityIcon(type) {
+        const icons = {
+            sensor: 'fas fa-thermometer-half',
+            actuator: 'fas fa-plug',
+            plant: 'fas fa-seedling',
+            system: 'fas fa-server',
+            user: 'fas fa-user',
+            alert: 'fas fa-bell',
+            threshold: 'fas fa-sliders-h'
+        };
+        return icons[type] || 'fas fa-info-circle';
+    }
+
+    function updateStats(activities) {
+        const stats = {
+            total: activities.length,
+            warnings: activities.filter(a => a.severity === 'warning').length,
+            errors: activities.filter(a => a.severity === 'error').length,
+            success: activities.filter(a => a.severity === 'success').length
+        };
+
+        document.getElementById('stat-total').textContent = stats.total;
+        document.getElementById('stat-warnings').textContent = stats.warnings;
+        document.getElementById('stat-errors').textContent = stats.errors;
+        document.getElementById('stat-success').textContent = stats.success;
+    }
+
+    function updatePagination() {
+        const limit = currentFilters.limit || 50;
+        const totalPages = Math.ceil(totalActivities / limit);
+
+        document.getElementById('pagination-info').textContent = `Page ${currentPage} of ${totalPages}`;
+        document.getElementById('prev-page-btn').disabled = currentPage <= 1;
+        document.getElementById('next-page-btn').disabled = currentPage >= totalPages;
+    }
+
+    function formatTimeAgo(dateString) {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return '';
+
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMins / 60);
+        const diffDays = Math.floor(diffHours / 24);
+
+        if (diffMins < 1) return 'Just now';
+        if (diffMins < 60) return `${diffMins}m ago`;
+        if (diffHours < 24) return `${diffHours}h ago`;
+        if (diffDays < 7) return `${diffDays}d ago`;
+        return date.toLocaleDateString();
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    async function exportActivities() {
+        alert('Export functionality coming soon!');
+    }
+})();
+</script>
+{% endblock %}

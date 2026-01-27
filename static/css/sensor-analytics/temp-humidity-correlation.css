@@ -1,0 +1,298 @@
+/**
+ * Temperature & Humidity Correlation Scatter Plot Styles
+ * ======================================================
+ */
+
+.temp-humidity-correlation-container {
+  background: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+}
+
+.temp-humidity-correlation-container .chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.temp-humidity-correlation-container .chart-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+.temp-humidity-correlation-container .chart-controls {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+/* Time Slider */
+.time-slider-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.time-slider-control label {
+  font-size: 14px;
+  color: #666;
+  white-space: nowrap;
+}
+
+.time-slider-control input[type="range"] {
+  width: 150px;
+  height: 6px;
+  border-radius: 3px;
+  background: #e0e0e0;
+  outline: none;
+  -webkit-appearance: none;
+}
+
+.time-slider-control input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #2196f3;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.time-slider-control input[type="range"]::-webkit-slider-thumb:hover {
+  background: #1976d2;
+}
+
+.time-slider-control input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #2196f3;
+  cursor: pointer;
+  border: none;
+  transition: background 0.2s;
+}
+
+.time-slider-control input[type="range"]::-moz-range-thumb:hover {
+  background: #1976d2;
+}
+
+.time-slider-label {
+  font-size: 13px;
+  color: #2196f3;
+  font-weight: 500;
+  min-width: 60px;
+}
+
+/* Chart Canvas */
+.temp-humidity-correlation-container .chart-wrapper {
+  position: relative;
+  height: 450px;
+  margin-bottom: 15px;
+}
+
+.temp-humidity-correlation-container canvas {
+  max-height: 100%;
+}
+
+/* Correlation Statistics */
+.correlation-stats {
+  display: flex;
+  gap: 30px;
+  padding: 15px;
+  background: #f5f5f5;
+  border-radius: 6px;
+  justify-content: center;
+}
+
+.correlation-stats .stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+.correlation-stats .stat .label {
+  font-size: 12px;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.correlation-stats .stat .value {
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+}
+
+/* VPD Legend (if shown separately) */
+.vpd-legend {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+  padding: 10px;
+  background: #fafafa;
+  border-radius: 4px;
+  margin-top: 10px;
+  font-size: 12px;
+}
+
+.vpd-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.vpd-legend-item .color-box {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.vpd-legend-item .label {
+  color: #666;
+}
+
+/* Loading State */
+.temp-humidity-correlation-container.loading {
+  position: relative;
+  pointer-events: none;
+}
+
+.temp-humidity-correlation-container.loading::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  z-index: 10;
+}
+
+.temp-humidity-correlation-container.loading::before {
+  content: 'Loading...';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 16px;
+  color: #2196f3;
+  font-weight: 500;
+  z-index: 11;
+}
+
+/* Error State */
+.chart-error {
+  display: none;
+  padding: 12px;
+  background: #ffebee;
+  border: 1px solid #ef5350;
+  border-radius: 4px;
+  color: #c62828;
+  font-size: 14px;
+  margin-top: 10px;
+}
+
+.chart-error::before {
+  content: '⚠ ';
+  font-weight: bold;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .temp-humidity-correlation-container .chart-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .temp-humidity-correlation-container .chart-controls {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .time-slider-control {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .time-slider-control input[type="range"] {
+    width: 100%;
+  }
+  
+  .correlation-stats {
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .temp-humidity-correlation-container .chart-wrapper {
+    height: 350px;
+  }
+}
+
+@media (max-width: 480px) {
+  .temp-humidity-correlation-container {
+    padding: 15px;
+  }
+  
+  .temp-humidity-correlation-container .chart-wrapper {
+    height: 300px;
+  }
+  
+  .correlation-stats .stat .value {
+    font-size: 16px;
+  }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  .temp-humidity-correlation-container {
+    background: #1e1e1e;
+    color: #e0e0e0;
+  }
+  
+  .temp-humidity-correlation-container .chart-title {
+    color: #e0e0e0;
+  }
+  
+  .time-slider-control label {
+    color: #b0b0b0;
+  }
+  
+  .correlation-stats {
+    background: #2a2a2a;
+  }
+  
+  .correlation-stats .stat .label {
+    color: #b0b0b0;
+  }
+  
+  .correlation-stats .stat .value {
+    color: #e0e0e0;
+  }
+  
+  .vpd-legend {
+    background: #2a2a2a;
+  }
+  
+  .vpd-legend-item .label {
+    color: #b0b0b0;
+  }
+  
+  .chart-error {
+    background: #4a1f1f;
+    border-color: #ef5350;
+    color: #ef5350;
+  }
+}

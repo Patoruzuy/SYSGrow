@@ -1,0 +1,159 @@
+#!/usr/bin/env python3
+"""
+Phase 5 Integration Test - Quick Validation
+
+Tests that the Phase 5 refactoring works correctly:
+1. Services initialize properly with dependencies
+2. Delegation pattern works
+3. All methods are accessible
+"""
+
+def test_phase5_architecture():
+    """Quick test of Phase 5 architecture."""
+    print("🧪 Phase 5: Quick Architecture Validation\n")
+    print("=" * 70)
+    
+    passed = 0
+    failed = 0
+    
+    # Test 1: Import services
+    print("TEST 1: Service Imports")
+    try:
+        from app.services.analytics_service import AnalyticsService
+        from app.services.device_service import DeviceService
+        print("✅ Services import successfully")
+        passed += 1
+    except Exception as e:
+        print(f"❌ Service imports failed: {e}")
+        failed += 1
+        return
+    
+    # Test 2: Check AnalyticsService has actuator methods
+    print("\nTEST 2: AnalyticsService Actuator Methods")
+    actuator_methods = [
+        'get_actuator_energy_cost_trends',
+        'get_actuator_optimization_recommendations',
+        'detect_actuator_power_anomalies',
+        'get_comparative_energy_analysis',
+        'get_actuator_energy_dashboard',
+        'predict_device_failure',
+    ]
+    
+    all_present = True
+    for method in actuator_methods:
+        if hasattr(AnalyticsService, method):
+            print(f"  ✅ {method}")
+        else:
+            print(f"  ❌ {method} - MISSING")
+            all_present = False
+    
+    if all_present:
+        passed += 1
+    else:
+        failed += 1
+    
+    # Test 3: Check DeviceService delegation
+    print("\nTEST 3: DeviceService Delegation")
+    
+    class MockRepo:
+        pass
+    
+    class MockAnalytics:
+        def get_actuator_energy_cost_trends(self, aid, days):
+            return {'actuator_id': aid, 'delegated': True}
+        
+        def get_actuator_optimization_recommendations(self, aid):
+            return [{'type': 'test', 'delegated': True}]
+        
+        def detect_actuator_power_anomalies(self, aid, hours):
+            return [{'type': 'test', 'delegated': True}]
+        
+        def get_comparative_energy_analysis(self, uid):
+            return {'delegated': True}
+    
+    try:
+        device_service = DeviceService(
+            repository=MockRepo(),
+            analytics_service=MockAnalytics()
+        )
+        
+        # Test delegation
+        result1 = device_service.get_energy_cost_trends(1, 7)
+        result2 = device_service.get_energy_optimization_recommendations(1)
+        result3 = device_service.detect_power_anomalies(1, 24)
+        result4 = device_service.get_comparative_energy_analysis(1)
+        
+        if (result1.get('delegated') and result2[0].get('delegated') and 
+            result3[0].get('delegated') and result4.get('delegated')):
+            print("  ✅ All methods delegate correctly")
+            passed += 1
+        else:
+            print("  ❌ Delegation not working properly")
+            failed += 1
+    except Exception as e:
+        print(f"  ❌ Delegation test failed: {e}")
+        failed += 1
+    
+    # Test 4: Fallback when no AnalyticsService
+    print("\nTEST 4: Graceful Fallback")
+    try:
+        device_service = DeviceService(repository=MockRepo())
+        result = device_service.get_energy_cost_trends(1, 7)
+        
+        if 'error' in result:
+            print("  ✅ Returns error when AnalyticsService not configured")
+            passed += 1
+        else:
+            print("  ❌ Should return error when AnalyticsService missing")
+            failed += 1
+    except Exception as e:
+        print(f"  ❌ Fallback test failed: {e}")
+        failed += 1
+    
+    # Test 5: AnalyticsService initialization
+    print("\nTEST 5: AnalyticsService Initialization")
+    
+    try:
+        analytics_service = AnalyticsService(
+            repository=MockRepo(),
+            device_repository=MockRepo()
+        )
+        
+        if (hasattr(analytics_service, 'device_repository') and 
+            hasattr(analytics_service, 'electricity_rate')):
+            print("  ✅ AnalyticsService initializes with both repositories")
+            passed += 1
+        else:
+            print("  ❌ AnalyticsService missing required attributes")
+            failed += 1
+    except Exception as e:
+        print(f"  ❌ Initialization test failed: {e}")
+        failed += 1
+    
+    # Summary
+    print("\n" + "=" * 70)
+    print("TEST SUMMARY")
+    print("=" * 70)
+    print(f"✅ Passed: {passed}")
+    print(f"❌ Failed: {failed}")
+    print(f"📊 Total: {passed + failed}")
+    
+    success_rate = (passed / (passed + failed) * 100) if (passed + failed) > 0 else 0
+    print(f"🎯 Success Rate: {success_rate:.1f}%")
+    print("=" * 70)
+    
+    if failed == 0:
+        print("\n✅ Phase 5 Architecture: VALIDATED")
+        print("   ✓ AnalyticsService consolidated all analytics")
+        print("   ✓ DeviceService delegates properly")
+        print("   ✓ Predictive analytics available")
+        print("   ✓ Backward compatibility maintained")
+    else:
+        print("\n⚠️  Some tests failed - review above")
+    
+    return failed == 0
+
+if __name__ == '__main__':
+    import sys
+    success = test_phase5_architecture()
+    sys.exit(0 if success else 1)

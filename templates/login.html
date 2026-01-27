@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+<<<<<<< HEAD
+
+{% block content %}
+<div class="main-content login-container">
+  <div class="login-wrapper">
+    <img src="{{ url_for('static', filename='images/logo.jpg') }}" class="logo-image" alt="SYSGrow logo">
+    <form method="POST" action="{{ url_for('auth.login') }}" novalidate>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      {{ ui.form_field('username', 'Username', required=True, placeholder='Enter your username') }}
+      {{ ui.form_field('password', 'Password', type='password', required=True, placeholder='Enter your password') }}
+
+      {# Remember Me checkbox #}
+      {{ ui.checkbox_field(
+          'remember_me',
+          'Remember me for 30 days',
+          help_text='Keep me logged in on this device'
+      ) }}
+
+      <div class="forgot-password-link">
+        <a href="{{ url_for('auth.forgot_password') }}">Forgot your password?</a>
+      </div>
+      <button type="submit" class="auth-submit">Login</button>
+    </form>
+    <div class="auth-footer">
+      <p>Don't have an account?</p>
+      <a href="{{ url_for('auth.register') }}" class="btn-register-link">
+        <i class="fas fa-user-plus"></i> Create Account
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}
+=======
+{% import "macros.html" as ui %}
+
+{% block body_class %}auth-page{% endblock %}
+
+{% block content %}
+<div class="main-content login-container">
+  <div class="login-wrapper">
+    <img src="{{ url_for('static', filename='images/logo.jpg') }}" class="logo-image" alt="SYSGrow logo">
+    <form method="POST" action="{{ url_for('auth.login') }}" novalidate>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      {{ ui.form_field('username', 'Username', required=True, placeholder='Enter your username') }}
+      {{ ui.form_field('password', 'Password', type='password', required=True, placeholder='Enter your password') }}
+
+      {# Remember Me checkbox #}
+      {{ ui.checkbox_field(
+          'remember_me',
+          'Remember me for 30 days',
+          help_text='Keep me logged in on this device'
+      ) }}
+
+      <div class="forgot-password-link">
+        <a href="{{ url_for('auth.forgot_password') }}">Forgot your password?</a>
+      </div>
+      <button type="submit" class="auth-submit">Login</button>
+    </form>
+    <div class="auth-footer">
+      <p>Don't have an account?</p>
+      <a href="{{ url_for('auth.register') }}" class="btn-register-link">
+        <i class="fas fa-user-plus"></i> Create Account
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}
+>>>>>>> update

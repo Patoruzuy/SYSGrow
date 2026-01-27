@@ -1,0 +1,2889 @@
+<<<<<<< HEAD
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="page-shell">
+  <div class="settings-page" data-selected-unit="{{ selected_unit_id if selected_unit_id else '' }}" aria-labelledby="settings-page-heading">
+    
+    {# New Standardized Page Header #}
+    {{ ui.page_header(
+      title="Settings & Configuration",
+      icon="fas fa-cog",
+      subtitle="Manage environment thresholds, schedules, and connectivity for your grow tent.",
+      actions='
+        <div class="d-flex align-items-center gap-2">
+          <a class="btn btn-secondary btn-sm" href="' ~ url_for('ui.system_health') ~ '">
+            <i class="fas fa-chart-line"></i>
+            <span class="d-none d-sm-inline">System Overview</span>
+          </a>
+          <a class="btn btn-secondary btn-sm" href="' ~ url_for('ui.energy_analytics') ~ '">
+            <i class="fas fa-bolt"></i>
+            <span class="d-none d-sm-inline">Energy</span>
+          </a>
+          <a class="btn btn-secondary btn-sm" href="' ~ url_for('ui.device_health') ~ '">
+            <i class="fas fa-heartbeat"></i>
+            <span class="d-none d-sm-inline">Device Health</span>
+          </a>
+        </div>
+      '
+    ) }}
+
+    <!-- Contextual Help Banner -->
+    <div class="help-banner">
+      <i class="fas fa-info-circle"></i>
+      <div class="help-banner-content">
+        <p class="help-banner-title">Configure your environment</p>
+        <p class="help-banner-text">Set temperature, humidity, and lighting thresholds for optimal plant growth.</p>
+      </div>
+      {{ ui.help_link('settings', 'environment-settings', 'Settings Guide') }}
+    </div>
+
+    <div id="settings-status" class="settings-status" role="status" aria-live="polite"></div>
+
+    <div class="settings-shell">
+        <nav class="settings-tabs" role="tablist" aria-label="Settings sections" aria-orientation="horizontal">
+          <button
+            type="button"
+            class="tab-button active"
+            id="environment-tab"
+            data-tab="environment"
+            role="tab"
+            aria-selected="true"
+            aria-controls="environment-panel"
+            tabindex="0"
+          >
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"></circle>
+              <circle cx="12" cy="12" r="6"></circle>
+              <circle cx="12" cy="12" r="2"></circle>
+            </svg>
+            <span>Environment</span>
+          </button>
+
+          <button
+            type="button"
+            class="tab-button"
+            id="automation-tab"
+            data-tab="automation"
+            role="tab"
+            aria-selected="false"
+            aria-controls="automation-panel"
+            tabindex="-1"
+          >
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M12 1v6m0 6v6"></path>
+              <path d="m21 12-6-6-6 6 6 6 6-6"></path>
+            </svg>
+            <span>Automation</span>
+          </button>
+
+          <button
+            type="button"
+            class="tab-button"
+            id="connectivity-tab"
+            data-tab="connectivity"
+            role="tab"
+            aria-selected="false"
+            aria-controls="connectivity-panel"
+            tabindex="-1"
+          >
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M9 11a3 3 0 0 1 6 0"></path>
+              <path d="M5 11a7 7 0 0 1 14 0"></path>
+              <path d="M1 11a11 11 0 0 1 22 0"></path>
+              <circle cx="12" cy="11" r="1"></circle>
+            </svg>
+            <span>Connectivity</span>
+          </button>
+
+          <button
+            type="button"
+            class="tab-button"
+            id="analytics-tab"
+            data-tab="analytics"
+            role="tab"
+            aria-selected="false"
+            aria-controls="analytics-panel"
+            tabindex="-1"
+          >
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M3 3v18h18"></path>
+              <path d="m19 9-5 5-4-4-3 3"></path>
+            </svg>
+            <span>Analytics</span>
+          </button>
+
+          <button
+            type="button"
+            class="tab-button"
+            id="database-tab"
+            data-tab="database"
+            role="tab"
+            aria-selected="false"
+            aria-controls="database-panel"
+            tabindex="-1"
+          >
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+              <path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"></path>
+              <path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"></path>
+            </svg>
+            <span>Database</span>
+          </button>
+
+          <button
+            type="button"
+            class="tab-button"
+            id="notifications-tab"
+            data-tab="notifications"
+            role="tab"
+            aria-selected="false"
+            aria-controls="notifications-panel"
+            tabindex="-1"
+          >
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+            </svg>
+            <span>Notifications</span>
+          </button>
+
+          <button
+            type="button"
+            class="tab-button"
+            id="security-tab"
+            data-tab="security"
+            role="tab"
+            aria-selected="false"
+            aria-controls="security-panel"
+            tabindex="-1"
+          >
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+            <span>Security</span>
+          </button>
+        </nav>
+
+        <!-- Panels -->
+        <div class="settings-content">
+
+          <!-- Environment -->
+          <div
+            id="environment-panel"
+            class="tab-panel active"
+            role="tabpanel"
+            aria-labelledby="environment-tab"
+            aria-hidden="false"
+            tabindex="0"
+          >
+            {% call ui.content_card(
+                title="Environment Thresholds",
+                icon="fas fa-thermometer-half",
+                id="environment-card"
+            ) %}
+              <div class="card-description mb-4">Set optimal ranges for temperature and humidity.</div>
+
+              <form id="environment-form" class="settings-form" novalidate>
+                <div class="form-grid">
+                  {{ ui.form_field(
+                      'env-temperature',
+                      'Temperature Threshold (°C)',
+                      type='number', step=0.1, min=-20, max=60, required=True,
+                      name_attr='temperature_threshold', wrapper_class='form-field',
+                      help_text='Ideal range: 20–25°C', help_class='field-hint',
+                      label_prefix_html='<i class="fas fa-temperature-high me-1"></i>'
+                  ) }}
+
+                  {{ ui.form_field(
+                      'env-humidity',
+                      'Humidity Threshold (%)',
+                      type='number', step=0.1, min=0, max=100, required=True,
+                      name_attr='humidity_threshold', wrapper_class='form-field',
+                      help_text='Ideal range: 40–60%', help_class='field-hint',
+                      label_prefix_html='<svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path></svg>'
+                  ) }}
+
+                  {{ ui.form_field(
+                      'env-co2',
+                      'CO₂ Threshold (ppm)',
+                      type='number', step=1, min=0, max=5000,
+                      name_attr='co2_threshold', wrapper_class='form-field',
+                      help_text='Common target range: 800–1200 ppm', help_class='field-hint',
+                      label_prefix_html='<svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17.5 19a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.5 2A4 4 0 0 0 6 19h11.5Z"></path></svg>'
+                  ) }}
+
+                  {{ ui.form_field(
+                      'env-voc',
+                      'VOC Threshold (ppb)',
+                      type='number', step=1, min=0, max=10000,
+                      name_attr='voc_threshold', wrapper_class='form-field',
+                      help_text='Lower is better; typical target: < 1000 ppb', help_class='field-hint',
+                      label_prefix_html='<svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2a10 10 0 0 0-4 19.17V19a4 4 0 0 1 8 0v2.17A10 10 0 0 0 12 2Z"></path></svg>'
+                  ) }}
+
+                  {{ ui.form_field(
+                      'env-lux',
+                      'Lux Threshold (lux)',
+                      type='number', step=1, min=0, max=100000,
+                      name_attr='lux_threshold', wrapper_class='form-field',
+                      help_text='Used to validate daylight/lights-on intensity', help_class='field-hint',
+                      label_prefix_html='<svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path></svg>'
+                  ) }}
+
+                  {{ ui.form_field(
+                      'env-aqi',
+                      'AQI Threshold',
+                      type='number', step=1, min=0, max=500,
+                      name_attr='aqi_threshold', wrapper_class='form-field',
+                      help_text='Lower is better; common target: < 100', help_class='field-hint',
+                      label_prefix_html='<i class="fas fa-smog me-1"></i>'
+                  ) }}
+                </div>
+
+                <div class="form-actions d-flex gap-2 mt-4">
+                  {{ ui.ui_button('Save Environment Settings', type='submit', icon='fas fa-save') }}
+                  {{ ui.ui_button('Suggest Thresholds', variant='secondary', id='suggest-thresholds', icon='fas fa-magic') }}
+                </div>
+              </form>
+            {% endcall %}
+          </div>
+
+          <!-- Automation -->
+          <div
+            id="automation-panel"
+            class="tab-panel"
+            role="tabpanel"
+            aria-labelledby="automation-tab"
+            aria-hidden="true"
+            tabindex="0"
+          >
+            <!-- Unit Context -->
+            {% call ui.content_card(
+                title="Growth Unit Context",
+                icon="fas fa-layer-group",
+                id="schedule-context-card"
+            ) %}
+              <div class="card-description mb-4">Schedules are unit-specific. Select a unit to view and edit its schedules.</div>
+
+              {% call ui.select_field(
+                  'schedule-unit-selector',
+                  'Growth Unit',
+                  [],
+                  wrapper_class='form-field',
+                  help_text='This selection applies to schedule forms below.',
+                  help_class='field-hint',
+                  label_prefix_html='<i class="fas fa-cube me-1"></i>'
+              ) %}
+                {% if units %}
+                  {% for unit in units %}
+                    <option value="{{ unit.unit_id }}" {% if selected_unit_id == unit.unit_id %}selected{% endif %}>
+                      {{ unit.name }} (ID: {{ unit.unit_id }})
+                    </option>
+                  {% endfor %}
+                {% else %}
+                  <option value="">No units available — create one first</option>
+                {% endif %}
+              {% endcall %}
+            {% endcall %}
+
+            <!-- Schedule Summary Card -->
+            {% call ui.content_card(
+                title="Schedule Summary",
+                icon="fas fa-chart-pie",
+                id="schedule-summary-card"
+            ) %}
+              <div id="schedule-summary-content" class="schedule-summary-grid">
+                <!-- Loaded dynamically -->
+                <div class="summary-loading"><i class="fas fa-spinner fa-spin"></i> Loading summary...</div>
+              </div>
+              
+              <div class="schedule-actions mt-3">
+                <div class="btn-group me-2">
+                  <button type="button" class="btn btn-success btn-sm" id="auto-generate-btn" title="Auto-generate schedules based on plant stage">
+                    <i class="fas fa-magic me-1"></i> Auto-Generate
+                  </button>
+                  <button type="button" class="btn btn-success btn-sm dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+                    <span class="visually-hidden">Toggle Dropdown</span>
+                  </button>
+                  <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="#" id="view-templates-btn"><i class="fas fa-list"></i> View Templates</a></li>
+                  </ul>
+                </div>
+                <button type="button" class="btn btn-outline-primary btn-sm" id="preview-schedules-btn">
+                  <i class="fas fa-calendar-alt me-1"></i> Preview Events
+                </button>
+                <button type="button" class="btn btn-outline-warning btn-sm" id="check-conflicts-btn">
+                  <i class="fas fa-exclamation-triangle me-1"></i> Check Conflicts
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="view-history-btn">
+                  <i class="fas fa-history me-1"></i> View History
+                </button>
+              </div>
+            {% endcall %}
+
+            <!-- Schedule List Card -->
+            {% call ui.content_card(
+                title="Device Schedules",
+                icon="fas fa-calendar-alt",
+                id="device-schedule-card"
+            ) %}
+              <div class="card-description mb-3">Manage all schedules for the selected unit. Multiple schedules per device are supported.</div>
+              
+              <div class="schedule-toolbar mb-3">
+                <div class="toolbar-left">
+                  {% call ui.select_field(
+                      'schedule-device-filter',
+                      '',
+                      [],
+                      wrapper_class='form-field mb-0'
+                  ) %}
+                    <option value="">All Devices</option>
+                    <option value="light">Light</option>
+                    <option value="fan">Fan</option>
+                    <option value="pump">Water Pump</option>
+                    <option value="heater">Heater</option>
+                    <option value="cooler">Cooler</option>
+                    <option value="humidifier">Humidifier</option>
+                    <option value="dehumidifier">Dehumidifier</option>
+                  {% endcall %}
+                </div>
+                <div class="toolbar-right">
+                  <button type="button" class="btn btn-primary" id="add-schedule-btn">
+                    <i class="fas fa-plus me-1"></i> Add Schedule
+                  </button>
+                </div>
+              </div>
+              
+              <div id="schedules-list" class="schedules-list">
+                <!-- Schedule cards loaded dynamically -->
+                <div class="schedules-loading"><i class="fas fa-spinner fa-spin"></i> Loading schedules...</div>
+              </div>
+            {% endcall %}
+            
+            <!-- Schedule Form Modal -->
+            <div id="schedule-form-modal" class="settings-modal hidden">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h3 id="schedule-form-title"><i class="fas fa-calendar-plus me-2"></i>Add Schedule</h3>
+                  <button type="button" class="modal-close" id="close-schedule-modal">&times;</button>
+                </div>
+                <form id="device-schedule-form" class="settings-form" novalidate>
+                  <input type="hidden" id="edit-schedule-id" name="schedule_id" value="">
+                  
+                  <div class="form-grid">
+                    {{ ui.form_field(
+                        'schedule-name',
+                        'Schedule Name',
+                        type='text', required=True,
+                        name_attr='name', wrapper_class='form-field',
+                        placeholder='e.g., Morning Light Cycle',
+                        label_prefix_html='<i class="fas fa-tag me-1"></i>',
+                        help_class='field-hint'
+                    ) }}
+
+                    {% call ui.select_field(
+                        'schedule-device-type',
+                        'Device Type',
+                        [],
+                        wrapper_class='form-field',
+                        help_class='field-hint'
+                    ) %}
+                      <option value="">Select device...</option>
+                      <option value="light">Light</option>
+                      <option value="fan">Fan</option>
+                      <option value="pump">Water Pump</option>
+                      <option value="heater">Heater</option>
+                      <option value="cooler">Cooler</option>
+                      <option value="humidifier">Humidifier</option>
+                      <option value="dehumidifier">Dehumidifier</option>
+                    {% endcall %}
+
+                    {% call ui.select_field(
+                        'schedule-schedule-type',
+                        'Schedule Type',
+                        [],
+                        wrapper_class='form-field',
+                        help_text='Simple: fixed window. Interval: repeating cycles. Photoperiod: day/night-aware. Automatic: plant stage.',
+                        help_class='field-hint'
+                    ) %}
+                      <option value="simple">Simple (Time-based)</option>
+                      <option value="photoperiod">Photoperiod (Light-aware)</option>
+                      <option value="interval">Interval (Repeating)</option>
+                      <option value="automatic">Automatic (Plant Stage)</option>
+                    {% endcall %}
+                  </div>
+
+                  <div class="form-grid">
+                    {{ ui.form_field(
+                        'schedule-start',
+                        'Start Time',
+                        type='time', required=True,
+                        name_attr='start_time', wrapper_class='form-field',
+                        label_prefix_html='<i class="fas fa-sun me-1"></i>',
+                        help_text='e.g. 06:00 AM',
+                        help_class='field-hint'
+                    ) }}
+
+                    {{ ui.form_field(
+                        'schedule-end',
+                        'End Time',
+                        type='time', required=True,
+                        name_attr='end_time', wrapper_class='form-field',
+                        label_prefix_html='<i class="fas fa-moon me-1"></i>',
+                        help_text='e.g. 10:00 PM',
+                        help_class='field-hint'
+                    ) }}
+                  </div>
+
+                  <!-- Days of Week -->
+                  <div class="form-field">
+                    <label>Active Days</label>
+                    <div class="days-of-week-selector">
+                      <label class="day-toggle"><input type="checkbox" name="days_of_week" value="0" checked><span>Mon</span></label>
+                      <label class="day-toggle"><input type="checkbox" name="days_of_week" value="1" checked><span>Tue</span></label>
+                      <label class="day-toggle"><input type="checkbox" name="days_of_week" value="2" checked><span>Wed</span></label>
+                      <label class="day-toggle"><input type="checkbox" name="days_of_week" value="3" checked><span>Thu</span></label>
+                      <label class="day-toggle"><input type="checkbox" name="days_of_week" value="4" checked><span>Fri</span></label>
+                      <label class="day-toggle"><input type="checkbox" name="days_of_week" value="5" checked><span>Sat</span></label>
+                      <label class="day-toggle"><input type="checkbox" name="days_of_week" value="6" checked><span>Sun</span></label>
+                    </div>
+                  </div>
+
+                  <!-- Photoperiod Settings -->
+                  <div id="photoperiod-settings" class="form-section hidden">
+                    <h4>Photoperiod Configuration</h4>
+                    <div class="form-grid">
+                      {% call ui.select_field(
+                          'schedule-photoperiod-source',
+                          'Photoperiod Source',
+                          [],
+                          wrapper_class='form-field',
+                          help_text='Determines how day/night is detected.',
+                          help_class='field-hint'
+                      ) %}
+                        <option value="schedule">Schedule Only</option>
+                        <option value="sensor">Sensor-based</option>
+                        <option value="sun_api">Sunrise/Sunset</option>
+                      {% endcall %}
+
+                      {{ ui.form_field(
+                          'schedule-sensor-threshold',
+                          'Sensor Threshold (lux)',
+                          type='number', min=0, max=100000,
+                          name_attr='sensor_threshold', wrapper_class='form-field',
+                          placeholder='e.g., 500',
+                          help_text='Lux level below which it is treated as night.',
+                          help_class='field-hint'
+                      ) }}
+                    </div>
+                  </div>
+
+                  <!-- Interval Settings -->
+                  <div id="interval-settings" class="form-section hidden">
+                    <h4>Interval Configuration</h4>
+                    <div class="form-grid">
+                      {{ ui.form_field(
+                          'schedule-interval-minutes',
+                          'Interval (minutes)',
+                          type='number', min=1,
+                          name_attr='interval_minutes', wrapper_class='form-field',
+                          placeholder='e.g., 120',
+                          help_text='How often the schedule repeats within the time window.',
+                          help_class='field-hint'
+                      ) }}
+
+                      {{ ui.form_field(
+                          'schedule-duration-minutes',
+                          'Duration (minutes)',
+                          type='number', min=1,
+                          name_attr='duration_minutes', wrapper_class='form-field',
+                          placeholder='e.g., 20',
+                          help_text='How long each cycle stays active.',
+                          help_class='field-hint'
+                      ) }}
+                    </div>
+                  </div>
+
+                  <div class="form-grid">
+                    {{ ui.form_field(
+                        'schedule-priority',
+                        'Priority',
+                        type='number', min=1, max=100, value='50',
+                        name_attr='priority', wrapper_class='form-field',
+                        help_text='Higher priority schedules override lower ones when active simultaneously.',
+                        help_class='field-hint'
+                    ) }}
+
+                    {{ ui.form_field(
+                        'schedule-value',
+                        'Value/Intensity (%)',
+                        type='number', min=0, max=100,
+                        name_attr='value', wrapper_class='form-field',
+                        placeholder='Leave empty for on/off',
+                        help_text='Set a specific level (e.g., dimming). Leave empty for simple on/off.',
+                        help_class='field-hint'
+                    ) }}
+                  </div>
+
+                  <div class="form-field">
+                    {{ ui.checkbox_field(
+                        'schedule-enabled',
+                        'Enabled',
+                        checked=True,
+                        name_attr='enabled',
+                        wrapper_class='',
+                        help_text='Disable temporarily without deleting the schedule.',
+                        help_class='field-hint'
+                    ) }}
+                  </div>
+
+                  <div class="form-actions mt-4">
+                    <button type="button" class="btn btn-outline-secondary" id="cancel-schedule-btn">Cancel</button>
+                    {{ ui.ui_button('Save Schedule', type='submit', icon='fas fa-save') }}
+                  </div>
+                </form>
+              </div>
+            </div>
+            
+            <!-- Schedule Preview Modal -->
+            <div id="schedule-preview-modal" class="settings-modal hidden">
+              <div class="modal-content modal-lg">
+                <div class="modal-header">
+                  <h3><i class="fas fa-calendar-alt me-2"></i>Schedule Preview (Next 24 Hours)</h3>
+                  <button type="button" class="modal-close" id="close-preview-modal">&times;</button>
+                </div>
+                <div id="schedule-preview-content" class="modal-body">
+                  <!-- Preview content loaded dynamically -->
+                </div>
+              </div>
+            </div>
+            
+            <!-- Conflicts Modal -->
+            <div id="schedule-conflicts-modal" class="settings-modal hidden">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h3><i class="fas fa-exclamation-triangle me-2"></i>Schedule Conflicts</h3>
+                  <button type="button" class="modal-close" id="close-conflicts-modal">&times;</button>
+                </div>
+                <div id="schedule-conflicts-content" class="modal-body">
+                  <!-- Conflicts content loaded dynamically -->
+                </div>
+              </div>
+            </div>
+            
+            <!-- History Modal -->
+            <div id="schedule-history-modal" class="settings-modal hidden">
+              <div class="modal-content modal-lg">
+                <div class="modal-header">
+                  <h3><i class="fas fa-history me-2"></i>Schedule History</h3>
+                  <button type="button" class="modal-close" id="close-history-modal">&times;</button>
+                </div>
+                <div id="schedule-history-content" class="modal-body">
+                  <!-- History content loaded dynamically -->
+                </div>
+              </div>
+            </div>
+
+            <!-- Irrigation Workflow Settings -->
+            {% call ui.content_card(
+                title="Irrigation Workflow",
+                icon="fas fa-tint",
+                id="irrigation-workflow-card"
+            ) %}
+              <div class="card-description mb-4">Configure smart irrigation behavior including approval workflow, pump calibration, and moisture-based triggers.</div>
+
+              <form id="irrigation-workflow-form" class="settings-form" novalidate>
+                <input type="hidden" id="irrigation-unit-id" name="unit_id" value="">
+
+                <!-- Workflow Mode -->
+                <h5 class="mb-3"><i class="fas fa-cogs me-2"></i>Workflow Mode</h5>
+                <div class="row g-3 mb-4">
+                  <div class="col-md-6">
+                    {{ ui.checkbox_field('irrigation-workflow-enabled', 'Enable Irrigation Workflow', checked=true, name_attr='workflow_enabled', help_text='Use standby/approval workflow instead of immediate irrigation') }}
+                  </div>
+                  <div class="col-md-6">
+                    {{ ui.checkbox_field('irrigation-require-approval', 'Require User Approval', checked=true, name_attr='require_approval', help_text='Wait for user approval before executing irrigation') }}
+                  </div>
+                </div>
+
+                <!-- Scheduled Execution -->
+                <h5 class="mb-3"><i class="fas fa-clock me-2"></i>Scheduled Execution</h5>
+                <div class="row g-3 mb-4">
+                  <div class="col-md-4">
+                    {{ ui.form_field('irrigation-scheduled-time', 'Default Irrigation Time', type='time', name_attr='default_scheduled_time', value='21:00', help_text='When approved irrigations run by default') }}
+                  </div>
+                  <div class="col-md-4">
+                    {{ ui.form_field('irrigation-delay-minutes', 'Delay Increment (min)', type='number', name_attr='delay_increment_minutes', value='60', min=15, max=240, help_text='Minutes added when user delays irrigation') }}
+                  </div>
+                  <div class="col-md-4">
+                    {{ ui.form_field('irrigation-max-delay', 'Max Delay (hours)', type='number', name_attr='max_delay_hours', value='24', min=1, max=72, help_text='Maximum time irrigation can be delayed') }}
+                  </div>
+                </div>
+
+                <!-- Notifications & Feedback -->
+                <h5 class="mb-3"><i class="fas fa-bell me-2"></i>Notifications & Feedback</h5>
+                <div class="row g-3 mb-4">
+                  <div class="col-md-6">
+                    {{ ui.checkbox_field('irrigation-send-reminder', 'Send Reminder Before Execution', checked=true, name_attr='send_reminder_before_execution', help_text='Notify before scheduled irrigation runs') }}
+                  </div>
+                  <div class="col-md-6">
+                    {{ ui.form_field('irrigation-reminder-minutes', 'Reminder Minutes Before', type='number', name_attr='reminder_minutes_before', value='30', min=5, max=120, help_text='How long before irrigation to send reminder') }}
+                  </div>
+                </div>
+                <div class="row g-3 mb-4">
+                  <div class="col-md-6">
+                    {{ ui.checkbox_field('irrigation-request-feedback', 'Request Post-Irrigation Feedback', checked=true, name_attr='request_feedback_enabled', help_text='Ask for feedback to improve future irrigation') }}
+                  </div>
+                  <div class="col-md-6">
+                    {{ ui.checkbox_field('irrigation-ml-learning', 'Enable ML Learning', checked=true, name_attr='ml_learning_enabled', help_text='Learn from user responses to optimize irrigation') }}
+                  </div>
+                </div>
+
+                <div class="form-actions mt-4">
+                  {{ ui.ui_button('Save Workflow Settings', type='submit', icon='fas fa-save', id='save-workflow-btn') }}
+                </div>
+              </form>
+            {% endcall %}
+
+            <!-- Pump Calibration Card -->
+            {% call ui.content_card(
+                title="Pump Calibration",
+                icon="fas fa-tachometer-alt",
+                id="pump-calibration-card"
+            ) %}
+              <div class="card-description mb-4">Calibrate pump flow rate for accurate irrigation. This ensures plants receive the calculated water amount.</div>
+
+              <div id="pump-calibration-content">
+                <!-- Pump Selection -->
+                <div class="row g-3 mb-4">
+                  <div class="col-md-6">
+                    {% call ui.select_field(
+                        'calibration-pump-select',
+                        'Select Pump',
+                        [],
+                        wrapper_class='form-field',
+                        help_text='Choose the pump actuator to calibrate',
+                        help_class='field-hint'
+                    ) %}
+                      <option value="">Select a pump...</option>
+                      <!-- Options loaded dynamically -->
+                    {% endcall %}
+                  </div>
+                  <div class="col-md-6">
+                    <div class="calibration-status">
+                      <label class="form-label">Current Calibration</label>
+                      <div id="calibration-status-display" class="calibration-info">
+                        <span class="text-muted">Select a pump to view calibration</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Calibration Instructions -->
+                <div id="calibration-instructions" class="alert alert-info mb-4 hidden">
+                  <h6><i class="fas fa-info-circle me-2"></i>Calibration Instructions</h6>
+                  <ol class="mb-0 ps-3">
+                    <li>Place a measuring container (min 100ml capacity) under the pump outlet</li>
+                    <li>Click "Start Calibration" - the pump will run for the selected duration</li>
+                    <li>Measure the actual volume dispensed using the container</li>
+                    <li>Enter the measured volume to complete calibration</li>
+                  </ol>
+                </div>
+
+                <!-- Calibration Form -->
+                <form id="pump-calibration-form" class="hidden">
+                  <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                      {{ ui.form_field('calibration-duration', 'Duration (seconds)', type='number', name_attr='duration_seconds', min=1, help_text='How long the pump will run (leave blank for default)') }}
+                    </div>
+                    <div class="col-md-6">
+                      {{ ui.form_field('calibration-actual-ml', 'Measured Volume (ml)', type='number', name_attr='measured_ml', placeholder='Enter measured volume', min=1, help_text='Volume you measured in container') }}
+                    </div>
+                  </div>
+                </form>
+
+                <!-- Calibration Actions -->
+                <div class="calibration-actions d-flex gap-2">
+                  <button type="button" class="btn btn-primary" id="start-calibration-btn" disabled>
+                    <i class="fas fa-play me-2"></i>Start Calibration
+                  </button>
+                  <button type="button" class="btn btn-success hidden" id="complete-calibration-btn">
+                    <i class="fas fa-check me-2"></i>Complete Calibration
+                  </button>
+                  <button type="button" class="btn btn-outline-secondary hidden" id="cancel-calibration-btn">
+                    <i class="fas fa-times me-2"></i>Cancel
+                  </button>
+                </div>
+
+                <!-- Calibration History -->
+                <div id="calibration-history" class="mt-4 hidden">
+                  <h6><i class="fas fa-history me-2"></i>Calibration History</h6>
+                  <div class="table-responsive">
+                    <table class="table table-sm">
+                      <thead>
+                        <tr>
+                          <th>Date</th>
+                          <th>Flow Rate</th>
+                          <th>Confidence</th>
+                          <th>Method</th>
+                        </tr>
+                      </thead>
+                      <tbody id="calibration-history-body">
+                        <!-- History loaded dynamically -->
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            {% endcall %}
+          </div>
+
+          <!-- Connectivity -->
+          <div
+            id="connectivity-panel"
+            class="tab-panel"
+            role="tabpanel"
+            aria-labelledby="connectivity-tab"
+            aria-hidden="true"
+            tabindex="0"
+          >
+            {% call ui.content_card(
+                title="Wi-Fi Hotspot",
+                icon="fas fa-wifi",
+                id="hotspot-card"
+            ) %}
+              <div class="card-description mb-4">Configure wireless network settings for device connectivity.</div>
+
+              <form id="hotspot-form" class="settings-form" novalidate>
+                <div class="form-grid">
+                  {{ ui.form_field(
+                      'hotspot-ssid',
+                      'Network Name (SSID)',
+                      type='text',
+                      name_attr='ssid',
+                      wrapper_class='form-field',
+                      help_text='Maximum 64 characters.',
+                      help_class='field-hint',
+                      maxlength=64,
+                      autocomplete='off',
+                      label_prefix_html='<i class="fas fa-broadcast-tower me-1"></i>'
+                  ) }}
+
+                  {{ ui.form_field(
+                      'hotspot-password',
+                      'Password',
+                      type='password',
+                      name_attr='password',
+                      wrapper_class='form-field',
+                      input_container_class='password-field',
+                      autocomplete='new-password',
+                      suffix_html='
+                        <button type="button" class="toggle-password btn btn-icon" data-target="hotspot-password" aria-label="Toggle password visibility">
+                          <i class="fas fa-eye"></i>
+                        </button>',
+                      help_text='Leave blank to keep the existing password.',
+                      help_class='field-hint',
+                      label_prefix_html='<i class="fas fa-lock me-1"></i>'
+                  ) }}
+                </div>
+
+                <div class="form-actions mt-4">
+                  {{ ui.ui_button('Save Hotspot Settings', type='submit', icon='fas fa-save') }}
+                </div>
+              </form>
+            {% endcall %}
+          </div>
+
+          <!-- Analytics -->
+          <div
+            id="analytics-panel"
+            class="tab-panel"
+            role="tabpanel"
+            aria-labelledby="analytics-tab"
+            aria-hidden="true"
+            tabindex="0"
+          >
+            {% call ui.content_card(
+                title="Energy Configuration",
+                icon="fas fa-bolt",
+                id="energy-config-card"
+            ) %}
+              <div class="card-description mb-4">Configure energy cost calculation and monitoring preferences.</div>
+
+              <form id="energy-config-form" class="settings-form" novalidate>
+                <div class="form-grid">
+                  {{ ui.form_field(
+                      'energy-rate',
+                      'Energy Rate (per kWh)',
+                      type='number', step=0.01, min=0, placeholder='0.12',
+                      wrapper_class='form-field',
+                      help_text='Enter your electricity cost per kilowatt-hour.',
+                      help_class='field-hint',
+                      label_prefix_html='<i class="fas fa-dollar-sign me-1"></i>'
+                  ) }}
+
+                  {{ ui.select_field(
+                      'currency-code',
+                      'Currency',
+                      [
+                        ('USD', 'USD ($)'),
+                        ('EUR', 'EUR (€)'),
+                        ('GBP', 'GBP (£)'),
+                        ('JPY', 'JPY (¥)'),
+                        ('CAD', 'CAD ($)'),
+                        ('AUD', 'AUD ($)')
+                      ],
+                      wrapper_class='form-field',
+                      label_prefix_html='<i class="fas fa-coins me-1"></i>'
+                  ) }}
+                </div>
+
+                {{ ui.checkbox_field(
+                    'show-cost-estimates',
+                    'Show cost estimates in energy analytics',
+                    checked=True,
+                    wrapper_class='form-field',
+                    help_class='field-hint'
+                ) }}
+
+                <div class="form-actions mt-4">
+                  {{ ui.ui_button('Save Energy Settings', type='submit', icon='fas fa-save') }}
+                </div>
+              </form>
+            {% endcall %}
+          </div>
+
+          <!-- Database -->
+          <div
+            id="database-panel"
+            class="tab-panel"
+            role="tabpanel"
+            aria-labelledby="database-tab"
+            aria-hidden="true"
+            tabindex="0"
+          >
+            <!-- Unit Context -->
+            {% call ui.content_card(
+                title="Growth Unit Context",
+                icon="fas fa-layer-group",
+                id="database-context-card"
+            ) %}
+              <div class="card-description mb-4">Throttle settings are unit-specific. Select a unit to edit storage throttling.</div>
+
+              {% call ui.select_field(
+                  'database-unit-selector',
+                  'Growth Unit',
+                  [],
+                  wrapper_class='form-field',
+                  help_text='This selection applies to database throttling settings below.',
+                  help_class='field-hint',
+                  label_prefix_html='<i class="fas fa-cube me-1"></i>'
+              ) %}
+                {% if units %}
+                  {% for unit in units %}
+                    <option value="{{ unit.unit_id }}" {% if selected_unit_id == unit.unit_id %}selected{% endif %}>
+                      {{ unit.name }} (ID: {{ unit.unit_id }})
+                    </option>
+                  {% endfor %}
+                {% else %}
+                  <option value="">No units available — create one first</option>
+                {% endif %}
+              {% endcall %}
+            {% endcall %}
+
+            {% call ui.content_card(
+                title="Sensor Data Throttling",
+                icon="fas fa-compress-arrows-alt",
+                id="throttle-card"
+            ) %}
+              <div class="card-description mb-4">Control how frequently sensor readings are stored in the database.</div>
+
+              <form id="throttle-form" class="settings-form" novalidate>
+                <div class="form-grid">
+                  {{ ui.checkbox_field(
+                      'throttle-enabled',
+                      'Enable throttling (recommended)',
+                      name_attr='throttling_enabled',
+                      wrapper_class='form-field'
+                  ) }}
+
+                  {{ ui.checkbox_field(
+                      'throttle-debug',
+                      'Enable debug logging',
+                      name_attr='debug_logging',
+                      wrapper_class='form-field'
+                  ) }}
+                </div>
+
+                <div class="form-grid">
+                  {{ ui.select_field(
+                      'throttle-strategy',
+                      'Strategy',
+                      [
+                        ('hybrid', 'Hybrid (time OR change)'),
+                        ('time_only', 'Time-only')
+                      ],
+                      name_attr='strategy',
+                      wrapper_class='form-field',
+                      help_text='Hybrid stores sooner when values change significantly.',
+                      help_class='field-hint'
+                  ) }}
+                </div>
+
+                <h4 class="h6 mb-3 mt-4">Time Intervals (minutes)</h4>
+                <div class="form-grid">
+                  {{ ui.form_field(
+                      'throttle-temp-humidity-min',
+                      'Temp/Humidity',
+                      type='number', step=1, min=0,
+                      name_attr='temp_humidity_minutes',
+                      wrapper_class='form-field'
+                  ) }}
+                  {{ ui.form_field(
+                      'throttle-co2-voc-min',
+                      'CO₂/VOC',
+                      type='number', step=1, min=0,
+                      name_attr='co2_voc_minutes',
+                      wrapper_class='form-field'
+                  ) }}
+                  {{ ui.form_field(
+                      'throttle-soil-min',
+                      'Soil Moisture',
+                      type='number', step=1, min=0,
+                      name_attr='soil_moisture_minutes',
+                      wrapper_class='form-field'
+                  ) }}
+                </div>
+
+                <h4 class="h6 mb-3 mt-4">Change Thresholds</h4>
+                <div class="form-grid">
+                  {{ ui.form_field(
+                      'throttle-temp-delta',
+                      'Temperature (°C)',
+                      type='number', step=0.1, min=0,
+                      name_attr='temp_celsius',
+                      wrapper_class='form-field'
+                  ) }}
+                  {{ ui.form_field(
+                      'throttle-humidity-delta',
+                      'Humidity (%)',
+                      type='number', step=0.1, min=0,
+                      name_attr='humidity_percent',
+                      wrapper_class='form-field'
+                  ) }}
+                  {{ ui.form_field(
+                      'throttle-soil-delta',
+                      'Soil Moisture (%)',
+                      type='number', step=0.1, min=0,
+                      name_attr='soil_moisture_percent',
+                      wrapper_class='form-field'
+                  ) }}
+                  {{ ui.form_field(
+                      'throttle-co2-delta',
+                      'CO₂ (ppm)',
+                      type='number', step=1, min=0,
+                      name_attr='co2_ppm',
+                      wrapper_class='form-field'
+                  ) }}
+                  {{ ui.form_field(
+                      'throttle-voc-delta',
+                      'VOC (ppb)',
+                      type='number', step=1, min=0,
+                      name_attr='voc_ppb',
+                      wrapper_class='form-field'
+                  ) }}
+                </div>
+
+                <div class="form-actions mt-4 d-flex gap-2">
+                  {{ ui.ui_button('Save Throttle Settings', type='submit', icon='fas fa-save') }}
+                  {{ ui.ui_button('Reset to Defaults', variant='secondary', id='throttle-reset-btn', icon='fas fa-undo') }}
+                </div>
+              </form>
+            {% endcall %}
+
+            {% call ui.content_card(
+                title="Data Management",
+                icon="fas fa-database",
+                id="data-management-card"
+            ) %}
+              <div class="card-description mb-4">Configure export, retention, and backup preferences.</div>
+
+              <form id="data-management-form" class="settings-form" novalidate>
+                <div class="form-field mb-4">
+                  <label class="form-label"><i class="fas fa-file-export me-1"></i> Export Format</label>
+                  <div class="btn-group w-100" role="group" aria-label="Export format">
+                    <input type="radio" class="btn-check" name="export-format" id="format-csv" value="csv" checked>
+                    <label class="btn btn-outline-secondary" for="format-csv">CSV</label>
+                    <input type="radio" class="btn-check" name="export-format" id="format-json" value="json">
+                    <label class="btn btn-outline-secondary" for="format-json">JSON</label>
+                    <input type="radio" class="btn-check" name="export-format" id="format-excel" value="excel">
+                    <label class="btn btn-outline-secondary" for="format-excel">Excel</label>
+                  </div>
+                </div>
+
+                {{ ui.select_field(
+                    'data-retention',
+                    'Data Retention Period',
+                    [
+                      ('30', '30 days'),
+                      ('60', '60 days'),
+                      ('90', '90 days'),
+                      ('180', '6 months'),
+                      ('365', '1 year'),
+                      ('0', 'Forever')
+                    ],
+                    wrapper_class='form-field',
+                    help_text='How long to keep historical analytics data.',
+                    help_class='field-hint',
+                    label_prefix_html='<i class="fas fa-history me-1"></i>'
+                ) }}
+
+                {{ ui.checkbox_field(
+                    'auto-backup',
+                    'Enable automatic daily backups',
+                    wrapper_class='form-field'
+                ) }}
+
+                <div class="form-actions mt-4 d-flex gap-2">
+                  {{ ui.ui_button('Save Data Settings', type='submit', icon='fas fa-save') }}
+                  {{ ui.ui_button('Export Analytics Data', variant='secondary', id='export-data-btn', icon='fas fa-download') }}
+                </div>
+              </form>
+            {% endcall %}
+          </div>
+
+          <!-- Notifications -->
+          <div
+            id="notifications-panel"
+            class="tab-panel"
+            role="tabpanel"
+            aria-labelledby="notifications-tab"
+            aria-hidden="true"
+            tabindex="0"
+          >
+            <!-- Notification Channels -->
+            {% call ui.content_card(
+                title="Notification Channels",
+                icon="fas fa-satellite-dish",
+                id="notification-channels-card"
+            ) %}
+              <div class="card-description mb-4">Choose how you want to receive notifications from your SYSGrow system.</div>
+
+              <form id="notification-channels-form" class="settings-form" novalidate>
+                <div class="form-grid">
+                  {{ ui.checkbox_field(
+                      'notify-in-app',
+                      'In-app notifications',
+                      name_attr='in_app_enabled',
+                      checked=True,
+                      wrapper_class='form-field',
+                      help_text='Show notifications within the SYSGrow web interface.',
+                      help_class='field-hint'
+                  ) }}
+
+                  {{ ui.checkbox_field(
+                      'notify-email',
+                      'Email notifications',
+                      name_attr='email_enabled',
+                      wrapper_class='form-field',
+                      help_text='Receive notifications via email (requires SMTP configuration).',
+                      help_class='field-hint'
+                  ) }}
+                </div>
+              </form>
+            {% endcall %}
+
+            <!-- Email Configuration -->
+            {% call ui.content_card(
+                title="Email Configuration",
+                icon="fas fa-envelope",
+                id="email-config-card"
+            ) %}
+              <div class="card-description mb-4">Configure your SMTP server settings for email notifications.</div>
+
+              <form id="email-config-form" class="settings-form" novalidate>
+                <div class="form-grid">
+                  {{ ui.form_field(
+                      'notify-email-address',
+                      'Email Address',
+                      type='email',
+                      name_attr='email_address',
+                      wrapper_class='form-field',
+                      help_text='Where notifications will be sent.',
+                      help_class='field-hint',
+                      placeholder='your@email.com',
+                      label_prefix_html='<i class="fas fa-at me-1"></i>'
+                  ) }}
+
+                  {{ ui.form_field(
+                      'notify-smtp-host',
+                      'SMTP Host',
+                      type='text',
+                      name_attr='smtp_host',
+                      wrapper_class='form-field',
+                      help_text='e.g., smtp.gmail.com',
+                      help_class='field-hint',
+                      placeholder='smtp.gmail.com',
+                      label_prefix_html='<i class="fas fa-server me-1"></i>'
+                  ) }}
+
+                  {{ ui.form_field(
+                      'notify-smtp-port',
+                      'SMTP Port',
+                      type='number',
+                      name_attr='smtp_port',
+                      wrapper_class='form-field',
+                      help_text='Common ports: 587 (TLS), 465 (SSL).',
+                      help_class='field-hint',
+                      placeholder='587',
+                      min=1, max=65535,
+                      label_prefix_html='<i class="fas fa-plug me-1"></i>'
+                  ) }}
+
+                  {{ ui.form_field(
+                      'notify-smtp-username',
+                      'SMTP Username',
+                      type='text',
+                      name_attr='smtp_username',
+                      wrapper_class='form-field',
+                      help_text='Usually your email address.',
+                      help_class='field-hint',
+                      placeholder='your@email.com',
+                      autocomplete='username',
+                      label_prefix_html='<i class="fas fa-user me-1"></i>'
+                  ) }}
+
+                  {{ ui.form_field(
+                      'notify-smtp-password',
+                      'SMTP Password / App Password',
+                      type='password',
+                      name_attr='smtp_password',
+                      wrapper_class='form-field',
+                      input_container_class='password-field',
+                      autocomplete='new-password',
+                      suffix_html='
+                        <button type="button" class="toggle-password btn btn-icon" data-target="notify-smtp-password" aria-label="Toggle password visibility">
+                          <i class="fas fa-eye"></i>
+                        </button>',
+                      help_text='For Gmail, use an App Password.',
+                      help_class='field-hint',
+                      label_prefix_html='<i class="fas fa-key me-1"></i>'
+                  ) }}
+
+                  {{ ui.checkbox_field(
+                      'notify-smtp-tls',
+                      'Use TLS encryption',
+                      name_attr='smtp_use_tls',
+                      checked=True,
+                      wrapper_class='form-field',
+                      help_text='Recommended for security. Use port 587 for TLS.',
+                      help_class='field-hint'
+                  ) }}
+                </div>
+
+                <div class="form-actions mt-4 d-flex gap-2">
+                  {{ ui.ui_button('Save Email Settings', type='submit', icon='fas fa-save') }}
+                  {{ ui.ui_button('Send Test Email', variant='secondary', id='test-email-btn', icon='fas fa-paper-plane') }}
+                </div>
+              </form>
+            {% endcall %}
+
+            <!-- Notification Types -->
+            {% call ui.content_card(
+                title="Notification Types",
+                icon="fas fa-list-ul",
+                id="notification-types-card"
+            ) %}
+              <div class="card-description mb-4">Choose which types of events you want to be notified about.</div>
+
+              <form id="notification-types-form" class="settings-form" novalidate>
+                <div class="form-grid">
+                  {{ ui.checkbox_field('notify-low-battery', 'Low battery alerts', name_attr='notify_low_battery', checked=True, wrapper_class='form-field') }}
+                  {{ ui.checkbox_field('notify-plant-water', 'Plant needs water', name_attr='notify_plant_needs_water', checked=True, wrapper_class='form-field') }}
+                  {{ ui.checkbox_field('notify-irrigation-confirm', 'Irrigation confirmation', name_attr='notify_irrigation_confirm', checked=True, wrapper_class='form-field') }}
+                  {{ ui.checkbox_field('notify-threshold', 'Threshold exceeded', name_attr='notify_threshold_exceeded', checked=True, wrapper_class='form-field') }}
+                  {{ ui.checkbox_field('notify-device-offline', 'Device offline', name_attr='notify_device_offline', checked=True, wrapper_class='form-field') }}
+                  {{ ui.checkbox_field('notify-harvest', 'Harvest ready', name_attr='notify_harvest_ready', checked=True, wrapper_class='form-field') }}
+                  {{ ui.checkbox_field('notify-health', 'Plant health warnings', name_attr='notify_plant_health_warning', checked=True, wrapper_class='form-field') }}
+                  {{ ui.checkbox_field('notify-irrigation-feedback', 'Irrigation feedback requests', name_attr='irrigation_feedback_enabled', checked=True, wrapper_class='form-field') }}
+                </div>
+
+                <div class="form-actions mt-4">
+                  {{ ui.ui_button('Save Notification Preferences', type='submit', icon='fas fa-save') }}
+                </div>
+              </form>
+            {% endcall %}
+
+            <!-- Quiet Hours & Irrigation Feedback -->
+            <div class="row g-4">
+              <div class="col-md-6">
+                {% call ui.content_card(
+                    title="Quiet Hours",
+                    icon="fas fa-moon",
+                    id="quiet-hours-card"
+                ) %}
+                  <form id="quiet-hours-form" class="settings-form" novalidate>
+                    {{ ui.checkbox_field('quiet-hours-enabled', 'Enable quiet hours', name_attr='quiet_hours_enabled', wrapper_class='form-field') }}
+
+                    <div id="quiet-hours-times">
+                      {{ ui.form_field('quiet-hours-start', 'Start Time', type='time', name_attr='quiet_hours_start', value='22:00', wrapper_class='form-field', label_prefix_html='<i class="fas fa-bed me-1"></i>') }}
+                      {{ ui.form_field('quiet-hours-end', 'End Time', type='time', name_attr='quiet_hours_end', value='07:00', wrapper_class='form-field', label_prefix_html='<i class="fas fa-sun me-1"></i>') }}
+                    </div>
+
+                    {{ ui.form_field(
+                        'notification-interval',
+                        'Min Interval (seconds)',
+                        type='number', step=60, min=0, value='300',
+                        name_attr='min_notification_interval_seconds',
+                        wrapper_class='form-field',
+                        help_text='Prevent notification spam.',
+                        help_class='field-hint'
+                    ) }}
+
+                    <div class="form-actions mt-4">
+                      {{ ui.ui_button('Save Quiet Hours', type='submit', icon='fas fa-save') }}
+                    </div>
+                  </form>
+                {% endcall %}
+              </div>
+
+              <div class="col-md-6">
+                {% call ui.content_card(
+                    title="Irrigation Feedback",
+                    icon="fas fa-comment-alt",
+                    id="irrigation-feedback-card"
+                ) %}
+                  <form id="irrigation-feedback-settings-form" class="settings-form" novalidate>
+                    {{ ui.form_field(
+                        'irrigation-feedback-delay',
+                        'Feedback Request Delay (min)',
+                        type='number', name_attr='irrigation_feedback_delay_minutes',
+                        value='30', min=5, max=120,
+                        wrapper_class='form-field',
+                        help_text='Wait time after irrigation.',
+                        help_class='field-hint',
+                        label_prefix_html='<i class="fas fa-hourglass-half me-1"></i>'
+                    ) }}
+
+                    <div class="form-actions mt-4">
+                      {{ ui.ui_button('Save Feedback Settings', type='submit', icon='fas fa-save') }}
+                    </div>
+                  </form>
+                {% endcall %}
+              </div>
+            </div>
+          </div>
+
+          <!-- Security -->
+          <div
+            id="security-panel"
+            class="tab-panel"
+            role="tabpanel"
+            aria-labelledby="security-tab"
+            aria-hidden="true"
+            tabindex="0"
+          >
+            <!-- Recovery Codes -->
+            {% call ui.content_card(
+                title="Recovery Codes",
+                icon="fas fa-key",
+                id="recovery-codes-card"
+            ) %}
+              <div class="card-description mb-4">
+                Recovery codes allow you to reset your password without email or internet access.
+                Keep these codes in a safe place - each code can only be used once.
+              </div>
+
+              <div id="recovery-codes-status" class="mb-4">
+                <div class="d-flex align-items-center gap-3">
+                  <div class="recovery-codes-count">
+                    <span class="count-label">Available codes:</span>
+                    <span id="recovery-code-count" class="count-value badge bg-primary">--</span>
+                    <span class="count-total">/ 10</span>
+                  </div>
+                  <div id="recovery-codes-warning" class="text-warning hidden">
+                    <i class="fas fa-exclamation-triangle me-1"></i>
+                    <span>Low on recovery codes! Consider generating new ones.</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="alert alert-info mb-4">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>Important:</strong> Generating new codes will invalidate all existing codes.
+                Make sure to save the new codes immediately after generation.
+              </div>
+
+              <form id="generate-recovery-codes-form" class="mb-4" novalidate>
+                <div class="row g-3 align-items-end">
+                  <div class="col-md-6">
+                    {{ ui.form_field(
+                        'recovery-current-password',
+                        'Current Password',
+                        type='password',
+                        name_attr='current_password',
+                        wrapper_class='form-field mb-0',
+                        required=True,
+                        autocomplete='current-password',
+                        help_text='Enter your password to generate new recovery codes.',
+                        help_class='field-hint',
+                        label_prefix_html='<i class="fas fa-lock me-1"></i>'
+                    ) }}
+                  </div>
+                  <div class="col-md-6">
+                    {{ ui.ui_button('Generate New Codes', type='submit', icon='fas fa-sync-alt', id='generate-codes-btn') }}
+                  </div>
+                </div>
+              </form>
+
+              <!-- Generated Codes Display (hidden until generated) -->
+              <div id="generated-codes-container" class="hidden">
+                <div class="alert alert-warning mb-3">
+                  <i class="fas fa-exclamation-circle me-2"></i>
+                  <strong>Save these codes now!</strong> They will not be shown again.
+                </div>
+                <div id="generated-codes-list" class="recovery-codes-grid mb-3">
+                  <!-- Codes will be inserted here dynamically -->
+                </div>
+                <div class="d-flex gap-2">
+                  {{ ui.ui_button('Copy All Codes', variant='secondary', icon='fas fa-copy', id='copy-codes-btn') }}
+                  {{ ui.ui_button('Download as Text', variant='secondary', icon='fas fa-download', id='download-codes-btn') }}
+                </div>
+              </div>
+            {% endcall %}
+
+            <!-- Change Password -->
+            {% call ui.content_card(
+                title="Change Password",
+                icon="fas fa-user-lock",
+                id="change-password-card"
+            ) %}
+              <div class="card-description mb-4">Update your account password.</div>
+
+              <form id="change-password-form" class="settings-form" novalidate>
+                <div class="form-grid">
+                  {{ ui.form_field(
+                      'current-password',
+                      'Current Password',
+                      type='password',
+                      name_attr='current_password',
+                      wrapper_class='form-field',
+                      required=True,
+                      autocomplete='current-password',
+                      label_prefix_html='<i class="fas fa-lock me-1"></i>'
+                  ) }}
+
+                  {{ ui.form_field(
+                      'new-password',
+                      'New Password',
+                      type='password',
+                      name_attr='new_password',
+                      wrapper_class='form-field',
+                      required=True,
+                      autocomplete='new-password',
+                      help_text='Minimum 8 characters.',
+                      help_class='field-hint',
+                      label_prefix_html='<i class="fas fa-key me-1"></i>'
+                  ) }}
+
+                  {{ ui.form_field(
+                      'confirm-new-password',
+                      'Confirm New Password',
+                      type='password',
+                      name_attr='confirm_password',
+                      wrapper_class='form-field',
+                      required=True,
+                      autocomplete='new-password',
+                      label_prefix_html='<i class="fas fa-check-double me-1"></i>'
+                  ) }}
+                </div>
+
+                <div class="form-actions mt-4">
+                  {{ ui.ui_button('Change Password', type='submit', icon='fas fa-save') }}
+                </div>
+              </form>
+            {% endcall %}
+          </div>
+
+        </div>
+      </div>
+    </section>
+  </div>
+{% endblock %}
+
+        <button type="submit">Set Camera</button>
+    </form>
+</fieldset>
+
+<script>
+    function toggleHotspotForm() {
+        const hotspotForm = document.getElementById("Hotspot-form");
+        const hotspotToggle = document.getElementById("hotspot_toggle");
+        if (hotspotToggle.checked) {
+            hotspotForm.style.display = "block";
+        } else {
+            hotspotForm.style.display = "none";
+        }
+    }
+
+    function toggleCameraFields() {
+        const cameraType = document.getElementById("camera_type").value;
+        const ipAddressField = document.getElementById("ip_address_field");
+        const usbIndexField = document.getElementById("usb_index_field");
+        const cameraAdjustments = document.getElementById("camera_adjustments");
+
+        if (cameraType === "esp32") {
+            ipAddressField.style.display = "block";
+            usbIndexField.style.display = "none";
+            cameraAdjustments.style.display = "block";
+        } else if (cameraType === "usb") {
+            ipAddressField.style.display = "none";
+            usbIndexField.style.display = "block";
+            cameraAdjustments.style.display = "block";
+        } else {
+            ipAddressField.style.display = "none";
+            usbIndexField.style.display = "none";
+            cameraAdjustments.style.display = "none";
+        }
+    }
+
+    // Initialize fields on page load
+    window.onload = toggleCameraFields;
+</script>
+=======
+{% extends "base.html" %}
+{% import "macros.html" as ui %}
+
+{% block title %}Settings - SYSGrow{% endblock %}
+{% block body_class %}settings-page{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="page-shell">
+  <div class="settings-page" data-selected-unit="{{ selected_unit_id if selected_unit_id else '' }}" aria-labelledby="settings-page-heading">
+    
+    {# New Standardized Page Header #}
+    {{ ui.page_header(
+      title="Settings & Configuration",
+      icon="fas fa-cog",
+      subtitle="Manage environment thresholds, schedules, and connectivity for your grow tent.",
+      actions='
+        <div class="d-flex align-items-center gap-2">
+          <a class="btn btn-secondary btn-sm" href="' ~ url_for('ui.system_health') ~ '">
+            <i class="fas fa-chart-line"></i>
+            <span class="d-none d-sm-inline">System Overview</span>
+          </a>
+          <a class="btn btn-secondary btn-sm" href="' ~ url_for('ui.energy_analytics') ~ '">
+            <i class="fas fa-bolt"></i>
+            <span class="d-none d-sm-inline">Energy</span>
+          </a>
+          <a class="btn btn-secondary btn-sm" href="' ~ url_for('ui.device_health') ~ '">
+            <i class="fas fa-heartbeat"></i>
+            <span class="d-none d-sm-inline">Device Health</span>
+          </a>
+        </div>
+      '
+    ) }}
+
+    <!-- Contextual Help Banner -->
+    <div class="help-banner">
+      <i class="fas fa-info-circle"></i>
+      <div class="help-banner-content">
+        <p class="help-banner-title">Configure your environment</p>
+        <p class="help-banner-text">Set temperature, humidity, and lighting thresholds for optimal plant growth.</p>
+      </div>
+      {{ ui.help_link('settings', 'environment-settings', 'Settings Guide') }}
+    </div>
+
+    <div id="settings-status" class="settings-status" role="status" aria-live="polite"></div>
+
+    <div class="settings-shell">
+        <nav class="settings-tabs" role="tablist" aria-label="Settings sections" aria-orientation="horizontal">
+          <button
+            type="button"
+            class="tab-button active"
+            id="environment-tab"
+            data-tab="environment"
+            role="tab"
+            aria-selected="true"
+            aria-controls="environment-panel"
+            tabindex="0"
+          >
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"></circle>
+              <circle cx="12" cy="12" r="6"></circle>
+              <circle cx="12" cy="12" r="2"></circle>
+            </svg>
+            <span>Environment</span>
+          </button>
+
+          <button
+            type="button"
+            class="tab-button"
+            id="automation-tab"
+            data-tab="automation"
+            role="tab"
+            aria-selected="false"
+            aria-controls="automation-panel"
+            tabindex="-1"
+          >
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M12 1v6m0 6v6"></path>
+              <path d="m21 12-6-6-6 6 6 6 6-6"></path>
+            </svg>
+            <span>Automation</span>
+          </button>
+
+          <button
+            type="button"
+            class="tab-button"
+            id="connectivity-tab"
+            data-tab="connectivity"
+            role="tab"
+            aria-selected="false"
+            aria-controls="connectivity-panel"
+            tabindex="-1"
+          >
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M9 11a3 3 0 0 1 6 0"></path>
+              <path d="M5 11a7 7 0 0 1 14 0"></path>
+              <path d="M1 11a11 11 0 0 1 22 0"></path>
+              <circle cx="12" cy="11" r="1"></circle>
+            </svg>
+            <span>Connectivity</span>
+          </button>
+
+          <button
+            type="button"
+            class="tab-button"
+            id="analytics-tab"
+            data-tab="analytics"
+            role="tab"
+            aria-selected="false"
+            aria-controls="analytics-panel"
+            tabindex="-1"
+          >
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M3 3v18h18"></path>
+              <path d="m19 9-5 5-4-4-3 3"></path>
+            </svg>
+            <span>Analytics</span>
+          </button>
+
+          <button
+            type="button"
+            class="tab-button"
+            id="database-tab"
+            data-tab="database"
+            role="tab"
+            aria-selected="false"
+            aria-controls="database-panel"
+            tabindex="-1"
+          >
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+              <path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"></path>
+              <path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"></path>
+            </svg>
+            <span>Database</span>
+          </button>
+
+          <button
+            type="button"
+            class="tab-button"
+            id="notifications-tab"
+            data-tab="notifications"
+            role="tab"
+            aria-selected="false"
+            aria-controls="notifications-panel"
+            tabindex="-1"
+          >
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+            </svg>
+            <span>Notifications</span>
+          </button>
+
+          <button
+            type="button"
+            class="tab-button"
+            id="security-tab"
+            data-tab="security"
+            role="tab"
+            aria-selected="false"
+            aria-controls="security-panel"
+            tabindex="-1"
+          >
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+            <span>Security</span>
+          </button>
+        </nav>
+
+        <!-- Panels -->
+        <div class="settings-content">
+
+          <!-- Environment -->
+          <div
+            id="environment-panel"
+            class="tab-panel active"
+            role="tabpanel"
+            aria-labelledby="environment-tab"
+            aria-hidden="false"
+            tabindex="0"
+          >
+            {% call ui.content_card(
+                title="Environment Thresholds",
+                icon="fas fa-thermometer-half",
+                id="environment-card"
+            ) %}
+              <div class="card-description mb-4">Set optimal ranges for temperature and humidity.</div>
+
+              <form id="environment-form" class="settings-form" novalidate>
+                <div class="form-grid">
+                  {{ ui.form_field(
+                      'env-temperature',
+                      'Temperature Threshold (°C)',
+                      type='number', step=0.1, min=-20, max=60, required=True,
+                      name_attr='temperature_threshold', wrapper_class='form-field',
+                      help_text='Ideal range: 20–25°C', help_class='field-hint',
+                      label_prefix_html='<i class="fas fa-temperature-high me-1"></i>'
+                  ) }}
+
+                  {{ ui.form_field(
+                      'env-humidity',
+                      'Humidity Threshold (%)',
+                      type='number', step=0.1, min=0, max=100, required=True,
+                      name_attr='humidity_threshold', wrapper_class='form-field',
+                      help_text='Ideal range: 40–60%', help_class='field-hint',
+                      label_prefix_html='<svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path></svg>'
+                  ) }}
+
+                  {{ ui.form_field(
+                      'env-co2',
+                      'CO₂ Threshold (ppm)',
+                      type='number', step=1, min=0, max=5000,
+                      name_attr='co2_threshold', wrapper_class='form-field',
+                      help_text='Common target range: 800–1200 ppm', help_class='field-hint',
+                      label_prefix_html='<svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17.5 19a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.5 2A4 4 0 0 0 6 19h11.5Z"></path></svg>'
+                  ) }}
+
+                  {{ ui.form_field(
+                      'env-voc',
+                      'VOC Threshold (ppb)',
+                      type='number', step=1, min=0, max=10000,
+                      name_attr='voc_threshold', wrapper_class='form-field',
+                      help_text='Lower is better; typical target: < 1000 ppb', help_class='field-hint',
+                      label_prefix_html='<svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2a10 10 0 0 0-4 19.17V19a4 4 0 0 1 8 0v2.17A10 10 0 0 0 12 2Z"></path></svg>'
+                  ) }}
+
+                  {{ ui.form_field(
+                      'env-lux',
+                      'Lux Threshold (lux)',
+                      type='number', step=1, min=0, max=100000,
+                      name_attr='lux_threshold', wrapper_class='form-field',
+                      help_text='Used to validate daylight/lights-on intensity', help_class='field-hint',
+                      label_prefix_html='<svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path></svg>'
+                  ) }}
+
+                  {{ ui.form_field(
+                      'env-aqi',
+                      'AQI Threshold',
+                      type='number', step=1, min=0, max=500,
+                      name_attr='aqi_threshold', wrapper_class='form-field',
+                      help_text='Lower is better; common target: < 100', help_class='field-hint',
+                      label_prefix_html='<i class="fas fa-smog me-1"></i>'
+                  ) }}
+                </div>
+
+                <div class="form-actions d-flex gap-2 mt-4">
+                  {{ ui.ui_button('Save Environment Settings', type='submit', icon='fas fa-save') }}
+                  {{ ui.ui_button('Suggest Thresholds', variant='secondary', id='suggest-thresholds', icon='fas fa-magic') }}
+                </div>
+              </form>
+            {% endcall %}
+          </div>
+
+          <!-- Automation -->
+          <div
+            id="automation-panel"
+            class="tab-panel"
+            role="tabpanel"
+            aria-labelledby="automation-tab"
+            aria-hidden="true"
+            tabindex="0"
+          >
+            <!-- Unit Context -->
+            {% call ui.content_card(
+                title="Growth Unit Context",
+                icon="fas fa-layer-group",
+                id="schedule-context-card"
+            ) %}
+              <div class="card-description mb-4">Schedules are unit-specific. Select a unit to view and edit its schedules.</div>
+
+              {% call ui.select_field(
+                  'schedule-unit-selector',
+                  'Growth Unit',
+                  [],
+                  wrapper_class='form-field',
+                  help_text='This selection applies to schedule forms below.',
+                  help_class='field-hint',
+                  label_prefix_html='<i class="fas fa-cube me-1"></i>'
+              ) %}
+                {% if units %}
+                  {% for unit in units %}
+                    <option value="{{ unit.unit_id }}" {% if selected_unit_id == unit.unit_id %}selected{% endif %}>
+                      {{ unit.name }} (ID: {{ unit.unit_id }})
+                    </option>
+                  {% endfor %}
+                {% else %}
+                  <option value="">No units available — create one first</option>
+                {% endif %}
+              {% endcall %}
+            {% endcall %}
+
+            <!-- Schedule Summary Card -->
+            {% call ui.content_card(
+                title="Schedule Summary",
+                icon="fas fa-chart-pie",
+                id="schedule-summary-card"
+            ) %}
+              <div id="schedule-summary-content" class="schedule-summary-grid">
+                <!-- Loaded dynamically -->
+                <div class="summary-loading"><i class="fas fa-spinner fa-spin"></i> Loading summary...</div>
+              </div>
+              
+              <div class="schedule-actions mt-3">
+                <div class="btn-group me-2">
+                  <button type="button" class="btn btn-success btn-sm" id="auto-generate-btn" title="Auto-generate schedules based on plant stage">
+                    <i class="fas fa-magic me-1"></i> Auto-Generate
+                  </button>
+                  <button type="button" class="btn btn-success btn-sm dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+                    <span class="visually-hidden">Toggle Dropdown</span>
+                  </button>
+                  <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="#" id="view-templates-btn"><i class="fas fa-list"></i> View Templates</a></li>
+                  </ul>
+                </div>
+                <button type="button" class="btn btn-outline-primary btn-sm" id="preview-schedules-btn">
+                  <i class="fas fa-calendar-alt me-1"></i> Preview Events
+                </button>
+                <button type="button" class="btn btn-outline-warning btn-sm" id="check-conflicts-btn">
+                  <i class="fas fa-exclamation-triangle me-1"></i> Check Conflicts
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="view-history-btn">
+                  <i class="fas fa-history me-1"></i> View History
+                </button>
+              </div>
+            {% endcall %}
+
+            <!-- Schedule List Card -->
+            {% call ui.content_card(
+                title="Device Schedules",
+                icon="fas fa-calendar-alt",
+                id="device-schedule-card"
+            ) %}
+              <div class="card-description mb-3">Manage all schedules for the selected unit. Multiple schedules per device are supported.</div>
+              
+              <div class="schedule-toolbar mb-3">
+                <div class="toolbar-left">
+                  {% call ui.select_field(
+                      'schedule-device-filter',
+                      '',
+                      [],
+                      wrapper_class='form-field mb-0'
+                  ) %}
+                    <option value="">All Devices</option>
+                    <option value="light">Light</option>
+                    <option value="fan">Fan</option>
+                    <option value="pump">Water Pump</option>
+                    <option value="heater">Heater</option>
+                    <option value="cooler">Cooler</option>
+                    <option value="humidifier">Humidifier</option>
+                    <option value="dehumidifier">Dehumidifier</option>
+                  {% endcall %}
+                </div>
+                <div class="toolbar-right">
+                  <button type="button" class="btn btn-primary" id="add-schedule-btn">
+                    <i class="fas fa-plus me-1"></i> Add Schedule
+                  </button>
+                </div>
+              </div>
+              
+              <div id="schedules-list" class="schedules-list">
+                <!-- Schedule cards loaded dynamically -->
+                <div class="schedules-loading"><i class="fas fa-spinner fa-spin"></i> Loading schedules...</div>
+              </div>
+            {% endcall %}
+            
+            <!-- Schedule Form Modal -->
+            <div id="schedule-form-modal" class="settings-modal hidden">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h3 id="schedule-form-title"><i class="fas fa-calendar-plus me-2"></i>Add Schedule</h3>
+                  <button type="button" class="modal-close" id="close-schedule-modal">&times;</button>
+                </div>
+                <form id="device-schedule-form" class="settings-form" novalidate>
+                  <input type="hidden" id="edit-schedule-id" name="schedule_id" value="">
+                  
+                  <div class="form-grid">
+                    {{ ui.form_field(
+                        'schedule-name',
+                        'Schedule Name',
+                        type='text', required=True,
+                        name_attr='name', wrapper_class='form-field',
+                        placeholder='e.g., Morning Light Cycle',
+                        label_prefix_html='<i class="fas fa-tag me-1"></i>',
+                        help_class='field-hint'
+                    ) }}
+
+                    {% call ui.select_field(
+                        'schedule-device-type',
+                        'Device Type',
+                        [],
+                        wrapper_class='form-field',
+                        help_class='field-hint'
+                    ) %}
+                      <option value="">Select device...</option>
+                      <option value="light">Light</option>
+                      <option value="fan">Fan</option>
+                      <option value="pump">Water Pump</option>
+                      <option value="heater">Heater</option>
+                      <option value="cooler">Cooler</option>
+                      <option value="humidifier">Humidifier</option>
+                      <option value="dehumidifier">Dehumidifier</option>
+                    {% endcall %}
+
+                    {% call ui.select_field(
+                        'schedule-schedule-type',
+                        'Schedule Type',
+                        [],
+                        wrapper_class='form-field',
+                        help_text='Simple: fixed window. Interval: repeating cycles. Photoperiod: day/night-aware. Automatic: plant stage.',
+                        help_class='field-hint'
+                    ) %}
+                      <option value="simple">Simple (Time-based)</option>
+                      <option value="photoperiod">Photoperiod (Light-aware)</option>
+                      <option value="interval">Interval (Repeating)</option>
+                      <option value="automatic">Automatic (Plant Stage)</option>
+                    {% endcall %}
+                  </div>
+
+                  <div class="form-grid">
+                    {{ ui.form_field(
+                        'schedule-start',
+                        'Start Time',
+                        type='time', required=True,
+                        name_attr='start_time', wrapper_class='form-field',
+                        label_prefix_html='<i class="fas fa-sun me-1"></i>',
+                        help_text='e.g. 06:00 AM',
+                        help_class='field-hint'
+                    ) }}
+
+                    {{ ui.form_field(
+                        'schedule-end',
+                        'End Time',
+                        type='time', required=True,
+                        name_attr='end_time', wrapper_class='form-field',
+                        label_prefix_html='<i class="fas fa-moon me-1"></i>',
+                        help_text='e.g. 10:00 PM',
+                        help_class='field-hint'
+                    ) }}
+                  </div>
+
+                  <!-- Days of Week -->
+                  <div class="form-field">
+                    <label>Active Days</label>
+                    <div class="days-of-week-selector">
+                      <label class="day-toggle"><input type="checkbox" name="days_of_week" value="0" checked><span>Mon</span></label>
+                      <label class="day-toggle"><input type="checkbox" name="days_of_week" value="1" checked><span>Tue</span></label>
+                      <label class="day-toggle"><input type="checkbox" name="days_of_week" value="2" checked><span>Wed</span></label>
+                      <label class="day-toggle"><input type="checkbox" name="days_of_week" value="3" checked><span>Thu</span></label>
+                      <label class="day-toggle"><input type="checkbox" name="days_of_week" value="4" checked><span>Fri</span></label>
+                      <label class="day-toggle"><input type="checkbox" name="days_of_week" value="5" checked><span>Sat</span></label>
+                      <label class="day-toggle"><input type="checkbox" name="days_of_week" value="6" checked><span>Sun</span></label>
+                    </div>
+                  </div>
+
+                  <!-- Photoperiod Settings -->
+                  <div id="photoperiod-settings" class="form-section hidden">
+                    <h4>Photoperiod Configuration</h4>
+                    <div class="form-grid">
+                      {% call ui.select_field(
+                          'schedule-photoperiod-source',
+                          'Photoperiod Source',
+                          [],
+                          wrapper_class='form-field',
+                          help_text='Determines how day/night is detected.',
+                          help_class='field-hint'
+                      ) %}
+                        <option value="schedule">Schedule Only</option>
+                        <option value="sensor">Sensor-based</option>
+                        <option value="sun_api">Sunrise/Sunset</option>
+                      {% endcall %}
+
+                      {{ ui.form_field(
+                          'schedule-sensor-threshold',
+                          'Sensor Threshold (lux)',
+                          type='number', min=0, max=100000,
+                          name_attr='sensor_threshold', wrapper_class='form-field',
+                          placeholder='e.g., 500',
+                          help_text='Lux level below which it is treated as night.',
+                          help_class='field-hint'
+                      ) }}
+                    </div>
+                  </div>
+
+                  <!-- Interval Settings -->
+                  <div id="interval-settings" class="form-section hidden">
+                    <h4>Interval Configuration</h4>
+                    <div class="form-grid">
+                      {{ ui.form_field(
+                          'schedule-interval-minutes',
+                          'Interval (minutes)',
+                          type='number', min=1,
+                          name_attr='interval_minutes', wrapper_class='form-field',
+                          placeholder='e.g., 120',
+                          help_text='How often the schedule repeats within the time window.',
+                          help_class='field-hint'
+                      ) }}
+
+                      {{ ui.form_field(
+                          'schedule-duration-minutes',
+                          'Duration (minutes)',
+                          type='number', min=1,
+                          name_attr='duration_minutes', wrapper_class='form-field',
+                          placeholder='e.g., 20',
+                          help_text='How long each cycle stays active.',
+                          help_class='field-hint'
+                      ) }}
+                    </div>
+                  </div>
+
+                  <div class="form-grid">
+                    {{ ui.form_field(
+                        'schedule-priority',
+                        'Priority',
+                        type='number', min=1, max=100, value='50',
+                        name_attr='priority', wrapper_class='form-field',
+                        help_text='Higher priority schedules override lower ones when active simultaneously.',
+                        help_class='field-hint'
+                    ) }}
+
+                    {{ ui.form_field(
+                        'schedule-value',
+                        'Value/Intensity (%)',
+                        type='number', min=0, max=100,
+                        name_attr='value', wrapper_class='form-field',
+                        placeholder='Leave empty for on/off',
+                        help_text='Set a specific level (e.g., dimming). Leave empty for simple on/off.',
+                        help_class='field-hint'
+                    ) }}
+                  </div>
+
+                  <div class="form-field">
+                    {{ ui.checkbox_field(
+                        'schedule-enabled',
+                        'Enabled',
+                        checked=True,
+                        name_attr='enabled',
+                        wrapper_class='',
+                        help_text='Disable temporarily without deleting the schedule.',
+                        help_class='field-hint'
+                    ) }}
+                  </div>
+
+                  <div class="form-actions mt-4">
+                    <button type="button" class="btn btn-outline-secondary" id="cancel-schedule-btn">Cancel</button>
+                    {{ ui.ui_button('Save Schedule', type='submit', icon='fas fa-save') }}
+                  </div>
+                </form>
+              </div>
+            </div>
+            
+            <!-- Schedule Preview Modal -->
+            <div id="schedule-preview-modal" class="settings-modal hidden">
+              <div class="modal-content modal-lg">
+                <div class="modal-header">
+                  <h3><i class="fas fa-calendar-alt me-2"></i>Schedule Preview (Next 24 Hours)</h3>
+                  <button type="button" class="modal-close" id="close-preview-modal">&times;</button>
+                </div>
+                <div id="schedule-preview-content" class="modal-body">
+                  <!-- Preview content loaded dynamically -->
+                </div>
+              </div>
+            </div>
+            
+            <!-- Conflicts Modal -->
+            <div id="schedule-conflicts-modal" class="settings-modal hidden">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h3><i class="fas fa-exclamation-triangle me-2"></i>Schedule Conflicts</h3>
+                  <button type="button" class="modal-close" id="close-conflicts-modal">&times;</button>
+                </div>
+                <div id="schedule-conflicts-content" class="modal-body">
+                  <!-- Conflicts content loaded dynamically -->
+                </div>
+              </div>
+            </div>
+            
+            <!-- History Modal -->
+            <div id="schedule-history-modal" class="settings-modal hidden">
+              <div class="modal-content modal-lg">
+                <div class="modal-header">
+                  <h3><i class="fas fa-history me-2"></i>Schedule History</h3>
+                  <button type="button" class="modal-close" id="close-history-modal">&times;</button>
+                </div>
+                <div id="schedule-history-content" class="modal-body">
+                  <!-- History content loaded dynamically -->
+                </div>
+              </div>
+            </div>
+
+            <!-- Irrigation Workflow Settings -->
+            {% call ui.content_card(
+                title="Irrigation Workflow",
+                icon="fas fa-tint",
+                id="irrigation-workflow-card"
+            ) %}
+              <div class="card-description mb-4">Configure smart irrigation behavior including approval workflow, pump calibration, and moisture-based triggers.</div>
+
+              <form id="irrigation-workflow-form" class="settings-form" novalidate>
+                <input type="hidden" id="irrigation-unit-id" name="unit_id" value="">
+
+                <!-- Workflow Mode -->
+                <h5 class="mb-3"><i class="fas fa-cogs me-2"></i>Workflow Mode</h5>
+                <div class="row g-3 mb-4">
+                  <div class="col-md-6">
+                    {{ ui.checkbox_field('irrigation-workflow-enabled', 'Enable Irrigation Workflow', checked=true, name_attr='workflow_enabled', help_text='Use standby/approval workflow instead of immediate irrigation') }}
+                  </div>
+                  <div class="col-md-6">
+                    {{ ui.checkbox_field('irrigation-require-approval', 'Require User Approval', checked=true, name_attr='require_approval', help_text='Wait for user approval before executing irrigation') }}
+                  </div>
+                </div>
+
+                <!-- Scheduled Execution -->
+                <h5 class="mb-3"><i class="fas fa-clock me-2"></i>Scheduled Execution</h5>
+                <div class="row g-3 mb-4">
+                  <div class="col-md-4">
+                    {{ ui.form_field('irrigation-scheduled-time', 'Default Irrigation Time', type='time', name_attr='default_scheduled_time', value='21:00', help_text='When approved irrigations run by default') }}
+                  </div>
+                  <div class="col-md-4">
+                    {{ ui.form_field('irrigation-delay-minutes', 'Delay Increment (min)', type='number', name_attr='delay_increment_minutes', value='60', min=15, max=240, help_text='Minutes added when user delays irrigation') }}
+                  </div>
+                  <div class="col-md-4">
+                    {{ ui.form_field('irrigation-max-delay', 'Max Delay (hours)', type='number', name_attr='max_delay_hours', value='24', min=1, max=72, help_text='Maximum time irrigation can be delayed') }}
+                  </div>
+                </div>
+
+                <!-- Notifications & Feedback -->
+                <h5 class="mb-3"><i class="fas fa-bell me-2"></i>Notifications & Feedback</h5>
+                <div class="row g-3 mb-4">
+                  <div class="col-md-6">
+                    {{ ui.checkbox_field('irrigation-send-reminder', 'Send Reminder Before Execution', checked=true, name_attr='send_reminder_before_execution', help_text='Notify before scheduled irrigation runs') }}
+                  </div>
+                  <div class="col-md-6">
+                    {{ ui.form_field('irrigation-reminder-minutes', 'Reminder Minutes Before', type='number', name_attr='reminder_minutes_before', value='30', min=5, max=120, help_text='How long before irrigation to send reminder') }}
+                  </div>
+                </div>
+                <div class="row g-3 mb-4">
+                  <div class="col-md-6">
+                    {{ ui.checkbox_field('irrigation-request-feedback', 'Request Post-Irrigation Feedback', checked=true, name_attr='request_feedback_enabled', help_text='Ask for feedback to improve future irrigation') }}
+                  </div>
+                  <div class="col-md-6">
+                    {{ ui.checkbox_field('irrigation-ml-learning', 'Enable ML Learning', checked=true, name_attr='ml_learning_enabled', help_text='Learn from user responses to optimize irrigation') }}
+                  </div>
+                </div>
+
+                <div class="form-actions mt-4">
+                  {{ ui.ui_button('Save Workflow Settings', type='submit', icon='fas fa-save', id='save-workflow-btn') }}
+                </div>
+              </form>
+            {% endcall %}
+
+            <!-- Pump Calibration Card -->
+            {% call ui.content_card(
+                title="Pump Calibration",
+                icon="fas fa-tachometer-alt",
+                id="pump-calibration-card"
+            ) %}
+              <div class="card-description mb-4">Calibrate pump flow rate for accurate irrigation. This ensures plants receive the calculated water amount.</div>
+
+              <div id="pump-calibration-content">
+                <!-- Pump Selection -->
+                <div class="row g-3 mb-4">
+                  <div class="col-md-6">
+                    {% call ui.select_field(
+                        'calibration-pump-select',
+                        'Select Pump',
+                        [],
+                        wrapper_class='form-field',
+                        help_text='Choose the pump actuator to calibrate',
+                        help_class='field-hint'
+                    ) %}
+                      <option value="">Select a pump...</option>
+                      <!-- Options loaded dynamically -->
+                    {% endcall %}
+                  </div>
+                  <div class="col-md-6">
+                    <div class="calibration-status">
+                      <label class="form-label">Current Calibration</label>
+                      <div id="calibration-status-display" class="calibration-info">
+                        <span class="text-muted">Select a pump to view calibration</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Calibration Instructions -->
+                <div id="calibration-instructions" class="alert alert-info mb-4 hidden">
+                  <h6><i class="fas fa-info-circle me-2"></i>Calibration Instructions</h6>
+                  <ol class="mb-0 ps-3">
+                    <li>Place a measuring container (min 100ml capacity) under the pump outlet</li>
+                    <li>Click "Start Calibration" - the pump will run for the selected duration</li>
+                    <li>Measure the actual volume dispensed using the container</li>
+                    <li>Enter the measured volume to complete calibration</li>
+                  </ol>
+                </div>
+
+                <!-- Calibration Form -->
+                <form id="pump-calibration-form" class="hidden">
+                  <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                      {{ ui.form_field('calibration-duration', 'Duration (seconds)', type='number', name_attr='duration_seconds', min=1, help_text='How long the pump will run (leave blank for default)') }}
+                    </div>
+                    <div class="col-md-6">
+                      {{ ui.form_field('calibration-actual-ml', 'Measured Volume (ml)', type='number', name_attr='measured_ml', placeholder='Enter measured volume', min=1, help_text='Volume you measured in container') }}
+                    </div>
+                  </div>
+                </form>
+
+                <!-- Calibration Actions -->
+                <div class="calibration-actions d-flex gap-2">
+                  <button type="button" class="btn btn-primary" id="start-calibration-btn" disabled>
+                    <i class="fas fa-play me-2"></i>Start Calibration
+                  </button>
+                  <button type="button" class="btn btn-success hidden" id="complete-calibration-btn">
+                    <i class="fas fa-check me-2"></i>Complete Calibration
+                  </button>
+                  <button type="button" class="btn btn-outline-secondary hidden" id="cancel-calibration-btn">
+                    <i class="fas fa-times me-2"></i>Cancel
+                  </button>
+                </div>
+
+                <!-- Calibration History -->
+                <div id="calibration-history" class="mt-4 hidden">
+                  <h6><i class="fas fa-history me-2"></i>Calibration History</h6>
+                  <div class="table-responsive">
+                    <table class="table table-sm">
+                      <thead>
+                        <tr>
+                          <th>Date</th>
+                          <th>Flow Rate</th>
+                          <th>Confidence</th>
+                          <th>Method</th>
+                        </tr>
+                      </thead>
+                      <tbody id="calibration-history-body">
+                        <!-- History loaded dynamically -->
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            {% endcall %}
+          </div>
+
+          <!-- Connectivity -->
+          <div
+            id="connectivity-panel"
+            class="tab-panel"
+            role="tabpanel"
+            aria-labelledby="connectivity-tab"
+            aria-hidden="true"
+            tabindex="0"
+          >
+            {% call ui.content_card(
+                title="Wi-Fi Hotspot",
+                icon="fas fa-wifi",
+                id="hotspot-card"
+            ) %}
+              <div class="card-description mb-4">Configure wireless network settings for device connectivity.</div>
+
+              <form id="hotspot-form" class="settings-form" novalidate>
+                <div class="form-grid">
+                  {{ ui.form_field(
+                      'hotspot-ssid',
+                      'Network Name (SSID)',
+                      type='text',
+                      name_attr='ssid',
+                      wrapper_class='form-field',
+                      help_text='Maximum 64 characters.',
+                      help_class='field-hint',
+                      maxlength=64,
+                      autocomplete='off',
+                      label_prefix_html='<i class="fas fa-broadcast-tower me-1"></i>'
+                  ) }}
+
+                  {{ ui.form_field(
+                      'hotspot-password',
+                      'Password',
+                      type='password',
+                      name_attr='password',
+                      wrapper_class='form-field',
+                      input_container_class='password-field',
+                      autocomplete='new-password',
+                      suffix_html='
+                        <button type="button" class="toggle-password btn btn-icon" data-target="hotspot-password" aria-label="Toggle password visibility">
+                          <i class="fas fa-eye"></i>
+                        </button>',
+                      help_text='Leave blank to keep the existing password.',
+                      help_class='field-hint',
+                      label_prefix_html='<i class="fas fa-lock me-1"></i>'
+                  ) }}
+                </div>
+
+                <div class="form-actions mt-4">
+                  {{ ui.ui_button('Save Hotspot Settings', type='submit', icon='fas fa-save') }}
+                </div>
+              </form>
+            {% endcall %}
+          </div>
+
+          <!-- Analytics -->
+          <div
+            id="analytics-panel"
+            class="tab-panel"
+            role="tabpanel"
+            aria-labelledby="analytics-tab"
+            aria-hidden="true"
+            tabindex="0"
+          >
+            {% call ui.content_card(
+                title="Energy Configuration",
+                icon="fas fa-bolt",
+                id="energy-config-card"
+            ) %}
+              <div class="card-description mb-4">Configure energy cost calculation and monitoring preferences.</div>
+
+              <form id="energy-config-form" class="settings-form" novalidate>
+                <div class="form-grid">
+                  {{ ui.form_field(
+                      'energy-rate',
+                      'Energy Rate (per kWh)',
+                      type='number', step=0.01, min=0, placeholder='0.12',
+                      wrapper_class='form-field',
+                      help_text='Enter your electricity cost per kilowatt-hour.',
+                      help_class='field-hint',
+                      label_prefix_html='<i class="fas fa-dollar-sign me-1"></i>'
+                  ) }}
+
+                  {{ ui.select_field(
+                      'currency-code',
+                      'Currency',
+                      [
+                        ('USD', 'USD ($)'),
+                        ('EUR', 'EUR (€)'),
+                        ('GBP', 'GBP (£)'),
+                        ('JPY', 'JPY (¥)'),
+                        ('CAD', 'CAD ($)'),
+                        ('AUD', 'AUD ($)')
+                      ],
+                      wrapper_class='form-field',
+                      label_prefix_html='<i class="fas fa-coins me-1"></i>'
+                  ) }}
+                </div>
+
+                {{ ui.checkbox_field(
+                    'show-cost-estimates',
+                    'Show cost estimates in energy analytics',
+                    checked=True,
+                    wrapper_class='form-field',
+                    help_class='field-hint'
+                ) }}
+
+                <div class="form-actions mt-4">
+                  {{ ui.ui_button('Save Energy Settings', type='submit', icon='fas fa-save') }}
+                </div>
+              </form>
+            {% endcall %}
+          </div>
+
+          <!-- Database -->
+          <div
+            id="database-panel"
+            class="tab-panel"
+            role="tabpanel"
+            aria-labelledby="database-tab"
+            aria-hidden="true"
+            tabindex="0"
+          >
+            <!-- Unit Context -->
+            {% call ui.content_card(
+                title="Growth Unit Context",
+                icon="fas fa-layer-group",
+                id="database-context-card"
+            ) %}
+              <div class="card-description mb-4">Throttle settings are unit-specific. Select a unit to edit storage throttling.</div>
+
+              {% call ui.select_field(
+                  'database-unit-selector',
+                  'Growth Unit',
+                  [],
+                  wrapper_class='form-field',
+                  help_text='This selection applies to database throttling settings below.',
+                  help_class='field-hint',
+                  label_prefix_html='<i class="fas fa-cube me-1"></i>'
+              ) %}
+                {% if units %}
+                  {% for unit in units %}
+                    <option value="{{ unit.unit_id }}" {% if selected_unit_id == unit.unit_id %}selected{% endif %}>
+                      {{ unit.name }} (ID: {{ unit.unit_id }})
+                    </option>
+                  {% endfor %}
+                {% else %}
+                  <option value="">No units available — create one first</option>
+                {% endif %}
+              {% endcall %}
+            {% endcall %}
+
+            {% call ui.content_card(
+                title="Sensor Data Throttling",
+                icon="fas fa-compress-arrows-alt",
+                id="throttle-card"
+            ) %}
+              <div class="card-description mb-4">Control how frequently sensor readings are stored in the database.</div>
+
+              <form id="throttle-form" class="settings-form" novalidate>
+                <div class="form-grid">
+                  {{ ui.checkbox_field(
+                      'throttle-enabled',
+                      'Enable throttling (recommended)',
+                      name_attr='throttling_enabled',
+                      wrapper_class='form-field'
+                  ) }}
+
+                  {{ ui.checkbox_field(
+                      'throttle-debug',
+                      'Enable debug logging',
+                      name_attr='debug_logging',
+                      wrapper_class='form-field'
+                  ) }}
+                </div>
+
+                <div class="form-grid">
+                  {{ ui.select_field(
+                      'throttle-strategy',
+                      'Strategy',
+                      [
+                        ('hybrid', 'Hybrid (time OR change)'),
+                        ('time_only', 'Time-only')
+                      ],
+                      name_attr='strategy',
+                      wrapper_class='form-field',
+                      help_text='Hybrid stores sooner when values change significantly.',
+                      help_class='field-hint'
+                  ) }}
+                </div>
+
+                <h4 class="h6 mb-3 mt-4">Time Intervals (minutes)</h4>
+                <div class="form-grid">
+                  {{ ui.form_field(
+                      'throttle-temp-humidity-min',
+                      'Temp/Humidity',
+                      type='number', step=1, min=0,
+                      name_attr='temp_humidity_minutes',
+                      wrapper_class='form-field'
+                  ) }}
+                  {{ ui.form_field(
+                      'throttle-co2-voc-min',
+                      'CO₂/VOC',
+                      type='number', step=1, min=0,
+                      name_attr='co2_voc_minutes',
+                      wrapper_class='form-field'
+                  ) }}
+                  {{ ui.form_field(
+                      'throttle-soil-min',
+                      'Soil Moisture',
+                      type='number', step=1, min=0,
+                      name_attr='soil_moisture_minutes',
+                      wrapper_class='form-field'
+                  ) }}
+                </div>
+
+                <h4 class="h6 mb-3 mt-4">Change Thresholds</h4>
+                <div class="form-grid">
+                  {{ ui.form_field(
+                      'throttle-temp-delta',
+                      'Temperature (°C)',
+                      type='number', step=0.1, min=0,
+                      name_attr='temp_celsius',
+                      wrapper_class='form-field'
+                  ) }}
+                  {{ ui.form_field(
+                      'throttle-humidity-delta',
+                      'Humidity (%)',
+                      type='number', step=0.1, min=0,
+                      name_attr='humidity_percent',
+                      wrapper_class='form-field'
+                  ) }}
+                  {{ ui.form_field(
+                      'throttle-soil-delta',
+                      'Soil Moisture (%)',
+                      type='number', step=0.1, min=0,
+                      name_attr='soil_moisture_percent',
+                      wrapper_class='form-field'
+                  ) }}
+                  {{ ui.form_field(
+                      'throttle-co2-delta',
+                      'CO₂ (ppm)',
+                      type='number', step=1, min=0,
+                      name_attr='co2_ppm',
+                      wrapper_class='form-field'
+                  ) }}
+                  {{ ui.form_field(
+                      'throttle-voc-delta',
+                      'VOC (ppb)',
+                      type='number', step=1, min=0,
+                      name_attr='voc_ppb',
+                      wrapper_class='form-field'
+                  ) }}
+                </div>
+
+                <div class="form-actions mt-4 d-flex gap-2">
+                  {{ ui.ui_button('Save Throttle Settings', type='submit', icon='fas fa-save') }}
+                  {{ ui.ui_button('Reset to Defaults', variant='secondary', id='throttle-reset-btn', icon='fas fa-undo') }}
+                </div>
+              </form>
+            {% endcall %}
+
+            {% call ui.content_card(
+                title="Data Management",
+                icon="fas fa-database",
+                id="data-management-card"
+            ) %}
+              <div class="card-description mb-4">Configure export, retention, and backup preferences.</div>
+
+              <form id="data-management-form" class="settings-form" novalidate>
+                <div class="form-field mb-4">
+                  <label class="form-label"><i class="fas fa-file-export me-1"></i> Export Format</label>
+                  <div class="btn-group w-100" role="group" aria-label="Export format">
+                    <input type="radio" class="btn-check" name="export-format" id="format-csv" value="csv" checked>
+                    <label class="btn btn-outline-secondary" for="format-csv">CSV</label>
+                    <input type="radio" class="btn-check" name="export-format" id="format-json" value="json">
+                    <label class="btn btn-outline-secondary" for="format-json">JSON</label>
+                    <input type="radio" class="btn-check" name="export-format" id="format-excel" value="excel">
+                    <label class="btn btn-outline-secondary" for="format-excel">Excel</label>
+                  </div>
+                </div>
+
+                {{ ui.select_field(
+                    'data-retention',
+                    'Data Retention Period',
+                    [
+                      ('30', '30 days'),
+                      ('60', '60 days'),
+                      ('90', '90 days'),
+                      ('180', '6 months'),
+                      ('365', '1 year'),
+                      ('0', 'Forever')
+                    ],
+                    wrapper_class='form-field',
+                    help_text='How long to keep historical analytics data.',
+                    help_class='field-hint',
+                    label_prefix_html='<i class="fas fa-history me-1"></i>'
+                ) }}
+
+                {{ ui.checkbox_field(
+                    'auto-backup',
+                    'Enable automatic daily backups',
+                    wrapper_class='form-field'
+                ) }}
+
+                <div class="form-actions mt-4 d-flex gap-2">
+                  {{ ui.ui_button('Save Data Settings', type='submit', icon='fas fa-save') }}
+                  {{ ui.ui_button('Export Analytics Data', variant='secondary', id='export-data-btn', icon='fas fa-download') }}
+                </div>
+              </form>
+            {% endcall %}
+          </div>
+
+          <!-- Notifications -->
+          <div
+            id="notifications-panel"
+            class="tab-panel"
+            role="tabpanel"
+            aria-labelledby="notifications-tab"
+            aria-hidden="true"
+            tabindex="0"
+          >
+            <!-- Notification Channels -->
+            {% call ui.content_card(
+                title="Notification Channels",
+                icon="fas fa-satellite-dish",
+                id="notification-channels-card"
+            ) %}
+              <div class="card-description mb-4">Choose how you want to receive notifications from your SYSGrow system.</div>
+
+              <form id="notification-channels-form" class="settings-form" novalidate>
+                <div class="form-grid">
+                  {{ ui.checkbox_field(
+                      'notify-in-app',
+                      'In-app notifications',
+                      name_attr='in_app_enabled',
+                      checked=True,
+                      wrapper_class='form-field',
+                      help_text='Show notifications within the SYSGrow web interface.',
+                      help_class='field-hint'
+                  ) }}
+
+                  {{ ui.checkbox_field(
+                      'notify-email',
+                      'Email notifications',
+                      name_attr='email_enabled',
+                      wrapper_class='form-field',
+                      help_text='Receive notifications via email (requires SMTP configuration).',
+                      help_class='field-hint'
+                  ) }}
+                </div>
+              </form>
+            {% endcall %}
+
+            <!-- Email Configuration -->
+            {% call ui.content_card(
+                title="Email Configuration",
+                icon="fas fa-envelope",
+                id="email-config-card"
+            ) %}
+              <div class="card-description mb-4">Configure your SMTP server settings for email notifications.</div>
+
+              <form id="email-config-form" class="settings-form" novalidate>
+                <div class="form-grid">
+                  {{ ui.form_field(
+                      'notify-email-address',
+                      'Email Address',
+                      type='email',
+                      name_attr='email_address',
+                      wrapper_class='form-field',
+                      help_text='Where notifications will be sent.',
+                      help_class='field-hint',
+                      placeholder='your@email.com',
+                      label_prefix_html='<i class="fas fa-at me-1"></i>'
+                  ) }}
+
+                  {{ ui.form_field(
+                      'notify-smtp-host',
+                      'SMTP Host',
+                      type='text',
+                      name_attr='smtp_host',
+                      wrapper_class='form-field',
+                      help_text='e.g., smtp.gmail.com',
+                      help_class='field-hint',
+                      placeholder='smtp.gmail.com',
+                      label_prefix_html='<i class="fas fa-server me-1"></i>'
+                  ) }}
+
+                  {{ ui.form_field(
+                      'notify-smtp-port',
+                      'SMTP Port',
+                      type='number',
+                      name_attr='smtp_port',
+                      wrapper_class='form-field',
+                      help_text='Common ports: 587 (TLS), 465 (SSL).',
+                      help_class='field-hint',
+                      placeholder='587',
+                      min=1, max=65535,
+                      label_prefix_html='<i class="fas fa-plug me-1"></i>'
+                  ) }}
+
+                  {{ ui.form_field(
+                      'notify-smtp-username',
+                      'SMTP Username',
+                      type='text',
+                      name_attr='smtp_username',
+                      wrapper_class='form-field',
+                      help_text='Usually your email address.',
+                      help_class='field-hint',
+                      placeholder='your@email.com',
+                      autocomplete='username',
+                      label_prefix_html='<i class="fas fa-user me-1"></i>'
+                  ) }}
+
+                  {{ ui.form_field(
+                      'notify-smtp-password',
+                      'SMTP Password / App Password',
+                      type='password',
+                      name_attr='smtp_password',
+                      wrapper_class='form-field',
+                      input_container_class='password-field',
+                      autocomplete='new-password',
+                      suffix_html='
+                        <button type="button" class="toggle-password btn btn-icon" data-target="notify-smtp-password" aria-label="Toggle password visibility">
+                          <i class="fas fa-eye"></i>
+                        </button>',
+                      help_text='For Gmail, use an App Password.',
+                      help_class='field-hint',
+                      label_prefix_html='<i class="fas fa-key me-1"></i>'
+                  ) }}
+
+                  {{ ui.checkbox_field(
+                      'notify-smtp-tls',
+                      'Use TLS encryption',
+                      name_attr='smtp_use_tls',
+                      checked=True,
+                      wrapper_class='form-field',
+                      help_text='Recommended for security. Use port 587 for TLS.',
+                      help_class='field-hint'
+                  ) }}
+                </div>
+
+                <div class="form-actions mt-4 d-flex gap-2">
+                  {{ ui.ui_button('Save Email Settings', type='submit', icon='fas fa-save') }}
+                  {{ ui.ui_button('Send Test Email', variant='secondary', id='test-email-btn', icon='fas fa-paper-plane') }}
+                </div>
+              </form>
+            {% endcall %}
+
+            <!-- Notification Types -->
+            {% call ui.content_card(
+                title="Notification Types",
+                icon="fas fa-list-ul",
+                id="notification-types-card"
+            ) %}
+              <div class="card-description mb-4">Choose which types of events you want to be notified about.</div>
+
+              <form id="notification-types-form" class="settings-form" novalidate>
+                <div class="form-grid">
+                  {{ ui.checkbox_field('notify-low-battery', 'Low battery alerts', name_attr='notify_low_battery', checked=True, wrapper_class='form-field') }}
+                  {{ ui.checkbox_field('notify-plant-water', 'Plant needs water', name_attr='notify_plant_needs_water', checked=True, wrapper_class='form-field') }}
+                  {{ ui.checkbox_field('notify-irrigation-confirm', 'Irrigation confirmation', name_attr='notify_irrigation_confirm', checked=True, wrapper_class='form-field') }}
+                  {{ ui.checkbox_field('notify-threshold', 'Threshold exceeded', name_attr='notify_threshold_exceeded', checked=True, wrapper_class='form-field') }}
+                  {{ ui.checkbox_field('notify-device-offline', 'Device offline', name_attr='notify_device_offline', checked=True, wrapper_class='form-field') }}
+                  {{ ui.checkbox_field('notify-harvest', 'Harvest ready', name_attr='notify_harvest_ready', checked=True, wrapper_class='form-field') }}
+                  {{ ui.checkbox_field('notify-health', 'Plant health warnings', name_attr='notify_plant_health_warning', checked=True, wrapper_class='form-field') }}
+                  {{ ui.checkbox_field('notify-irrigation-feedback', 'Irrigation feedback requests', name_attr='irrigation_feedback_enabled', checked=True, wrapper_class='form-field') }}
+                </div>
+
+                <div class="form-actions mt-4">
+                  {{ ui.ui_button('Save Notification Preferences', type='submit', icon='fas fa-save') }}
+                </div>
+              </form>
+            {% endcall %}
+
+            <!-- Quiet Hours & Irrigation Feedback -->
+            <div class="row g-4">
+              <div class="col-md-6">
+                {% call ui.content_card(
+                    title="Quiet Hours",
+                    icon="fas fa-moon",
+                    id="quiet-hours-card"
+                ) %}
+                  <form id="quiet-hours-form" class="settings-form" novalidate>
+                    {{ ui.checkbox_field('quiet-hours-enabled', 'Enable quiet hours', name_attr='quiet_hours_enabled', wrapper_class='form-field') }}
+
+                    <div id="quiet-hours-times">
+                      {{ ui.form_field('quiet-hours-start', 'Start Time', type='time', name_attr='quiet_hours_start', value='22:00', wrapper_class='form-field', label_prefix_html='<i class="fas fa-bed me-1"></i>') }}
+                      {{ ui.form_field('quiet-hours-end', 'End Time', type='time', name_attr='quiet_hours_end', value='07:00', wrapper_class='form-field', label_prefix_html='<i class="fas fa-sun me-1"></i>') }}
+                    </div>
+
+                    {{ ui.form_field(
+                        'notification-interval',
+                        'Min Interval (seconds)',
+                        type='number', step=60, min=0, value='300',
+                        name_attr='min_notification_interval_seconds',
+                        wrapper_class='form-field',
+                        help_text='Prevent notification spam.',
+                        help_class='field-hint'
+                    ) }}
+
+                    <div class="form-actions mt-4">
+                      {{ ui.ui_button('Save Quiet Hours', type='submit', icon='fas fa-save') }}
+                    </div>
+                  </form>
+                {% endcall %}
+              </div>
+
+              <div class="col-md-6">
+                {% call ui.content_card(
+                    title="Irrigation Feedback",
+                    icon="fas fa-comment-alt",
+                    id="irrigation-feedback-card"
+                ) %}
+                  <form id="irrigation-feedback-settings-form" class="settings-form" novalidate>
+                    {{ ui.form_field(
+                        'irrigation-feedback-delay',
+                        'Feedback Request Delay (min)',
+                        type='number', name_attr='irrigation_feedback_delay_minutes',
+                        value='30', min=5, max=120,
+                        wrapper_class='form-field',
+                        help_text='Wait time after irrigation.',
+                        help_class='field-hint',
+                        label_prefix_html='<i class="fas fa-hourglass-half me-1"></i>'
+                    ) }}
+
+                    <div class="form-actions mt-4">
+                      {{ ui.ui_button('Save Feedback Settings', type='submit', icon='fas fa-save') }}
+                    </div>
+                  </form>
+                {% endcall %}
+              </div>
+            </div>
+          </div>
+
+          <!-- Security -->
+          <div
+            id="security-panel"
+            class="tab-panel"
+            role="tabpanel"
+            aria-labelledby="security-tab"
+            aria-hidden="true"
+            tabindex="0"
+          >
+            <!-- Recovery Codes -->
+            {% call ui.content_card(
+                title="Recovery Codes",
+                icon="fas fa-key",
+                id="recovery-codes-card"
+            ) %}
+              <div class="card-description mb-4">
+                Recovery codes allow you to reset your password without email or internet access.
+                Keep these codes in a safe place - each code can only be used once.
+              </div>
+
+              <div id="recovery-codes-status" class="mb-4">
+                <div class="d-flex align-items-center gap-3">
+                  <div class="recovery-codes-count">
+                    <span class="count-label">Available codes:</span>
+                    <span id="recovery-code-count" class="count-value badge bg-primary">--</span>
+                    <span class="count-total">/ 10</span>
+                  </div>
+                  <div id="recovery-codes-warning" class="text-warning hidden">
+                    <i class="fas fa-exclamation-triangle me-1"></i>
+                    <span>Low on recovery codes! Consider generating new ones.</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="alert alert-info mb-4">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>Important:</strong> Generating new codes will invalidate all existing codes.
+                Make sure to save the new codes immediately after generation.
+              </div>
+
+              <form id="generate-recovery-codes-form" class="mb-4" novalidate>
+                <div class="row g-3 align-items-end">
+                  <div class="col-md-6">
+                    {{ ui.form_field(
+                        'recovery-current-password',
+                        'Current Password',
+                        type='password',
+                        name_attr='current_password',
+                        wrapper_class='form-field mb-0',
+                        required=True,
+                        autocomplete='current-password',
+                        help_text='Enter your password to generate new recovery codes.',
+                        help_class='field-hint',
+                        label_prefix_html='<i class="fas fa-lock me-1"></i>'
+                    ) }}
+                  </div>
+                  <div class="col-md-6">
+                    {{ ui.ui_button('Generate New Codes', type='submit', icon='fas fa-sync-alt', id='generate-codes-btn') }}
+                  </div>
+                </div>
+              </form>
+
+              <!-- Generated Codes Display (hidden until generated) -->
+              <div id="generated-codes-container" class="hidden">
+                <div class="alert alert-warning mb-3">
+                  <i class="fas fa-exclamation-circle me-2"></i>
+                  <strong>Save these codes now!</strong> They will not be shown again.
+                </div>
+                <div id="generated-codes-list" class="recovery-codes-grid mb-3">
+                  <!-- Codes will be inserted here dynamically -->
+                </div>
+                <div class="d-flex gap-2">
+                  {{ ui.ui_button('Copy All Codes', variant='secondary', icon='fas fa-copy', id='copy-codes-btn') }}
+                  {{ ui.ui_button('Download as Text', variant='secondary', icon='fas fa-download', id='download-codes-btn') }}
+                </div>
+              </div>
+            {% endcall %}
+
+            <!-- Change Password -->
+            {% call ui.content_card(
+                title="Change Password",
+                icon="fas fa-user-lock",
+                id="change-password-card"
+            ) %}
+              <div class="card-description mb-4">Update your account password.</div>
+
+              <form id="change-password-form" class="settings-form" novalidate>
+                <div class="form-grid">
+                  {{ ui.form_field(
+                      'current-password',
+                      'Current Password',
+                      type='password',
+                      name_attr='current_password',
+                      wrapper_class='form-field',
+                      required=True,
+                      autocomplete='current-password',
+                      label_prefix_html='<i class="fas fa-lock me-1"></i>'
+                  ) }}
+
+                  {{ ui.form_field(
+                      'new-password',
+                      'New Password',
+                      type='password',
+                      name_attr='new_password',
+                      wrapper_class='form-field',
+                      required=True,
+                      autocomplete='new-password',
+                      help_text='Minimum 8 characters.',
+                      help_class='field-hint',
+                      label_prefix_html='<i class="fas fa-key me-1"></i>'
+                  ) }}
+
+                  {{ ui.form_field(
+                      'confirm-new-password',
+                      'Confirm New Password',
+                      type='password',
+                      name_attr='confirm_password',
+                      wrapper_class='form-field',
+                      required=True,
+                      autocomplete='new-password',
+                      label_prefix_html='<i class="fas fa-check-double me-1"></i>'
+                  ) }}
+                </div>
+
+                <div class="form-actions mt-4">
+                  {{ ui.ui_button('Change Password', type='submit', icon='fas fa-save') }}
+                </div>
+              </form>
+            {% endcall %}
+          </div>
+
+        </div>
+      </div>
+    </section>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/api.js') }}"></script>
+<script src="{{ url_for('static', filename='js/utils/cache-service.js') }}"></script>
+<script src="{{ url_for('static', filename='js/utils/base-manager.js') }}"></script>
+<script src="{{ url_for('static', filename='js/settings/data-service.js') }}"></script>
+<script src="{{ url_for('static', filename='js/settings/ui-manager.js') }}"></script>
+<script src="{{ url_for('static', filename='js/settings/form-validations.js') }}"></script>
+<script src="{{ url_for('static', filename='js/settings/main.js') }}"></script>
+>>>>>>> update
+{% endblock %}

@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+<<<<<<< HEAD
+
+{% block content %}
+<div class="page-shell">
+    {{ ui.page_header(
+        title="Plants Growing Guide",
+        icon="book-open",
+        subtitle="Comprehensive information on plant care and optimal growing conditions"
+    ) }}
+
+    <!-- Filters and Search -->
+    <section class="guide-filters-section">
+        <div class="guide-filters">
+            <div class="search-box">
+                <i class="fas fa-search" aria-hidden="true"></i>
+                <input type="text"
+                       id="guide-search"
+                       placeholder="Search plants by name..."
+                       aria-label="Search plants">
+            </div>
+
+            <div class="filter-group">
+                <label for="difficulty-filter">Difficulty:</label>
+                <select id="difficulty-filter" class="filter-select">
+                    <option value="all">All Levels</option>
+                    <option value="beginner">Beginner</option>
+                    <option value="intermediate">Intermediate</option>
+                    <option value="advanced">Advanced</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label for="type-filter">Category:</label>
+                <select id="type-filter" class="filter-select">
+                    <option value="all">All Types</option>
+                    <option value="vegetable">Vegetables</option>
+                    <option value="herb">Herbs</option>
+                    <option value="fruit">Fruits</option>
+                    <option value="flower">Flowers</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="results-info">
+            <span id="results-count">Loading plants...</span>
+            <a href="{{ url_for('ui.plants_hub') }}" class="btn btn-outline">
+                <i class="fas fa-arrow-left" aria-hidden="true"></i>
+                Back to Plants
+            </a>
+        </div>
+    </section>
+
+{% endblock %}
+=======
+{% import "macros.html" as ui %}
+
+{% block body_class %}plants-guide-page{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/plants-guide.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="page-shell">
+    {{ ui.page_header(
+        title="Plants Growing Guide",
+        icon="book-open",
+        subtitle="Comprehensive information on plant care and optimal growing conditions"
+    ) }}
+
+    <!-- Filters and Search -->
+    <section class="guide-filters-section">
+        <div class="guide-filters">
+            <div class="search-box">
+                <i class="fas fa-search" aria-hidden="true"></i>
+                <input type="text"
+                       id="guide-search"
+                       placeholder="Search plants by name..."
+                       aria-label="Search plants">
+            </div>
+
+            <div class="filter-group">
+                <label for="difficulty-filter">Difficulty:</label>
+                <select id="difficulty-filter" class="filter-select">
+                    <option value="all">All Levels</option>
+                    <option value="beginner">Beginner</option>
+                    <option value="intermediate">Intermediate</option>
+                    <option value="advanced">Advanced</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label for="type-filter">Category:</label>
+                <select id="type-filter" class="filter-select">
+                    <option value="all">All Types</option>
+                    <option value="vegetable">Vegetables</option>
+                    <option value="herb">Herbs</option>
+                    <option value="fruit">Fruits</option>
+                    <option value="flower">Flowers</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="results-info">
+            <span id="results-count">Loading plants...</span>
+            <a href="{{ url_for('ui.plants_hub') }}" class="btn btn-outline">
+                <i class="fas fa-arrow-left" aria-hidden="true"></i>
+                Back to Plants
+            </a>
+        </div>
+    </section>
+
+    <!-- Plant Cards Grid -->
+    <section class="plant-cards-grid" id="plant-cards-container">
+        <div class="loading-state">
+            <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
+            <p>Loading plant guide...</p>
+        </div>
+    </section>
+</div>
+
+<script type="module">
+    import { initPlantsGuide } from "{{ url_for('static', filename='js/plants_guide.js') }}";
+    initPlantsGuide();
+</script>
+{% endblock %}
+>>>>>>> update

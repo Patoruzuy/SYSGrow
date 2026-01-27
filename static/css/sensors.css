@@ -1,0 +1,208 @@
+/* ========================================
+   Agriculture-Themed Sensor Styling
+   ======================================== */
+
+/* Sensor cards with gradient backgrounds */
+.sensor-card.temperature {
+  background: linear-gradient(135deg, 
+    rgba(239, 68, 68, 0.08) 0%, 
+    rgba(239, 68, 68, 0.02) 100%);
+  border-left: 4px solid var(--accent-harvest);
+}
+
+.sensor-card.humidity {
+  background: linear-gradient(135deg, 
+    rgba(14, 165, 233, 0.08) 0%, 
+    rgba(14, 165, 233, 0.02) 100%);
+  border-left: 4px solid var(--accent-water);
+}
+
+.sensor-card.soil,
+.sensor-card[data-sensor*="soil"] {
+  background: linear-gradient(135deg, 
+    rgba(146, 64, 14, 0.08) 0%, 
+    rgba(146, 64, 14, 0.02) 100%);
+  border-left: 4px solid var(--accent-soil);
+}
+
+.sensor-card.light,
+.sensor-card[data-sensor*="light"] {
+  background: linear-gradient(135deg, 
+    rgba(245, 158, 11, 0.08) 0%, 
+    rgba(245, 158, 11, 0.02) 100%);
+  border-left: 4px solid var(--accent-sun);
+}
+
+/* CO2 sensor if exists */
+.sensor-card.co2,
+.sensor-card[data-sensor*="co2"] {
+  background: linear-gradient(135deg, 
+    rgba(16, 185, 129, 0.08) 0%, 
+    rgba(16, 185, 129, 0.02) 100%);
+  border-left: 4px solid var(--accent-growth);
+}
+
+/* Sensor icon theming */
+.sensor-card.temperature .sensor-icon {
+  color: var(--accent-harvest);
+  filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.3));
+}
+
+.sensor-card.humidity .sensor-icon {
+  color: var(--accent-water);
+  filter: drop-shadow(0 0 8px rgba(14, 165, 233, 0.3));
+}
+
+.sensor-card.soil .sensor-icon,
+.sensor-card[data-sensor*="soil"] .sensor-icon {
+  color: var(--accent-soil);
+  filter: drop-shadow(0 0 8px rgba(146, 64, 14, 0.3));
+}
+
+.sensor-card.light .sensor-icon,
+.sensor-card[data-sensor*="light"] .sensor-icon {
+  color: var(--accent-sun);
+  filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.3));
+}
+
+.sensor-card.co2 .sensor-icon,
+.sensor-card[data-sensor*="co2"] .sensor-icon {
+  color: var(--accent-growth);
+  filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.3));
+}
+
+/* Status glow effect on active sensors */
+.sensor-card.temperature .sensor-status[data-status="healthy"],
+.sensor-card.temperature .sensor-status.healthy {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: var(--accent-harvest);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.15);
+}
+
+.sensor-card.humidity .sensor-status[data-status="healthy"],
+.sensor-card.humidity .sensor-status.healthy {
+  background-color: rgba(14, 165, 233, 0.1);
+  color: var(--accent-water);
+  border: 1px solid rgba(14, 165, 233, 0.2);
+  box-shadow: 0 0 12px rgba(14, 165, 233, 0.15);
+}
+
+.sensor-card.soil .sensor-status[data-status="healthy"],
+.sensor-card.soil .sensor-status.healthy,
+.sensor-card[data-sensor*="soil"] .sensor-status[data-status="healthy"],
+.sensor-card[data-sensor*="soil"] .sensor-status.healthy {
+  background-color: rgba(146, 64, 14, 0.1);
+  color: var(--accent-soil);
+  border: 1px solid rgba(146, 64, 14, 0.2);
+  box-shadow: 0 0 12px rgba(146, 64, 14, 0.15);
+}
+
+.sensor-card.light .sensor-status[data-status="healthy"],
+.sensor-card.light .sensor-status.healthy,
+.sensor-card[data-sensor*="light"] .sensor-status[data-status="healthy"],
+.sensor-card[data-sensor*="light"] .sensor-status.healthy {
+  background-color: rgba(245, 158, 11, 0.1);
+  color: var(--accent-sun);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.15);
+}
+
+.sensor-card.co2 .sensor-status[data-status="healthy"],
+.sensor-card.co2 .sensor-status.healthy,
+.sensor-card[data-sensor*="co2"] .sensor-status[data-status="healthy"],
+.sensor-card[data-sensor*="co2"] .sensor-status.healthy {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: var(--accent-growth);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.15);
+}
+
+/* Sensor value text color matching theme */
+.sensor-card.temperature .sensor-value {
+  color: var(--accent-harvest);
+  font-weight: 600;
+}
+
+.sensor-card.humidity .sensor-value {
+  color: var(--accent-water);
+  font-weight: 600;
+}
+
+.sensor-card.soil .sensor-value,
+.sensor-card[data-sensor*="soil"] .sensor-value {
+  color: var(--accent-soil);
+  font-weight: 600;
+}
+
+.sensor-card.light .sensor-value,
+.sensor-card[data-sensor*="light"] .sensor-value {
+  color: var(--accent-sun);
+  font-weight: 600;
+}
+
+.sensor-card.co2 .sensor-value,
+.sensor-card[data-sensor*="co2"] .sensor-value {
+  color: var(--accent-growth);
+  font-weight: 600;
+}
+
+/* Hover effect enhancement for themed cards */
+.sensor-card.temperature:hover {
+  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.12);
+  transform: translateY(-2px);
+}
+
+.sensor-card.humidity:hover {
+  box-shadow: 0 4px 16px rgba(14, 165, 233, 0.12);
+  transform: translateY(-2px);
+}
+
+.sensor-card.soil:hover,
+.sensor-card[data-sensor*="soil"]:hover {
+  box-shadow: 0 4px 16px rgba(146, 64, 14, 0.12);
+  transform: translateY(-2px);
+}
+
+.sensor-card.light:hover,
+.sensor-card[data-sensor*="light"]:hover {
+  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.12);
+  transform: translateY(-2px);
+}
+
+.sensor-card.co2:hover,
+.sensor-card[data-sensor*="co2"]:hover {
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.12);
+  transform: translateY(-2px);
+}
+
+/* Transition for smooth animations */
+.sensor-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.sensor-icon {
+  font-size: 2rem;
+  transition: filter 0.3s ease, transform 0.3s ease;
+}
+
+.sensor-card:hover .sensor-icon {
+  transform: scale(1.1);
+}
+
+/* No-data / switching state (used by dashboard + global unit switcher) */
+.sensor-card.no-data {
+  opacity: 0.78;
+  filter: saturate(0.9);
+}
+
+.sensor-card.no-data .sensor-value {
+  color: var(--color-text-muted);
+}
+
+.sensor-card.no-data .sensor-status {
+  background: var(--surface-muted-translucent);
+  border: 1px solid var(--border-200);
+  color: var(--color-text-muted);
+  box-shadow: none;
+}

@@ -1,0 +1,30 @@
+# SYSGrow Backend - Essential Dependencies for Windows Development
+# Install with: pip install -r requirements-essential.txt
+
+# ===== CORE WEB FRAMEWORK =====
+Flask>=2.3.0,<3.0.0
+Flask-SocketIO>=5.3.0,<6.0.0
+Werkzeug>=2.3.0,<3.0.0
+
+# ===== AUTHENTICATION & SECURITY =====
+bcrypt>=4.0.0
+pycryptodome>=3.18.0
+
+# ===== COMMUNICATION =====
+paho-mqtt>=2.1.0,<3.0.0
+requests>=2.31.0,<3.0.0
+
+# ===== SCHEDULING =====
+schedule>=1.2.0,<2.0.0
+
+# ===== UTILITIES =====
+python-dateutil>=2.8.0,<3.0.0
+pytz>=2023.3
+click>=8.1.0,<9.0.0
+python-dotenv>=1.0.0,<2.0.0
+
+# ===== TESTING =====
+pytest>=7.4.0,<8.0.0
+
+# ===== WINDOWS SPECIFIC =====
+pywin32>=306

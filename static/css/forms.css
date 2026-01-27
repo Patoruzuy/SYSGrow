@@ -1,0 +1,111 @@
+/* Base form controls for consistency */
+.form-control,
+.form-input,
+.form-select {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--color-text);
+  background-color: var(--color-surface);
+  background-clip: padding-box;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  appearance: none; /* Reset standard styles */
+}
+
+/* Specific select styling to handle custom arrow if needed */
+.form-select {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23475569' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right var(--space-3) center;
+  background-size: 16px 12px;
+  padding-right: var(--space-8);
+}
+
+/* Placeholder styling */
+.form-control::placeholder,
+.form-input::placeholder {
+  color: var(--color-text-muted);
+  opacity: 0.7;
+}
+
+/* Hover state */
+.form-control:hover,
+.form-input:hover,
+.form-select:hover {
+  border-color: var(--border-300);
+}
+
+/* Focus state - using design tokens */
+.form-control:focus,
+.form-input:focus,
+.form-select:focus {
+  border-color: var(--brand-500);
+  outline: 0;
+  box-shadow: var(--focus-ring);
+}
+
+/* Readonly / Disabled state */
+.form-control:disabled,
+.form-control[readonly],
+.form-input:disabled,
+.form-input[readonly],
+.form-select:disabled {
+  background-color: var(--surface-muted-translucent);
+  border-color: var(--border);
+  opacity: 0.8;
+  cursor: not-allowed;
+}
+
+/* Validation states */
+.is-invalid {
+  border-color: var(--danger-500) !important;
+}
+
+.is-invalid:focus {
+  box-shadow: 0 0 0 3px var(--danger-300) !important;
+}
+
+.invalid-feedback {
+  display: block;
+  width: 100%;
+  margin-top: var(--space-1);
+  font-size: 0.875rem;
+  color: var(--danger-600);
+}
+
+/* Form layout helpers */
+
+/* Form grid utilities (additions) */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-3);
+}
+
+/* Required indicator styling */
+.required {
+  color: var(--danger-600);
+  font-weight: 700;
+}
+
+label, .form-label { font-weight: 600; color: var(--color-text-strong); }
+.form-help, .form-description { color: var(--color-text-muted); font-size: 0.9rem; }
+
+.checkbox-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--space-2); }
+.checkbox { display: flex; gap: var(--space-2); align-items: center; color: var(--color-text); }
+.checkbox input { width: auto; }
+
+.form-actions { display: flex; gap: var(--space-2); justify-content: flex-end; align-items: center; }
+.full-width { width: 100%; }
+
+.modern-form { display: flex; flex-direction: column; gap: var(--space-3); }

@@ -1,0 +1,342 @@
+/**
+ * KPI Cards Component Styles
+ * ============================================================================
+ * Styles for KPI cards, sensor cards, and metric displays
+ */
+
+/* Base Sensor Card */
+.sensor-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-primary);
+  transition: all var(--transition-normal);
+}
+
+.sensor-card:hover {
+  border-color: var(--border-secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Status variations */
+.sensor-card.optimal {
+  border-left: 3px solid var(--status-success);
+}
+
+.sensor-card.warning,
+.sensor-card.high {
+  border-left: 3px solid var(--status-warning);
+}
+
+.sensor-card.critical {
+  border-left: 3px solid var(--status-danger);
+}
+
+.sensor-card.low {
+  border-left: 3px solid var(--status-info);
+}
+
+/* Sensor Card Icon */
+.sensor-card__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: var(--bg-tertiary);
+  color: var(--brand-primary);
+  font-size: 1.125rem;
+  flex-shrink: 0;
+}
+
+.sensor-card.optimal .sensor-card__icon {
+  background: var(--status-success-bg, rgba(34, 197, 94, 0.1));
+  color: var(--status-success);
+}
+
+.sensor-card.warning .sensor-card__icon,
+.sensor-card.high .sensor-card__icon {
+  background: var(--status-warning-bg, rgba(245, 158, 11, 0.1));
+  color: var(--status-warning);
+}
+
+.sensor-card.critical .sensor-card__icon {
+  background: var(--status-danger-bg, rgba(239, 68, 68, 0.1));
+  color: var(--status-danger);
+}
+
+.sensor-card.low .sensor-card__icon {
+  background: var(--status-info-bg, rgba(59, 130, 246, 0.1));
+  color: var(--status-info);
+}
+
+/* Sensor Card Content */
+.sensor-card__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.sensor-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.sensor-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 0.125rem;
+}
+
+.sensor-status {
+  font-size: 0.625rem;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 0.25rem;
+}
+
+.sensor-status.optimal {
+  color: var(--status-success);
+}
+
+.sensor-status.warning,
+.sensor-status.high {
+  color: var(--status-warning);
+}
+
+.sensor-status.critical {
+  color: var(--status-danger);
+}
+
+.sensor-status.low {
+  color: var(--status-info);
+}
+
+/* Sensor Card Trend */
+.sensor-card__trend {
+  flex-shrink: 0;
+}
+
+.trend-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 0.5rem;
+  border-radius: var(--radius-full);
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  gap: 0.125rem;
+}
+
+/* Support both naming conventions: positive/negative and up/down */
+.trend-pill.positive,
+.trend-pill.up {
+  background: var(--status-success-bg, rgba(34, 197, 94, 0.1));
+  color: var(--status-success);
+}
+
+.trend-pill.negative,
+.trend-pill.down {
+  background: var(--status-danger-bg, rgba(239, 68, 68, 0.1));
+  color: var(--status-danger);
+}
+
+.trend-pill.neutral,
+.trend-pill.stable {
+  background: var(--bg-tertiary);
+  color: var(--text-tertiary);
+}
+
+/* KPI Card (Top row) - Compact Horizontal Layout */
+.kpi-card {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-3, 0.75rem);
+  padding: var(--space-2, 0.5rem) var(--space-3, 0.75rem);
+  background: var(--card-bg, var(--bg-secondary));
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--card-border, var(--border-primary));
+  transition: all var(--transition-fast, 0.15s);
+  min-height: 64px;
+}
+
+.kpi-card:hover {
+  border-color: var(--brand-300, var(--border-secondary));
+  box-shadow: var(--shadow-md, var(--shadow-sm));
+  transform: translateY(-2px);
+}
+
+.kpi-card__icon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-muted, var(--bg-tertiary));
+  border-radius: var(--radius-md);
+  font-size: 1rem;
+  color: var(--brand-600, var(--brand-primary));
+  flex-shrink: 0;
+}
+
+.kpi-card__body {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.kpi-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-text-strong, var(--text-primary));
+  line-height: 1.2;
+}
+
+.kpi-value .kpi-unit {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text-muted, var(--text-secondary));
+  margin-left: 0.125rem;
+}
+
+.kpi-label {
+  font-size: 0.75rem;
+  color: var(--color-text-muted, var(--text-secondary));
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kpi-subtext {
+  font-size: 0.6875rem;
+  color: var(--color-text-muted, var(--text-tertiary));
+  margin-top: 0.125rem;
+}
+
+.kpi-footer {
+  font-size: 0.6875rem;
+  margin-top: var(--space-1, 0.25rem);
+}
+
+.kpi-card__header {
+  display: none; /* Hide legacy header when using icon layout */
+}
+
+/* KPI Card Variants - Icon Colors */
+.kpi-card--primary .kpi-card__icon { background: var(--brand-100, rgba(59, 130, 246, 0.1)); color: var(--brand-600); }
+.kpi-card--success .kpi-card__icon { background: var(--success-100, rgba(34, 197, 94, 0.1)); color: var(--success-600); }
+.kpi-card--warning .kpi-card__icon { background: var(--warning-100, rgba(245, 158, 11, 0.1)); color: var(--warning-600); }
+.kpi-card--danger .kpi-card__icon { background: var(--danger-100, rgba(239, 68, 68, 0.1)); color: var(--danger-600); }
+.kpi-card--info .kpi-card__icon { background: var(--info-100, rgba(6, 182, 212, 0.1)); color: var(--info-600); }
+.kpi-card--default .kpi-card__icon { background: var(--surface-muted); color: var(--brand-600); }
+
+.kpi-card--vpd .kpi-card__icon { background: var(--info-100); color: var(--info-600); }
+.kpi-card--efficiency .kpi-card__icon { background: var(--success-100); color: var(--success-600); }
+.kpi-card--plants .kpi-card__icon { background: var(--success-100); color: var(--success-600); }
+.kpi-card--alerts .kpi-card__icon { background: var(--warning-100); color: var(--warning-600); }
+.kpi-card--devices .kpi-card__icon { background: var(--brand-100); color: var(--brand-600); }
+.kpi-card--energy .kpi-card__icon { background: var(--warning-100); color: var(--warning-500); }
+
+/* Legacy header-based variants */
+.kpi-card--vpd .kpi-card__header i {
+  color: var(--status-info);
+}
+
+.kpi-card--efficiency .kpi-card__header i {
+  color: var(--status-success);
+}
+
+.kpi-card--plants .kpi-card__header i {
+  color: var(--brand-primary);
+}
+
+.kpi-card--alerts .kpi-card__header i {
+  color: var(--status-warning);
+}
+
+/* Efficiency/Score Display */
+.efficiency-score,
+.plant-count,
+.alert-count {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.efficiency-status,
+.plant-status,
+.alert-status {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 0.25rem;
+}
+
+/* Compact Sensor Cards Grid */
+.dashboard-sensors-row {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 1rem;
+}
+
+/* Dashboard KPI Row */
+.dashboard-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .dashboard-sensors-row {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .dashboard-kpi-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-sensors-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .dashboard-kpi-row {
+    grid-template-columns: 1fr;
+  }
+
+  .sensor-card {
+    padding: 0.75rem;
+  }
+
+  .sensor-value {
+    font-size: 1rem;
+  }
+
+  .sensor-card__icon {
+    width: 32px;
+    height: 32px;
+    font-size: 0.875rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-sensors-row {
+    grid-template-columns: 1fr;
+  }
+}

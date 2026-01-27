@@ -1,0 +1,759 @@
+{% extends "base.html" %}
+
+{% block title %}Plants Hub - SYSGrow{% endblock %}
+{% block body_class %}plants-hub-page{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/plants.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/components/gauge.css') }}">
+{% endblock %}
+
+{% import "macros.html" as ui %}
+
+{% block content %}
+<div class="page-shell">
+  <div class="health-dashboard" aria-labelledby="plants-heading" data-selected-unit-id="{{ selected_unit_id }}">
+    
+    {# Using page_header macro #}
+    {{ ui.page_header(
+      title="Plants Hub",
+      icon="fas fa-seedling",
+      subtitle="Comprehensive plant management, health monitoring, and growing guide",
+      actions='
+        <div class="d-flex align-items-center gap-2">
+          <button type="button" id="add-plant-btn" class="btn btn-primary" title="Add new plant">
+            <i class="fas fa-plus"></i>
+            <span>Add Plant</span>
+          </button>
+          <button type="button" id="refresh-btn" class="btn btn-secondary" title="Refresh data">
+            <i class="fas fa-sync-alt"></i>
+            <span class="d-none d-sm-inline">Refresh</span>
+          </button>
+          <div class="view-toggle">
+            <button type="button" id="view-toggle" class="btn btn-outline" title="Toggle compact view" aria-pressed="false">
+              <i class="fas fa-compress-alt"></i>
+            </button>
+          </div>
+          <div class="auto-refresh-control d-none d-lg-flex">
+            <label class="toggle">
+              <input type="checkbox" id="auto-refresh" checked>
+              <span class="toggle-slider"></span>
+              <span class="toggle-label">Auto-refresh (30s)</span>
+            </label>
+          </div>
+        </div>
+      '
+    ) }}
+
+    <!-- Contextual Help Banner -->
+    <div class="help-banner">
+      <i class="fas fa-seedling"></i>
+      <div class="help-banner-content">
+        <p class="help-banner-title">Plant Health Monitoring</p>
+        <p class="help-banner-text">Track plant health, record observations, and get AI-powered disease detection.</p>
+      </div>
+      {{ ui.help_link('plants', 'adding-plants', 'Plant Guide') }}
+    </div>
+
+    <!-- Alert Banner (shown when there are plant issues) -->
+    <div id="alert-banner" class="alert-banner" hidden>
+        <i class="fas fa-exclamation-triangle"></i>
+        <div class="alert-content">
+            <strong id="alert-count">0</strong>
+            <span id="alert-text">plant(s) need attention</span>
+        </div>
+        <button type="button" class="alert-action" aria-label="View details">
+            <span>View Details</span>
+            <i class="fas fa-chevron-right"></i>
+        </button>
+    </div>
+
+    <!-- Hero Status & Key Metrics -->
+    <div class="row g-4 mb-6">
+      <div class="col-xl-4 col-lg-5">
+        {% call ui.content_card(title="System Health", icon="fas fa-heartbeat", class="h-100") %}
+          <div class="d-flex align-items-center gap-4 py-2">
+            <div class="gauge-container gauge-container--compact">
+              <svg width="80" height="80" viewBox="0 0 120 120">
+                <circle cx="60" cy="60" r="54" fill="none" stroke="rgba(0,0,0,0.05)" stroke-width="12"/>
+                <circle id="health-circle" cx="60" cy="60" r="54" fill="none" stroke="var(--success-500)" 
+                        stroke-width="12" stroke-linecap="round" 
+                        stroke-dasharray="339.292" stroke-dashoffset="0"
+                        transform="rotate(-90 60 60)"/>
+              </svg>
+              <div class="gauge-value">
+                <span id="health-score">--</span><span class="small">%</span>
+              </div>
+            </div>
+            <div class="health-status-info">
+              <h3 class="h5 mb-1" id="status-title">Calculating...</h3>
+              <p class="text-muted small mb-2" id="status-message">Syncing plant data...</p>
+              <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" id="health-details-btn">
+                <span>Detailed Analysis</span>
+                <i class="fas fa-chevron-right ms-1 small"></i>
+              </button>
+            </div>
+          </div>
+        {% endcall %}
+      </div>
+
+      <div class="col-xl-8 col-lg-7">
+        <div class="row g-3 h-100">
+          <div class="col-sm-6 col-md-3">
+            {{ ui.kpi_card(
+                id='healthy',
+                label='Healthy',
+                value_id='healthy-count',
+                icon='fas fa-check-circle',
+                variant='success'
+            ) }}
+          </div>
+          <div class="col-sm-6 col-md-3">
+            {{ ui.kpi_card(
+                id='stressed',
+                label='Stressed',
+                value_id='stressed-count',
+                icon='fas fa-exclamation-triangle',
+                variant='warning'
+            ) }}
+          </div>
+          <div class="col-sm-6 col-md-3">
+            {{ ui.kpi_card(
+                id='diseased',
+                label='Diseased',
+                value_id='diseased-count',
+                icon='fas fa-times-circle',
+                variant='danger'
+            ) }}
+          </div>
+          <div class="col-sm-6 col-md-3">
+            {{ ui.kpi_card(
+                id='total',
+                label='Total Plants',
+                value_id='total-plants',
+                icon='fas fa-seedling',
+                variant='default'
+            ) }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="content-grid">
+        <!-- Left Column -->
+        <div class="content-column">
+            <!-- Plant Health Monitoring -->
+            {% call ui.content_card(
+                title="Plant Health Status",
+                icon="fas fa-heartbeat",
+                id="health-card",
+                header_extra='
+                    <button type="button" class="card-action" id="toggle-health" aria-expanded="true" aria-label="Toggle health status">
+                        <i class="fas fa-chevron-up"></i>
+                    </button>
+                '
+            ) %}
+                <div class="health-filters">
+                    <button type="button" class="filter-btn active" data-filter="all">All</button>
+                    <button type="button" class="filter-btn" data-filter="healthy">Healthy</button>
+                    <button type="button" class="filter-btn" data-filter="stressed">Stressed</button>
+                    <button type="button" class="filter-btn" data-filter="diseased">Diseased</button>
+                </div>
+                <div id="plants-list" class="plants-list">
+                    <div class="loading-state">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <p>Loading plants...</p>
+                    </div>
+                </div>
+            {% endcall %}
+
+            <!-- Disease Monitoring -->
+            {% call ui.content_card(
+                title="Disease Risk Assessment",
+                icon="fas fa-virus",
+                id="disease-card",
+                header_extra='
+                    <button type="button" class="card-action" id="toggle-disease" aria-expanded="true" aria-label="Toggle disease section">
+                        <i class="fas fa-chevron-up"></i>
+                    </button>
+                '
+            ) %}
+                <div id="disease-risk-summary" class="risk-summary">
+                    <div class="loading-state">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <p>Analyzing disease risk...</p>
+                    </div>
+                </div>
+                <div id="disease-units" class="disease-units"></div>
+            {% endcall %}
+
+            <!-- Harvest Tracking -->
+            {% call ui.content_card(
+                title="Harvest Reports",
+                icon="fas fa-chart-line",
+                id="harvest-card",
+                header_extra='
+                    <button type="button" class="card-action" id="toggle-harvest" aria-expanded="true" aria-label="Toggle harvest section">
+                        <i class="fas fa-chevron-up"></i>
+                    </button>
+                '
+            ) %}
+                <div class="harvest-controls">
+                    <button type="button" id="record-harvest-btn" class="btn btn-primary">
+                        <i class="fas fa-plus"></i>
+                        Record Harvest
+                    </button>
+                </div>
+                <div id="recent-harvests" class="recent-harvests">
+                    <div class="loading-state">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <p>Loading harvest history...</p>
+                    </div>
+                </div>
+            {% endcall %}
+        </div>
+
+        <!-- Right Column -->
+        <div class="content-column">
+            <!-- Plant Journal -->
+            {% call ui.content_card(title="Plant Journal", icon="fas fa-book", id="journal-card", header_extra='
+                <button type="button" class="card-action" id="toggle-journal" aria-expanded="true" aria-label="Toggle journal section">
+                    <i class="fas fa-chevron-up"></i>
+                </button>
+            ') %}
+                <div class="journal-controls mb-3 d-flex gap-2">
+                    <button type="button" id="add-observation-btn" class="btn btn-primary btn-sm">
+                        <i class="fas fa-plus me-1"></i> Observation
+                    </button>
+                    <button type="button" id="add-nutrients-btn" class="btn btn-secondary btn-sm">
+                        <i class="fas fa-flask me-1"></i> Nutrients
+                    </button>
+                </div>
+                <div class="journal-filter mb-3">
+                    <label for="journal-plant-filter" class="form-label small">Filter by plant:</label>
+                    <select id="journal-plant-filter" class="form-select form-select-sm">
+                        <option value="all">All Plants</option>
+                    </select>
+                </div>
+                <div id="journal-entries" class="journal-entries">
+                    <div class="loading-state text-center py-4 text-muted">
+                        <i class="fas fa-spinner fa-spin mb-2"></i>
+                        <p class="small">Loading journal entries...</p>
+                    </div>
+                </div>
+            {% endcall %}
+
+            <!-- Plants Guide -->
+            {% call ui.content_card(title="Growing Guide", icon="fas fa-book-open", id="guide-card", header_extra='
+                <button type="button" class="card-action" id="toggle-guide" aria-expanded="true" aria-label="Toggle guide section">
+                    <i class="fas fa-chevron-up"></i>
+                </button>
+            ') %}
+                <div class="guide-search mb-3">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
+                        <input type="text" id="guide-search-input" class="form-control border-start-0" placeholder="Search plants...">
+                    </div>
+                </div>
+                <div id="guide-list" class="guide-list">
+                    <div class="loading-state text-center py-4 text-muted">
+                        <i class="fas fa-spinner fa-spin mb-2"></i>
+                        <p class="small">Loading plant guide...</p>
+                    </div>
+                </div>
+            {% endcall %}
+
+            <!-- AI Services Status -->
+            {% call ui.content_card(title="AI Services", icon="fas fa-robot", id="ai-card", header_extra='
+                <button type="button" class="card-action" id="toggle-ai" aria-expanded="true" aria-label="Toggle AI section">
+                    <i class="fas fa-chevron-up"></i>
+                </button>
+            ') %}
+                <div id="ai-body">
+                    <div id="ai-status">
+                        <div class="loading-state text-center py-4 text-muted">
+                            <i class="fas fa-spinner fa-spin mb-2"></i>
+                            <p class="small">Loading AI status...</p>
+                        </div>
+                    </div>
+                </div>
+            {% endcall %}
+
+            <!-- Quick Actions -->
+            {% call ui.content_card(title="Quick Actions", icon="fas fa-bolt", id="actions-card") %}
+                <div class="quick-actions d-flex flex-column gap-2">
+                    <button type="button" class="btn btn-outline-secondary btn-sm text-start" id="bulk-nutrient-btn">
+                        <i class="fas fa-flask me-2"></i> Bulk Nutrient Update
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm text-start" id="export-journal-btn">
+                        <i class="fas fa-file-export me-2"></i> Export Journal
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm text-start" id="view-guide-btn">
+                        <i class="fas fa-book-open me-2"></i> Full Growing Guide
+                    </button>
+                </div>
+            {% endcall %}
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="dashboard-footer">
+        <div class="footer-info">
+            <span>Last updated: <time id="last-updated">--</time></span>
+        </div>
+    </footer>
+</div>
+</div>
+
+<!-- Modals -->
+<!-- Add Plant Modal -->
+<div id="add-plant-modal" class="modal" hidden>
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">
+                <i class="fas fa-seedling"></i>
+                Add New Plant
+            </h2>
+            <button type="button" class="modal-close" aria-label="Close">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form id="add-plant-form" class="settings-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                
+                <!-- Plant Source Toggle -->
+                <div class="plant-source-toggle mb-4">
+                  <div class="btn-group w-100" role="group">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-mode="catalog" id="mode-catalog">
+                        <i class="fas fa-book me-1"></i> From Catalog
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-mode="custom" id="mode-custom">
+                        <i class="fas fa-edit me-1"></i> Custom Plant
+                    </button>
+                  </div>
+                </div>
+                
+                <!-- Catalog Mode -->
+                <div id="catalog-mode-section">
+                    {% call ui.select_field(
+                        'plant-select',
+                        'Select Plant Type',
+                        [],
+                        name_attr='plant_select',
+                        required=True,
+                        wrapper_class='form-field',
+                        help_text='Choose from our plant database',
+                        help_class='field-hint'
+                    ) %}
+                        <option value="">Search plants...</option>
+                    {% endcall %}
+                    
+                    <!-- Plant Requirements Display (shown after selection) -->
+                    <div id="plant-requirements-card" class="info-card mb-4 p-3 bg-light rounded shadow-sm border" style="display: none;">
+                        <h4 class="h6 mb-3">
+                            <i class="fas fa-info-circle me-1 text-primary"></i> Plant Requirements
+                        </h4>
+                        <div class="row g-2 small">
+                            <div class="col-6">
+                                <strong>pH Range:</strong>
+                                <span id="display-ph" class="badge bg-white text-dark border ms-1">-</span>
+                            </div>
+                            <div class="col-6">
+                                <strong>Soil Moisture:</strong>
+                                <span id="display-soil-moisture" class="badge bg-white text-dark border ms-1">-</span>%
+                            </div>
+                            <div class="col-6">
+                                <strong>Temperature:</strong>
+                                <span id="display-temperature" class="badge bg-white text-dark border ms-1">-</span>°C
+                            </div>
+                            <div class="col-6">
+                                <strong>Difficulty:</strong>
+                                <span id="display-difficulty" class="badge bg-white text-dark border ms-1">-</span>
+                            </div>
+                        </div>
+                        <div id="companion-suggestions" class="mt-3 small"></div>
+                    </div>
+                </div>
+                
+                <!-- Custom Mode (hidden by default) -->
+                <div id="custom-mode-section" style="display: none;">
+                    {{ ui.form_field('custom-plant-type', 'Plant Type', placeholder='e.g., Solanum lycopersicum', wrapper_class='form-field') }}
+                    {{ ui.form_field('custom-variety', 'Variety', placeholder='e.g., Cherry Tomato', wrapper_class='form-field') }}
+                </div>
+
+                <!-- Common Fields (both modes) -->
+                {{ ui.form_field('plant-name', 'Plant Name', name_attr='name', placeholder='Give your plant a name', required=True, wrapper_class='form-field') }}
+
+                {% call ui.select_field('unit-select', 'Growth Unit', [], name_attr='unit_id', required=True, wrapper_class='form-field') %}
+                    <option value="">Select unit...</option>
+                    {% for unit in units %}
+                        <option value="{{ unit.unit_id }}" {% if unit.unit_id == selected_unit_id %}selected{% endif %}>{{ unit.name }}</option>
+                    {% endfor %}
+                {% endcall %}
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        {% call ui.select_field('plant-stage', 'Growth Stage', [], name_attr='stage', wrapper_class='form-field') %}
+                            <option value="seedling">Seedling</option>
+                            <option value="vegetative">Vegetative</option>
+                            <option value="flowering">Flowering</option>
+                            <option value="fruiting">Fruiting</option>
+                        {% endcall %}
+                    </div>
+                    <div class="col-md-6">
+                        {{ ui.form_field('days-in-stage', 'Days in Stage', type='number', name_attr='days_in_stage', value='0', min=0, wrapper_class='form-field') }}
+                    </div>
+                </div>
+                
+                <!-- Creation-Time Fields -->
+                <div class="p-3 bg-light rounded border mb-4">
+                    <h4 class="h6 mb-3">
+                        <i class="fas fa-seedling me-1"></i> Container & Setup
+                    </h4>
+                    
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            {{ ui.form_field('pot-size', 'Pot Size (L)', type='number', name_attr='pot_size_liters', step=0.1, min=0, value='11.4', wrapper_class='form-field', help_text='', id='pot-size') }}
+                        </div>
+                        <div class="col-md-6">
+                            {% call ui.select_field('pot-material', 'Pot Material', [], name_attr='pot_material', wrapper_class='form-field') %}
+                                <option value="plastic">Plastic</option>
+                                <option value="ceramic">Ceramic</option>
+                                <option value="fabric">Fabric</option>
+                                <option value="clay">Clay</option>
+                            {% endcall %}
+                        </div>
+                    </div>
+                    
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            {% call ui.select_field('growing-medium', 'Medium', [], name_attr='growing_medium', wrapper_class='form-field') %}
+                                <option value="soil">Soil</option>
+                                <option value="coco_coir">Coco Coir</option>
+                                <option value="perlite">Perlite</option>
+                                <option value="hydroponics">Hydroponics</option>
+                                <option value="clay_pebbles">Clay Pebbles (LECA)</option>
+                            {% endcall %}
+                        </div>
+                        <div class="col-md-6">
+                            {{ ui.form_field('medium-ph', 'Medium pH', type='number', name_attr='medium_ph', step=0.1, min=0, max=14, value='7.0', wrapper_class='form-field') }}
+                        </div>
+                    </div>
+                    
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            {{ ui.form_field('strain-variety', 'Strain/Cultivar', name_attr='strain_variety', placeholder='Variety name', wrapper_class='form-field') }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ ui.form_field('expected-yield', 'Expected Yield (g)', type='number', name_attr='expected_yield_grams', min=0, value='0', wrapper_class='form-field') }}
+                        </div>
+                    </div>
+                    
+                    {{ ui.form_field('light-distance', 'Light Distance (cm)', type='number', name_attr='light_distance_cm', min=0, value='45', wrapper_class='form-field') }}
+                </div>
+                
+                <!-- Hidden fields for catalog data -->
+                <input type="hidden" id="plant-type" name="plant_type">
+                <input type="hidden" id="plant-variety" name="variety">
+
+                <div class="form-actions d-flex gap-2">
+                    {{ ui.ui_button('Cancel', variant='secondary', id='cancel-add-plant', class='flex-grow-1') }}
+                    {{ ui.ui_button('Add Plant', type='submit', icon='fas fa-plus', class='flex-grow-1') }}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Observation Modal (Full Health Observation Form) -->
+<div id="add-observation-modal" class="modal" hidden>
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">
+                <i class="fas fa-heartbeat"></i>
+                Record Health Observation
+            </h2>
+            <button type="button" class="modal-close" aria-label="Close">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form id="add-observation-form" class="settings-form" enctype="multipart/form-data">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        {% call ui.select_field('observation-plant', 'Select Plant', [], name_attr='plant_id', required=True, wrapper_class='form-field') %}
+                            <option value="">-- Select a plant --</option>
+                        {% endcall %}
+                    </div>
+                    <div class="col-md-6">
+                        {% call ui.select_field('observation-status', 'Health Status', [], name_attr='health_status', required=True, wrapper_class='form-field') %}
+                            <option value="">-- Select status --</option>
+                            <option value="healthy">✅ Healthy</option>
+                            <option value="stressed">⚠️ Stressed</option>
+                            <option value="diseased">🦠 Diseased</option>
+                            <option value="pest_infestation">🐛 Pest Infestation</option>
+                            <option value="nutrient_deficiency">🌿 Nutrient Deficiency</option>
+                            <option value="recovering">💊 Recovering</option>
+                            <option value="dying">☠️ Dying</option>
+                        {% endcall %}
+                    </div>
+                </div>
+
+                <!-- Symptoms (shown when not healthy) -->
+                <div id="symptoms-group" class="mb-4" hidden>
+                    <label class="form-label d-block mb-2">Visible Symptoms <span class="required">*</span></label>
+                    <div class="row g-2">
+                        {% set symptoms = [
+                            ('yellowing_leaves', 'Yellowing Leaves'),
+                            ('brown_spots', 'Brown Spots'),
+                            ('wilting', 'Wilting'),
+                            ('stunted_growth', 'Stunted Growth'),
+                            ('leaf_curl', 'Leaf Curl'),
+                            ('white_powdery_coating', 'White Powdery Coating'),
+                            ('webbing_on_leaves', 'Webbing on Leaves'),
+                            ('holes_in_leaves', 'Holes in Leaves'),
+                            ('drooping_stems', 'Drooping Stems'),
+                            ('discoloration', 'Discoloration'),
+                            ('mold_fungus', 'Mold/Fungus Growth'),
+                            ('pest_visible', 'Visible Pests')
+                        ] %}
+                        {% for val, label in symptoms %}
+                        <div class="col-6 col-md-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="symptoms" value="{{ val }}" id="symp-{{ val }}">
+                                <label class="form-check-label small" for="symp-{{ val }}">{{ label }}</label>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Disease Type (optional) -->
+                <div id="disease-type-group" class="mb-4" hidden>
+                    {% call ui.select_field('observation-disease-type', 'Disease Type (if known)', [], name_attr='disease_type', wrapper_class='form-field') %}
+                        <option value="">-- Select if known --</option>
+                        <option value="fungal">🍄 Fungal Infection</option>
+                        <option value="bacterial">🦠 Bacterial Infection</option>
+                        <option value="viral">🦠 Viral Infection</option>
+                        <option value="pest">🐛 Pest Damage</option>
+                        <option value="nutrient_deficiency">🌿 Nutrient Deficiency</option>
+                        <option value="environmental_stress">🌡️ Environmental Stress</option>
+                    {% endcall %}
+                </div>
+
+                <!-- Severity Level -->
+                <div id="severity-group" class="mb-4" hidden>
+                    <label for="observation-severity" class="form-label">Severity Level <span class="required">*</span></label>
+                    <div class="severity-selector p-3 bg-light rounded border">
+                        <input type="range" class="form-range" id="observation-severity" name="severity_level" min="1" max="5" value="3" step="1">
+                        <div class="d-flex justify-content-between x-small text-muted mt-2">
+                            <span>1 - Minor</span>
+                            <span>3 - Moderate</span>
+                            <span>5 - Critical</span>
+                        </div>
+                        <div class="text-center mt-2 fw-bold text-primary" id="severity-value">Level 3 - Moderate</div>
+                    </div>
+                </div>
+
+                <!-- Affected Parts -->
+                <div id="affected-parts-group" class="mb-4" hidden>
+                    <label class="form-label d-block mb-2">Affected Plant Parts <span class="required">*</span></label>
+                    <div class="row g-2">
+                        {% set parts = [
+                            ('leaves', 'Leaves'),
+                            ('stems', 'Stems'),
+                            ('roots', 'Roots'),
+                            ('flowers', 'Flowers'),
+                            ('fruits', 'Fruits'),
+                            ('whole_plant', 'Whole Plant')
+                        ] %}
+                        {% for val, label in parts %}
+                        <div class="col-6 col-md-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="affected_parts" value="{{ val }}" id="part-{{ val }}">
+                                <label class="form-check-label small" for="part-{{ val }}">{{ label }}</label>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Treatment Applied -->
+                <div id="treatment-group" hidden>
+                    {{ ui.form_field('observation-treatment', 'Treatment Applied', name_attr='treatment_applied', placeholder='e.g., Applied neem oil, Adjusted watering...', wrapper_class='form-field') }}
+                </div>
+
+                <!-- Image Upload -->
+                <div class="form-field mb-4">
+                    <label for="observation-image" class="form-label">📸 Upload Photo (Optional)</label>
+                    <input type="file" id="observation-image" name="image" class="form-control" accept="image/*">
+                    <small class="field-hint">Take or upload a photo to help track visual changes over time</small>
+                    <div id="image-preview" class="image-preview mt-2" hidden>
+                        <img id="preview-img" class="rounded border shadow-sm" style="max-width: 100%; height: auto; max-height: 200px;" src="" alt="Preview">
+                    </div>
+                </div>
+
+                <!-- Detailed Notes -->
+                <div class="form-field mb-4">
+                    <label for="observation-notes" class="form-label">Detailed Observation Notes <span class="required">*</span></label>
+                    <textarea id="observation-notes" name="notes" class="form-control" rows="4" required
+                              placeholder="Describe what you observe in detail..."></textarea>
+                    <small class="field-hint">The more detail you provide, the better the AI can help diagnose</small>
+                </div>
+
+                <div class="form-actions d-flex gap-2">
+                    {{ ui.ui_button('Cancel', variant='secondary', id='cancel-observation', class='flex-grow-1') }}
+                    {{ ui.ui_button('Save Observation', type='submit', icon='fas fa-save', class='flex-grow-1') }}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Nutrients Modal -->
+<div id="add-nutrients-modal" class="modal" hidden>
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">
+                <i class="fas fa-flask"></i>
+                Record Nutrients
+            </h2>
+            <button type="button" class="modal-close" aria-label="Close">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form id="add-nutrients-form" class="settings-form">
+                <div class="mb-4">
+                    <label class="form-label">Application Type <span class="required">*</span></label>
+                    <div class="btn-group w-100" role="group">
+                        <input type="radio" class="btn-check" name="application_type" id="app-single" value="single" checked>
+                        <label class="btn btn-outline-secondary btn-sm" for="app-single">Single Plant</label>
+                        
+                        <input type="radio" class="btn-check" name="application_type" id="app-bulk" value="bulk">
+                        <label class="btn btn-outline-secondary btn-sm" for="app-bulk">Bulk (All in Unit)</label>
+                    </div>
+                </div>
+
+                <div id="single-plant-group">
+                    {% call ui.select_field('nutrient-plant', 'Select Plant', [], name_attr='plant_id', wrapper_class='form-field') %}
+                        <option value="">-- Select plant --</option>
+                    {% endcall %}
+                </div>
+
+                <div id="bulk-unit-group" hidden>
+                    {% call ui.select_field('nutrient-unit', 'Growth Unit', [], name_attr='unit_id', wrapper_class='form-field') %}
+                        <option value="">Select unit...</option>
+                        {% for unit in units %}
+                            <option value="{{ unit.unit_id }}">{{ unit.unit_name or unit.name }}</option>
+                        {% endfor %}
+                    {% endcall %}
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-7">
+                        {% call ui.select_field('nutrient-type', 'Nutrient Type', [], name_attr='nutrient_type', required=True, wrapper_class='form-field') %}
+                            <option value="nitrogen">Nitrogen (N)</option>
+                            <option value="phosphorus">Phosphorus (P)</option>
+                            <option value="potassium">Potassium (K)</option>
+                            <option value="calcium">Calcium (Ca)</option>
+                            <option value="magnesium">Magnesium (Mg)</option>
+                            <option value="sulfur">Sulfur (S)</option>
+                            <option value="npk">NPK Mixture</option>
+                            <option value="micronutrients">Micronutrients</option>
+                            <option value="custom">Custom Mix</option>
+                        {% endcall %}
+                    </div>
+                    <div class="col-md-5">
+                        {{ ui.form_field('nutrient-amount', 'Amount (ml/g)', type='number', name_attr='amount', step=0.1, min=0, required=True, wrapper_class='form-field') }}
+                    </div>
+                </div>
+
+                <div class="form-field mb-4">
+                    <label for="nutrient-notes" class="form-label">Notes</label>
+                    <textarea id="nutrient-notes" name="notes" class="form-control" rows="3"></textarea>
+                </div>
+
+                <div class="form-actions d-flex gap-2">
+                    {{ ui.ui_button('Cancel', variant='secondary', id='cancel-nutrients', class='flex-grow-1') }}
+                    {{ ui.ui_button('Save Nutrients', type='submit', icon='fas fa-save', class='flex-grow-1') }}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Health Details Modal -->
+<div id="health-details-modal" class="modal" hidden>
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">
+                <i class="fas fa-heartbeat"></i>
+                Health Score Breakdown
+            </h2>
+            <button type="button" class="modal-close" aria-label="Close">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body" id="health-details-content">
+            <!-- Populated by JavaScript -->
+        </div>
+    </div>
+</div>
+
+<!-- Plant Details Modal is now dynamically created by PlantDetailsModal component -->
+
+<!-- Link Sensor Modal -->
+<div id="link-sensor-modal" class="modal" hidden>
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title"><i class="fas fa-link"></i> Link Sensor</h2>
+            <button type="button" class="modal-close" aria-label="Close">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form id="link-sensor-form" class="settings-form">
+                <input type="hidden" id="link-plant-id" name="plant_id">
+                
+                {% call ui.select_field('available-sensors', 'Available Sensors', [], name_attr='sensor_id', wrapper_class='form-field') %}
+                    <option value="">-- Select sensor --</option>
+                {% endcall %}
+
+                <div class="form-actions d-flex gap-2">
+                    {{ ui.ui_button('Cancel', variant='secondary', id='cancel-link-sensor', class='flex-grow-1') }}
+                    {{ ui.ui_button('Link Sensor', type='submit', class='flex-grow-1') }}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Load utilities first -->
+<script src="{{ url_for('static', filename='js/utils/cache-service.js') }}?v=20251214183000"></script>
+<script src="{{ url_for('static', filename='js/utils/modal.js') }}?v=20251214183000"></script>
+<script src="{{ url_for('static', filename='js/utils/base-manager.js') }}?v=20251214183000"></script>
+
+<!-- Load API layer -->
+<script src="{{ url_for('static', filename='js/api.js') }}?v=20251228193000"></script>
+
+<!-- Shared components -->
+<script src="{{ url_for('static', filename='js/components/plant-details-modal.js') }}?v=20251228193000"></script>
+
+<!-- Load Plants modules -->
+<script src="{{ url_for('static', filename='js/plants/data-service.js') }}?v=20251228193000"></script>
+<script src="{{ url_for('static', filename='js/plants/ui-manager.js') }}?v=20251228193000"></script>
+<script src="{{ url_for('static', filename='js/plants/main.js') }}?v=20251214171000"></script>
+
+<!-- Load Plants Guide module if needed -->
+<script src="{{ url_for('static', filename='js/plants_guide.js') }}?v=20251214"></script>
+
+{% endblock %}

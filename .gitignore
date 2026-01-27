@@ -1,0 +1,49 @@
+# Python
+*.pyc
+__pycache__/
+.pytest_cache
+.venv/
+.env
+.vscode
+.git
+.secrets
+.log
+.pyc
+.coude/
+
+docs/
+venv/
+.env/
+build/
+dist/
+__pycache__/
+docs/
+.env.example
+*.md
+
+# Local runtime artifacts
+devices_system.log
+logs/
+*.log
+*.log.*
+database/sysgrow.db
+database/*.db
+database/*.db-journal
+database/*.db-wal
+database/*.db-shm
+database/*.sqlite
+database/*.sqlite3
+database/*.sqlite*
+*.db
+
+.codex.json
+
+# Certbot
+nginx/certbot/conf/
+nginx/certbot/www/
+
+# Others
+.DS_Store
+devices_system.log
+devices_system.log
+devices_system.log

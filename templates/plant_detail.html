@@ -1,0 +1,189 @@
+{% extends 'base.html' %}
+
+{% block body_class %}plant-detail-page{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/plant-detail.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="plant-detail-container" data-plant-id="{{ plant_id }}">
+    <!-- Loading State -->
+    <div class="loading-state" id="loading-state">
+        <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
+        <p>Loading plant details...</p>
+    </div>
+
+    <!-- Error State -->
+    <div class="error-state hidden" id="error-state">
+        <i class="fas fa-exclamation-triangle" aria-hidden="true"></i>
+        <p id="error-message">Failed to load plant details.</p>
+        <a href="{{ url_for('ui.plants_guide') }}" class="btn btn-primary">Back to Guide</a>
+    </div>
+
+    <!-- Plant Content (populated by JS) -->
+    <div class="plant-content hidden" id="plant-content">
+        <!-- Breadcrumb -->
+        <nav class="breadcrumb" aria-label="Breadcrumb">
+            <a href="{{ url_for('ui.plants_hub') }}">Plants</a>
+            <i class="fas fa-chevron-right" aria-hidden="true"></i>
+            <a href="{{ url_for('ui.plants_guide') }}">Growing Guide</a>
+            <i class="fas fa-chevron-right" aria-hidden="true"></i>
+            <span id="breadcrumb-plant-name">Plant</span>
+        </nav>
+
+        <!-- Hero Section -->
+        <header class="plant-hero">
+            <div class="plant-hero-content">
+                <div class="plant-badges" id="plant-badges">
+                    <!-- Badges populated by JS -->
+                </div>
+                <h1 class="plant-title" id="plant-title">Plant Name</h1>
+                <p class="plant-species" id="plant-species">Species name</p>
+                <p class="plant-description" id="plant-description">
+                    Plant description goes here.
+                </p>
+                <div class="plant-actions">
+                    <button class="btn btn-primary" id="add-to-garden-btn">
+                        <i class="fas fa-plus" aria-hidden="true"></i>
+                        Add to My Garden
+                    </button>
+                    <button class="btn btn-outline" id="download-guide-btn">
+                        <i class="fas fa-download" aria-hidden="true"></i>
+                        Download Growing Guide
+                    </button>
+                </div>
+            </div>
+            <div class="plant-hero-image">
+                <div class="plant-emoji-large" id="plant-emoji"></div>
+            </div>
+        </header>
+
+        <!-- Main Content Grid -->
+        <div class="plant-detail-grid">
+            <!-- Growing Requirements -->
+            <section class="detail-card requirements-card">
+                <h2 class="card-title">
+                    <i class="fas fa-seedling" aria-hidden="true"></i>
+                    Growing Requirements
+                </h2>
+                <div class="requirements-grid" id="requirements-grid">
+                    <!-- Requirements populated by JS -->
+                </div>
+            </section>
+
+            <!-- Growth Timeline -->
+            <section class="detail-card timeline-card">
+                <h2 class="card-title">
+                    <i class="fas fa-clock" aria-hidden="true"></i>
+                    Growth Timeline
+                </h2>
+                <div class="timeline-content" id="timeline-content">
+                    <!-- Timeline populated by JS -->
+                </div>
+            </section>
+
+            <!-- Growth Stages -->
+            <section class="detail-card stages-card">
+                <h2 class="card-title">
+                    <i class="fas fa-chart-line" aria-hidden="true"></i>
+                    Growth Stages
+                </h2>
+                <div class="stages-timeline" id="stages-timeline">
+                    <!-- Stages populated by JS -->
+                </div>
+            </section>
+
+            <!-- Companion Plants -->
+            <section class="detail-card companion-card">
+                <h2 class="card-title">
+                    <i class="fas fa-heart" aria-hidden="true"></i>
+                    Companion Plants
+                </h2>
+                <div class="companion-content" id="companion-content">
+                    <!-- Companions populated by JS -->
+                </div>
+            </section>
+
+            <!-- Pest & Disease Risks -->
+            <section class="detail-card risks-card">
+                <h2 class="card-title">
+                    <i class="fas fa-bug" aria-hidden="true"></i>
+                    Pest & Disease Risks
+                </h2>
+                <div class="risks-content" id="risks-content">
+                    <!-- Risks populated by JS -->
+                </div>
+            </section>
+
+            <!-- Automation Settings -->
+            <section class="detail-card automation-card">
+                <h2 class="card-title">
+                    <i class="fas fa-cogs" aria-hidden="true"></i>
+                    Automation Settings
+                </h2>
+                <div class="automation-content" id="automation-content">
+                    <!-- Automation populated by JS -->
+                </div>
+            </section>
+
+            <!-- Sensor Requirements -->
+            <section class="detail-card sensors-card">
+                <h2 class="card-title">
+                    <i class="fas fa-microchip" aria-hidden="true"></i>
+                    Sensor Requirements
+                </h2>
+                <div class="sensors-content" id="sensors-content">
+                    <!-- Sensors populated by JS -->
+                </div>
+            </section>
+
+            <!-- Yield Information -->
+            <section class="detail-card yield-card">
+                <h2 class="card-title">
+                    <i class="fas fa-balance-scale" aria-hidden="true"></i>
+                    Yield & Harvest
+                </h2>
+                <div class="yield-content" id="yield-content">
+                    <!-- Yield populated by JS -->
+                </div>
+            </section>
+
+            <!-- Nutritional Information -->
+            <section class="detail-card nutrition-card">
+                <h2 class="card-title">
+                    <i class="fas fa-apple-alt" aria-hidden="true"></i>
+                    Nutritional Information
+                </h2>
+                <div class="nutrition-content" id="nutrition-content">
+                    <!-- Nutrition populated by JS -->
+                </div>
+            </section>
+
+            <!-- Harvest Guide -->
+            <section class="detail-card harvest-card">
+                <h2 class="card-title">
+                    <i class="fas fa-cut" aria-hidden="true"></i>
+                    Harvest Guide
+                </h2>
+                <div class="harvest-content" id="harvest-content">
+                    <!-- Harvest guide populated by JS -->
+                </div>
+            </section>
+        </div>
+
+        <!-- Back Navigation -->
+        <div class="back-navigation">
+            <a href="{{ url_for('ui.plants_guide') }}" class="btn btn-outline">
+                <i class="fas fa-arrow-left" aria-hidden="true"></i>
+                Back to Growing Guide
+            </a>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { initPlantDetail } from "{{ url_for('static', filename='js/plant_detail.js') }}";
+    initPlantDetail({{ plant_id }});
+</script>
+{% endblock %}

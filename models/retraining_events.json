@@ -1,0 +1,57 @@
+[
+  {
+    "event_id": "climate_predictor_20251122_192151",
+    "model_name": "climate_predictor",
+    "trigger": "manual",
+    "started_at": "2025-11-22T19:21:51.657253",
+    "completed_at": "2025-11-22T19:21:51.663829",
+    "status": "failed",
+    "new_version": null,
+    "metrics": {},
+    "error_message": "Insufficient training data: 0 samples"
+  },
+  {
+    "event_id": "climate_predictor_20251122_194534",
+    "model_name": "climate_predictor",
+    "trigger": "manual",
+    "started_at": "2025-11-22T19:45:34.228080",
+    "completed_at": "2025-11-22T19:45:34.237550",
+    "status": "failed",
+    "new_version": null,
+    "metrics": {},
+    "error_message": "Insufficient training data: 0 samples"
+  },
+  {
+    "event_id": "disease_detector_20251122_220153",
+    "model_name": "disease_detector",
+    "trigger": "manual",
+    "started_at": "2025-11-22T22:01:53.822794",
+    "completed_at": "2025-11-22T22:01:53.829952",
+    "status": "failed",
+    "new_version": null,
+    "metrics": {},
+    "error_message": "Insufficient training data: 0 samples"
+  },
+  {
+    "event_id": "climate_predictor_20251122_220306",
+    "model_name": "climate_predictor",
+    "trigger": "manual",
+    "started_at": "2025-11-22T22:03:06.647354",
+    "completed_at": "2025-11-22T22:03:06.652793",
+    "status": "failed",
+    "new_version": null,
+    "metrics": {},
+    "error_message": "Insufficient training data: 0 samples"
+  },
+  {
+    "event_id": "climate_predictor_20251122_220441",
+    "model_name": "climate_predictor",
+    "trigger": "manual",
+    "started_at": "2025-11-22T22:04:41.308424",
+    "completed_at": "2025-11-22T22:04:41.314133",
+    "status": "failed",
+    "new_version": null,
+    "metrics": {},
+    "error_message": "Insufficient training data: 0 samples"
+  }
+]

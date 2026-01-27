@@ -1,0 +1,321 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui %}
+
+{% block title %}Sensor Analytics - SYSGrow{% endblock %}
+{% block body_class %}sensor-analytics-page{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/analytics.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="page-shell page-shell--fluid" data-selected-unit-id="{% if selected_unit %}{{ selected_unit.unit_id }}{% endif %}">
+<div class="sensor-analytics-page" aria-labelledby="analytics-heading">
+    
+    {# Using standardized page header #}
+    {% set header_actions %}
+        <div class="d-flex align-items-center gap-2">
+          {{ ui.ui_button("Refresh", id="refresh-btn", icon="fas fa-sync-alt", variant="secondary") }}
+          {{ ui.ui_button("Export CSV", id="export-btn", icon="fas fa-download", variant="primary") }}
+        </div>
+    {% endset %}
+    {{ ui.page_header(
+      title="Sensor Analytics",
+      icon="fas fa-chart-line",
+      subtitle="Comprehensive sensor data analysis with trends, statistics, and real-time monitoring.",
+      actions=header_actions
+    ) }}
+
+    <!-- Contextual Help Banner -->
+    <div class="help-banner">
+      <i class="fas fa-thermometer-half"></i>
+      <div class="help-banner-content">
+        <p class="help-banner-title">Understanding VPD</p>
+        <p class="help-banner-text">Learn how Vapor Pressure Deficit affects plant health and transpiration.</p>
+      </div>
+      {{ ui.help_link('sensors', 'understanding-vpd', 'VPD Guide') }}
+    </div>
+
+    <div class="analytics-grid">
+        <div class="analytics-column">
+            {% call ui.content_card(title='Environmental Overview', icon='fas fa-cloud-sun', id='environmental-overview-card') %}
+                <div class="chart-container chart-lg">
+                    <canvas id="environmental-overview-canvas" aria-label="Environmental overview with ML forecast"></canvas>
+                </div>
+            {% endcall %}
+
+            {% call ui.content_card(title='What-If Simulator', icon='fas fa-flask', id='what-if-simulator-card') %}
+                <div id="what-if-simulator-container"></div>
+            {% endcall %}
+
+            {% call ui.content_card(title='Data Filters', icon='fas fa-filter', id='filters-card') %}
+                <div class="form-grid filter-grid">
+                    {{ ui.select_field('unit-select', 'Growth Unit', options=[('', 'All Units')], aria_label='Select growth unit') }}
+                    {{ ui.select_field('sensor-select', 'Sensor', options=[('', 'All Sensors')], aria_label='Select sensor') }}
+                    {{ ui.select_field('sensor-type', 'Sensor Type', options=[
+                        ('all', 'All Types'),
+                        ('temperature', 'Temperature'),
+                        ('humidity', 'Humidity'),
+                        ('soil_moisture', 'Soil Moisture'),
+                        ('light_level', 'Light Level'),
+                        ('co2_level', 'CO2 Level')
+                    ]) }}
+
+                    <div class="form-group">
+                        <label for="metric-toggle">Metrics</label>
+                        <div class="multi-select" id="metric-multi">
+                            <button
+                                id="metric-toggle"
+                                type="button"
+                                class="form-control multi-select-toggle"
+                                aria-haspopup="listbox"
+                                aria-expanded="false"
+                                aria-controls="metric-menu"
+                            >
+                                <span id="metric-summary">Temperature, Humidity, Soil Moisture</span>
+                                <i class="fas fa-chevron-down" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                        <div
+                            id="metric-menu"
+                            class="multi-select-menu"
+                            role="listbox"
+                            aria-multiselectable="true"
+                            tabindex="-1"
+                        >
+                            {% set metrics = [
+                                ('temperature', 'Temperature (°C)'),
+                                ('humidity', 'Humidity (%)'),
+                                ('soil_moisture', 'Soil Moisture (%)'),
+                                ('lux', 'Light (lux)'),
+                                ('co2', 'CO₂ (ppm)'),
+                                ('voc', 'VOC (ppb)'),
+                                ('air_quality', 'Air Quality'),
+                                ('pressure', 'Pressure (hPa)'),
+                            ] %}
+                            {% for key, label in metrics %}
+                            <div class="multi-select-option metric-option" data-value="{{ key }}" role="option" data-default-selected="{% if key in ['temperature', 'humidity', 'soil_moisture', 'lux'] %}true{% else %}false{% endif %}">
+                                <input type="checkbox" value="{{ key }}" {% if key in ['temperature', 'humidity', 'soil_moisture', 'lux'] %}checked{% endif %} id="metric-{{ key }}">
+                                <label for="metric-{{ key }}">{{ label }}</label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="plant-select">Plant (health overlay)</label>
+                        <select id="plant-select" class="form-control" aria-label="Select plant for health overlay">
+                            <option value="">No plant overlay</option>
+                        </select>
+                        <small id="plant-status" class="text-muted"></small>
+                    </div>
+
+                    {{ ui.select_field('range-select', 'Time Range', options=[
+                        ('1', 'Last Hour'),
+                        ('6', 'Last 6 Hours'),
+                        ('24', 'Last 24 Hours'),
+                        ('72', 'Last 3 Days'),
+                        ('168', 'Last 7 Days')
+                    ], selected='24', aria_label='Select time range') }}
+
+                    {{ ui.select_field('grouping', 'Grouping', options=[
+                        ('minute', 'By Minute'),
+                        ('hour', 'By Hour'),
+                        ('day', 'By Day')
+                    ], selected='hour') }}
+                </div>
+
+                <div class="saved-alerts-grid">
+                    <div class="form-group mb-0">
+                        <label>Saved Views</label>
+                        <div class="saved-view-row">
+                            <input id="view-name-input" class="form-control" placeholder="Name this view" aria-label="Saved view name">
+                            {{ ui.ui_button('Save', id='save-view-btn', variant='outline-primary') }}
+                        </div>
+                        <div class="saved-view-actions">
+                            <select id="saved-view-select" class="form-control" aria-label="Load saved view">
+                                <option value="">Load saved view.</option>
+                            </select>
+                            {{ ui.ui_button('Apply', id='apply-view-btn', variant='outline-secondary') }}
+                            {{ ui.ui_button('Delete', id='delete-view-btn', variant='outline-danger') }}
+                        </div>
+                    </div>
+                    <div class="form-group mb-0">
+                        <label>Alert Builder</label>
+                        <div class="alert-builder">
+                            <select id="alert-metric-select" class="form-control" aria-label="Alert metric">
+                                <option value="temperature">Temperature</option>
+                                <option value="humidity">Humidity</option>
+                                <option value="soil_moisture">Soil Moisture</option>
+                                <option value="lux">Light (lux)</option>
+                                <option value="co2">CO₂</option>
+                                <option value="voc">VOC</option>
+                                <option value="air_quality">Air Quality</option>
+                                <option value="pressure">Pressure</option>
+                            </select>
+                            <select id="alert-operator-select" class="form-control" aria-label="Alert operator">
+                                <option value="gt">Above</option>
+                                <option value="gte">At or above</option>
+                                <option value="lt">Below</option>
+                                <option value="lte">At or below</option>
+                            </select>
+                            <input id="alert-threshold-input" type="number" step="0.1" class="form-control" placeholder="Threshold" aria-label="Alert threshold">
+                            {{ ui.ui_button('Save Alert', id='add-alert-btn', variant='outline-primary') }}
+                        </div>
+                        <div id="alert-list" class="text-muted small mt-2">No alerts configured.</div>
+                    </div>
+                </div>
+            {% endcall %}
+
+            {% call ui.content_card(title='Time-Series Analysis', icon='fas fa-chart-line', id='chart-heading') %}
+                <p class="text-muted" id="series-meta">Loading data.</p>
+                <div class="chart-container chart-lg">
+                    <canvas id="data-graph-canvas" aria-label="Sensor timeseries chart"></canvas>
+                </div>
+            {% endcall %}
+
+            {% set correlation_header %}
+                <div class="chart-controls">
+                    <div class="time-slider-control">
+                        <label for="temp-humidity-time-slider">Time Range:</label>
+                        <input type="range" id="temp-humidity-time-slider" 
+                               min="1" max="30" value="7" step="1"
+                               aria-label="Select number of days to display">
+                        <span class="time-slider-label" id="temp-humidity-time-label">Last 7 days</span>
+                    </div>
+                </div>
+            {% endset %}
+
+            {% call ui.content_card(title='Temperature vs Humidity Correlation', icon='fas fa-project-diagram', id='correlation-heading', header_extra=correlation_header) %}
+                <div class="chart-wrapper">
+                    <canvas id="temp-humidity-correlation-canvas" 
+                            aria-label="Temperature and humidity correlation scatter plot"></canvas>
+                </div>
+                <div id="temp-humidity-correlation-correlation"></div>
+            {% endcall %}
+        </div>
+
+        <div class="analytics-column">
+            {% call ui.content_card(title='Statistical Analysis', icon='fas fa-calculator', id='statistics-heading') %}
+                <div id="statistics-container" class="stats-grid">
+                    <p class="text-muted">No statistics available</p>
+                </div>
+            {% endcall %}
+
+            {% call ui.content_card(title='Detected Anomalies', icon='fas fa-exclamation-triangle', id='anomalies-heading') %}
+                <div id="anomalies-container">
+                    <p class="text-muted">No anomalies detected</p>
+                </div>
+            {% endcall %}
+
+            {% set vpd_header %}
+                <div class="chart-controls">
+                    <select id="vpd-zones-range" class="form-control form-control-sm" aria-label="VPD zones time range">
+                        <option value="24">Last 24 Hours</option>
+                        <option value="72">Last 3 Days</option>
+                        <option value="168" selected>Last 7 Days</option>
+                    </select>
+                </div>
+            {% endset %}
+
+            {% call ui.content_card(title='VPD Zones Distribution', icon='fas fa-wind', id='vpd-zones-heading', header_extra=vpd_header) %}
+                <div id="vpd-zones-container" style="min-height: 250px;">
+                    <p class="text-muted text-center">Loading VPD zones...</p>
+                </div>
+            {% endcall %}
+
+            {% call ui.content_card(title='Sensor Correlation Matrix', icon='fas fa-th', id='correlation-matrix-heading') %}
+                <div id="correlation-matrix-container">
+                    <p class="text-muted text-center">Loading correlations...</p>
+                </div>
+            {% endcall %}
+
+            {% call ui.content_card(title='Sensor Status', icon='fas fa-broadcast-tower', id='sensor-status-heading') %}
+                <div id="sensorList" class="sensor-status-list text-muted">
+                    Loading sensor status...
+                </div>
+            {% endcall %}
+
+            {% call ui.content_card(title='Sensor Trends', icon='fas fa-chart-bar', id='trends-heading') %}
+                <div class="chart-container">
+                    <canvas id="trends-chart" aria-label="Sensor statistics chart"></canvas>
+                </div>
+            {% endcall %}
+        </div>
+
+        {% call ui.content_card(title='Recent Sensor Readings', icon='fas fa-table', id='recent-heading', class='full-span') %}
+            <div class="table-responsive">
+                <table class="data-table" aria-label="Recent sensor readings">
+                    <thead>
+                        <tr>
+                            <th scope="col">Timestamp</th>
+                            <th scope="col">Sensor</th>
+                            <th scope="col">Metric</th>
+                            <th scope="col">Value</th>
+                            <th scope="col">Quality</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recent-readings">
+                        <tr>
+                            <td colspan="5" class="text-center text-muted">No data yet.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="table-actions">
+                {{ ui.ui_button('Load More', id='load-more-btn', icon='fas fa-chevron-down', variant='link', class='hidden') }}
+                <span id="table-count" class="text-muted small"></span>
+            </div>
+        {% endcall %}
+    </div>
+</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+<script src="{{ url_for('static', filename='js/api.js') }}"></script>
+<script src="{{ url_for('static', filename='js/utils/cache-service.js') }}"></script>
+<script src="{{ url_for('static', filename='js/utils/base-manager.js') }}"></script>
+<script src="{{ url_for('static', filename='js/socket.js') }}"></script>
+<script src="{{ url_for('static', filename='js/ml-chart-enhancer.js') }}"></script>
+<script src="{{ url_for('static', filename='js/sensor-analytics/environmental-overview-chart.js') }}"></script>
+<script src="{{ url_for('static', filename='js/sensor-analytics/temp-humidity-correlation.js') }}"></script>
+<script src="{{ url_for('static', filename='js/what-if-simulator.js') }}"></script>
+<!-- Phase D: Sensor Analytics Components -->
+<script src="{{ url_for('static', filename='js/components/vpd-zones-chart.js') }}"></script>
+<script src="{{ url_for('static', filename='js/components/sensor-correlation-matrix.js') }}"></script>
+<script src="{{ url_for('static', filename='js/components/intelligent-anomaly-panel.js') }}"></script>
+<!-- Chart integration helper -->
+<script src="{{ url_for('static', filename='js/sensor-analytics/chart-integration.js') }}"></script>
+<script src="{{ url_for('static', filename='js/sensor-analytics/data-service.js') }}"></script>
+<script src="{{ url_for('static', filename='js/sensor-analytics/ui-manager.js') }}"></script>
+<script src="{{ url_for('static', filename='js/sensor-analytics/main.js') }}"></script>
+<script>
+    // Initialize What-If Simulator
+    document.addEventListener('DOMContentLoaded', function() {
+        const simulator = new WhatIfSimulator('what-if-simulator-container');
+        simulator.init();
+        
+        // Initialize Temperature-Humidity Correlation Chart
+        const tempHumidityChart = new TempHumidityCorrelation('temp-humidity-correlation-canvas', {
+            updateInterval: 60000, // 1 minute
+            defaultDays: 7,
+            showRegressionLine: true,
+            showVPDZone: true,
+            enableTimeSlider: true
+        });
+        
+        // Set initial unit from page data
+        const pageShell = document.querySelector('.page-shell');
+        if (pageShell) {
+            const unitId = pageShell.getAttribute('data-selected-unit-id');
+            if (unitId) {
+                tempHumidityChart.setUnit(parseInt(unitId));
+            }
+        }
+    });
+</script>
+{% endblock %}

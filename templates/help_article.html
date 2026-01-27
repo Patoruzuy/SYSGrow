@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+
+{% block title %}Help Article - SYSGrow{% endblock %}
+
+{% block body_class %}help-page help-article-page{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/help.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="page-shell">
+    <!-- Breadcrumb -->
+    <nav class="help-breadcrumb" aria-label="Breadcrumb">
+        <ol class="breadcrumb-list">
+            <li><a href="{{ url_for('ui.help_page') }}"><i class="fas fa-book-open"></i> Help</a></li>
+            <li><a href="{{ url_for('ui.help_category', category=category) }}" id="breadcrumb-category">{{ category }}</a></li>
+            <li aria-current="page" id="breadcrumb-article">Loading...</li>
+        </ol>
+    </nav>
+
+    <div class="article-layout">
+        <!-- Article Content -->
+        <main class="article-main">
+            <article class="help-article">
+                <header class="article-header">
+                    <div class="article-meta">
+                        <span class="article-category" id="article-category">
+                            <i class="fas fa-folder"></i>
+                            <span id="category-name">Loading...</span>
+                        </span>
+                    </div>
+                    <h1 id="article-title">Loading article...</h1>
+                    <p class="article-summary" id="article-summary"></p>
+                </header>
+                <div class="article-body markdown-content" id="article-content">
+                    <div class="loading-state">
+                        <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
+                        <p>Loading article content...</p>
+                    </div>
+                </div>
+            </article>
+
+            <!-- Article Navigation -->
+            <nav class="article-nav">
+                <a href="{{ url_for('ui.help_category', category=category) }}" class="btn btn-outline">
+                    <i class="fas fa-arrow-left"></i>
+                    Back to {{ category }}
+                </a>
+            </nav>
+        </main>
+
+        <!-- Sidebar -->
+        <aside class="article-sidebar">
+            <div class="sidebar-section">
+                <h3>Related Topics</h3>
+                <ul class="related-list" id="related-articles">
+                    <li class="loading"><i class="fas fa-spinner fa-spin"></i> Loading...</li>
+                </ul>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>Need More Help?</h3>
+                <p class="help-contact-text">Can't find what you're looking for?</p>
+                <a href="{{ url_for('ui.settings') }}" class="btn btn-outline btn-sm btn-block">
+                    <i class="fas fa-cog"></i> Go to Settings
+                </a>
+            </div>
+        </aside>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+    // Pass article info from URL
+    window.HELP_ARTICLE_CATEGORY = {{ category | tojson }};
+    window.HELP_ARTICLE_ID = {{ article_id | tojson }};
+</script>
+<script type="module">
+    import { initHelpArticle } from "{{ url_for('static', filename='js/help.js') }}";
+    initHelpArticle();
+</script>
+{% endblock %}

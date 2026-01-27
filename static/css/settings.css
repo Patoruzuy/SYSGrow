@@ -1,0 +1,1462 @@
+/* ==========================================================================
+   SYSGrow — settings.css
+   Page-scoped styles for /settings (and settings-related subcomponents).
+   Requires tokens.css + theme.css + components.css to be loaded globally.
+   ========================================================================== */
+
+.settings-page {
+  --settings-card-padding: 2rem;
+  --settings-card-radius: var(--radius-lg);
+  --settings-focus-ring: 0 0 0 3px color-mix(in srgb, var(--button-color) 22%, transparent);
+  --settings-border: 1px solid var(--border-200);
+}
+
+/* ==========================================================================
+   Header + status
+   ========================================================================== */
+
+.settings-page .settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-4);
+  margin-bottom: var(--section-gap);
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  border: var(--settings-border);
+}
+
+.settings-page .settings-header h2 {
+  margin: 0 0 var(--space-1) 0;
+  color: var(--primary-text-color);
+  font-size: 1.5rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.settings-page .settings-header p {
+  margin: 0;
+  color: var(--secondary-text-color);
+  font-size: 0.98rem;
+}
+
+.settings-page .settings-status {
+  min-height: 1.25rem;
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  background-color: var(--bg-2);
+  color: var(--secondary-text-color);
+  border-left: 4px solid transparent;
+  font-weight: 600;
+  line-height: 1.3;
+  transition: background-color var(--transition-normal) ease,
+              color var(--transition-normal) ease,
+              border-color var(--transition-normal) ease;
+}
+
+.settings-page .settings-status:empty {
+  display: none;
+}
+
+.settings-page .settings-status--success {
+  background-color: var(--success-100);
+  color: var(--success-700, var(--success-600));
+  border-left-color: var(--success-600);
+}
+
+.settings-page .settings-status--error {
+  background-color: var(--danger-100);
+  color: var(--danger-700, var(--danger-600));
+  border-left-color: var(--danger-600);
+}
+
+.settings-page .settings-status--info {
+  background-color: var(--info-100);
+  color: var(--info-700, var(--info-600));
+  border-left-color: var(--info-600);
+}
+
+/* ==========================================================================
+   Tabs
+   ========================================================================== */
+
+.settings-page .settings-tabs {
+  display: flex;
+  gap: var(--space-1);
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  padding: var(--space-1);
+  box-shadow: var(--shadow-sm);
+  border: var(--settings-border);
+  margin-bottom: var(--space-3);
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.settings-page .tab-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  background: transparent;
+  color: var(--secondary-text-color);
+  font-size: 0.9rem;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color var(--transition-fast) ease,
+              color var(--transition-fast) ease,
+              box-shadow var(--transition-fast) ease;
+}
+
+.settings-page .tab-button:hover {
+  background-color: var(--bg-2);
+  color: var(--primary-text-color);
+}
+
+.settings-page .tab-button.active {
+  background-color: var(--button-color);
+  color: var(--color-on-brand);
+  box-shadow: var(--shadow-sm);
+}
+
+.settings-page .tab-icon {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2;
+}
+
+/* Panels */
+.settings-page .settings-content {
+  position: relative;
+}
+
+.settings-page .tab-panel {
+  display: none;
+  animation: settingsFadeIn 0.22s ease-out;
+}
+
+.settings-page .tab-panel.active {
+  display: block;
+}
+
+@keyframes settingsFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ==========================================================================
+   Cards
+   ========================================================================== */
+
+.settings-page .settings-card {
+  background: var(--color-surface);
+  padding: var(--settings-card-padding);
+  border-radius: var(--settings-card-radius);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: var(--space-4);
+  border: var(--settings-border);
+  transition: box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.settings-page .settings-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.settings-page .card-header {
+  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border-200);
+}
+
+.settings-page .card-header h3 {
+  margin: 0 0 var(--space-1) 0;
+  color: var(--primary-text-color);
+  font-size: 1.25rem;
+  font-weight: 650;
+}
+
+.settings-page .card-description {
+  margin: 0;
+  color: var(--secondary-text-color);
+  font-size: 0.98rem;
+  line-height: 1.5;
+}
+
+/* Sections within cards */
+.settings-page .settings-section {
+  margin-top: var(--space-4);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-200);
+}
+
+.settings-page .section-title,
+.settings-page .settings-subtitle {
+  margin: 0 0 var(--space-2) 0;
+  color: var(--primary-text-color);
+  font-size: 1.05rem;
+  font-weight: 650;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.settings-page .field-hint,
+.settings-page .text-secondary {
+  color: var(--secondary-text-color);
+}
+
+/* ==========================================================================
+   Forms
+   ========================================================================== */
+
+.settings-page .settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.settings-page .form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-4);
+}
+
+.settings-page .form-grid.form-grid-2 {
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+
+.settings-page .form-grid.form-grid-3 {
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+.settings-page .form-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.settings-page .form-field label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 650;
+  color: var(--primary-text-color);
+  font-size: 0.95rem;
+}
+
+.settings-page .field-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--button-color);
+  stroke-width: 2;
+}
+
+/* Inputs */
+.settings-page .form-field input,
+.settings-page .form-field select,
+.settings-page .form-field textarea {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border-200);
+  border-radius: 10px;
+  font-size: 0.95rem;
+  color: var(--primary-text-color);
+  background-color: var(--color-surface);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+}
+
+.settings-page .form-field textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+.settings-page .form-field input::placeholder,
+.settings-page .form-field textarea::placeholder {
+  color: color-mix(in srgb, var(--secondary-text-color) 65%, transparent);
+}
+
+.settings-page .form-field input:focus,
+.settings-page .form-field select:focus,
+.settings-page .form-field textarea:focus {
+  outline: none;
+  border-color: var(--button-color);
+  box-shadow: var(--settings-focus-ring);
+}
+
+/* Validation: only show strong red/green when user interacted */
+.settings-page .form-field input:required:invalid:not(:placeholder-shown) {
+  border-color: var(--danger-600);
+  background-color: color-mix(in srgb, var(--danger-600) 3%, transparent);
+}
+
+.settings-page .form-field input:required:valid {
+  border-color: color-mix(in srgb, var(--success-600) 70%, var(--border-200));
+}
+
+/* Checkbox */
+.settings-page input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--button-color);
+  cursor: pointer;
+}
+
+.settings-page label.checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+/* Actions */
+.settings-page .form-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-200);
+}
+
+.settings-page .form-actions.form-actions--spaced {
+  margin-top: var(--space-4);
+}
+
+/* ==========================================================================
+   Password field + inline controls
+   ========================================================================== */
+
+.settings-page .password-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.settings-page .password-field input {
+  flex: 1 1 auto;
+  padding-right: 3.15rem;
+}
+
+.settings-page .toggle-password {
+  position: absolute;
+  right: 0.65rem;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--secondary-text-color);
+  cursor: pointer;
+  padding: 0.45rem;
+  border-radius: 10px;
+  transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settings-page .toggle-password:hover {
+  background-color: color-mix(in srgb, var(--bg-2) 85%, transparent);
+  color: var(--button-color);
+  border-color: color-mix(in srgb, var(--border-200) 70%, transparent);
+}
+
+.settings-page .toggle-password svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* ==========================================================================
+   Conditional fields
+   Note: your current JS uses inline style.display. For smoother animation,
+   prefer toggling `.is-active` (see review notes).
+   ========================================================================== */
+
+.settings-page .conditional-field {
+  display: none; /* default hidden */
+}
+
+.settings-page .conditional-field.is-active {
+  display: block;
+  animation: settingsFadeIn 0.18s ease-out;
+}
+
+/* When a conditional field contains a grid, keep spacing consistent */
+.settings-page .conditional-field.is-active .form-grid {
+  margin-top: var(--space-2);
+}
+
+/* ==========================================================================
+   WiFi setup
+   ========================================================================== */
+
+.settings-page .wifi-setup-controls {
+  background-color: color-mix(in srgb, var(--success-600) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--success-600) 18%, transparent);
+  border-radius: 12px;
+  padding: var(--space-4);
+  margin-top: var(--space-3);
+}
+
+.settings-page .wifi-setup-controls h5 {
+  margin: 0 0 var(--space-3) 0;
+  color: var(--primary-text-color);
+  font-size: 1rem;
+  font-weight: 650;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.settings-page .wifi-scan-container {
+  display: flex;
+  gap: var(--space-2);
+  align-items: stretch;
+}
+
+.settings-page .wifi-scan-container select {
+  flex: 1 1 auto;
+}
+
+.settings-page .wifi-actions {
+  display: flex;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.settings-page .wifi-actions .btn-primary,
+.settings-page .wifi-actions .btn-secondary {
+  flex: 1 1 220px;
+  justify-content: center;
+}
+
+/* ==========================================================================
+   Device list + status badges
+   ========================================================================== */
+
+.settings-page #device-list {
+  min-height: 110px;
+  background-color: var(--card-bg);
+  border: 1px solid color-mix(in srgb, var(--card-border) 60%, transparent);
+  border-radius: 12px;
+  padding: var(--space-2);
+}
+
+.settings-page #device-list option {
+  padding: 0.5rem;
+  border-radius: 8px;
+  margin-bottom: 0.25rem;
+}
+
+.settings-page #device-list option:hover {
+  background-color: color-mix(in srgb, var(--button-color) 10%, transparent);
+}
+
+.settings-page #device-list option:disabled {
+  color: var(--secondary-text-color);
+  font-style: italic;
+}
+
+.settings-page .device-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 650;
+  border: 1px solid transparent;
+}
+
+.settings-page .device-status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: currentColor;
+}
+
+.settings-page .device-status.connected {
+  background-color: color-mix(in srgb, var(--success-600) 10%, transparent);
+  color: var(--success-600);
+  border-color: color-mix(in srgb, var(--success-600) 26%, transparent);
+}
+
+.settings-page .device-status.disconnected {
+  background-color: color-mix(in srgb, var(--danger-600) 10%, transparent);
+  color: var(--danger-600);
+  border-color: color-mix(in srgb, var(--danger-600) 26%, transparent);
+}
+
+.settings-page .device-status.provisioning {
+  background-color: color-mix(in srgb, var(--warning-600) 10%, transparent);
+  color: var(--warning-600);
+  border-color: color-mix(in srgb, var(--warning-600) 26%, transparent);
+}
+
+/* ==========================================================================
+   Zigbee discovery results
+   ========================================================================== */
+
+.settings-page .discover-results {
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--border-200);
+  border-radius: 12px;
+  background: var(--color-surface);
+  padding: 0;
+  margin-top: var(--space-3);
+}
+
+.settings-page .discover-result-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-200);
+  transition: background-color 0.18s ease;
+}
+
+.settings-page .discover-result-item:last-child {
+  border-bottom: none;
+}
+
+.settings-page .discover-result-item:hover {
+  background-color: color-mix(in srgb, var(--bg-2) 80%, transparent);
+}
+
+.settings-page .discover-result-name {
+  font-weight: 650;
+  color: var(--primary-text-color);
+  margin-bottom: 0.25rem;
+}
+
+.settings-page .discover-result-addr {
+  font-size: 0.875rem;
+  color: var(--secondary-text-color);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+.settings-page .discover-error {
+  padding: 1rem;
+  background: color-mix(in srgb, var(--warning-600) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warning-600) 35%, transparent);
+  border-radius: 12px;
+  color: color-mix(in srgb, var(--warning-600) 85%, var(--primary-text-color));
+  margin-top: var(--space-3);
+}
+
+/* ==========================================================================
+   Operation progress + spinner
+   ========================================================================== */
+
+.settings-page .operation-progress {
+  display: none;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0.75rem;
+  background-color: color-mix(in srgb, var(--info-600) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--info-600) 30%, transparent);
+  border-radius: 12px;
+  margin-top: var(--space-3);
+}
+
+.settings-page .operation-progress.active {
+  display: flex;
+}
+
+.settings-page .progress-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid color-mix(in srgb, var(--info-600) 30%, transparent);
+  border-top: 2px solid var(--info-600);
+  border-radius: 999px;
+  animation: settingsSpin 1s linear infinite;
+}
+
+@keyframes settingsSpin {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* ==========================================================================
+   Sticky Save Bar (optional component)
+   ========================================================================== */
+
+.settings-page .settings-savebar,
+.settings-savebar {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: 16px;
+  z-index: 1000;
+  border: 1px solid color-mix(in srgb, var(--border-200) 55%, transparent);
+  background: color-mix(in srgb, var(--bg-0) 88%, transparent);
+  border-radius: 14px;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+.settings-page .settings-savebar__inner,
+.settings-savebar__inner {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+}
+
+.settings-page .settings-savebar__title,
+.settings-savebar__title {
+  font-weight: 750;
+  font-size: 0.95rem;
+}
+
+.settings-page .settings-savebar__summary,
+.settings-savebar__summary {
+  opacity: 0.85;
+  font-size: 0.85rem;
+  margin-top: 2px;
+}
+
+.settings-page .settings-savebar__actions,
+.settings-savebar__actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+/* ==========================================================================
+   Accessibility + motion
+   ========================================================================== */
+
+.settings-page .tab-button:focus-visible,
+.settings-page .form-field input:focus-visible,
+.settings-page .form-field select:focus-visible,
+.settings-page .form-field textarea:focus-visible,
+.settings-page .toggle-password:focus-visible {
+  outline: 2px solid var(--brand-500, var(--button-color));
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-page * {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ==========================================================================
+   Responsive
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  .settings-page {
+    --settings-card-padding: 1.5rem;
+  }
+
+  .settings-page .settings-tabs {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .settings-page .tab-button {
+    flex: 1 1 140px;
+    justify-content: center;
+  }
+
+  .settings-page .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-page .form-actions {
+    justify-content: stretch;
+  }
+
+  .settings-page .wifi-scan-container {
+    flex-direction: column;
+  }
+
+  .settings-page .wifi-actions {
+    flex-direction: column;
+  }
+
+  .settings-page .wifi-actions .btn-primary,
+  .settings-page .wifi-actions .btn-secondary {
+    width: 100%;
+    flex: 1 1 auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .settings-page .settings-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .settings-page .settings-header h2 {
+    font-size: 1.35rem;
+  }
+
+  .settings-page .tab-button {
+    padding: 0.55rem 0.75rem;
+    font-size: 0.85rem;
+  }
+
+  .settings-page .tab-icon {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+/* ==========================================================================
+   Schedule Management v3 Styles
+   ========================================================================== */
+
+.schedule-summary-card .summary-grid {
+  display: flex;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.schedule-summary-card .summary-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-3);
+  background: var(--surface-muted-translucent);
+  border-radius: var(--radius-md);
+  min-width: 80px;
+}
+
+.schedule-summary-card .stat-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--brand-700);
+}
+
+.schedule-summary-card .stat-label {
+  font-size: 0.85rem;
+  color: var(--secondary-text-color);
+}
+
+.schedule-summary-card .summary-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.device-schedule-card .filter-toolbar {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  align-items: center;
+}
+
+.device-schedule-card .filter-toolbar label {
+  color: var(--secondary-text-color);
+  font-size: 0.9rem;
+}
+
+.schedules-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.schedules-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--space-3);
+}
+
+.schedule-card {
+  background: var(--color-surface);
+  border: var(--settings-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  transition: box-shadow 0.2s ease;
+}
+
+.schedule-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.schedule-card.status-disabled {
+  opacity: 0.65;
+  background: var(--bg-2);
+}
+
+.schedule-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.schedule-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius-md);
+  background: var(--brand-100);
+  color: var(--brand-700);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+}
+
+.schedule-info {
+  flex: 1;
+}
+
+.schedule-name {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--primary-text-color);
+}
+
+.schedule-device {
+  font-size: 0.85rem;
+  color: var(--secondary-text-color);
+  text-transform: capitalize;
+}
+
+.schedule-status {
+  font-size: 0.75rem;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-weight: 500;
+}
+
+.schedule-details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: 0.9rem;
+  color: var(--secondary-text-color);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--border-200);
+  border-bottom: 1px solid var(--border-200);
+  margin: var(--space-2) 0;
+}
+
+.schedule-details > div {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.schedule-details i {
+  width: 16px;
+  text-align: center;
+  color: var(--brand-600);
+}
+
+.schedule-actions {
+  display: flex;
+  gap: var(--space-1);
+  justify-content: flex-end;
+}
+
+/* Days of Week */
+.days-of-week-group {
+  width: 100%;
+}
+
+.days-checkboxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.day-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  background: var(--surface-muted-translucent);
+  border: 1px solid var(--border-200);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.15s ease;
+}
+
+.day-checkbox:hover {
+  border-color: var(--brand-400);
+}
+
+.day-checkbox:has(input:checked) {
+  background: var(--brand-100);
+  border-color: var(--brand-600);
+  color: var(--brand-700);
+}
+
+.day-checkbox input {
+  accent-color: var(--brand-600);
+}
+
+/* Modal Overlays */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+}
+
+.modal-overlay.hidden {
+  display: none;
+}
+
+.modal-overlay.active {
+  display: flex;
+}
+
+.modal-container {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border-200);
+  background: var(--bg-2);
+}
+
+.modal-header h3 {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 1.15rem;
+}
+
+.modal-body {
+  padding: var(--space-4);
+  overflow-y: auto;
+  flex: 1;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--border-200);
+  background: var(--bg-2);
+}
+
+/* Schedule Form Modal */
+.schedule-form .form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-3);
+}
+
+.schedule-form .photoperiod-settings {
+  background: var(--bg-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-200);
+}
+
+.schedule-form .photoperiod-settings.hidden {
+  display: none;
+}
+
+/* Preview, Conflicts, History Modals */
+.preview-events,
+.conflicts-list,
+.history-list,
+.execution-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.preview-event,
+.history-entry,
+.execution-entry {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--border-200);
+}
+
+.preview-event:last-child,
+.history-entry:last-child,
+.execution-entry:last-child {
+  border-bottom: none;
+}
+
+.preview-event i,
+.history-entry i,
+.execution-entry i {
+  font-size: 1.1rem;
+}
+
+.event-details,
+.entry-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.event-device,
+.entry-source,
+.entry-action {
+  font-size: 0.85rem;
+  color: var(--secondary-text-color);
+}
+
+.event-time,
+.entry-time {
+  font-size: 0.85rem;
+  color: var(--secondary-text-color);
+  white-space: nowrap;
+}
+
+.event-type {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--bg-2);
+  text-transform: capitalize;
+}
+
+.entry-retries,
+.entry-timing {
+  font-size: 0.8rem;
+  color: var(--secondary-text-color);
+}
+
+.entry-error {
+  font-size: 0.8rem;
+  color: var(--danger-600);
+}
+
+.conflict-item {
+  padding: var(--space-3);
+  border: 1px solid var(--warning-300);
+  border-radius: var(--radius-md);
+  background: var(--warning-50);
+  margin-bottom: var(--space-2);
+}
+
+.conflict-schedules {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+}
+
+.conflict-schedules .vs {
+  color: var(--secondary-text-color);
+  font-style: italic;
+}
+
+.conflict-details {
+  font-size: 0.9rem;
+  color: var(--secondary-text-color);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.conflicts-warning {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--warning-100);
+  color: var(--warning-700);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-3);
+}
+
+.loading,
+.success-state,
+.empty-state,
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+  color: var(--secondary-text-color);
+  text-align: center;
+}
+
+.success-state i,
+.empty-state i {
+  font-size: 2.5rem;
+  margin-bottom: var(--space-3);
+}
+
+.success-state i {
+  color: var(--success-600);
+}
+
+.error-state {
+  color: var(--danger-600);
+}
+
+/* Templates Grid */
+.templates-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-3);
+}
+
+.template-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--surface-muted-translucent);
+  border: 1px solid var(--border-200);
+  border-radius: var(--radius-md);
+  transition: border-color 0.15s;
+}
+
+.template-item:hover {
+  border-color: var(--brand-400);
+}
+
+.template-checkbox {
+  display: flex;
+  align-items: center;
+  padding-top: 2px;
+}
+
+.template-checkbox input {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--brand-600);
+}
+
+.template-info {
+  flex: 1;
+}
+
+.template-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 600;
+  margin-bottom: var(--space-1);
+}
+
+.template-header i {
+  color: var(--brand-600);
+}
+
+.template-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  font-size: 0.9rem;
+  color: var(--secondary-text-color);
+}
+
+.template-details i {
+  color: var(--brand-500);
+}
+
+.template-meta {
+  display: flex;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+
+.templates-description {
+  color: var(--secondary-text-color);
+  font-size: 0.9rem;
+  margin-bottom: var(--space-3);
+}
+
+/* Plant Info Banner */
+.plant-info-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--success-100);
+  border: 1px solid var(--success-200);
+  border-radius: var(--radius-md);
+  color: var(--success-700);
+}
+
+.plant-info-banner i {
+  color: var(--success-600);
+}
+
+/* Button Group / Dropdown */
+.btn-group {
+  position: relative;
+  display: inline-flex;
+}
+
+.btn-group .dropdown-toggle-split {
+  padding-left: 6px;
+  padding-right: 6px;
+  border-left: 1px solid rgba(255,255,255,0.3);
+}
+
+.btn-group .dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 1000;
+  min-width: 160px;
+  background: var(--color-surface);
+  border: 1px solid var(--border-200);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-1) 0;
+  display: none;
+}
+
+.btn-group .dropdown-menu.show {
+  display: block;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  color: var(--primary-text-color);
+  cursor: pointer;
+  transition: background 0.15s;
+  text-decoration: none;
+}
+
+.dropdown-item:hover {
+  background: var(--surface-muted-translucent);
+}
+
+.dropdown-item i {
+  width: 1rem;
+  text-align: center;
+  color: var(--secondary-text-color);
+}
+
+/* Settings Modal Overlay */
+.settings-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  overflow-y: auto;
+}
+
+.settings-modal.hidden {
+  display: none;
+}
+
+.settings-modal.active {
+  display: flex;
+}
+
+.settings-modal .modal-content {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  width: 100%;
+  max-width: 600px;
+  max-height: calc(100vh - 2rem);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  margin: auto;
+}
+
+.settings-modal .modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border-200);
+  background: var(--bg-2);
+  flex-shrink: 0;
+}
+
+.settings-modal .modal-header h3 {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 1.15rem;
+}
+
+.settings-modal .modal-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: var(--secondary-text-color);
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  transition: color 0.15s;
+}
+
+.settings-modal .modal-close:hover {
+  color: var(--primary-text-color);
+}
+
+.settings-modal .settings-form {
+  padding: var(--space-4);
+  overflow-y: auto;
+  flex: 1;
+}
+
+.settings-modal .form-actions {
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--border-200);
+  background: var(--bg-2);
+  flex-shrink: 0;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .schedules-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .schedule-summary-card .summary-grid {
+    justify-content: center;
+  }
+  
+  .schedule-form .form-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .modal-container {
+    max-height: 100vh;
+    border-radius: 0;
+  }
+  
+  .settings-modal .modal-content {
+    max-height: 100vh;
+    border-radius: 0;
+    margin: 0;
+  }
+  
+  .settings-modal {
+    padding: 0;
+  }
+}
+
+/* ==========================================================================
+   Security Settings - Recovery Codes
+   ========================================================================== */
+
+.recovery-codes-count {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.recovery-codes-count .count-label {
+  color: var(--secondary-text-color);
+  font-size: 0.95rem;
+}
+
+.recovery-codes-count .count-value {
+  font-size: 1.1rem;
+  font-weight: 600;
+  min-width: 2rem;
+  text-align: center;
+}
+
+.recovery-codes-count .count-total {
+  color: var(--secondary-text-color);
+  font-size: 0.9rem;
+}
+
+.recovery-codes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--bg-2);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-200);
+}
+
+.recovery-code-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-100);
+}
+
+.recovery-code-item .code-number {
+  color: var(--secondary-text-color);
+  font-size: 0.85rem;
+  font-weight: 500;
+  min-width: 1.5rem;
+}
+
+.recovery-code-item .code-value {
+  font-family: var(--font-mono, 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--primary-text-color);
+  letter-spacing: 0.05em;
+  background: transparent;
+  padding: 0;
+}
+
+#generated-codes-container.hidden {
+  display: none;
+}
+
+/* Security card description */
+#recovery-codes-card .card-description,
+#change-password-card .card-description {
+  color: var(--secondary-text-color);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 600px) {
+  .recovery-codes-grid {
+    grid-template-columns: 1fr;
+  }
+}

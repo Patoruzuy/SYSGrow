@@ -1,0 +1,156 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sysgrow-smart-agriculture"
+version = "3.0.0"
+description = "SYSGrow Smart Agriculture IoT System"
+readme = "README.md"
+requires-python = ">=3.8,<4"
+license = { text = "MIT" }
+authors = [ { name = "Sebastian Gomez", email = "patoruzuy@tutanota.com" } ]
+keywords = ["raspberry", "RPi", "iot", "agriculture", "smart-farming", "plants", "esp32", "sensors", "automation", "machine-learning"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+  "Topic :: Scientific/Engineering :: Agriculture",
+  "Topic :: Home Automation",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+]
+
+# Dependencies: populated from requirements.txt (platform-specific markers removed)
+dependencies = [
+  "Flask>=2.3.0,<3.0.0",
+  "Flask-SocketIO>=5.3.0,<6.0.0",
+  "Werkzeug>=2.3.0,<3.0.0",
+  "paho-mqtt>=2.1.0",
+  "requests>=2.31.0,<3.0.0",
+  "pymodbus>=3.1.0,<4.0.0",
+  "pydantic>=2.0.0,<3.0.0",
+  "pycryptodome>=3.18.0,<4.0.0",
+  "cryptography>=41.0.0,<42.0.0",
+  "numpy>=1.24.0,<2.0.0",
+  "pandas>=2.0.0,<3.0.0",
+  "scikit-learn>=1.3.0,<2.0.0",
+  "joblib>=1.3.0,<2.0.0",
+  "schedule>=1.2.0,<2.0.0",
+  "APScheduler>=3.10.0,<4.0.0",
+  "Pillow>=10.0.0,<11.0.0",
+  "opencv-python>=4.8.0,<5.0.0",
+  "opencv-contrib-python>=4.8.0,<5.0.0",
+  "matplotlib>=3.7.0,<4.0.0",
+  "seaborn>=0.12.0,<1.0.0",
+  "plotly>=5.15.0,<6.0.0",
+  "python-dateutil>=2.8.0,<3.0.0",
+  "pytz>=2023.3",
+  "click>=8.1.0,<9.0.0",
+  "python-dotenv>=1.0.0,<2.0.0",
+  "psutil>=7.1.3",
+  "structlog>=23.1.0,<24.0.0",
+  "colorlog>=6.7.0,<7.0.0",
+  "beautifulsoup4>=4.12.0,<5.0.0",
+  "asyncio-mqtt>=0.16.0,<1.0.0",
+  "aiohttp>=3.8.0,<4.0.0",
+  "aiofiles>=23.2.0,<24.0.0",
+  "pyserial>=3.5,<4.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=7.4.0",
+  "pytest-flask>=1.2.0",
+  "pytest-cov>=4.1.0",
+  "black>=23.7.0",
+  "flake8>=6.0.0",
+  "mypy>=1.5.0",
+  "isort>=5.12.0",
+]
+parsing = [
+  "lxml>=4.9.0,<5.0.0",
+]
+hardware = [
+  "RPi.GPIO>=0.7.1",
+  "gpiozero>=1.6.0",
+  "adafruit-circuitpython-ads1x15>=2.2.21",
+]
+ai = [
+  "tensorflow>=2.13.0",
+  "torch>=2.0.0",
+  "torchvision>=0.15.0",
+]
+complete = [
+  "tensorflow>=2.13.0",
+  "torch>=2.0.0",
+  "RPi.GPIO>=0.7.1",
+  "adafruit-circuitpython-ads1x15>=2.2.21",
+]
+
+windows = [
+  "pywin32>=306; platform_system=='Windows'",
+]
+
+linux = [
+  "python-systemd>=234; platform_system=='Linux'",
+]
+
+zigbee = [
+  "zigpy>=0.57.0,<1.0.0; platform_system!='Windows'",
+  "zigpy-znp>=0.11.0,<1.0.0; platform_system!='Windows'",
+  "zigpy-deconz>=0.21.0,<1.0.0; platform_system!='Windows'",
+  "bellows>=0.36.0,<1.0.0; platform_system!='Windows'",
+  "zigpy-xbee>=0.20.0,<1.0.0; platform_system!='Windows'",
+  "zigpy-zigate>=0.11.0,<1.0.0; platform_system!='Windows'",
+]
+
+raspberry = [
+  "RPi.GPIO>=0.7.1,<1.0.0; platform_machine=='armv7l' or platform_machine=='aarch64'",
+  "gpiozero>=1.6.0,<2.0.0; platform_machine=='armv7l' or platform_machine=='aarch64'",
+]
+
+adafruit = [
+  "adafruit-circuitpython-ads1x15>=2.2.21,<3.0.0; platform_system!='Windows'",
+  "adafruit-blinka>=8.20.0,<9.0.0; platform_system!='Windows'",
+]
+
+[project.scripts]
+sysgrow-backend = "smart_agriculture_app:main"
+sysgrow-scheduler = "app.workers.scheduler_cli:main"
+sysgrow-ml-trainer = "ai.enhanced_ml_trainer:main"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+exclude = ["tests", "docs"]
+
+[tool.setuptools.package-data]
+"*" = [
+  "*.json",
+  "*.yaml",
+  "*.yml",
+  "*.md",
+  "*.txt",
+  "templates/*.html",
+  "static/css/*.css",
+  "static/css/components/*.css",
+  "static/css/sensor-analytics/*.css",
+  "static/js/*.js",
+  "static/js/components/*.js",
+  "static/js/dashboard/*.js",
+  "static/js/devices/*.js",
+  "static/js/plants/*.js",
+  "static/js/sensor-analytics/*.js",
+  "static/js/settings/*.js",
+  "static/js/utils/*.js",
+  "static/images/*",
+  "config/*.json",
+  "config/*.yaml",
+]

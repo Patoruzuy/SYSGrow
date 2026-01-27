@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+<<<<<<< HEAD
+
+{% block content %}
+<div class="page-shell">
+    {{ ui.page_header(
+        title="Set Stage Durations",
+        icon="calendar-alt",
+        subtitle="Configure growth stage timelines for your plants"
+    ) }}
+
+    {% call ui.content_card(title="Configure Duration", icon="clock") %}
+        <form method="post" action="{{ url_for('set_stage_durations') }}" class="modern-form">
+            <div class="form-row">
+                <div class="col-md-12 mb-3">
+                    {{ ui.select_field(
+                        label="Plant Name",
+                        id="plant_name",
+                        name="plant_name",
+                        required=true,
+                        options=plants|map(attribute='name')|zip(plants|map(attribute='name'))|list if plants and not plants[0] is sequence else plants|map(attribute=1)|zip(plants|map(attribute=1))|list
+                    ) }}
+                </div>
+                <div class="col-md-6 mb-3">
+                    {{ ui.form_field('seed_days', 'Days in Seed Stage', type='number', min=1, required=true) }}
+                </div>
+                <div class="col-md-6 mb-3">
+                    {{ ui.form_field('grow_days', 'Days in Grow Stage', type='number', min=1, required=true) }}
+                </div>
+            </div>
+            <div class="form-actions d-flex justify-content-end">
+                <button type="submit" class="btn btn-primary">Save Durations</button>
+            </div>
+        </form>
+    {% endcall %}
+
+    <label for="grow_days">Days in Grow Stage:</label>
+    
+        <h1>Plant List</h1>
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <ul>
+            {% for message in messages %}
+                <li>{{ message }}</li>
+            {% endfor %}
+            </ul>
+        {% endif %}
+    {% endwith %}
+    <form action="/remove-plant" method="post">
+        <label for="plant_name">Plant Name:</label>
+        <select id="plant_name" name="plant_name" required>
+            {% for plant in plants %}
+            <option value="{{ plant.name }}">{{ plant.name }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit">Remove</button>
+    </form>
+{% endblock %}
+=======
+{% import "macros.html" as ui %}
+
+{% block body_class %}units-page{% endblock %}
+
+{% block content %}
+<div class="page-shell">
+    {{ ui.page_header(
+        title="Set Stage Durations",
+        icon="calendar-alt",
+        subtitle="Configure growth stage timelines for your plants"
+    ) }}
+
+    {% call ui.content_card(title="Configure Duration", icon="clock") %}
+        <form method="post" action="{{ url_for('set_stage_durations') }}" class="modern-form">
+            <div class="form-row">
+                <div class="col-md-12 mb-3">
+                    {{ ui.select_field(
+                        label="Plant Name",
+                        id="plant_name",
+                        name="plant_name",
+                        required=true,
+                        options=plants|map(attribute='name')|zip(plants|map(attribute='name'))|list if plants and not plants[0] is sequence else plants|map(attribute=1)|zip(plants|map(attribute=1))|list
+                    ) }}
+                </div>
+                <div class="col-md-6 mb-3">
+                    {{ ui.form_field('seed_days', 'Days in Seed Stage', type='number', min=1, required=true) }}
+                </div>
+                <div class="col-md-6 mb-3">
+                    {{ ui.form_field('grow_days', 'Days in Grow Stage', type='number', min=1, required=true) }}
+                </div>
+            </div>
+            <div class="form-actions d-flex justify-content-end">
+                <button type="submit" class="btn btn-primary">Save Durations</button>
+            </div>
+        </form>
+    {% endcall %}
+
+    {% call ui.content_card(title="Remove Plant", icon="trash", variant="danger") %}
+        <form action="/remove-plant" method="post" class="modern-form">
+            <div class="form-row">
+                <div class="col-md-12 mb-3">
+                    {{ ui.select_field(
+                        label="Plant Name",
+                        id="remove_plant_name",
+                        name="plant_name",
+                        required=true,
+                        options=plants|map(attribute='name')|zip(plants|map(attribute='name'))|list if plants and not plants[0] is sequence else plants|map(attribute=1)|zip(plants|map(attribute=1))|list
+                    ) }}
+                </div>
+            </div>
+            <div class="form-actions d-flex justify-content-end">
+                <button type="submit" class="btn btn-danger">Remove</button>
+            </div>
+        </form>
+    {% endcall %}
+</div>
+{% endblock %}
+>>>>>>> update

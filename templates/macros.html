@@ -1,0 +1,289 @@
+{#
+  templates/macros.html
+
+  Shared form macros for consistent, accessible markup.
+
+  Common parameters:
+  - field_id:        id attribute for the control (also used by <label for=>)
+  - label_text:      visible label text
+  - name_attr:       optional control name if different from field_id
+  - class_name:      class for input/select element (e.g., 'form-input', 'form-select')
+  - wrapper_class:   class for the outer container (e.g., 'form-field', 'form-group')
+  - help_text:       optional helper text rendered under the control
+  - help_class:      class applied to helper text (e.g., 'field-hint')
+  - label_prefix_html: raw HTML injected before the label text (useful for inline SVG icons)
+  - input_container_class: wraps the control and suffix as a single inline-flex row
+  - suffix_html:     raw HTML appended after the input/select (e.g., scan/toggle buttons)
+  - wrapper_attrs:   raw HTML attributes added to the wrapper (e.g., data-connection="wifi")
+  - min/max/step/readonly/placeholder/maxlength/autocomplete: standard attributes
+  - size/multiple (select only): standard attributes
+
+  Notes:
+  - Prefer passing small SVGs via label_prefix_html to avoid extra markup.
+  - Use input_container_class + suffix_html for composite controls like password toggles or scan buttons.
+  - Use wrapper_attrs when a parent needs data-* attributes for conditional logic (JS visibility).
+  - All content is auto-escaped by default. Only pass trusted HTML into *_html params.
+#}
+{% macro form_field(field_id, label_text, value='', type='text', help_text='', errors=[], required=False, placeholder='', min=None, max=None, step=None, readonly=False, class_name='form-control', name_attr=None, wrapper_class='form-group', label_prefix_html='', help_class='field-hint', input_container_class=None, suffix_html='', maxlength=None, autocomplete=None, wrapper_attrs='') %}
+  <div class="{{ wrapper_class }} mb-4" {% if wrapper_attrs %}{{ wrapper_attrs|safe }}{% endif %}>
+    {% if label_text %}
+    <label for="{{ field_id }}" class="form-label">
+      {% if label_prefix_html %}{{ label_prefix_html | safe }}{% endif %}
+      {{ label_text }}
+      {% if required %}<span class="required" title="Required">*</span>{% endif %}
+    </label>
+    {% endif %}
+    
+    {% if input_container_class %}<div class="{{ input_container_class }}">{% endif %}
+      <input
+        id="{{ field_id }}"
+        name="{{ name_attr or field_id }}"
+        type="{{ type }}"
+        {% if value is not none %}value="{{ value }}"{% endif %}
+        class="{{ class_name }}{% if errors %} is-invalid{% endif %}"
+        aria-describedby="{% if help_text %}{{ field_id }}-help{% endif %}"
+        {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
+        {% if required %}required{% endif %}
+        {% if min is not none %}min="{{ min }}"{% endif %}
+        {% if max is not none %}max="{{ max }}"{% endif %}
+        {% if step is not none %}step="{{ step }}"{% endif %}
+        {% if readonly %}readonly{% endif %}
+        {% if maxlength is not none %}maxlength="{{ maxlength }}"{% endif %}
+        {% if autocomplete is not none %}autocomplete="{{ autocomplete }}"{% endif %}
+        {{ kwargs|xmlattr }}
+      >
+      {% if suffix_html %}{{ suffix_html | safe }}{% endif %}
+    {% if input_container_class %}</div>{% endif %}
+
+    {% if help_text %}
+      <small id="{{ field_id }}-help" class="{{ help_class }}">{{ help_text }}</small>
+    {% endif %}
+
+    {% if errors %}
+      {% for err in errors %}
+        <div class="invalid-feedback" role="alert">{{ err }}</div>
+      {% endfor %}
+    {% endif %}
+  </div>
+{% endmacro %}
+
+{% macro select_field(field_id=none, label_text=none, options=[], selected='', help_text='', errors=[], required=False, placeholder='', class_name='form-select', name_attr=None, wrapper_class='form-group', label_prefix_html='', help_class='field-hint', input_container_class=None, suffix_html='', size=None, multiple=False, wrapper_attrs='', id=none, value=none, label=none) %}
+  {% set final_id = id or field_id %}
+  {% set final_label = label or label_text %}
+  {% set final_selected = value or selected %}
+  <div class="{{ wrapper_class }} mb-4" {% if wrapper_attrs %}{{ wrapper_attrs|safe }}{% endif %}>
+    {% if final_label %}
+    <label for="{{ final_id }}" class="form-label">
+      {% if label_prefix_html %}{{ label_prefix_html | safe }}{% endif %}
+      {{ final_label }}
+      {% if required %}<span class="required" title="Required">*</span>{% endif %}
+    </label>
+    {% endif %}
+
+    {% if input_container_class %}<div class="{{ input_container_class }}">{% endif %}
+      <select
+        id="{{ final_id }}"
+        name="{{ name_attr or final_id }}"
+        class="{{ class_name }}{% if errors %} is-invalid{% endif %}"
+        aria-describedby="{% if help_text %}{{ final_id }}-help{% endif %}"
+        {% if required %}required{% endif %}
+        {% if size is not none %}size="{{ size }}"{% endif %}
+        {% if multiple %}multiple{% endif %}
+        {{ kwargs|xmlattr }}
+      >
+        {% if placeholder %}
+          <option value="" disabled {% if not final_selected %}selected{% endif %}>{{ placeholder }}</option>
+        {% endif %}
+        
+        {% if options %}
+          {% for opt in options %}
+            {% if opt is string %}
+              <option value="{{ opt }}" {% if opt == final_selected %}selected{% endif %}>{{ opt }}</option>
+            {% else %}
+              <option value="{{ opt[0] }}" {% if opt[0] == final_selected %}selected{% endif %}>{{ opt[1] }}</option>
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+
+        {% if caller %}
+          {{ caller() }}
+        {% endif %}
+      </select>
+      {% if suffix_html %}{{ suffix_html | safe }}{% endif %}
+    {% if input_container_class %}</div>{% endif %}
+
+    {% if help_text %}
+      <small id="{{ final_id }}-help" class="{{ help_class }}">{{ help_text }}</small>
+    {% endif %}
+
+    {% if errors %}
+      {% for err in errors %}
+        <div class="invalid-feedback" role="alert">{{ err }}</div>
+      {% endfor %}
+    {% endif %}
+  </div>
+{% endmacro %}
+
+{% macro checkbox_field(field_id, label_text, checked=False, help_text='', name_attr=None, wrapper_class='form-group', help_class='field-hint', label_prefix_html='') %}
+  <div class="{{ wrapper_class }} checkbox-field mb-4">
+    <div class="checkbox-wrapper">
+      <input
+        id="{{ field_id }}"
+        name="{{ name_attr or field_id }}"
+        type="checkbox"
+        class="form-checkbox"
+        {% if checked %}checked{% endif %}
+        {{ kwargs|xmlattr }}
+      >
+      <label for="{{ field_id }}" class="form-label mb-0">
+        {% if label_prefix_html %}{{ label_prefix_html | safe }}{% endif %}
+        {{ label_text }}
+      </label>
+    </div>
+    {% if help_text %}
+      <small id="{{ field_id }}-help" class="{{ help_class }} d-block mt-1">{{ help_text }}</small>
+    {% endif %}
+  </div>
+{% endmacro %}
+
+{# Generic UI Button macro #}
+{% macro ui_button(text, href=none, type='button', variant='primary', size='md', icon=none, id=none, class='', attrs='', px=none) %}
+  {% set padding_class = 'px-' ~ px if px else '' %}
+  {% set base_class = 'btn btn-' ~ variant ~ ( ' btn-' ~ size if size != 'md' else '' ) ~ ( ' ' ~ padding_class if padding_class else '' ) ~ ( ' ' ~ class if class else '' ) %}
+  {% if href %}
+    <a href="{{ href }}" class="{{ base_class }}" {% if id %}id="{{ id }}"{% endif %} {{ attrs | safe }}>
+      {% if icon %}<i class="{{ icon }}" aria-hidden="true"></i>{% endif %}
+      <span>{{ text }}</span>
+    </a>
+  {% else %}
+    <button type="{{ type }}" class="{{ base_class }}" {% if id %}id="{{ id }}"{% endif %} {{ attrs | safe }}>
+      {% if icon %}<i class="{{ icon }}" aria-hidden="true"></i>{% endif %}
+      <span>{{ text }}</span>
+    </button>
+  {% endif %}
+{% endmacro %}
+
+{# Dashboard KPI Card macro - tweaked for JS compatibility #}
+{% macro kpi_card(id=none, label=none, value='--', icon=none, trend=none, variant='default', subtext=none, value_id=none, label_id=none, title=none, footer=none, unit=none) %}
+{% set final_label = label or title %}
+<div class="kpi-card kpi-card--{{ variant }}" id="kpi-card-{{ id or 'generic' }}" data-kpi="{{ id or 'generic' }}">
+  <div class="kpi-card__icon">
+    {% if icon %}
+      <i class="{{ icon }}"></i>
+    {% elif id == 'vpd' %}
+      <canvas id="vpd-gauge" width="60" height="60"></canvas>
+    {% endif %}
+  </div>
+  <div class="kpi-card__body">
+    <div class="kpi-value" id="{{ value_id or (id ~ '-value' if id else value_id) }}">{{ value }}{% if unit %}<span class="kpi-unit">{{ unit }}</span>{% endif %}</div>
+    <div class="kpi-label" id="{{ label_id or (id ~ '-text' if id else label_id) }}">{{ final_label }}</div>
+    {% if subtext %}
+      <div class="kpi-subtext">{{ subtext }}</div>
+    {% endif %}
+    {% if footer %}
+      <div class="kpi-footer mt-2">{{ footer | safe }}</div>
+    {% endif %}
+  </div>
+</div>
+{% endmacro %}
+
+{# Generic Content Card #}
+{% macro content_card(title=none, icon=none, subtitle=none, class='', id=none, header_extra=none, variant=none, actions=none) %}
+{% set final_header_extra = header_extra or actions %}
+<div class="card {{ class }} {% if variant %}card--{{ variant }}{% endif %}" {% if id %}id="{{ id }}"{% endif %} {{ kwargs|xmlattr }}>
+  {% if title or icon or final_header_extra or subtitle %}
+  <div class="card-header">
+    <div class="card-header-main">
+      {% if title or icon %}
+      <h3>{% if icon %}<i class="{{ icon }}"></i> {% endif %}{{ title }}</h3>
+      {% endif %}
+      {% if subtitle %}
+      <p class="card-subtitle">{{ subtitle }}</p>
+      {% endif %}
+    </div>
+    {% if final_header_extra %}
+    <div class="card-header-extra">
+      {{ final_header_extra | safe }}
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+  <div class="card-body">
+    {{ caller() }}
+  </div>
+</div>
+{% endmacro %}
+
+{# Sensor Data Tile macro #}
+{% macro sensor_tile(sensor_id, label, icon, unit='', trend=true) %}
+<div class="sensor-card" data-sensor="{{ sensor_id }}">
+  <div class="sensor-card__icon"><i class="{{ icon }}"></i></div>
+  <div class="sensor-card__content">
+    <div class="sensor-value">--{{ unit }}</div>
+    <div class="sensor-label">{{ label }}</div>
+    <div class="sensor-status">--</div>
+  </div>
+  {% if trend %}
+  <div class="sensor-card__trend">
+    <span class="trend-pill neutral"><span class="sensor-trend">→</span></span>
+  </div>
+  {% endif %}
+</div>
+{% endmacro %}
+
+{# Standard Dashboard Section Header macro #}
+{% macro section_header(title, icon, subtitle=none, actions=none) %}
+<div class="dashboard-header card-header">
+  <div class="header-main">
+    <h2 class="section-title">
+      <i class="{{ icon }}"></i>
+      {{ title }}
+    </h2>
+    {% if subtitle %}
+      <p class="section-subtitle">{{ subtitle }}</p>
+    {% endif %}
+  </div>
+  {% if actions %}
+    <div class="header-actions">
+      {{ actions | safe }}
+    </div>
+  {% endif %}
+</div>
+{% endmacro %}
+
+{# Page Level Header (Top of screen) #}
+{% macro page_header(title, icon=none, subtitle=none, actions=none) %}
+<header class="page-header d-flex justify-content-between align-items-center mb-6">
+  <div class="header-content">
+    <h1 class="page-title h3 mb-1">
+      {% if icon %}<i class="{{ icon }} me-2 text-brand-600"></i>{% endif %}
+      {{ title }}
+    </h1>
+    {% if subtitle %}<p class="text-muted mb-0 small">{{ subtitle }}</p>{% endif %}
+  </div>
+  {% if actions %}
+  <div class="header-actions">
+    {{ actions | safe }}
+  </div>
+  {% endif %}
+</header>
+{% endmacro %}
+
+{# Contextual Help Link - Links to relevant help articles #}
+{% macro help_link(category, article_id, text='Need help?', icon='fa-question-circle') %}
+<a href="{{ url_for('ui.help_article', category=category, article_id=article_id) }}"
+   class="help-link"
+   title="View help article">
+  <i class="fas {{ icon }}"></i>
+  <span>{{ text }}</span>
+</a>
+{% endmacro %}
+
+{# Inline Help Tooltip - Small icon that shows help on hover #}
+{% macro help_tooltip(category, article_id, tooltip_text) %}
+<a href="{{ url_for('ui.help_article', category=category, article_id=article_id) }}"
+   class="help-tooltip"
+   title="{{ tooltip_text }}">
+  <i class="fas fa-info-circle"></i>
+</a>
+{% endmacro %}

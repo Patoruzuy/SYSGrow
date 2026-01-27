@@ -1,0 +1,130 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400">
+  <defs>
+    <linearGradient id="bgGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#fff8e1"/>
+      <stop offset="100%" style="stop-color:#ffecb3"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="400" fill="url(#bgGrad2)"/>
+
+  <!-- Healthy Plant -->
+  <g transform="translate(150, 320)">
+    <!-- Pot -->
+    <path d="M -40 0 L -30 60 L 30 60 L 40 0 Z" fill="#8d6e63"/>
+    <ellipse cx="0" cy="0" rx="40" ry="10" fill="#a1887f"/>
+
+    <!-- Healthy stem -->
+    <rect x="-6" y="-120" width="12" height="120" fill="#66bb6a"/>
+
+    <!-- Healthy leaves -->
+    <ellipse cx="-40" cy="-100" rx="35" ry="18" fill="#81c784" transform="rotate(-25 -40 -100)"/>
+    <ellipse cx="40" cy="-110" rx="35" ry="18" fill="#a5d6a7" transform="rotate(25 40 -110)"/>
+    <ellipse cx="-30" cy="-140" rx="30" ry="15" fill="#c8e6c9" transform="rotate(-15 -30 -140)"/>
+    <ellipse cx="30" cy="-150" rx="30" ry="15" fill="#e8f5e9" transform="rotate(15 30 -150)"/>
+    <ellipse cx="0" cy="-170" rx="25" ry="12" fill="#c8e6c9"/>
+
+    <!-- Check mark -->
+    <circle cx="60" cy="-180" r="20" fill="#4caf50"/>
+    <path d="M 50 -180 L 57 -173 L 72 -190" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <text x="0" y="90" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#2e7d32">HEALTHY</text>
+  </g>
+
+  <!-- Nitrogen Deficiency -->
+  <g transform="translate(350, 320)">
+    <!-- Pot -->
+    <path d="M -40 0 L -30 60 L 30 60 L 40 0 Z" fill="#8d6e63"/>
+    <ellipse cx="0" cy="0" rx="40" ry="10" fill="#a1887f"/>
+
+    <!-- Stem -->
+    <rect x="-5" y="-100" width="10" height="100" fill="#9ccc65"/>
+
+    <!-- Yellow/pale leaves (nitrogen deficiency) -->
+    <ellipse cx="-35" cy="-80" rx="30" ry="15" fill="#fff59d" transform="rotate(-25 -35 -80)"/>
+    <ellipse cx="35" cy="-90" rx="30" ry="15" fill="#ffee58" transform="rotate(25 35 -90)"/>
+    <ellipse cx="-25" cy="-110" rx="25" ry="12" fill="#c8e6c9" transform="rotate(-15 -25 -110)"/>
+    <ellipse cx="25" cy="-120" rx="25" ry="12" fill="#a5d6a7" transform="rotate(15 25 -120)"/>
+
+    <!-- Warning icon -->
+    <circle cx="55" cy="-140" r="18" fill="#ff9800"/>
+    <text x="55" y="-133" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#fff">!</text>
+
+    <text x="0" y="90" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#f57c00">NITROGEN</text>
+    <text x="0" y="105" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#f57c00">DEFICIENCY</text>
+  </g>
+
+  <!-- Overwatering -->
+  <g transform="translate(550, 320)">
+    <!-- Pot with water -->
+    <path d="M -40 0 L -30 60 L 30 60 L 40 0 Z" fill="#8d6e63"/>
+    <ellipse cx="0" cy="0" rx="40" ry="10" fill="#a1887f"/>
+    <!-- Water overflow -->
+    <ellipse cx="0" cy="5" rx="35" ry="8" fill="#64b5f6" opacity="0.5"/>
+
+    <!-- Droopy stem -->
+    <path d="M 0 0 Q 15 -50 5 -90" fill="none" stroke="#7cb342" stroke-width="10" stroke-linecap="round"/>
+
+    <!-- Droopy/wilting leaves -->
+    <ellipse cx="-20" cy="-70" rx="28" ry="12" fill="#9ccc65" transform="rotate(30 -20 -70)"/>
+    <ellipse cx="30" cy="-60" rx="28" ry="12" fill="#aed581" transform="rotate(-20 30 -60)"/>
+    <ellipse cx="10" cy="-95" rx="22" ry="10" fill="#c5e1a5" transform="rotate(15 10 -95)"/>
+
+    <!-- Water droplets -->
+    <g fill="#64b5f6">
+      <ellipse cx="-50" cy="30" rx="6" ry="9"/>
+      <ellipse cx="50" cy="25" rx="5" ry="8"/>
+      <ellipse cx="-55" cy="50" rx="4" ry="6"/>
+    </g>
+
+    <!-- Warning icon -->
+    <circle cx="55" cy="-110" r="18" fill="#2196f3"/>
+    <path d="M 55 -120 L 55 -105" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+    <circle cx="55" cy="-98" r="3" fill="#fff"/>
+
+    <text x="0" y="90" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#1976d2">OVER-</text>
+    <text x="0" y="105" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#1976d2">WATERING</text>
+  </g>
+
+  <!-- Pest Damage -->
+  <g transform="translate(720, 320)">
+    <!-- Pot -->
+    <path d="M -35 0 L -25 50 L 25 50 L 35 0 Z" fill="#8d6e63"/>
+    <ellipse cx="0" cy="0" rx="35" ry="8" fill="#a1887f"/>
+
+    <!-- Stem -->
+    <rect x="-5" y="-90" width="10" height="90" fill="#81c784"/>
+
+    <!-- Damaged leaves with holes -->
+    <g>
+      <ellipse cx="-30" cy="-75" rx="25" ry="12" fill="#a5d6a7" transform="rotate(-20 -30 -75)"/>
+      <circle cx="-35" cy="-78" r="5" fill="url(#bgGrad2)"/>
+      <circle cx="-25" cy="-72" r="3" fill="url(#bgGrad2)"/>
+    </g>
+    <g>
+      <ellipse cx="30" cy="-85" rx="25" ry="12" fill="#c8e6c9" transform="rotate(20 30 -85)"/>
+      <circle cx="28" cy="-88" r="4" fill="url(#bgGrad2)"/>
+      <circle cx="35" cy="-82" r="3" fill="url(#bgGrad2)"/>
+    </g>
+    <ellipse cx="0" cy="-105" rx="20" ry="10" fill="#dcedc8"/>
+
+    <!-- Bug icons -->
+    <g fill="#5d4037">
+      <ellipse cx="-15" cy="-70" rx="4" ry="3"/>
+      <ellipse cx="20" cy="-90" rx="3" ry="2"/>
+      <ellipse cx="5" cy="-60" rx="3" ry="2"/>
+    </g>
+
+    <!-- Warning icon -->
+    <circle cx="45" cy="-115" r="16" fill="#f44336"/>
+    <path d="M 38 -122 L 52 -108 M 52 -122 L 38 -108" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+
+    <text x="0" y="80" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#c62828">PEST</text>
+    <text x="0" y="95" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#c62828">DAMAGE</text>
+  </g>
+
+  <!-- Title -->
+  <text x="400" y="40" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" font-weight="bold" fill="#5d4037">Common Plant Problems</text>
+  <text x="400" y="65" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" fill="#8d6e63">Learn to identify and treat common issues</text>
+</svg>

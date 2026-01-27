@@ -1,0 +1,2755 @@
+<<<<<<< HEAD
+<!-- devices.html -->
+
+{% block title %}Devices - SYSGrow{% endblock %}
+{% block body_class %}devices-page{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/devices.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="page-shell" data-selected-unit-id="{{ selected_unit_id or 1 }}">
+<div class="devices-page" aria-labelledby="device-management-heading">
+    
+    {# Using standardized page header #}
+    {{ ui.page_header(
+      title="Device Management",
+      icon="fas fa-cogs",
+      subtitle="Add, remove, and monitor sensors and actuators in your SYSGrow system.",
+      actions='
+        <div class="d-flex align-items-center gap-2">
+          <a href="' ~ url_for('ui.device_health') ~ '" class="btn btn-secondary btn-sm">
+            <i class="fas fa-heartbeat"></i>
+            <span class="d-none d-sm-inline">Device Health</span>
+          </a>
+          <a href="' ~ url_for('ui.system_health') ~ '" class="btn btn-secondary btn-sm">
+            <i class="fas fa-chart-line"></i>
+            <span class="d-none d-sm-inline">System Overview</span>
+          </a>
+        </div>
+      '
+    ) }}
+
+    <!-- Contextual Help Banner -->
+    <div class="help-banner">
+      <i class="fas fa-lightbulb"></i>
+      <div class="help-banner-content">
+        <p class="help-banner-title">New to device management?</p>
+        <p class="help-banner-text">Learn how to add sensors, calibrate readings, and set up schedules.</p>
+      </div>
+      {{ ui.help_link('sensors', 'sensor-calibration', 'Calibration Guide') }}
+    </div>
+
+    <input type="hidden" id="selected-unit-id" value="{{ selected_unit_id or '' }}">
+
+    <!-- Device Health Overview (Quick Stats) -->
+    <section class="metrics-strip mb-4" aria-label="Device health summary">
+        <div class="metric-pill">
+            <i class="fas fa-microchip"></i>
+            <div>
+                <div class="metric-value" id="total-devices">0</div>
+                <div class="metric-label">Total Devices</div>
+            </div>
+        </div>
+        <div class="metric-pill success-pill">
+            <i class="fas fa-check-circle"></i>
+            <div>
+                <div class="metric-value" id="online-devices">0</div>
+                <div class="metric-label">Online</div>
+            </div>
+        </div>
+        <div class="metric-pill warning-pill">
+            <i class="fas fa-exclamation-triangle"></i>
+            <div>
+                <div class="metric-value" id="warning-devices">0</div>
+                <div class="metric-label">Warnings</div>
+            </div>
+        </div>
+        <div class="metric-pill alert-pill">
+            <i class="fas fa-times-circle"></i>
+            <div>
+                <div class="metric-value" id="offline-devices">0</div>
+                <div class="metric-label">Offline</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Device Management Tabs -->
+    <div class="settings-tabs" role="tablist" aria-label="Device management by protocol">
+        <button class="tab-button active" id="gpio-tab" data-tab="gpio" role="tab" aria-selected="true" aria-controls="gpio-panel" tabindex="0">
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+                <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+                <line x1="6" y1="6" x2="6.01" y2="6"></line>
+                <line x1="6" y1="18" x2="6.01" y2="18"></line>
+            </svg>
+            GPIO Devices
+        </button>
+        <button class="tab-button" id="zigbee-tab" data-tab="zigbee" role="tab" aria-selected="false" aria-controls="zigbee-panel" tabindex="-1">
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 11a3 3 0 0 1 6 0"></path>
+                <path d="M5 11a7 7 0 0 1 14 0"></path>
+                <path d="M1 11a11 11 0 0 1 22 0"></path>
+                <circle cx="12" cy="11" r="1"></circle>
+            </svg>
+            Zigbee2MQTT
+        </button>
+        <button class="tab-button" id="wifi-tab" data-tab="wifi" role="tab" aria-selected="false" aria-controls="wifi-panel" tabindex="-1">
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M5 12.55a11 11 0 0 1 14.08 0"></path>
+                <path d="M1.42 9a16 16 0 0 1 21.16 0"></path>
+                <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+                <line x1="12" y1="20" x2="12.01" y2="20"></line>
+            </svg>
+            WiFi/MQTT
+        </button>
+        <button class="tab-button" id="esp32-tab" data-tab="esp32" role="tab" aria-selected="false" aria-controls="esp32-panel" tabindex="-1">
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect>
+                <rect x="9" y="9" width="6" height="6"></rect>
+                <line x1="9" y1="1" x2="9" y2="4"></line>
+                <line x1="15" y1="1" x2="15" y2="4"></line>
+                <line x1="9" y1="20" x2="9" y2="23"></line>
+                <line x1="15" y1="20" x2="15" y2="23"></line>
+            </svg>
+            ESP32-C6
+        </button>
+        <button class="tab-button" id="camera-tab" data-tab="camera" role="tab" aria-selected="false" aria-controls="camera-panel" tabindex="-1">
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                <circle cx="12" cy="13" r="4"></circle>
+            </svg>
+            Camera
+        </button>
+    </div>
+
+    <!-- GPIO Devices Tab Panel (existing content) -->
+    <div id="gpio-panel" class="tab-panel active" role="tabpanel" aria-labelledby="gpio-tab">
+    <!-- Add Devices Section -->
+    <div class="cards-grid">
+        <!-- Add Actuator Card -->
+        {% call ui.content_card(title="Add Actuator", icon="bolt") %}
+            <form id="add-actuator-form">
+                {{ ui.form_field('actuator_name', 'Name (optional)', class_name='form-input', autocomplete='off') }}
+                {{ ui.select_field('actuator_type', 'Type', [
+                    ('Light','Light'),
+                    ('Heater','Heater'),
+                    ('Cooler','Cooler'),
+                    ('Humidifier','Humidifier'),
+                    ('Dehumidifier','Dehumidifier'),
+                    ('Water-Pump','Water Pump'),
+                    ('CO2-Injector','CO2 Injector')
+                ], class_name='form-select') }}
+
+                {% if units %}
+                    {% set unit_choices = [] %}
+                    {% for u in units %}
+                        {% set _ = unit_choices.append((u.get('unit_id'), u.get('name'))) %}
+                    {% endfor %}
+                    {{ ui.select_field('actuator_unit', 'Growth Unit', unit_choices, selected=selected_unit_id, class_name='form-select') }}
+                {% else %}
+                    <input type="hidden" name="actuator_unit" value="{{ selected_unit_id or 1 }}">
+                {% endif %}
+
+                <div class="form-grid">
+                    {{ ui.select_field('actuator_pin', 'GPIO Pin', available_gpio_pins.items(), class_name='form-select') }}
+                    {{ ui.form_field('actuator_ip', 'IP Address', type='text', class_name='form-input', autocomplete='off') }}
+                </div>
+
+                <div class="mt-3">
+                    <button type="submit" class="btn btn-primary w-100">Add Actuator</button>
+                </div>
+            </form>
+        {% endcall %}
+
+        <!-- Add Sensor Card -->
+        {% call ui.content_card(title="Add Sensor", icon="broadcast-tower") %}
+            <form id="add-sensor-form">
+                {{ ui.form_field('sensor_name', 'Name', required=True, class_name='form-input', autocomplete='off') }}
+
+                {% if units %}
+                    {% set sensor_unit_choices = [] %}
+                    {% for u in units %}
+                        {% set _ = sensor_unit_choices.append((u.get('unit_id'), u.get('name'))) %}
+                    {% endfor %}
+                    {{ ui.select_field('sensor_unit', 'Growth Unit', sensor_unit_choices, selected=selected_unit_id, class_name='form-select') }}
+                {% else %}
+                    <input type="hidden" name="sensor_unit" value="{{ selected_unit_id or 1 }}">
+                {% endif %}
+
+                {{ ui.select_field('sensor_type', 'Sensor Type', sensor_type_choices, class_name='form-select') }}
+
+                {{ ui.select_field('sensor_model', 'Model', [], placeholder='Select sensor model', class_name='form-select') }}
+
+                <div id="adc_channel_div">
+                    {{ ui.select_field('adc_channel', 'ADC Channel', ads1115_channels.items(), class_name='form-select') }}
+                </div>
+
+                <div id="gpio_pin_div">
+                    {{ ui.select_field('sensor_pin', 'GPIO Pin', available_gpio_pins.items(), class_name='form-select') }}
+                </div>
+
+                {{ ui.form_field('sensor_ip', 'IP Address', type='text', class_name='form-input', autocomplete='off') }}
+
+                <div class="mt-3">
+                    <button type="submit" class="btn btn-primary w-100">Add Sensor</button>
+                </div>
+            </form>
+        {% endcall %}
+    </div>
+
+    <!-- Available Actuators -->
+    {% if available_actuators %}
+    {% call ui.content_card(title="Available Actuators", icon="list-ul") %}
+        <ul class="available-list">
+            {%- for actuator in available_actuators %}
+            <li>{{ actuator }}</li>
+            {%- endfor %}
+        </ul>
+        
+        <h2>Active Actuators</h2>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>PIN</th>
+                    <th>IP Address</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for data in db_actuators %}
+                <tr>
+                    <td>{{ data.id }}</td>
+                    <td>{{ data.name }}</td>
+                    <td>{{ data.gpio }}</td>
+                    <td>{{ data.ip_address }}</td>
+                    <td><button onclick="removeActuator('{{ data.name }}')">Remove</button>
+                        <button onclick="controlActuator('{{ data.name }}', 'activate')">On</button>
+                        <button onclick="controlActuator('{{ data.name }}', 'deactivate')">Off</button>
+=======
+{% extends "base.html" %}
+{% import "macros.html" as ui %}
+
+{% block title %}Devices - SYSGrow{% endblock %}
+{% block body_class %}devices-page{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/devices.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="page-shell" data-selected-unit-id="{{ selected_unit_id or 1 }}">
+<div class="devices-page" aria-labelledby="device-management-heading">
+    
+    {# Using standardized page header #}
+    {{ ui.page_header(
+      title="Device Management",
+      icon="fas fa-cogs",
+      subtitle="Add, remove, and monitor sensors and actuators in your SYSGrow system.",
+      actions='
+        <div class="d-flex align-items-center gap-2">
+          <a href="' ~ url_for('ui.device_health') ~ '" class="btn btn-secondary btn-sm">
+            <i class="fas fa-heartbeat"></i>
+            <span class="d-none d-sm-inline">Device Health</span>
+          </a>
+          <a href="' ~ url_for('ui.system_health') ~ '" class="btn btn-secondary btn-sm">
+            <i class="fas fa-chart-line"></i>
+            <span class="d-none d-sm-inline">System Overview</span>
+          </a>
+        </div>
+      '
+    ) }}
+
+    <!-- Contextual Help Banner -->
+    <div class="help-banner">
+      <i class="fas fa-lightbulb"></i>
+      <div class="help-banner-content">
+        <p class="help-banner-title">New to device management?</p>
+        <p class="help-banner-text">Learn how to add sensors, calibrate readings, and set up schedules.</p>
+      </div>
+      {{ ui.help_link('sensors', 'sensor-calibration', 'Calibration Guide') }}
+    </div>
+
+    <input type="hidden" id="selected-unit-id" value="{{ selected_unit_id or '' }}">
+
+    <!-- Device Health Overview (Quick Stats) -->
+    <section class="metrics-strip mb-4" aria-label="Device health summary">
+        <div class="metric-pill">
+            <i class="fas fa-microchip"></i>
+            <div>
+                <div class="metric-value" id="total-devices">0</div>
+                <div class="metric-label">Total Devices</div>
+            </div>
+        </div>
+        <div class="metric-pill success-pill">
+            <i class="fas fa-check-circle"></i>
+            <div>
+                <div class="metric-value" id="online-devices">0</div>
+                <div class="metric-label">Online</div>
+            </div>
+        </div>
+        <div class="metric-pill warning-pill">
+            <i class="fas fa-exclamation-triangle"></i>
+            <div>
+                <div class="metric-value" id="warning-devices">0</div>
+                <div class="metric-label">Warnings</div>
+            </div>
+        </div>
+        <div class="metric-pill alert-pill">
+            <i class="fas fa-times-circle"></i>
+            <div>
+                <div class="metric-value" id="offline-devices">0</div>
+                <div class="metric-label">Offline</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Device Management Tabs -->
+    <div class="settings-tabs" role="tablist" aria-label="Device management by protocol">
+        <button class="tab-button active" id="gpio-tab" data-tab="gpio" role="tab" aria-selected="true" aria-controls="gpio-panel" tabindex="0">
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+                <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+                <line x1="6" y1="6" x2="6.01" y2="6"></line>
+                <line x1="6" y1="18" x2="6.01" y2="18"></line>
+            </svg>
+            GPIO Devices
+        </button>
+        <button class="tab-button" id="zigbee-tab" data-tab="zigbee" role="tab" aria-selected="false" aria-controls="zigbee-panel" tabindex="-1">
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 11a3 3 0 0 1 6 0"></path>
+                <path d="M5 11a7 7 0 0 1 14 0"></path>
+                <path d="M1 11a11 11 0 0 1 22 0"></path>
+                <circle cx="12" cy="11" r="1"></circle>
+            </svg>
+            Zigbee2MQTT
+        </button>
+        <button class="tab-button" id="wifi-tab" data-tab="wifi" role="tab" aria-selected="false" aria-controls="wifi-panel" tabindex="-1">
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M5 12.55a11 11 0 0 1 14.08 0"></path>
+                <path d="M1.42 9a16 16 0 0 1 21.16 0"></path>
+                <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+                <line x1="12" y1="20" x2="12.01" y2="20"></line>
+            </svg>
+            WiFi/MQTT
+        </button>
+        <button class="tab-button" id="esp32-tab" data-tab="esp32" role="tab" aria-selected="false" aria-controls="esp32-panel" tabindex="-1">
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect>
+                <rect x="9" y="9" width="6" height="6"></rect>
+                <line x1="9" y1="1" x2="9" y2="4"></line>
+                <line x1="15" y1="1" x2="15" y2="4"></line>
+                <line x1="9" y1="20" x2="9" y2="23"></line>
+                <line x1="15" y1="20" x2="15" y2="23"></line>
+            </svg>
+            ESP32-C6
+        </button>
+        <button class="tab-button" id="camera-tab" data-tab="camera" role="tab" aria-selected="false" aria-controls="camera-panel" tabindex="-1">
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                <circle cx="12" cy="13" r="4"></circle>
+            </svg>
+            Camera
+        </button>
+    </div>
+
+    <!-- GPIO Devices Tab Panel (existing content) -->
+    <div id="gpio-panel" class="tab-panel active" role="tabpanel" aria-labelledby="gpio-tab">
+    <!-- Add Devices Section -->
+    <div class="cards-grid">
+        <!-- Add Actuator Card -->
+        {% call ui.content_card(title="Add Actuator", icon="bolt") %}
+            <form id="add-actuator-form">
+                {{ ui.form_field('actuator_name', 'Name (optional)', class_name='form-input', autocomplete='off') }}
+                {{ ui.select_field('actuator_type', 'Type', [
+                    ('Light','Light'),
+                    ('Heater','Heater'),
+                    ('Cooler','Cooler'),
+                    ('Humidifier','Humidifier'),
+                    ('Dehumidifier','Dehumidifier'),
+                    ('Water-Pump','Water Pump'),
+                    ('CO2-Injector','CO2 Injector')
+                ], class_name='form-select') }}
+
+                {% if units %}
+                    {% set unit_choices = [] %}
+                    {% for u in units %}
+                        {% set _ = unit_choices.append((u.get('unit_id'), u.get('name'))) %}
+                    {% endfor %}
+                    {{ ui.select_field('actuator_unit', 'Growth Unit', unit_choices, selected=selected_unit_id, class_name='form-select') }}
+                {% else %}
+                    <input type="hidden" name="actuator_unit" value="{{ selected_unit_id or 1 }}">
+                {% endif %}
+
+                <div class="form-grid">
+                    {{ ui.select_field('actuator_pin', 'GPIO Pin', available_gpio_pins.items(), class_name='form-select') }}
+                    {{ ui.form_field('actuator_ip', 'IP Address', type='text', class_name='form-input', autocomplete='off') }}
+                </div>
+
+                <div class="mt-3">
+                    <button type="submit" class="btn btn-primary w-100">Add Actuator</button>
+                </div>
+            </form>
+        {% endcall %}
+
+        <!-- Add Sensor Card -->
+        {% call ui.content_card(title="Add Sensor", icon="broadcast-tower") %}
+            <form id="add-sensor-form">
+                {{ ui.form_field('sensor_name', 'Name', required=True, class_name='form-input', autocomplete='off') }}
+
+                {% if units %}
+                    {% set sensor_unit_choices = [] %}
+                    {% for u in units %}
+                        {% set _ = sensor_unit_choices.append((u.get('unit_id'), u.get('name'))) %}
+                    {% endfor %}
+                    {{ ui.select_field('sensor_unit', 'Growth Unit', sensor_unit_choices, selected=selected_unit_id, class_name='form-select') }}
+                {% else %}
+                    <input type="hidden" name="sensor_unit" value="{{ selected_unit_id or 1 }}">
+                {% endif %}
+
+                {{ ui.select_field('sensor_type', 'Sensor Type', sensor_type_choices, class_name='form-select') }}
+
+                {{ ui.select_field('sensor_model', 'Model', [], placeholder='Select sensor model', class_name='form-select') }}
+
+                <div id="adc_channel_div">
+                    {{ ui.select_field('adc_channel', 'ADC Channel', ads1115_channels.items(), class_name='form-select') }}
+                </div>
+
+                <div id="gpio_pin_div">
+                    {{ ui.select_field('sensor_pin', 'GPIO Pin', available_gpio_pins.items(), class_name='form-select') }}
+                </div>
+
+                {{ ui.form_field('sensor_ip', 'IP Address', type='text', class_name='form-input', autocomplete='off') }}
+
+                <div class="mt-3">
+                    <button type="submit" class="btn btn-primary w-100">Add Sensor</button>
+                </div>
+            </form>
+        {% endcall %}
+    </div>
+
+    <!-- Available Actuators -->
+    {% if available_actuators %}
+    {% call ui.content_card(title="Available Actuators", icon="list-ul") %}
+        <ul class="available-list">
+            {%- for actuator in available_actuators %}
+            <li>{{ actuator }}</li>
+            {%- endfor %}
+        </ul>
+    {% endcall %}
+    {% endif %}
+
+    <!-- Active Actuators Table -->
+    {% call ui.content_card(title="Active Actuators", icon="bolt") %}
+        {% if db_actuators %}
+        <div class="table-responsive">
+            <table class="devices-table">
+                <thead>
+                    <tr>
+                        <th scope="col">ID</th>
+                        <th scope="col">Name</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Health</th>
+                        <th scope="col">PIN</th>
+                        <th scope="col">IP Address</th>
+                        <th scope="col">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for data in db_actuators %}
+                    <tr data-device-id="{{ data.id }}" data-device-type="actuator">
+                        <td>{{ data.id }}</td>
+                        <td>
+                            <div class="device-name-cell">
+                                <span class="device-name">{{ data.name }}</span>
+                                <span class="device-type-badge">{{ data.actuator_type }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="status-badge" id="status-actuator-{{ data.id }}">Unknown</span>
+                        </td>
+                        <td>
+                            <div class="health-indicator-cell">
+                                <div class="health-bar" id="health-actuator-{{ data.id }}">
+                                    <div class="health-fill w-0"></div>
+                                </div>
+                                <span class="health-value">--</span>
+                            </div>
+                        </td>
+                        <td>{{ data.gpio }}</td>
+                        <td>{{ data.ip_address or '-' }}</td>
+                        <td>
+                            <div class="action-buttons">
+                                <button class="btn btn-success btn-sm"
+                                        type="button"
+                                        data-action="control-actuator" data-actuator-type="{{ data.actuator_type }}" data-command="activate">
+                                    On
+                                </button>
+                                <button class="btn btn-danger btn-sm"
+                                        type="button"
+                                        title="Remove actuator"
+                                        data-action="remove-actuator" data-actuator-id="{{ data.id }}">
+                                    Remove
+                                </button>
+                                <a class="btn btn-secondary btn-sm"
+                                   href="{{ url_for('ui.device_state_history') }}?unit_id={{ data.unit_id }}&device_name={{ data.name | urlencode }}">
+                                    State History
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state text-center p-4">
+            <i class="fas fa-plug fa-2x mb-2 text-muted-more"></i>
+            <p>No active actuators configured</p>
+        </div>
+        {% endif %}
+    {% endcall %}
+
+    <!-- Active Sensors Table -->
+    {% call ui.content_card(title="Active Sensors", icon="broadcast-tower") %}
+        {% if db_sensors %}
+        <div class="table-responsive">
+            <table class="devices-table">
+                <thead>
+                    <tr>
+                        <th scope="col">ID</th>
+                        <th scope="col">Name</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Health</th>
+                        <th scope="col">Type</th>
+                    <th scope="col">Model</th>
+                    <th scope="col">PIN</th>
+                    <th scope="col">IP Address</th>
+                    <th scope="col">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for data in db_sensors %}
+                <tr data-device-id="{{ data.sensor_id }}" data-device-type="sensor">
+                    <td>{{ data.sensor_id }}</td>
+                    <td>
+                        <div class="device-name-cell">
+                            <span class="device-name">{{ data.name }}</span>
+                            <span class="device-type-badge sensor">{{ data.sensor_type }}</span>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="status-badge" id="status-sensor-{{ data.sensor_id }}">Unknown</span>
+                    </td>
+                    <td>
+                        <div class="health-indicator-cell">
+                            <div class="health-bar" id="health-sensor-{{ data.sensor_id }}">
+                                <div class="health-fill w-0"></div>
+                            </div>
+                            <span class="health-value">--</span>
+                        </div>
+                    </td>
+                    <td>{{ data.sensor_type }}</td>
+                    <td>{{ data.sensor_model }}</td>
+                    <td>{{ data.gpio }}</td>
+                    <td>{{ data.ip_address or '-' }}</td>
+                    <td>
+                        <button class="btn btn-secondary btn-sm"
+                                type="button"
+                                title="Edit primary metrics"
+                                data-action="edit-primary-metrics" data-sensor-id="{{ data.sensor_id }}">
+                            Edit Primary Metrics
+                        </button>
+                        <button class="btn btn-danger btn-sm"
+                                type="button"
+                                title="Remove sensor"
+                                data-action="remove-sensor" data-sensor-id="{{ data.sensor_id }}">
+                            Remove
+                        </button>
+>>>>>>> update
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+<<<<<<< HEAD
+        <h1>Active Sensors</h1>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Model</th>
+                    <th>PIN</th>
+                    <th>IP Address</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for data in db_sensors %}
+                <tr data-device-id="{{ data.sensor_id }}" data-device-type="sensor">
+                    <td>{{ data.sensor_id }}</td>
+                    <td>
+                        <div class="device-name-cell">
+                            <span class="device-name">{{ data.name }}</span>
+                            <span class="device-type-badge sensor">{{ data.sensor_type }}</span>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="status-badge" id="status-sensor-{{ data.sensor_id }}">Unknown</span>
+                    </td>
+                    <td>
+                        <div class="health-indicator-cell">
+                            <div class="health-bar" id="health-sensor-{{ data.sensor_id }}">
+                                <div class="health-fill w-0"></div>
+                            </div>
+                            <span class="health-value">--</span>
+                        </div>
+                    </td>
+                    <td>{{ data.sensor_type }}</td>
+                    <td>{{ data.sensor_model }}</td>
+                    <td>{{ data.gpio }}</td>
+                    <td>{{ data.ip_address or '-' }}</td>
+                    <td>
+                        <button class="btn btn-secondary btn-sm"
+                                type="button"
+                                title="Edit primary metrics"
+                                data-action="edit-primary-metrics" data-sensor-id="{{ data.sensor_id }}">
+                            Edit Primary Metrics
+                        </button>
+                        <button class="btn btn-danger btn-sm"
+                                type="button"
+                                title="Remove sensor"
+                                data-action="remove-sensor" data-sensor-id="{{ data.sensor_id }}">
+                            Remove
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+        {% else %}
+        <div class="empty-state text-center p-4">
+            <i class="fas fa-satellite-dish fa-2x mb-2 text-muted-more"></i>
+            <p>No active sensors configured</p>
+        </div>
+        {% endif %}
+    {% endcall %}
+    </div>
+    <!-- End GPIO Panel -->
+
+    <!-- Zigbee2MQTT Tab Panel -->
+    <div id="zigbee-panel" class="tab-panel" role="tabpanel" aria-labelledby="zigbee-tab" style="display: none;">
+    
+    <!-- Zigbee2MQTT Device Management Intro -->
+    {% call ui.content_card(title="Zigbee2MQTT Device Management", icon="broadcast-tower") %}
+        <p class="text-muted">
+            Native Zigbee2MQTT devices are commercial Zigbee sensors (soil, temperature, humidity, etc.)
+            that connect to your <strong>zigbee2mqtt</strong> bridge. You can discover them below and add
+            them as grow tent sensors without using an ESP32-C6 board.
+        </p>
+    {% endcall %}
+
+    <!-- Add Generic Device (Zigbee / MQTT) -->
+    {% call ui.content_card(title="Add Generic Device (Zigbee2MQTT)", icon="plus-circle") %}
+        <p class="text-muted mb-4">
+            Add a <strong>native Zigbee2MQTT sensor</strong> (commercial Zigbee devices connected directly
+            to your zigbee2mqtt bridge)
+        </p>
+
+        <!-- Zigbee Coordinator Status -->
+        <div id="zigbee-coordinator-status" class="alert alert-info mb-4 hidden">
+            <i class="coordinator-icon fas fa-broadcast-tower me-2"></i>
+            <span class="coordinator-text">Checking coordinator status...</span>
+        </div>
+
+        <!-- Zigbee Device Discovery Section -->
+        <div class="settings-section mb-4 p-3 bg-light rounded shadow-sm">
+            <h5 class="mb-3"><i class="fas fa-search me-2"></i>Device Discovery</h5>
+            <div class="row align-items-end g-3">
+                <div class="col-md-4">
+                    <button type="button" id="zigbee-discover" class="btn btn-secondary w-100">
+                        <i class="fas fa-sync-alt me-2"></i>Discover Devices
+                    </button>
+                </div>
+                <div class="col-md-4">
+                    <button type="button" id="zigbee-permit-join" class="btn btn-secondary w-100">
+                        <i class="fas fa-plus-circle me-2"></i>Permit Join
+                    </button>
+                </div>
+                <div class="col-md-4" id="zigbee-discover-list">
+                    <!-- Discovered devices will be inserted here -->
+                </div>
+            </div>
+            <div class="mt-2 text-muted x-small">
+                <strong>Discover:</strong> Refresh device list from bridge. <strong>Permit Join:</strong> Enable pairing mode for ~4 minutes to add new devices.
+            </div>
+        </div>
+
+        <!-- Add Device Form -->
+        <form id="add-device-form" class="settings-form mt-4">
+            <h5 class="mb-3 border-bottom pb-2">Device Information</h5>
+            <div class="row g-3">
+                <div class="col-md-4">
+                    {{ ui.form_field('device-name-add', 'Device Name', name_attr='name', required=true, placeholder='e.g., Living Room Sensor') }}
+                </div>
+                <div class="col-md-4">
+                    {{ ui.select_field('zigbee-device-category', 'Device Category', [('sensor', 'Sensor'), ('actuator', 'Actuator/Switch')], name_attr='device_category', required=true) }}
+                </div>
+                <div class="col-md-4">
+                    {% call ui.select_field('device-unit-add', 'Growth Unit', [], name_attr='unit_id') %}
+                        {% if units %}
+                            {% for unit in units %}
+                                <option value="{{ unit.unit_id }}" {% if selected_unit_id == unit.unit_id %}selected{% endif %}>
+                                    {{ unit.name }} (ID: {{ unit.unit_id }})
+                                </option>
+                            {% endfor %}
+                        {% else %}
+                            <option value="">No units available - create one first</option>
+                        {% endif %}
+                    {% endcall %}
+                </div>
+            </div>
+
+            <!-- Sensor-specific fields -->
+            <div id="zigbee-sensor-fields" class="conditional-field mt-3" data-device-category="sensor">
+                <h5 class="mb-3 border-bottom pb-2">Sensor Configuration</h5>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        {{ ui.select_field('device-type-add', 'Sensor Type', sensor_type_choices, name_attr='sensor_type') }}
+                    </div>
+                    <div class="col-md-6">
+                        {{ ui.form_field('device-model-add', 'Model (optional)', name_attr='model', placeholder='e.g., BME280, Aqara') }}
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <label class="form-label">Primary Dashboard Metrics</label>
+                    <div class="text-muted x-small mb-2">
+                        Choose which readings this sensor owns on the dashboard. Metrics can only be claimed once per unit.
+                    </div>
+                    <div id="primary-metrics-options" class="primary-metrics-grid"></div>
+                </div>
+            </div>
+
+            <!-- Actuator-specific fields -->
+            <div id="zigbee-actuator-fields" class="conditional-field mt-3" data-device-category="actuator">
+                <h5 class="mb-3 border-bottom pb-2">Actuator Configuration</h5>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        {{ ui.select_field('zigbee-actuator-type', 'Actuator Type', [
+                            ('Light','Light/Lamp'),
+                            ('Heater','Heater'),
+                            ('Fan','Fan'),
+                            ('Water-Pump','Water Pump'),
+                            ('Humidifier','Humidifier'),
+                            ('Dehumidifier','Dehumidifier'),
+                            ('CO2-Generator','CO2 Generator'),
+                            ('Ventilation','Ventilation'),
+                            ('Smart-Plug','Smart Plug'),
+                            ('Switch','Switch')
+                        ], name_attr='actuator_type') }}
+                    </div>
+                    <div class="col-md-4">
+                        {{ ui.form_field('zigbee-actuator-model', 'Model (optional)', name_attr='model', placeholder='e.g., Sonoff, Aqara') }}
+                    </div>
+                    <div class="col-md-4">
+                        {{ ui.checkbox_field('zigbee-power-monitoring', 'Power Monitoring', name_attr='has_power_monitoring', checked=false) }}
+                    </div>
+                </div>
+            </div>
+
+            <h5 class="mb-3 mt-4 border-bottom pb-2">Zigbee Communication</h5>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    {{ ui.form_field('zigbee-address-add', 'Zigbee Address', name_attr='zigbee_address', required=True, placeholder='0x00158d0001a2b3c4') }}
+                </div>
+                <div class="col-md-6">
+                    {{ ui.form_field('mqtt-topic-add', 'MQTT Topic', name_attr='mqtt_topic', value='zigbee2mqtt', placeholder='zigbee2mqtt') }}
+                </div>
+            </div>
+            
+            <input type="hidden" id="communication-type-add" name="protocol" value="zigbee2mqtt">
+
+            <div class="form-actions mt-4 pt-3 border-top">
+                <button type="reset" class="btn btn-secondary me-2">
+                    <i class="fas fa-undo me-2"></i>Reset
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-plus-circle me-2"></i>Add Device
+                </button>
+            </div>
+        </form>
+    {% endcall %}
+
+    <!-- Zigbee2MQTT Sensors Section -->
+    {% call ui.content_card(title="Zigbee2MQTT Sensors", icon="broadcast-tower") %}
+        <div id="zigbee-sensors-container" class="gap-3">
+            <div class="empty-state zigbee-loading text-center py-4" id="zigbee-loading">
+                <i class="fas fa-spinner fa-spin fa-2x mb-3"></i>
+                <p>Loading Zigbee sensors...</p>
+            </div>
+            <div class="empty-state zigbee-empty hidden text-center py-4" id="zigbee-empty">
+                <i class="fas fa-satellite-dish fa-2x mb-3 text-muted"></i>
+                <p>No Zigbee2MQTT sensors configured</p>
+            </div>
+            <div class="zigbee-list">
+                <!-- Sensor cards will be dynamically inserted here -->
+            </div>
+        </div>
+    {% endcall %}
+
+    <!-- Template for device cards (hidden, cloned by JS) -->
+    <template id="zigbee-sensor-card-template">
+        <div class="zigbee-list">
+        <div class="virtuoso-list-item mb-3">
+            <div class="card bg-base-200 rounded-box shadow-md card-dash border-warning-40">
+                <div class="card-body p-2">
+                    <div class="flex flex-row items-center gap-3 w-full">
+                        <div class="flex-none h-11 w-11 overflow-visible">
+                            <div class="indicator w-full">
+                                <img class="device-image grid place-items-center" alt="Device" src="">
+                            </div>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <div class="device-name link link-hover font-semibold"></div>
+                            <div class="text-xs opacity-50">
+                                <span class="device-model"></span> • <span class="device-manufacturer"></span>
+                            </div>
+                            <div class="text-xs opacity-50" title="Last seen">
+                                <span>Last seen: </span><span class="device-last-seen">N/A</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-sm w-full p-2 max-h-125 overflow-y-auto thin-scrollbar sensor-readings">
+                        <!-- Sensor readings will be dynamically inserted here -->
+                    </div>
+                    <div class="text-sm w-full p-2 border-t calibration-controls">
+                        <h4 class="font-semibold mb-2">Calibration</h4>
+                        <!-- Calibration controls will be dynamically inserted here -->
+                    </div>
+
+                    <div class="text-sm w-full p-2 border-t zigbee-primary-metrics">
+                        <h4 class="font-semibold mb-2">Primary Metrics</h4>
+                        <div class="primary-metrics-chips"></div>
+                    </div>
+
+                    <div class="flex flex-row flex-wrap gap-1 mx-2 mb-2 justify-around items-center">
+                        <span class="badge badge-soft badge-ghost cursor-default tooltip device-linkquality" data-tip="Link Quality">
+                            <i class="fas fa-signal"></i>
+                            <span class="linkquality-value">--</span>
+                        </span>
+                        <span class="badge badge-soft badge-ghost cursor-default tooltip device-battery hidden" data-tip="Battery">
+                            <i class="fas fa-battery-full"></i>
+                            <span class="battery-value">--</span>
+                        </span>
+                        <span class="badge badge-soft badge-ghost cursor-default device-ieee">
+                            <span class="ieee-value">--</span>
+                        </span>
+                    </div>
+
+                    <div class="flex flex-row justify-end gap-2 p-2 border-t">
+                        <button class="btn btn-secondary btn-sm" type="button" data-action="edit-zigbee-sensor">
+                            Edit Sensor
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        </div>
+    </template>
+    <template id="zigbee-sensor-card-template-v2">
+        <div class="zigbee-list">
+        <div class="virtuoso-list-item mb-3">
+            <article
+            class="card bg-base-200 rounded-box border border-warning/40 shadow-md zigbee-card"
+            data-role="zigbee-card"
+            >
+            <div class="card-body p-3">
+
+                <!-- Header -->
+                <header class="flex items-start gap-3">
+                <figure class="flex-none h-11 w-11 rounded-box overflow-hidden bg-base-300">
+                    <img
+                    class="h-full w-full object-contain"
+                    alt=""
+                    loading="lazy"
+                    data-role="device-image"
+                    src=""
+                    >
+                </figure>
+
+                <div class="min-w-0 flex-1">
+                    <a
+                    class="link link-hover font-semibold truncate block"
+                    href="#"
+                    data-role="device-name"
+                    >
+                    Device
+                    </a>
+
+                    <div class="text-xs opacity-60 truncate">
+                    <span data-role="device-model">--</span>
+                    <span aria-hidden="true"> • </span>
+                    <span data-role="device-manufacturer">--</span>
+                    </div>
+
+                    <div class="text-xs opacity-60">
+                    <span>Last seen: </span>
+                    <time data-role="device-last-seen" datetime="">N/A</time>
+                    </div>
+                </div>
+
+                <!-- Status -->
+                <div class="flex-none pt-1">
+                    <span class="zigbee-status-dot" data-role="status-dot" title="Status"></span>
+                </div>
+                </header>
+
+                <!-- Readings -->
+                <section
+                class="mt-3 text-sm max-h-32 overflow-y-auto thin-scrollbar zigbee-readings"
+                aria-label="Sensor readings"
+                data-role="sensor-readings"
+                >
+                <!-- JS inserts rows here -->
+                </section>
+
+                <!-- Calibration (collapsible to reduce visual noise) -->
+                <details class="mt-3 zigbee-calibration" data-role="calibration">
+                <summary class="cursor-pointer font-semibold select-none">
+                    Calibration
+                    <span class="text-xs opacity-60 font-normal">(click to expand)</span>
+                </summary>
+                <div class="pt-2" data-role="calibration-controls">
+                    <!-- JS inserts controls here -->
+                </div>
+                </details>
+
+                <!-- Footer -->
+                <footer class="mt-3 flex flex-wrap gap-2 items-center justify-between">
+                <div class="flex flex-wrap gap-2 items-center">
+                    <span class="badge badge-ghost tooltip" data-tip="Link Quality">
+                    <i class="fas fa-signal" aria-hidden="true"></i>
+                    <span class="ml-1" data-role="linkquality">--</span>
+                    </span>
+
+                    <span class="badge badge-ghost tooltip hidden" data-tip="Battery" data-role="battery-badge">
+                    <i class="fas fa-battery-full" aria-hidden="true"></i>
+                    <span class="ml-1" data-role="battery">--</span>
+                    </span>
+
+                    <span class="badge badge-ghost" data-role="ieee">--</span>
+                </div>
+
+                <div class="flex gap-2">
+                    <a class="btn btn-xs" href="#" data-role="exposes-link">Exposes</a>
+                    <button class="btn btn-outline btn-error btn-square btn-xs" type="button" title="Remove" data-role="remove-btn">
+                    <i class="fas fa-trash" aria-hidden="true"></i>
+                    </button>
+                </div>
+                </footer>
+
+            </div>
+            </article>
+        </div>
+        </div>
+        </template>
+
+    </div>
+    <!-- End Zigbee Panel -->
+
+    <!-- WiFi/MQTT Tab Panel -->
+    <div id="wifi-panel" class="tab-panel" role="tabpanel" aria-labelledby="wifi-tab" style="display: none;">
+        {% call ui.content_card(title="WiFi/MQTT Device Management", icon="wifi") %}
+            <p class="text-muted mb-4">
+                Manage devices that connect directly via WiFi and MQTT protocol (sensors and actuators not using ESP32-C6 or Zigbee2MQTT).
+            </p>
+
+            <!-- MQTT Broker Configuration -->
+            <div class="settings-section mb-4 p-3 bg-light rounded shadow-sm">
+                <h5 class="mb-3"><i class="fas fa-server me-2"></i>MQTT Broker Configuration</h5>
+                
+                <form id="mqtt-broker-form" class="settings-form">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            {{ ui.form_field('mqtt-broker-host', 'Broker Host', name_attr='mqtt_broker_host', placeholder='localhost or 192.168.1.100') }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ ui.form_field('mqtt-broker-port', 'Broker Port', name_attr='mqtt_broker_port', type='number', value='1883', placeholder='1883') }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ ui.form_field('mqtt-topic-prefix', 'Topic Prefix', name_attr='mqtt_topic_prefix', placeholder='growtent') }}
+                        </div>
+                    </div>
+                    
+                    <div class="row g-3 mt-2">
+                        <div class="col-md-6">
+                            {{ ui.form_field('mqtt-broker-username', 'Username (Optional)', name_attr='mqtt_broker_username', placeholder='mqtt_user') }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ ui.form_field('mqtt-broker-password', 'Password (Optional)', name_attr='mqtt_broker_password', type='password', placeholder='••••••••') }}
+                        </div>
+                    </div>
+                    
+                    <div class="form-actions mt-4 pt-3 border-top">
+                        <button type="button" id="test-mqtt-connection" class="btn btn-secondary me-2">
+                            <i class="fas fa-plug me-2"></i>Test Connection
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>Save Configuration
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Device Discovery -->
+            <div class="settings-section mb-4 p-3 bg-light rounded shadow-sm">
+                <h5 class="mb-3"><i class="fas fa-search me-2"></i>Device Discovery</h5>
+                
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                        <label>Discover MQTT Devices</label>
+                        <button type="button" id="discover-mqtt-devices" class="btn btn-primary">
+                            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-6l-2-2H5a2 2 0 0 0-2 2z"></path>
+                            </svg>
+                            Scan for Devices
+                        </button>
+                        <small class="field-hint">Scans MQTT topics for connected devices</small>
+                    </div>
+                    
+                    <div class="form-field">
+                        <label for="mqtt-discovered-devices">Discovered Devices</label>
+                        <select id="mqtt-discovered-devices" class="form-control" size="6" aria-label="Discovered MQTT devices">
+                            <option value="" disabled selected>No devices found - click scan first</option>
+                        </select>
+                        <small class="field-hint">Select device to view details or add to system</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Add MQTT Device -->
+            <div class="settings-section">
+                <h4 class="section-title">
+                    <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    Add WiFi/MQTT Device
+                </h4>
+                
+                <form id="mqtt-device-form" class="settings-form">
+                    <div class="form-grid form-grid-2">
+                        {{ ui.form_field(
+                            'mqtt-device-name',
+                            'Device Name',
+                            name_attr='device_name',
+                            placeholder='Living Room Sensor',
+                            required=true,
+                            help_text='Friendly name for the device',
+                            wrapper_class='form-field'
+                        ) }}
+                        
+                        {{ ui.select_field(
+                            'mqtt-device-type',
+                            'Device Type',
+                            [
+                                ('sensor', 'Sensor'),
+                                ('actuator', 'Actuator')
+                            ],
+                            name_attr='device_type',
+                            required=true,
+                            help_text='Select device category',
+                            wrapper_class='form-field'
+                        ) }}
+                    </div>
+
+                    <!-- Sensor-specific fields -->
+                    <div id="mqtt-sensor-fields" class="conditional-field" data-device-type="sensor">
+                        <h5 class="subsection-title">Sensor Configuration</h5>
+                        <div class="form-grid form-grid-3">
+                            {{ ui.select_field(
+                                'mqtt-sensor-type',
+                                'Sensor Type',
+                                [
+                                    ('temperature', 'Temperature'),
+                                    ('humidity', 'Humidity'),
+                                    ('soil_moisture', 'Soil Moisture'),
+                                    ('light', 'Light (Lux)'),
+                                    ('ph', 'pH Level'),
+                                    ('ec', 'EC (Conductivity)'),
+                                    ('co2', 'CO2'),
+                                    ('water_level', 'Water Level'),
+                                    ('pressure', 'Air Pressure')
+                                ],
+                                name_attr='sensor_type',
+                                help_text='Type of sensor',
+                                wrapper_class='form-field'
+                            ) }}
+                            
+                            {{ ui.form_field(
+                                'mqtt-sensor-topic',
+                                'MQTT Topic',
+                                name_attr='mqtt_topic',
+                                placeholder='growtent/sensor/temp1',
+                                help_text='Full MQTT topic path',
+                                wrapper_class='form-field'
+                            ) }}
+                            
+                            {{ ui.select_field(
+                                'mqtt-sensor-unit',
+                                'Growth Unit',
+                                [],
+                                name_attr='unit_id',
+                                help_text='Assign to growth unit',
+                                wrapper_class='form-field'
+                            ) }}
+                        </div>
+                    </div>
+
+                    <!-- Actuator-specific fields -->
+                    <div id="mqtt-actuator-fields" class="conditional-field" data-device-type="actuator">
+                        <h5 class="subsection-title">Actuator Configuration</h5>
+                        <div class="form-grid form-grid-3">
+                            {{ ui.select_field(
+                                'mqtt-actuator-type',
+                                'Actuator Type',
+                                [
+                                    ('Light', 'Light'),
+                                    ('Heater', 'Heater'),
+                                    ('Fan', 'Fan'),
+                                    ('Water-Pump', 'Water Pump'),
+                                    ('Humidifier', 'Humidifier'),
+                                    ('Dehumidifier', 'Dehumidifier'),
+                                    ('CO2-Generator', 'CO2 Generator'),
+                                    ('Ventilation', 'Ventilation')
+                                ],
+                                name_attr='actuator_type',
+                                help_text='Type of actuator',
+                                wrapper_class='form-field'
+                            ) }}
+                            
+                            {{ ui.form_field(
+                                'mqtt-actuator-topic',
+                                'MQTT Topic',
+                                name_attr='mqtt_topic',
+                                placeholder='growtent/actuator/light1',
+                                help_text='Full MQTT topic path',
+                                wrapper_class='form-field'
+                            ) }}
+                            
+                            {{ ui.select_field(
+                                'mqtt-actuator-unit',
+                                'Growth Unit',
+                                [],
+                                name_attr='unit_id',
+                                help_text='Assign to growth unit',
+                                wrapper_class='form-field'
+                            ) }}
+                        </div>
+                        
+                        <div class="form-grid form-grid-3">
+                            {{ ui.checkbox_field(
+                                'mqtt-power-monitoring',
+                                'Power Monitoring',
+                                name_attr='has_power_monitoring',
+                                checked=false,
+                                help_text='Device reports power consumption (Watts, kWh)',
+                                wrapper_class='form-field'
+                            ) }}
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="reset" class="btn btn-secondary">
+                            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                                <path d="M3 3v5h5"></path>
+                            </svg>
+                            Reset
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
+                            Add Device
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Registered MQTT Devices List -->
+            <div class="settings-section mt-4 pt-3 border-top">
+                <h5 class="mb-3"><i class="fas fa-list me-2"></i>Registered WiFi/MQTT Devices</h5>
+                
+                <div id="mqtt-devices-list" class="devices-list">
+                    <div class="empty-state text-center py-4 text-muted">
+                        <i class="fas fa-inbox fa-2x mb-2"></i>
+                        <p>No WiFi/MQTT devices registered yet.</p>
+                        <p class="small">Add devices using the form above or discover them automatically.</p>
+                    </div>
+                </div>
+            </div>
+        {% endcall %}
+    </div>
+    <!-- End WiFi Panel -->
+
+    <!-- ESP32-C6 Tab Panel -->
+    <div id="esp32-panel" class="tab-panel" role="tabpanel" aria-labelledby="esp32-tab" style="display: none;">
+        {% call ui.content_card(title="ESP32-C6 Device Management", icon="microchip") %}
+            <p class="text-muted mb-4">
+                Provision and manage advanced ESP32-C6 based controllers with low-power Zigbee/BLE capabilities.
+            </p>
+
+            <div class="settings-section mb-4 p-3 bg-light rounded shadow-sm">
+                <h5 class="mb-3"><i class="fas fa-search me-2"></i>Device Discovery &amp; Provisioning</h5>
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-6">
+                        <label class="form-label d-block mb-2">Scan for Devices</label>
+                        <button type="button" id="device-scan" class="btn btn-primary w-100">
+                            <i class="fas fa-satellite-dish me-2"></i>Discover ESP32-C6 Devices
+                        </button>
+                        <div class="form-text mt-1">Scan for nearby ESP32-C6 devices via BLE and WiFi</div>
+                    </div>
+                    <div class="col-md-6">
+                        {{ ui.select_field('device-list', 'Available Devices', [], name_attr='device_list', help_text='Select a device to load configuration', placeholder='No devices found - click scan to discover') }}
+                    </div>
+                </div>
+            </div>
+
+            <form id="esp32-device-form" class="settings-form">
+                <h5 class="mb-3 border-bottom pb-2">Device Configuration</h5>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        {{ ui.form_field('device-id', 'Device ID', name_attr='device_id', readonly=true, help_text='Auto-detected from scan') }}
+                    </div>
+                    <div class="col-md-4">
+                        {{ ui.select_field('device-type', 'Device Type', [
+                            ('sensor','ESP32-C6 Sensors'),
+                            ('relay','ESP32-C6 Relays'),
+                            ('irrigation','ESP32-C6 Irrigation'),
+                            ('hybrid','ESP32-C6 Hybrid')
+                        ], name_attr='device_type') }}
+                    </div>
+                    <div class="col-md-4">
+                        {{ ui.form_field('device-name', 'Custom Name', placeholder='e.g., Tent-1-Sensors', name_attr='device_name', help_text='Friendly name for identification') }}
+                    </div>
+                </div>
+
+                <h5 class="mb-3 mt-4 border-bottom pb-2">Communication Settings</h5>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        {{ ui.select_field('connection-mode', 'Primary Connection Mode', [
+                            ('wifi','WiFi + MQTT'),
+                            ('zigbee','Zigbee'),
+                            ('ble','BLE Only'),
+                            ('auto','Auto-fallback')
+                        ], name_attr='connection_mode', help_text='How this device prefers to connect') }}
+                    </div>
+                    <div class="col-md-6">
+                        {{ ui.select_field('fallback-mode', 'Fallback Mode', [
+                            ('ble','BLE'),
+                            ('offline','Offline Storage'),
+                            ('none','None')
+                        ], name_attr='fallback_mode', help_text='What to do when primary connection fails') }}
+                    </div>
+                </div>
+
+                <div class="row g-3 mt-1">
+                    <div class="col-md-6 conditional-field" data-connection="wifi">
+                        {{ ui.form_field('mqtt-broker', 'MQTT Broker', name_attr='mqtt_broker', placeholder='192.168.1.100', help_text='IP address of MQTT broker') }}
+                    </div>
+                    <div class="col-md-6 conditional-field" data-connection="wifi">
+                        {{ ui.form_field('mqtt-port', 'MQTT Port', type='number', name_attr='mqtt_port', value='8883', min=1, max=65535, help_text='Default: 8883 (secure)') }}
+                    </div>
+                </div>
+
+                <div class="row g-3 mt-1">
+                    <div class="col-md-6 conditional-field" data-connection="wifi">
+                        {{ ui.form_field('mqtt-username', 'MQTT Username', name_attr='mqtt_username') }}
+                    </div>
+                    <div class="col-md-6 conditional-field" data-connection="zigbee">
+                        {{ ui.form_field('zigbee-channel', 'Zigbee Channel', name_attr='zigbee_channel', placeholder='zigbee2mqtt/device_id', help_text='Zigbee2MQTT device path') }}
+                    </div>
+                </div>
+
+                <h5 class="mb-3 mt-4 border-bottom pb-2">WiFi Configuration</h5>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        {{ ui.select_field('wifi-setup-method', 'WiFi Setup Method', [
+                            ('smartconfig','SmartConfig (ESP Touch)'),
+                            ('ble','BLE Provisioning'),
+                            ('ap','Access Point Mode'),
+                            ('wps','WPS')
+                        ], name_attr='wifi_setup_method', help_text='How devices connect to WiFi initially') }}
+                    </div>
+                    <div class="col-md-6">
+                        {{ ui.form_field('ap-timeout', 'AP Mode Timeout (min)', type='number', name_attr='ap_timeout', value='10', min=1, max=60, help_text='How long to stay in setup mode') }}
+                    </div>
+                </div>
+
+                <div class="wifi-setup-controls mt-4 p-3 bg-light rounded shadow-sm">
+                    <h6 class="mb-3"><i class="fas fa-wifi me-2"></i>Quick WiFi Provisioning</h6>
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <label class="form-label">WiFi Network</label>
+                            <div class="input-group">
+                                <select id="setup-ssid" name="setup_ssid" class="form-select">
+                                    <option value="">Select or scan for networks...</option>
+                                </select>
+                                <button type="button" id="scan-wifi" class="btn btn-secondary">
+                                    <i class="fas fa-sync-alt me-1"></i> Scan
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            {{ ui.form_field('setup-password', 'Password', type='password', name_attr='setup_password') }}
+                        </div>
+                    </div>
+                </div>
+                                'WiFi Password',
+                                type='password',
+                                name_attr='setup_password',
+                                wrapper_class='form-field',
+                                input_container_class='password-field',
+                                autocomplete='new-password',
+                                suffix_html='\n<button type="button" class="toggle-password" data-target="setup-password" aria-label="Toggle password visibility">\n  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\n    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>\n    <circle cx="12" cy="12" r="3"></circle>\n  </svg>\n</button>'
+                            ) }}
+                        </div>
+
+                        <div class="wifi-actions">
+                            <button type="button" id="send-wifi-config" class="btn btn-primary">
+                                <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M9 11a3 3 0 0 1 6 0"></path>
+                                    <path d="M5 11a7 7 0 0 1 14 0"></path>
+                                    <path d="M1 11a11 11 0 0 1 22 0"></path>
+                                    <circle cx="12" cy="11" r="1"></circle>
+                                </svg>
+                                Send WiFi Config to Selected Device
+                            </button>
+                            <button type="button" id="broadcast-wifi" class="btn btn-secondary">
+                                <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="1"></circle>
+                                    <circle cx="19" cy="12" r="1"></circle>
+                                    <circle cx="5" cy="12" r="1"></circle>
+                                </svg>
+                                Broadcast to All Devices
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <h5 class="mb-3 mt-4 border-bottom pb-2">Power Management Settings</h5>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        {{ ui.form_field('sleep-duration', 'Sleep Duration (minutes)', type='number', name_attr='sleep_duration', value='5', min=1, max=60, help_text='Deep sleep between readings') }}
+                    </div>
+                    <div class="col-md-4">
+                        {{ ui.form_field('battery-threshold', 'Low Battery Threshold (V)', type='number', name_attr='battery_threshold', value='3.3', step=0.1, min=2.5, max=4.2, help_text='Alert when battery drops below') }}
+                    </div>
+                    <div class="col-md-4">
+                        {{ ui.form_field('sensor-interval', 'Sensor Read Interval (sec)', type='number', name_attr='sensor_interval', value='30', min=5, max=300, help_text='How often to read sensors') }}
+                    </div>
+                </div>
+
+                <!-- Irrigation Control (conditional) -->
+                <div class="conditional-field mt-4" data-device="irrigation">
+                    <h5 class="mb-3 border-bottom pb-2"><i class="fas fa-tint me-2"></i>Irrigation Control Configuration</h5>
+                    
+                    <div class="alert alert-info py-2 small mb-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Default GPIO Configuration:</strong> Water Pump (GPIO 18), Mist Blower (GPIO 19). See documentation for custom wiring.
+                    </div>
+
+                    <h6 class="mb-3">Irrigation Timing Settings</h6>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            {{ ui.form_field('pump-duration', 'Water Pump Duration (sec)', type='number', name_attr='pump_duration', value='30', min=1, max=300, help_text='How long to run water pump') }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ ui.form_field('mist-duration', 'Mist Blower Duration (sec)', type='number', name_attr='mist_duration', value='60', min=1, max=600, help_text='How long to run mist blower') }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ ui.form_field('irrigation-interval', 'Irrigation Interval (hr)', type='number', name_attr='irrigation_interval', value='4', min=1, max=24, help_text='Time between cycles') }}
+                        </div>
+                    </div>
+
+                    <h6 class="mb-3 mt-3">Moisture-Based Control</h6>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            {{ ui.checkbox_field('enable-auto-irrigation', 'Enable Automatic Irrigation', checked=true, name_attr='enable_auto_irrigation', help_text='Activate based on soil moisture') }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ ui.form_field('moisture-threshold', 'Soil Moisture Threshold (%)', type='number', name_attr='moisture_threshold', value='30', min=0, max=100, help_text='Start when below this level') }}
+                        </div>
+                    </div>
+
+                    <h6 class="mb-3 mt-3">Safety Settings</h6>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            {{ ui.form_field('max-pump-runtime', 'Max Pump Runtime (min)', type='number', name_attr='max_pump_runtime', value='10', min=1, max=60, help_text='Safety cutoff') }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ ui.checkbox_field('enable-flow-monitoring', 'Enable Flow Monitoring', checked=false, name_attr='enable_flow_monitoring', help_text='Monitor flow (GPIO 22)') }}
+                        </div>
+                    </div>
+                </div>
+
+                <h5 class="mb-3 mt-4 border-bottom pb-2">Firmware &amp; OTA Updates</h5>
+                <div class="row g-3">
+                    <div class="col-md-8">
+                        {{ ui.form_field('ota-url', 'OTA Update URL', type='url', name_attr='ota_url', placeholder='https://your-server.com/firmware', help_text='URL for firmware updates') }}
+                    </div>
+                    <div class="col-md-4">
+                        {{ ui.form_field('ota-check-interval', 'Check Interval (hr)', type='number', name_attr='ota_check_interval', value='24', min=1, max=168, help_text='Frequency of checks') }}
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <button type="button" id="check-firmware" class="btn btn-outline-info btn-sm">
+                        <i class="fas fa-sync me-2"></i>Check for Updates
+                    </button>
+                </div>
+
+                <div class="form-actions mt-5 pt-3 border-top d-flex gap-2">
+                    <button type="submit" class="btn btn-primary px-4">
+                        <i class="fas fa-save me-2"></i>Save Configuration
+                    </button>
+                    <button type="button" id="provision-device" class="btn btn-secondary px-4">
+                        <i class="fas fa-microchip me-2"></i>Provision Device
+                    </button>
+                </div>
+            </form>
+        {% endcall %}
+    </div>
+    <!-- End ESP32 Panel -->
+
+    <!-- Camera Tab Panel -->
+    <div id="camera-panel" class="tab-panel" role="tabpanel" aria-labelledby="camera-tab" style="display: none;">
+        {% call ui.content_card(title="Camera Configuration", icon="camera") %}
+            <p class="text-muted mb-4">
+                Configure your camera settings and image quality for time-lapse and monitoring.
+            </p>
+
+            <form id="camera-form" class="settings-form">
+                {% set unit_options = [('','Select a unit...')] %}
+                {% if units %}
+                    {% for u in units %}
+                        {% set _ = unit_options.append((u.unit_id, u.name or 'Unit ' ~ u.unit_id|string)) %}
+                    {% endfor %}
+                {% else %}
+                    {% set _ = unit_options.append(('','No units available')) %}
+                {% endif %}
+                
+                <h5 class="mb-3 border-bottom pb-2">Unit &amp; Connection</h5>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        {{ ui.select_field('unit-select', 'Growth Unit *', unit_options, required=true, name_attr='unit_id', help_text='Select which growth unit this camera is for') }}
+                    </div>
+                    <div class="col-md-6">
+                        {{ ui.select_field('camera-type', 'Camera Type *', [
+                            ('','Select camera type...'),
+                            ('esp32','ESP32-CAM (WiFi)'),
+                            ('usb','USB Camera (Local)'),
+                            ('rtsp','RTSP IP Camera'),
+                            ('mjpeg','MJPEG Stream'),
+                            ('http','Generic HTTP Camera')
+                        ], required=true, name_attr='camera_type') }}
+                    </div>
+                </div>
+
+                <!-- ESP32 Fields -->
+                <div class="row g-3 mt-1 conditional-field" data-camera="esp32" style="display:none;">
+                    <div class="col-md-6">
+                        {{ ui.form_field('camera-ip', 'ESP32 IP Address *', name_attr='ip_address', placeholder='192.168.1.100', help_text='IP address of your ESP32-CAM') }}
+                    </div>
+                    <div class="col-md-6">
+                        {{ ui.form_field('camera-port', 'Port', type='number', name_attr='port', value='81', min=1, max=65535, help_text='Usually 81 for ESP32-CAM') }}
+                    </div>
+                </div>
+
+                <!-- USB Fields -->
+                <div class="row g-3 mt-1 conditional-field" data-camera="usb" style="display:none;">
+                    <div class="col-md-12">
+                        {{ ui.form_field('camera-usb-index', 'USB Camera Index', type='number', name_attr='device_index', value='0', min=0, help_text='0 for first camera, 1 for second, etc.') }}
+                    </div>
+                </div>
+
+                <!-- WiFi Camera Fields (RTSP, MJPEG, HTTP) -->
+                <div class="conditional-field mt-1" data-camera="rtsp mjpeg http" style="display:none;">
+                    <div class="row g-3">
+                        <div class="col-md-12">
+                            {{ ui.form_field('camera-stream-url', 'Stream URL *', name_attr='stream_url', placeholder='rtsp://192.168.1.50:554/stream', help_text='Full URL to camera stream') }}
+                        </div>
+                    </div>
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-6">
+                            {{ ui.form_field('camera-username', 'Username (Optional)', name_attr='username', placeholder='admin') }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ ui.form_field('camera-password', 'Password (Optional)', type='password', name_attr='password') }}
+                        </div>
+                    </div>
+                </div>
+
+                <h5 class="mb-3 mt-4 border-bottom pb-2">Image Quality &amp; Settings</h5>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        {{ ui.form_field('camera-resolution', 'Resolution', type='number', name_attr='resolution', min=0, max=13, help_text='0-13 (higher = better quality)') }}
+                    </div>
+                    <div class="col-md-4">
+                        {{ ui.form_field('camera-quality', 'Quality', type='number', name_attr='quality', min=0, max=63, help_text='0-63 (lower = better quality)') }}
+                    </div>
+                    <div class="col-md-4">
+                        {{ ui.select_field('camera-flip', 'Flip Image', [('0','Normal'), ('1','Flipped')], name_attr='flip') }}
+                    </div>
+                </div>
+
+                <h5 class="mb-3 mt-4 border-bottom pb-2">Color Adjustment</h5>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        {{ ui.form_field('camera-brightness', 'Brightness', type='number', name_attr='brightness', min=-2, max=2, help_text='-2 to 2') }}
+                    </div>
+                    <div class="col-md-4">
+                        {{ ui.form_field('camera-contrast', 'Contrast', type='number', name_attr='contrast', min=-2, max=2, help_text='-2 to 2') }}
+                    </div>
+                    <div class="col-md-4">
+                        {{ ui.form_field('camera-saturation', 'Saturation', type='number', name_attr='saturation', min=-2, max=2, help_text='-2 to 2') }}
+                    </div>
+                </div>
+
+                <div class="form-actions mt-5 pt-3 border-top d-flex gap-2">
+                    <button type="submit" class="btn btn-primary px-4">
+                        <i class="fas fa-save me-2"></i>Save Camera Settings
+                    </button>
+                </div>
+            </form>
+        {% endcall %}
+    </div>
+    <!-- End Camera Panel -->
+
+</div>
+</div>  <!-- /.devices-page -->
+
+<!-- Primary Metrics Conflict Modal -->
+<div id="primary-metrics-conflict-modal" class="modal" aria-hidden="true" role="dialog" aria-labelledby="primary-metrics-conflict-title">
+    <div class="modal-dialog" role="document">
+        <div class="modal-header">
+            <h3 id="primary-metrics-conflict-title">Resolve primary metric conflicts</h3>
+            <button class="modal-close" type="button" aria-label="Close dialog">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p class="text-muted mb-3">
+                These metrics are already assigned. Select which sensors to unassign, or cancel and edit your selection.
+            </p>
+            <div id="primary-metrics-conflict-list"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" type="button" data-modal-close>Cancel and edit</button>
+            <button class="btn btn-primary" type="button" id="primary-metrics-conflict-apply">
+                Unassign and continue
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Primary Metrics Edit Modal -->
+<div id="primary-metrics-edit-modal" class="modal" aria-hidden="true" role="dialog" aria-labelledby="primary-metrics-edit-title">
+    <div class="modal-dialog" role="document">
+        <div class="modal-header">
+            <h3 id="primary-metrics-edit-title">Edit primary dashboard metrics</h3>
+            <button class="modal-close" type="button" aria-label="Close dialog">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p class="text-muted mb-3">
+                Choose which readings this sensor owns on the dashboard. Metrics can only be claimed once per unit.
+            </p>
+            <div id="primary-metrics-edit-options" class="primary-metrics-grid"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" type="button" data-modal-close>Cancel</button>
+            <button class="btn btn-primary" type="button" id="primary-metrics-edit-apply">Save changes</button>
+        </div>
+    </div>
+</div>
+
+<!-- Zigbee Sensor Edit Modal -->
+<div id="zigbee-sensor-edit-modal" class="modal" aria-hidden="true" role="dialog" aria-labelledby="zigbee-sensor-edit-title">
+    <div class="modal-dialog" role="document">
+        <div class="modal-header">
+            <h3 id="zigbee-sensor-edit-title">Edit Zigbee Sensor</h3>
+            <button class="modal-close" type="button" aria-label="Close dialog">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label" for="zigbee-sensor-edit-name">Friendly name</label>
+                <input id="zigbee-sensor-edit-name" class="form-input" type="text" autocomplete="off">
+                <div class="text-muted x-small mt-1">Renaming will update the Zigbee2MQTT device and this sensor.</div>
+            </div>
+
+            <div class="form-grid mt-3">
+                <div>
+                    <label class="form-label">Model</label>
+                    <div id="zigbee-sensor-edit-model" class="text-muted">--</div>
+                </div>
+                <div>
+                    <label class="form-label">Manufacturer</label>
+                    <div id="zigbee-sensor-edit-manufacturer" class="text-muted">--</div>
+                </div>
+                <div>
+                    <label class="form-label">IEEE Address</label>
+                    <div id="zigbee-sensor-edit-ieee" class="text-muted">--</div>
+                </div>
+                <div>
+                    <label class="form-label">MQTT Topic</label>
+                    <div id="zigbee-sensor-edit-topic" class="text-muted">--</div>
+                </div>
+            </div>
+
+            <div class="mt-4">
+                <label class="form-label">Primary Dashboard Metrics</label>
+                <div id="zigbee-sensor-edit-primary-metrics" class="primary-metrics-grid"></div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" type="button" data-modal-close>Cancel</button>
+            <button class="btn btn-primary" type="button" id="zigbee-sensor-edit-save">Save changes</button>
+        </div>
+    </div>
+</div>
+
+<!-- Load utilities first -->
+<script src="{{ url_for('static', filename='js/utils/cache-service.js') }}?v=20251214170523"></script>
+<script src="{{ url_for('static', filename='js/utils/modal.js') }}?v=20251214170523"></script>
+<script src="{{ url_for('static', filename='js/utils/base-manager.js') }}?v=20251214170523"></script>
+
+<!-- Load API layer -->
+<script src="{{ url_for('static', filename='js/api.js') }}?v=20251214170600"></script>
+
+<!-- Load Socket.IO manager (used for Zigbee live updates) -->
+<script src="{{ url_for('static', filename='js/socket.js') }}?v=20251214170600"></script>
+
+<!-- Load Devices modules -->
+<script src="{{ url_for('static', filename='js/devices/data-service.js') }}?v=20251214170523"></script>
+<script src="{{ url_for('static', filename='js/devices/ui-manager.js') }}?v=20251214170523"></script>
+<script src="{{ url_for('static', filename='js/devices/main.js') }}?v=20251214170523"></script>
+
+<!-- Embed sensors JSON in a non-JS script tag to avoid template braces being parsed as JS -->
+<script id="db-sensors-data" type="application/json">
+{{ db_sensors | tojson }}
+</script>
+
+<script id="sensor-model-options-data" type="application/json">
+{{ sensor_model_options | tojson }}
+</script>
+
+<script id="adc-sensor-types-data" type="application/json">
+{{ adc_sensor_types | tojson }}
+</script>
+
+<script>
+    // Load sensors data from embedded JSON
+    let dbSensors = [];
+    const _dbNode = document.getElementById('db-sensors-data');
+    if (_dbNode) {
+        try { dbSensors = JSON.parse(_dbNode.textContent || '[]'); } catch (e) { console.error('Failed to parse dbSensors', e); }
+    }
+
+    // Load backend-driven options
+    window.SYSGROW_SENSOR_MODEL_OPTIONS = {};
+    const _modelNode = document.getElementById('sensor-model-options-data');
+    if (_modelNode) {
+        try { window.SYSGROW_SENSOR_MODEL_OPTIONS = JSON.parse(_modelNode.textContent || '{}'); } catch (e) { console.error('Failed to parse sensor model options', e); }
+    }
+
+    window.SYSGROW_ADC_SENSOR_TYPES = [];
+    const _adcNode = document.getElementById('adc-sensor-types-data');
+    if (_adcNode) {
+        try { window.SYSGROW_ADC_SENSOR_TYPES = JSON.parse(_adcNode.textContent || '[]'); } catch (e) { console.error('Failed to parse adc sensor types', e); }
+    }
+
+    // Wait for DOM and scripts to be ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            if (typeof initDevicesView === 'function') {
+                initDevicesView(dbSensors);
+            } else {
+                console.error('initDevicesView function not found');
+            }
+        });
+    } else {
+        if (typeof initDevicesView === 'function') {
+            initDevicesView(dbSensors);
+        } else {
+            console.error('initDevicesView function not found');
+        }
+    }
+</script>
+{% endblock %}
+
+=======
+        </div>
+        {% else %}
+        <div class="empty-state text-center p-4">
+            <i class="fas fa-satellite-dish fa-2x mb-2 text-muted-more"></i>
+            <p>No active sensors configured</p>
+        </div>
+        {% endif %}
+    {% endcall %}
+    </div>
+    <!-- End GPIO Panel -->
+
+    <!-- Zigbee2MQTT Tab Panel -->
+    <div id="zigbee-panel" class="tab-panel" role="tabpanel" aria-labelledby="zigbee-tab" style="display: none;">
+    
+    <!-- Zigbee2MQTT Device Management Intro -->
+    {% call ui.content_card(title="Zigbee2MQTT Device Management", icon="broadcast-tower") %}
+        <p class="text-muted">
+            Native Zigbee2MQTT devices are commercial Zigbee sensors (soil, temperature, humidity, etc.)
+            that connect to your <strong>zigbee2mqtt</strong> bridge. You can discover them below and add
+            them as grow tent sensors without using an ESP32-C6 board.
+        </p>
+    {% endcall %}
+
+    <!-- Add Generic Device (Zigbee / MQTT) -->
+    {% call ui.content_card(title="Add Generic Device (Zigbee2MQTT)", icon="plus-circle") %}
+        <p class="text-muted mb-4">
+            Add a <strong>native Zigbee2MQTT sensor</strong> (commercial Zigbee devices connected directly
+            to your zigbee2mqtt bridge)
+        </p>
+
+        <!-- Zigbee Coordinator Status -->
+        <div id="zigbee-coordinator-status" class="alert alert-info mb-4 hidden">
+            <i class="coordinator-icon fas fa-broadcast-tower me-2"></i>
+            <span class="coordinator-text">Checking coordinator status...</span>
+        </div>
+
+        <!-- Zigbee Device Discovery Section -->
+        <div class="settings-section mb-4 p-3 bg-light rounded shadow-sm">
+            <h5 class="mb-3"><i class="fas fa-search me-2"></i>Device Discovery</h5>
+            <div class="row align-items-end g-3">
+                <div class="col-md-4">
+                    <button type="button" id="zigbee-discover" class="btn btn-secondary w-100">
+                        <i class="fas fa-sync-alt me-2"></i>Discover Devices
+                    </button>
+                </div>
+                <div class="col-md-4">
+                    <button type="button" id="zigbee-permit-join" class="btn btn-secondary w-100">
+                        <i class="fas fa-plus-circle me-2"></i>Permit Join
+                    </button>
+                </div>
+                <div class="col-md-4" id="zigbee-discover-list">
+                    <!-- Discovered devices will be inserted here -->
+                </div>
+            </div>
+            <div class="mt-2 text-muted x-small">
+                <strong>Discover:</strong> Refresh device list from bridge. <strong>Permit Join:</strong> Enable pairing mode for ~4 minutes to add new devices.
+            </div>
+        </div>
+
+        <!-- Add Device Form -->
+        <form id="add-device-form" class="settings-form mt-4">
+            <h5 class="mb-3 border-bottom pb-2">Device Information</h5>
+            <div class="row g-3">
+                <div class="col-md-4">
+                    {{ ui.form_field('device-name-add', 'Device Name', name_attr='name', required=true, placeholder='e.g., Living Room Sensor') }}
+                </div>
+                <div class="col-md-4">
+                    {{ ui.select_field('zigbee-device-category', 'Device Category', [('sensor', 'Sensor'), ('actuator', 'Actuator/Switch')], name_attr='device_category', required=true) }}
+                </div>
+                <div class="col-md-4">
+                    {% call ui.select_field('device-unit-add', 'Growth Unit', [], name_attr='unit_id') %}
+                        {% if units %}
+                            {% for unit in units %}
+                                <option value="{{ unit.unit_id }}" {% if selected_unit_id == unit.unit_id %}selected{% endif %}>
+                                    {{ unit.name }} (ID: {{ unit.unit_id }})
+                                </option>
+                            {% endfor %}
+                        {% else %}
+                            <option value="">No units available - create one first</option>
+                        {% endif %}
+                    {% endcall %}
+                </div>
+            </div>
+
+            <!-- Sensor-specific fields -->
+            <div id="zigbee-sensor-fields" class="conditional-field mt-3" data-device-category="sensor">
+                <h5 class="mb-3 border-bottom pb-2">Sensor Configuration</h5>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        {{ ui.select_field('device-type-add', 'Sensor Type', sensor_type_choices, name_attr='sensor_type') }}
+                    </div>
+                    <div class="col-md-6">
+                        {{ ui.form_field('device-model-add', 'Model (optional)', name_attr='model', placeholder='e.g., BME280, Aqara') }}
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <label class="form-label">Primary Dashboard Metrics</label>
+                    <div class="text-muted x-small mb-2">
+                        Choose which readings this sensor owns on the dashboard. Metrics can only be claimed once per unit.
+                    </div>
+                    <div id="primary-metrics-options" class="primary-metrics-grid"></div>
+                </div>
+            </div>
+
+            <!-- Actuator-specific fields -->
+            <div id="zigbee-actuator-fields" class="conditional-field mt-3" data-device-category="actuator">
+                <h5 class="mb-3 border-bottom pb-2">Actuator Configuration</h5>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        {{ ui.select_field('zigbee-actuator-type', 'Actuator Type', [
+                            ('Light','Light/Lamp'),
+                            ('Heater','Heater'),
+                            ('Fan','Fan'),
+                            ('Water-Pump','Water Pump'),
+                            ('Humidifier','Humidifier'),
+                            ('Dehumidifier','Dehumidifier'),
+                            ('CO2-Generator','CO2 Generator'),
+                            ('Ventilation','Ventilation'),
+                            ('Smart-Plug','Smart Plug'),
+                            ('Switch','Switch')
+                        ], name_attr='actuator_type') }}
+                    </div>
+                    <div class="col-md-4">
+                        {{ ui.form_field('zigbee-actuator-model', 'Model (optional)', name_attr='model', placeholder='e.g., Sonoff, Aqara') }}
+                    </div>
+                    <div class="col-md-4">
+                        {{ ui.checkbox_field('zigbee-power-monitoring', 'Power Monitoring', name_attr='has_power_monitoring', checked=false) }}
+                    </div>
+                </div>
+            </div>
+
+            <h5 class="mb-3 mt-4 border-bottom pb-2">Zigbee Communication</h5>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    {{ ui.form_field('zigbee-address-add', 'Zigbee Address', name_attr='zigbee_address', required=True, placeholder='0x00158d0001a2b3c4') }}
+                </div>
+                <div class="col-md-6">
+                    {{ ui.form_field('mqtt-topic-add', 'MQTT Topic', name_attr='mqtt_topic', value='zigbee2mqtt', placeholder='zigbee2mqtt') }}
+                </div>
+            </div>
+            
+            <input type="hidden" id="communication-type-add" name="protocol" value="zigbee2mqtt">
+
+            <div class="form-actions mt-4 pt-3 border-top">
+                <button type="reset" class="btn btn-secondary me-2">
+                    <i class="fas fa-undo me-2"></i>Reset
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-plus-circle me-2"></i>Add Device
+                </button>
+            </div>
+        </form>
+    {% endcall %}
+
+    <!-- Zigbee2MQTT Sensors Section -->
+    {% call ui.content_card(title="Zigbee2MQTT Sensors", icon="broadcast-tower") %}
+        <div id="zigbee-sensors-container" class="gap-3">
+            <div class="empty-state zigbee-loading text-center py-4" id="zigbee-loading">
+                <i class="fas fa-spinner fa-spin fa-2x mb-3"></i>
+                <p>Loading Zigbee sensors...</p>
+            </div>
+            <div class="empty-state zigbee-empty hidden text-center py-4" id="zigbee-empty">
+                <i class="fas fa-satellite-dish fa-2x mb-3 text-muted"></i>
+                <p>No Zigbee2MQTT sensors configured</p>
+            </div>
+            <div class="zigbee-list">
+                <!-- Sensor cards will be dynamically inserted here -->
+            </div>
+        </div>
+    {% endcall %}
+
+    <!-- Template for device cards (hidden, cloned by JS) -->
+    <template id="zigbee-sensor-card-template">
+        <div class="zigbee-list">
+        <div class="virtuoso-list-item mb-3">
+            <div class="card bg-base-200 rounded-box shadow-md card-dash border-warning-40">
+                <div class="card-body p-2">
+                    <div class="flex flex-row items-center gap-3 w-full">
+                        <div class="flex-none h-11 w-11 overflow-visible">
+                            <div class="indicator w-full">
+                                <img class="device-image grid place-items-center" alt="Device" src="">
+                            </div>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <div class="device-name link link-hover font-semibold"></div>
+                            <div class="text-xs opacity-50">
+                                <span class="device-model"></span> • <span class="device-manufacturer"></span>
+                            </div>
+                            <div class="text-xs opacity-50" title="Last seen">
+                                <span>Last seen: </span><span class="device-last-seen">N/A</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-sm w-full p-2 max-h-125 overflow-y-auto thin-scrollbar sensor-readings">
+                        <!-- Sensor readings will be dynamically inserted here -->
+                    </div>
+                    <div class="text-sm w-full p-2 border-t calibration-controls">
+                        <h4 class="font-semibold mb-2">Calibration</h4>
+                        <!-- Calibration controls will be dynamically inserted here -->
+                    </div>
+
+                    <div class="text-sm w-full p-2 border-t zigbee-primary-metrics">
+                        <h4 class="font-semibold mb-2">Primary Metrics</h4>
+                        <div class="primary-metrics-chips"></div>
+                    </div>
+
+                    <div class="flex flex-row flex-wrap gap-1 mx-2 mb-2 justify-around items-center">
+                        <span class="badge badge-soft badge-ghost cursor-default tooltip device-linkquality" data-tip="Link Quality">
+                            <i class="fas fa-signal"></i>
+                            <span class="linkquality-value">--</span>
+                        </span>
+                        <span class="badge badge-soft badge-ghost cursor-default tooltip device-battery hidden" data-tip="Battery">
+                            <i class="fas fa-battery-full"></i>
+                            <span class="battery-value">--</span>
+                        </span>
+                        <span class="badge badge-soft badge-ghost cursor-default device-ieee">
+                            <span class="ieee-value">--</span>
+                        </span>
+                    </div>
+
+                    <div class="flex flex-row justify-end gap-2 p-2 border-t">
+                        <button class="btn btn-secondary btn-sm" type="button" data-action="edit-zigbee-sensor">
+                            Edit Sensor
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        </div>
+    </template>
+    <template id="zigbee-sensor-card-template-v2">
+        <div class="zigbee-list">
+        <div class="virtuoso-list-item mb-3">
+            <article
+            class="card bg-base-200 rounded-box border border-warning/40 shadow-md zigbee-card"
+            data-role="zigbee-card"
+            >
+            <div class="card-body p-3">
+
+                <!-- Header -->
+                <header class="flex items-start gap-3">
+                <figure class="flex-none h-11 w-11 rounded-box overflow-hidden bg-base-300">
+                    <img
+                    class="h-full w-full object-contain"
+                    alt=""
+                    loading="lazy"
+                    data-role="device-image"
+                    src=""
+                    >
+                </figure>
+
+                <div class="min-w-0 flex-1">
+                    <a
+                    class="link link-hover font-semibold truncate block"
+                    href="#"
+                    data-role="device-name"
+                    >
+                    Device
+                    </a>
+
+                    <div class="text-xs opacity-60 truncate">
+                    <span data-role="device-model">--</span>
+                    <span aria-hidden="true"> • </span>
+                    <span data-role="device-manufacturer">--</span>
+                    </div>
+
+                    <div class="text-xs opacity-60">
+                    <span>Last seen: </span>
+                    <time data-role="device-last-seen" datetime="">N/A</time>
+                    </div>
+                </div>
+
+                <!-- Status -->
+                <div class="flex-none pt-1">
+                    <span class="zigbee-status-dot" data-role="status-dot" title="Status"></span>
+                </div>
+                </header>
+
+                <!-- Readings -->
+                <section
+                class="mt-3 text-sm max-h-32 overflow-y-auto thin-scrollbar zigbee-readings"
+                aria-label="Sensor readings"
+                data-role="sensor-readings"
+                >
+                <!-- JS inserts rows here -->
+                </section>
+
+                <!-- Calibration (collapsible to reduce visual noise) -->
+                <details class="mt-3 zigbee-calibration" data-role="calibration">
+                <summary class="cursor-pointer font-semibold select-none">
+                    Calibration
+                    <span class="text-xs opacity-60 font-normal">(click to expand)</span>
+                </summary>
+                <div class="pt-2" data-role="calibration-controls">
+                    <!-- JS inserts controls here -->
+                </div>
+                </details>
+
+                <!-- Footer -->
+                <footer class="mt-3 flex flex-wrap gap-2 items-center justify-between">
+                <div class="flex flex-wrap gap-2 items-center">
+                    <span class="badge badge-ghost tooltip" data-tip="Link Quality">
+                    <i class="fas fa-signal" aria-hidden="true"></i>
+                    <span class="ml-1" data-role="linkquality">--</span>
+                    </span>
+
+                    <span class="badge badge-ghost tooltip hidden" data-tip="Battery" data-role="battery-badge">
+                    <i class="fas fa-battery-full" aria-hidden="true"></i>
+                    <span class="ml-1" data-role="battery">--</span>
+                    </span>
+
+                    <span class="badge badge-ghost" data-role="ieee">--</span>
+                </div>
+
+                <div class="flex gap-2">
+                    <a class="btn btn-xs" href="#" data-role="exposes-link">Exposes</a>
+                    <button class="btn btn-outline btn-error btn-square btn-xs" type="button" title="Remove" data-role="remove-btn">
+                    <i class="fas fa-trash" aria-hidden="true"></i>
+                    </button>
+                </div>
+                </footer>
+
+            </div>
+            </article>
+        </div>
+        </div>
+        </template>
+
+    </div>
+    <!-- End Zigbee Panel -->
+
+    <!-- WiFi/MQTT Tab Panel -->
+    <div id="wifi-panel" class="tab-panel" role="tabpanel" aria-labelledby="wifi-tab" style="display: none;">
+        {% call ui.content_card(title="WiFi/MQTT Device Management", icon="wifi") %}
+            <p class="text-muted mb-4">
+                Manage devices that connect directly via WiFi and MQTT protocol (sensors and actuators not using ESP32-C6 or Zigbee2MQTT).
+            </p>
+
+            <!-- MQTT Broker Configuration -->
+            <div class="settings-section mb-4 p-3 bg-light rounded shadow-sm">
+                <h5 class="mb-3"><i class="fas fa-server me-2"></i>MQTT Broker Configuration</h5>
+                
+                <form id="mqtt-broker-form" class="settings-form">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            {{ ui.form_field('mqtt-broker-host', 'Broker Host', name_attr='mqtt_broker_host', placeholder='localhost or 192.168.1.100') }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ ui.form_field('mqtt-broker-port', 'Broker Port', name_attr='mqtt_broker_port', type='number', value='1883', placeholder='1883') }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ ui.form_field('mqtt-topic-prefix', 'Topic Prefix', name_attr='mqtt_topic_prefix', placeholder='growtent') }}
+                        </div>
+                    </div>
+                    
+                    <div class="row g-3 mt-2">
+                        <div class="col-md-6">
+                            {{ ui.form_field('mqtt-broker-username', 'Username (Optional)', name_attr='mqtt_broker_username', placeholder='mqtt_user') }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ ui.form_field('mqtt-broker-password', 'Password (Optional)', name_attr='mqtt_broker_password', type='password', placeholder='••••••••') }}
+                        </div>
+                    </div>
+                    
+                    <div class="form-actions mt-4 pt-3 border-top">
+                        <button type="button" id="test-mqtt-connection" class="btn btn-secondary me-2">
+                            <i class="fas fa-plug me-2"></i>Test Connection
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>Save Configuration
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Device Discovery -->
+            <div class="settings-section mb-4 p-3 bg-light rounded shadow-sm">
+                <h5 class="mb-3"><i class="fas fa-search me-2"></i>Device Discovery</h5>
+                
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                        <label>Discover MQTT Devices</label>
+                        <button type="button" id="discover-mqtt-devices" class="btn btn-primary">
+                            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-6l-2-2H5a2 2 0 0 0-2 2z"></path>
+                            </svg>
+                            Scan for Devices
+                        </button>
+                        <small class="field-hint">Scans MQTT topics for connected devices</small>
+                    </div>
+                    
+                    <div class="form-field">
+                        <label for="mqtt-discovered-devices">Discovered Devices</label>
+                        <select id="mqtt-discovered-devices" class="form-control" size="6" aria-label="Discovered MQTT devices">
+                            <option value="" disabled selected>No devices found - click scan first</option>
+                        </select>
+                        <small class="field-hint">Select device to view details or add to system</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Add MQTT Device -->
+            <div class="settings-section">
+                <h4 class="section-title">
+                    <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    Add WiFi/MQTT Device
+                </h4>
+                
+                <form id="mqtt-device-form" class="settings-form">
+                    <div class="form-grid form-grid-2">
+                        {{ ui.form_field(
+                            'mqtt-device-name',
+                            'Device Name',
+                            name_attr='device_name',
+                            placeholder='Living Room Sensor',
+                            required=true,
+                            help_text='Friendly name for the device',
+                            wrapper_class='form-field'
+                        ) }}
+                        
+                        {{ ui.select_field(
+                            'mqtt-device-type',
+                            'Device Type',
+                            [
+                                ('sensor', 'Sensor'),
+                                ('actuator', 'Actuator')
+                            ],
+                            name_attr='device_type',
+                            required=true,
+                            help_text='Select device category',
+                            wrapper_class='form-field'
+                        ) }}
+                    </div>
+
+                    <!-- Sensor-specific fields -->
+                    <div id="mqtt-sensor-fields" class="conditional-field" data-device-type="sensor">
+                        <h5 class="subsection-title">Sensor Configuration</h5>
+                        <div class="form-grid form-grid-3">
+                            {{ ui.select_field(
+                                'mqtt-sensor-type',
+                                'Sensor Type',
+                                [
+                                    ('temperature', 'Temperature'),
+                                    ('humidity', 'Humidity'),
+                                    ('soil_moisture', 'Soil Moisture'),
+                                    ('light', 'Light (Lux)'),
+                                    ('ph', 'pH Level'),
+                                    ('ec', 'EC (Conductivity)'),
+                                    ('co2', 'CO2'),
+                                    ('water_level', 'Water Level'),
+                                    ('pressure', 'Air Pressure')
+                                ],
+                                name_attr='sensor_type',
+                                help_text='Type of sensor',
+                                wrapper_class='form-field'
+                            ) }}
+                            
+                            {{ ui.form_field(
+                                'mqtt-sensor-topic',
+                                'MQTT Topic',
+                                name_attr='mqtt_topic',
+                                placeholder='growtent/sensor/temp1',
+                                help_text='Full MQTT topic path',
+                                wrapper_class='form-field'
+                            ) }}
+                            
+                            {{ ui.select_field(
+                                'mqtt-sensor-unit',
+                                'Growth Unit',
+                                [],
+                                name_attr='unit_id',
+                                help_text='Assign to growth unit',
+                                wrapper_class='form-field'
+                            ) }}
+                        </div>
+                    </div>
+
+                    <!-- Actuator-specific fields -->
+                    <div id="mqtt-actuator-fields" class="conditional-field" data-device-type="actuator">
+                        <h5 class="subsection-title">Actuator Configuration</h5>
+                        <div class="form-grid form-grid-3">
+                            {{ ui.select_field(
+                                'mqtt-actuator-type',
+                                'Actuator Type',
+                                [
+                                    ('Light', 'Light'),
+                                    ('Heater', 'Heater'),
+                                    ('Fan', 'Fan'),
+                                    ('Water-Pump', 'Water Pump'),
+                                    ('Humidifier', 'Humidifier'),
+                                    ('Dehumidifier', 'Dehumidifier'),
+                                    ('CO2-Generator', 'CO2 Generator'),
+                                    ('Ventilation', 'Ventilation')
+                                ],
+                                name_attr='actuator_type',
+                                help_text='Type of actuator',
+                                wrapper_class='form-field'
+                            ) }}
+                            
+                            {{ ui.form_field(
+                                'mqtt-actuator-topic',
+                                'MQTT Topic',
+                                name_attr='mqtt_topic',
+                                placeholder='growtent/actuator/light1',
+                                help_text='Full MQTT topic path',
+                                wrapper_class='form-field'
+                            ) }}
+                            
+                            {{ ui.select_field(
+                                'mqtt-actuator-unit',
+                                'Growth Unit',
+                                [],
+                                name_attr='unit_id',
+                                help_text='Assign to growth unit',
+                                wrapper_class='form-field'
+                            ) }}
+                        </div>
+                        
+                        <div class="form-grid form-grid-3">
+                            {{ ui.checkbox_field(
+                                'mqtt-power-monitoring',
+                                'Power Monitoring',
+                                name_attr='has_power_monitoring',
+                                checked=false,
+                                help_text='Device reports power consumption (Watts, kWh)',
+                                wrapper_class='form-field'
+                            ) }}
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="reset" class="btn btn-secondary">
+                            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                                <path d="M3 3v5h5"></path>
+                            </svg>
+                            Reset
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
+                            Add Device
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Registered MQTT Devices List -->
+            <div class="settings-section mt-4 pt-3 border-top">
+                <h5 class="mb-3"><i class="fas fa-list me-2"></i>Registered WiFi/MQTT Devices</h5>
+                
+                <div id="mqtt-devices-list" class="devices-list">
+                    <div class="empty-state text-center py-4 text-muted">
+                        <i class="fas fa-inbox fa-2x mb-2"></i>
+                        <p>No WiFi/MQTT devices registered yet.</p>
+                        <p class="small">Add devices using the form above or discover them automatically.</p>
+                    </div>
+                </div>
+            </div>
+        {% endcall %}
+    </div>
+    <!-- End WiFi Panel -->
+
+    <!-- ESP32-C6 Tab Panel -->
+    <div id="esp32-panel" class="tab-panel" role="tabpanel" aria-labelledby="esp32-tab" style="display: none;">
+        {% call ui.content_card(title="ESP32-C6 Device Management", icon="microchip") %}
+            <p class="text-muted mb-4">
+                Provision and manage advanced ESP32-C6 based controllers with low-power Zigbee/BLE capabilities.
+            </p>
+
+            <div class="settings-section mb-4 p-3 bg-light rounded shadow-sm">
+                <h5 class="mb-3"><i class="fas fa-search me-2"></i>Device Discovery &amp; Provisioning</h5>
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-6">
+                        <label class="form-label d-block mb-2">Scan for Devices</label>
+                        <button type="button" id="device-scan" class="btn btn-primary w-100">
+                            <i class="fas fa-satellite-dish me-2"></i>Discover ESP32-C6 Devices
+                        </button>
+                        <div class="form-text mt-1">Scan for nearby ESP32-C6 devices via BLE and WiFi</div>
+                    </div>
+                    <div class="col-md-6">
+                        {{ ui.select_field('device-list', 'Available Devices', [], name_attr='device_list', help_text='Select a device to load configuration', placeholder='No devices found - click scan to discover') }}
+                    </div>
+                </div>
+            </div>
+
+            <form id="esp32-device-form" class="settings-form">
+                <h5 class="mb-3 border-bottom pb-2">Device Configuration</h5>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        {{ ui.form_field('device-id', 'Device ID', name_attr='device_id', readonly=true, help_text='Auto-detected from scan') }}
+                    </div>
+                    <div class="col-md-4">
+                        {{ ui.select_field('device-type', 'Device Type', [
+                            ('sensor','ESP32-C6 Sensors'),
+                            ('relay','ESP32-C6 Relays'),
+                            ('irrigation','ESP32-C6 Irrigation'),
+                            ('hybrid','ESP32-C6 Hybrid')
+                        ], name_attr='device_type') }}
+                    </div>
+                    <div class="col-md-4">
+                        {{ ui.form_field('device-name', 'Custom Name', placeholder='e.g., Tent-1-Sensors', name_attr='device_name', help_text='Friendly name for identification') }}
+                    </div>
+                </div>
+
+                <h5 class="mb-3 mt-4 border-bottom pb-2">Communication Settings</h5>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        {{ ui.select_field('connection-mode', 'Primary Connection Mode', [
+                            ('wifi','WiFi + MQTT'),
+                            ('zigbee','Zigbee'),
+                            ('ble','BLE Only'),
+                            ('auto','Auto-fallback')
+                        ], name_attr='connection_mode', help_text='How this device prefers to connect') }}
+                    </div>
+                    <div class="col-md-6">
+                        {{ ui.select_field('fallback-mode', 'Fallback Mode', [
+                            ('ble','BLE'),
+                            ('offline','Offline Storage'),
+                            ('none','None')
+                        ], name_attr='fallback_mode', help_text='What to do when primary connection fails') }}
+                    </div>
+                </div>
+
+                <div class="row g-3 mt-1">
+                    <div class="col-md-6 conditional-field" data-connection="wifi">
+                        {{ ui.form_field('mqtt-broker', 'MQTT Broker', name_attr='mqtt_broker', placeholder='192.168.1.100', help_text='IP address of MQTT broker') }}
+                    </div>
+                    <div class="col-md-6 conditional-field" data-connection="wifi">
+                        {{ ui.form_field('mqtt-port', 'MQTT Port', type='number', name_attr='mqtt_port', value='8883', min=1, max=65535, help_text='Default: 8883 (secure)') }}
+                    </div>
+                </div>
+
+                <div class="row g-3 mt-1">
+                    <div class="col-md-6 conditional-field" data-connection="wifi">
+                        {{ ui.form_field('mqtt-username', 'MQTT Username', name_attr='mqtt_username') }}
+                    </div>
+                    <div class="col-md-6 conditional-field" data-connection="zigbee">
+                        {{ ui.form_field('zigbee-channel', 'Zigbee Channel', name_attr='zigbee_channel', placeholder='zigbee2mqtt/device_id', help_text='Zigbee2MQTT device path') }}
+                    </div>
+                </div>
+
+                <h5 class="mb-3 mt-4 border-bottom pb-2">WiFi Configuration</h5>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        {{ ui.select_field('wifi-setup-method', 'WiFi Setup Method', [
+                            ('smartconfig','SmartConfig (ESP Touch)'),
+                            ('ble','BLE Provisioning'),
+                            ('ap','Access Point Mode'),
+                            ('wps','WPS')
+                        ], name_attr='wifi_setup_method', help_text='How devices connect to WiFi initially') }}
+                    </div>
+                    <div class="col-md-6">
+                        {{ ui.form_field('ap-timeout', 'AP Mode Timeout (min)', type='number', name_attr='ap_timeout', value='10', min=1, max=60, help_text='How long to stay in setup mode') }}
+                    </div>
+                </div>
+
+                <div class="wifi-setup-controls mt-4 p-3 bg-light rounded shadow-sm">
+                    <h6 class="mb-3"><i class="fas fa-wifi me-2"></i>Quick WiFi Provisioning</h6>
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <label class="form-label">WiFi Network</label>
+                            <div class="input-group">
+                                <select id="setup-ssid" name="setup_ssid" class="form-select">
+                                    <option value="">Select or scan for networks...</option>
+                                </select>
+                                <button type="button" id="scan-wifi" class="btn btn-secondary">
+                                    <i class="fas fa-sync-alt me-1"></i> Scan
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            {{ ui.form_field('setup-password', 'Password', type='password', name_attr='setup_password') }}
+                        </div>
+                    </div>
+                </div>
+                                'WiFi Password',
+                                type='password',
+                                name_attr='setup_password',
+                                wrapper_class='form-field',
+                                input_container_class='password-field',
+                                autocomplete='new-password',
+                                suffix_html='\n<button type="button" class="toggle-password" data-target="setup-password" aria-label="Toggle password visibility">\n  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\n    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>\n    <circle cx="12" cy="12" r="3"></circle>\n  </svg>\n</button>'
+                            ) }}
+                        </div>
+
+                        <div class="wifi-actions">
+                            <button type="button" id="send-wifi-config" class="btn btn-primary">
+                                <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M9 11a3 3 0 0 1 6 0"></path>
+                                    <path d="M5 11a7 7 0 0 1 14 0"></path>
+                                    <path d="M1 11a11 11 0 0 1 22 0"></path>
+                                    <circle cx="12" cy="11" r="1"></circle>
+                                </svg>
+                                Send WiFi Config to Selected Device
+                            </button>
+                            <button type="button" id="broadcast-wifi" class="btn btn-secondary">
+                                <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="1"></circle>
+                                    <circle cx="19" cy="12" r="1"></circle>
+                                    <circle cx="5" cy="12" r="1"></circle>
+                                </svg>
+                                Broadcast to All Devices
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <h5 class="mb-3 mt-4 border-bottom pb-2">Power Management Settings</h5>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        {{ ui.form_field('sleep-duration', 'Sleep Duration (minutes)', type='number', name_attr='sleep_duration', value='5', min=1, max=60, help_text='Deep sleep between readings') }}
+                    </div>
+                    <div class="col-md-4">
+                        {{ ui.form_field('battery-threshold', 'Low Battery Threshold (V)', type='number', name_attr='battery_threshold', value='3.3', step=0.1, min=2.5, max=4.2, help_text='Alert when battery drops below') }}
+                    </div>
+                    <div class="col-md-4">
+                        {{ ui.form_field('sensor-interval', 'Sensor Read Interval (sec)', type='number', name_attr='sensor_interval', value='30', min=5, max=300, help_text='How often to read sensors') }}
+                    </div>
+                </div>
+
+                <!-- Irrigation Control (conditional) -->
+                <div class="conditional-field mt-4" data-device="irrigation">
+                    <h5 class="mb-3 border-bottom pb-2"><i class="fas fa-tint me-2"></i>Irrigation Control Configuration</h5>
+                    
+                    <div class="alert alert-info py-2 small mb-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Default GPIO Configuration:</strong> Water Pump (GPIO 18), Mist Blower (GPIO 19). See documentation for custom wiring.
+                    </div>
+
+                    <h6 class="mb-3">Irrigation Timing Settings</h6>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            {{ ui.form_field('pump-duration', 'Water Pump Duration (sec)', type='number', name_attr='pump_duration', value='30', min=1, max=300, help_text='How long to run water pump') }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ ui.form_field('mist-duration', 'Mist Blower Duration (sec)', type='number', name_attr='mist_duration', value='60', min=1, max=600, help_text='How long to run mist blower') }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ ui.form_field('irrigation-interval', 'Irrigation Interval (hr)', type='number', name_attr='irrigation_interval', value='4', min=1, max=24, help_text='Time between cycles') }}
+                        </div>
+                    </div>
+
+                    <h6 class="mb-3 mt-3">Moisture-Based Control</h6>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            {{ ui.checkbox_field('enable-auto-irrigation', 'Enable Automatic Irrigation', checked=true, name_attr='enable_auto_irrigation', help_text='Activate based on soil moisture') }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ ui.form_field('moisture-threshold', 'Soil Moisture Threshold (%)', type='number', name_attr='moisture_threshold', value='30', min=0, max=100, help_text='Start when below this level') }}
+                        </div>
+                    </div>
+
+                    <h6 class="mb-3 mt-3">Safety Settings</h6>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            {{ ui.form_field('max-pump-runtime', 'Max Pump Runtime (min)', type='number', name_attr='max_pump_runtime', value='10', min=1, max=60, help_text='Safety cutoff') }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ ui.checkbox_field('enable-flow-monitoring', 'Enable Flow Monitoring', checked=false, name_attr='enable_flow_monitoring', help_text='Monitor flow (GPIO 22)') }}
+                        </div>
+                    </div>
+                </div>
+
+                <h5 class="mb-3 mt-4 border-bottom pb-2">Firmware &amp; OTA Updates</h5>
+                <div class="row g-3">
+                    <div class="col-md-8">
+                        {{ ui.form_field('ota-url', 'OTA Update URL', type='url', name_attr='ota_url', placeholder='https://your-server.com/firmware', help_text='URL for firmware updates') }}
+                    </div>
+                    <div class="col-md-4">
+                        {{ ui.form_field('ota-check-interval', 'Check Interval (hr)', type='number', name_attr='ota_check_interval', value='24', min=1, max=168, help_text='Frequency of checks') }}
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <button type="button" id="check-firmware" class="btn btn-outline-info btn-sm">
+                        <i class="fas fa-sync me-2"></i>Check for Updates
+                    </button>
+                </div>
+
+                <div class="form-actions mt-5 pt-3 border-top d-flex gap-2">
+                    <button type="submit" class="btn btn-primary px-4">
+                        <i class="fas fa-save me-2"></i>Save Configuration
+                    </button>
+                    <button type="button" id="provision-device" class="btn btn-secondary px-4">
+                        <i class="fas fa-microchip me-2"></i>Provision Device
+                    </button>
+                </div>
+            </form>
+        {% endcall %}
+    </div>
+    <!-- End ESP32 Panel -->
+
+    <!-- Camera Tab Panel -->
+    <div id="camera-panel" class="tab-panel" role="tabpanel" aria-labelledby="camera-tab" style="display: none;">
+        {% call ui.content_card(title="Camera Configuration", icon="camera") %}
+            <p class="text-muted mb-4">
+                Configure your camera settings and image quality for time-lapse and monitoring.
+            </p>
+
+            <form id="camera-form" class="settings-form">
+                {% set unit_options = [('','Select a unit...')] %}
+                {% if units %}
+                    {% for u in units %}
+                        {% set _ = unit_options.append((u.unit_id, u.name or 'Unit ' ~ u.unit_id|string)) %}
+                    {% endfor %}
+                {% else %}
+                    {% set _ = unit_options.append(('','No units available')) %}
+                {% endif %}
+                
+                <h5 class="mb-3 border-bottom pb-2">Unit &amp; Connection</h5>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        {{ ui.select_field('unit-select', 'Growth Unit *', unit_options, required=true, name_attr='unit_id', help_text='Select which growth unit this camera is for') }}
+                    </div>
+                    <div class="col-md-6">
+                        {{ ui.select_field('camera-type', 'Camera Type *', [
+                            ('','Select camera type...'),
+                            ('esp32','ESP32-CAM (WiFi)'),
+                            ('usb','USB Camera (Local)'),
+                            ('rtsp','RTSP IP Camera'),
+                            ('mjpeg','MJPEG Stream'),
+                            ('http','Generic HTTP Camera')
+                        ], required=true, name_attr='camera_type') }}
+                    </div>
+                </div>
+
+                <!-- ESP32 Fields -->
+                <div class="row g-3 mt-1 conditional-field" data-camera="esp32" style="display:none;">
+                    <div class="col-md-6">
+                        {{ ui.form_field('camera-ip', 'ESP32 IP Address *', name_attr='ip_address', placeholder='192.168.1.100', help_text='IP address of your ESP32-CAM') }}
+                    </div>
+                    <div class="col-md-6">
+                        {{ ui.form_field('camera-port', 'Port', type='number', name_attr='port', value='81', min=1, max=65535, help_text='Usually 81 for ESP32-CAM') }}
+                    </div>
+                </div>
+
+                <!-- USB Fields -->
+                <div class="row g-3 mt-1 conditional-field" data-camera="usb" style="display:none;">
+                    <div class="col-md-12">
+                        {{ ui.form_field('camera-usb-index', 'USB Camera Index', type='number', name_attr='device_index', value='0', min=0, help_text='0 for first camera, 1 for second, etc.') }}
+                    </div>
+                </div>
+
+                <!-- WiFi Camera Fields (RTSP, MJPEG, HTTP) -->
+                <div class="conditional-field mt-1" data-camera="rtsp mjpeg http" style="display:none;">
+                    <div class="row g-3">
+                        <div class="col-md-12">
+                            {{ ui.form_field('camera-stream-url', 'Stream URL *', name_attr='stream_url', placeholder='rtsp://192.168.1.50:554/stream', help_text='Full URL to camera stream') }}
+                        </div>
+                    </div>
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-6">
+                            {{ ui.form_field('camera-username', 'Username (Optional)', name_attr='username', placeholder='admin') }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ ui.form_field('camera-password', 'Password (Optional)', type='password', name_attr='password') }}
+                        </div>
+                    </div>
+                </div>
+
+                <h5 class="mb-3 mt-4 border-bottom pb-2">Image Quality &amp; Settings</h5>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        {{ ui.form_field('camera-resolution', 'Resolution', type='number', name_attr='resolution', min=0, max=13, help_text='0-13 (higher = better quality)') }}
+                    </div>
+                    <div class="col-md-4">
+                        {{ ui.form_field('camera-quality', 'Quality', type='number', name_attr='quality', min=0, max=63, help_text='0-63 (lower = better quality)') }}
+                    </div>
+                    <div class="col-md-4">
+                        {{ ui.select_field('camera-flip', 'Flip Image', [('0','Normal'), ('1','Flipped')], name_attr='flip') }}
+                    </div>
+                </div>
+
+                <h5 class="mb-3 mt-4 border-bottom pb-2">Color Adjustment</h5>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        {{ ui.form_field('camera-brightness', 'Brightness', type='number', name_attr='brightness', min=-2, max=2, help_text='-2 to 2') }}
+                    </div>
+                    <div class="col-md-4">
+                        {{ ui.form_field('camera-contrast', 'Contrast', type='number', name_attr='contrast', min=-2, max=2, help_text='-2 to 2') }}
+                    </div>
+                    <div class="col-md-4">
+                        {{ ui.form_field('camera-saturation', 'Saturation', type='number', name_attr='saturation', min=-2, max=2, help_text='-2 to 2') }}
+                    </div>
+                </div>
+
+                <div class="form-actions mt-5 pt-3 border-top d-flex gap-2">
+                    <button type="submit" class="btn btn-primary px-4">
+                        <i class="fas fa-save me-2"></i>Save Camera Settings
+                    </button>
+                </div>
+            </form>
+        {% endcall %}
+    </div>
+    <!-- End Camera Panel -->
+
+</div>
+</div>  <!-- /.devices-page -->
+
+<!-- Primary Metrics Conflict Modal -->
+<div id="primary-metrics-conflict-modal" class="modal" aria-hidden="true" role="dialog" aria-labelledby="primary-metrics-conflict-title">
+    <div class="modal-dialog" role="document">
+        <div class="modal-header">
+            <h3 id="primary-metrics-conflict-title">Resolve primary metric conflicts</h3>
+            <button class="modal-close" type="button" aria-label="Close dialog">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p class="text-muted mb-3">
+                These metrics are already assigned. Select which sensors to unassign, or cancel and edit your selection.
+            </p>
+            <div id="primary-metrics-conflict-list"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" type="button" data-modal-close>Cancel and edit</button>
+            <button class="btn btn-primary" type="button" id="primary-metrics-conflict-apply">
+                Unassign and continue
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Primary Metrics Edit Modal -->
+<div id="primary-metrics-edit-modal" class="modal" aria-hidden="true" role="dialog" aria-labelledby="primary-metrics-edit-title">
+    <div class="modal-dialog" role="document">
+        <div class="modal-header">
+            <h3 id="primary-metrics-edit-title">Edit primary dashboard metrics</h3>
+            <button class="modal-close" type="button" aria-label="Close dialog">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p class="text-muted mb-3">
+                Choose which readings this sensor owns on the dashboard. Metrics can only be claimed once per unit.
+            </p>
+            <div id="primary-metrics-edit-options" class="primary-metrics-grid"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" type="button" data-modal-close>Cancel</button>
+            <button class="btn btn-primary" type="button" id="primary-metrics-edit-apply">Save changes</button>
+        </div>
+    </div>
+</div>
+
+<!-- Zigbee Sensor Edit Modal -->
+<div id="zigbee-sensor-edit-modal" class="modal" aria-hidden="true" role="dialog" aria-labelledby="zigbee-sensor-edit-title">
+    <div class="modal-dialog" role="document">
+        <div class="modal-header">
+            <h3 id="zigbee-sensor-edit-title">Edit Zigbee Sensor</h3>
+            <button class="modal-close" type="button" aria-label="Close dialog">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label" for="zigbee-sensor-edit-name">Friendly name</label>
+                <input id="zigbee-sensor-edit-name" class="form-input" type="text" autocomplete="off">
+                <div class="text-muted x-small mt-1">Renaming will update the Zigbee2MQTT device and this sensor.</div>
+            </div>
+
+            <div class="form-grid mt-3">
+                <div>
+                    <label class="form-label">Model</label>
+                    <div id="zigbee-sensor-edit-model" class="text-muted">--</div>
+                </div>
+                <div>
+                    <label class="form-label">Manufacturer</label>
+                    <div id="zigbee-sensor-edit-manufacturer" class="text-muted">--</div>
+                </div>
+                <div>
+                    <label class="form-label">IEEE Address</label>
+                    <div id="zigbee-sensor-edit-ieee" class="text-muted">--</div>
+                </div>
+                <div>
+                    <label class="form-label">MQTT Topic</label>
+                    <div id="zigbee-sensor-edit-topic" class="text-muted">--</div>
+                </div>
+            </div>
+
+            <div class="mt-4">
+                <label class="form-label">Primary Dashboard Metrics</label>
+                <div id="zigbee-sensor-edit-primary-metrics" class="primary-metrics-grid"></div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" type="button" data-modal-close>Cancel</button>
+            <button class="btn btn-primary" type="button" id="zigbee-sensor-edit-save">Save changes</button>
+        </div>
+    </div>
+</div>
+
+<!-- Load utilities first -->
+<script src="{{ url_for('static', filename='js/utils/cache-service.js') }}?v=20251214170523"></script>
+<script src="{{ url_for('static', filename='js/utils/modal.js') }}?v=20251214170523"></script>
+<script src="{{ url_for('static', filename='js/utils/base-manager.js') }}?v=20251214170523"></script>
+
+<!-- Load API layer -->
+<script src="{{ url_for('static', filename='js/api.js') }}?v=20251214170600"></script>
+
+<!-- Load Socket.IO manager (used for Zigbee live updates) -->
+<script src="{{ url_for('static', filename='js/socket.js') }}?v=20251214170600"></script>
+
+<!-- Load Devices modules -->
+<script src="{{ url_for('static', filename='js/devices/data-service.js') }}?v=20251214170523"></script>
+<script src="{{ url_for('static', filename='js/devices/ui-manager.js') }}?v=20251214170523"></script>
+<script src="{{ url_for('static', filename='js/devices/main.js') }}?v=20251214170523"></script>
+
+<!-- Embed sensors JSON in a non-JS script tag to avoid template braces being parsed as JS -->
+<script id="db-sensors-data" type="application/json">
+{{ db_sensors | tojson }}
+</script>
+
+<script id="sensor-model-options-data" type="application/json">
+{{ sensor_model_options | tojson }}
+</script>
+
+<script id="adc-sensor-types-data" type="application/json">
+{{ adc_sensor_types | tojson }}
+</script>
+
+<script>
+    // Load sensors data from embedded JSON
+    let dbSensors = [];
+    const _dbNode = document.getElementById('db-sensors-data');
+    if (_dbNode) {
+        try { dbSensors = JSON.parse(_dbNode.textContent || '[]'); } catch (e) { console.error('Failed to parse dbSensors', e); }
+    }
+
+    // Load backend-driven options
+    window.SYSGROW_SENSOR_MODEL_OPTIONS = {};
+    const _modelNode = document.getElementById('sensor-model-options-data');
+    if (_modelNode) {
+        try { window.SYSGROW_SENSOR_MODEL_OPTIONS = JSON.parse(_modelNode.textContent || '{}'); } catch (e) { console.error('Failed to parse sensor model options', e); }
+    }
+
+    window.SYSGROW_ADC_SENSOR_TYPES = [];
+    const _adcNode = document.getElementById('adc-sensor-types-data');
+    if (_adcNode) {
+        try { window.SYSGROW_ADC_SENSOR_TYPES = JSON.parse(_adcNode.textContent || '[]'); } catch (e) { console.error('Failed to parse adc sensor types', e); }
+    }
+
+    // Wait for DOM and scripts to be ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            if (typeof initDevicesView === 'function') {
+                initDevicesView(dbSensors);
+            } else {
+                console.error('initDevicesView function not found');
+            }
+        });
+    } else {
+        if (typeof initDevicesView === 'function') {
+            initDevicesView(dbSensors);
+        } else {
+            console.error('initDevicesView function not found');
+        }
+    }
+</script>
+{% endblock %}
+>>>>>>> update

@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui %}
+
+{% block title %}Energy Analytics - SYSGrow{% endblock %}
+{% block body_class %}energy-analytics-page{% endblock %}
+
+{% block content %}
+<div id="energy-analytics-page" aria-labelledby="energy-analytics-heading">
+    
+    {# Using standardized page header #}
+    {{ ui.page_header(
+        title="Energy Analytics Dashboard",
+        icon="fas fa-bolt",
+        subtitle="Monitor energy consumption, track costs, and optimize your system's power efficiency."
+    ) }}
+
+    <!-- Energy Statistics Cards -->
+    <div class="row g-4 mb-4" aria-label="Energy consumption statistics">
+        <div class="col-md-6 col-lg-3">
+            {{ ui.kpi_card(
+                title="Current Power",
+                value="-",
+                icon="fas fa-plug",
+                variant="primary",
+                value_id="current-power",
+                footer='<div id="power-trend" class="small"><i class="fas fa-minus me-1"></i>Calculating...</div>'
+            ) }}
+        </div>
+        <div class="col-md-6 col-lg-3">
+            {{ ui.kpi_card(
+                title="Today's Energy",
+                value="-",
+                icon="fas fa-calendar-day",
+                variant="success",
+                value_id="daily-energy",
+                unit="kWh"
+            ) }}
+        </div>
+        <div class="col-md-6 col-lg-3">
+            {{ ui.kpi_card(
+                title="This Week",
+                value="-",
+                icon="fas fa-calendar-week",
+                variant="warning",
+                value_id="weekly-energy",
+                unit="kWh"
+            ) }}
+        </div>
+        <div class="col-md-6 col-lg-3">
+            {{ ui.kpi_card(
+                title="Monthly Cost",
+                value="-",
+                icon="fas fa-dollar-sign",
+                variant="info",
+                value_id="monthly-cost"
+            ) }}
+        </div>
+    </div>
+
+    <!-- Energy Predictions and Alerts -->
+    {% call ui.content_card(
+        title="Energy Predictions & Alerts",
+        icon="fas fa-brain",
+        header_extra=ui.ui_button("Refresh", id="refresh-predictions-btn", icon="fas fa-sync-alt", variant="outline-secondary", size="sm")
+    ) %}
+        <div id="predictions-container">
+            <div class="text-center py-5">
+                <div class="mb-3">
+                    <i class="fas fa-chart-line fa-4x text-muted opacity-25"></i>
+                </div>
+                <h3 class="fw-bold text-dark">Energy Predictions Loading...</h3>
+                <p class="text-muted mx-auto" style="max-width: 400px;">AI-powered energy predictions and recommendations will appear here.</p>
+            </div>
+        </div>
+    {% endcall %}
+
+    <!-- Energy Consumption Chart -->
+    <div class="mb-4">
+        {% call ui.content_card(
+            title="Energy Consumption Trends",
+            icon="fas fa-chart-area"
+        ) %}
+            <div class="row g-3 align-items-end mb-4 bg-light p-3 rounded border">
+                <div class="col-md-4">
+                    <label for="chart-timerange" class="form-label fw-bold small text-uppercase text-muted">Time Range</label>
+                    <select id="chart-timerange" name="timerange" class="form-select">
+                        <option value="today">Today</option>
+                        <option value="week">This Week</option>
+                        <option value="month" selected>This Month</option>
+                        <option value="quarter">This Quarter</option>
+                        <option value="year">This Year</option>
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <label for="chart-grouping" class="form-label fw-bold small text-uppercase text-muted">Group By</label>
+                    <select id="chart-grouping" name="grouping" class="form-select">
+                        <option value="hour">Hourly</option>
+                        <option value="day" selected>Daily</option>
+                        <option value="week">Weekly</option>
+                        <option value="month">Monthly</option>
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    {{ ui.ui_button("Update Chart", id="update-chart-btn", icon="fas fa-chart-bar", variant="primary", class="w-100") }}
+                </div>
+            </div>
+
+            <div style="height: 400px; position: relative;">
+                <canvas id="energy-chart" role="img" aria-label="Energy consumption trend chart"></canvas>
+            </div>
+        {% endcall %}
+    </div>
+
+    <!-- Device Breakdown -->
+    <div class="mb-4">
+        {% call ui.content_card(
+            title="Energy Usage by Device",
+            icon="fas fa-microchip"
+        ) %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle" role="table" aria-label="Device energy usage table">
+                    <thead class="table-light">
+                        <tr role="row">
+                            <th scope="col" class="ps-3">Device</th>
+                            <th scope="col">Type</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Power (W)</th>
+                            <th scope="col">Daily Usage (kWh)</th>
+                            <th scope="col" class="pe-3">Monthly Est. Cost</th>
+                        </tr>
+                    </thead>
+                    <tbody id="device-breakdown-tbody">
+                        <tr>
+                            <td colspan="6" class="text-center py-5">
+                                <div class="spinner-border text-primary mb-2" role="status"></div>
+                                <p class="text-muted small mb-0">Loading device energy data...</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        {% endcall %}
+    </div>
+
+    <!-- Energy Settings -->
+    {% call ui.content_card(
+        title="Energy Cost Settings",
+        icon="fas fa-cog",
+        variant="light"
+    ) %}
+        <form id="energy-settings-form" aria-label="Energy cost settings form">
+            <div class="row g-4">
+                <div class="col-md-6">
+                    {{ ui.form_field(
+                        label="Energy Rate",
+                        id="energy-rate",
+                        name="energy_rate",
+                        type="number",
+                        required=true,
+                        help_text="Your electricity cost per kilowatt-hour",
+                        attrs='step="0.001"'
+                    ) }}
+                </div>
+
+                <div class="col-md-6">
+                    {{ ui.select_field(
+                        label="Currency",
+                        id="currency",
+                        name="currency",
+                        options=[
+                            ('USD', 'USD ($)'),
+                            ('EUR', 'EUR (€)'),
+                            ('GBP', 'GBP (£)'),
+                            ('JPY', 'JPY (¥)')
+                        ],
+                        value='USD'
+                    ) }}
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-end mt-4 pt-3 border-top">
+                {{ ui.ui_button("Save Energy Settings", type="submit", icon="fas fa-save", variant="primary", px=4) }}
+            </div>
+        </form>
+    {% endcall %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/api.js') }}"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='js/utils/cache-service.js') }}"></script>
+<script src="{{ url_for('static', filename='js/utils/base-manager.js') }}"></script>
+<script src="{{ url_for('static', filename='js/energy-analytics/data-service.js') }}"></script>
+<script src="{{ url_for('static', filename='js/energy-analytics/ui-manager.js') }}"></script>
+<script src="{{ url_for('static', filename='js/energy-analytics/main.js') }}"></script>
+{% endblock %}

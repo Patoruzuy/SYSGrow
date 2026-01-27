@@ -1,0 +1,248 @@
+{% extends "base.html" %}
+
+{% block title %}Select a Growth Unit - SYSGrow{% endblock %}
+{% block body_class %}units-page{% endblock %}
+
+{% block content %}
+<div class="page-shell">
+<div class="page-surface">
+  <div class="unit-selector-container">
+    <header class="page-header" aria-label="Unit selection header">
+      <div>
+        <h1 class="page-title">
+          <i class="fas fa-layer-group" aria-hidden="true"></i>
+          Select a Growth Unit
+        </h1>
+        <p class="page-subtitle">Pick a unit to open its dashboard and manage devices.</p>
+      </div>
+
+      <button type="button" class="create-unit-btn">
+        <i class="fas fa-plus" aria-hidden="true"></i>
+        Create Unit
+      </button>
+    </header>
+
+    {% if units %}
+      <div class="units-grid" aria-label="Available units">
+        {% for unit in units %}
+          {% set unit_id = (unit.unit_id if unit.unit_id is defined else unit.get('unit_id')) %}
+          {% set unit_name = (unit.name if unit.name is defined else unit.get('name')) %}
+          {% set unit_location = (unit.location if unit.location is defined else unit.get('location')) %}
+          {% set unit_image = (unit.custom_image if unit.custom_image is defined else unit.get('custom_image')) %}
+          {% set unit_dimensions = (unit.dimensions if unit.dimensions is defined else unit.get('dimensions')) %}
+          {% set unit_plants = (unit.plants if unit.plants is defined else unit.get('plants')) %}
+          {% set plant_count = (unit.plant_count if unit.plant_count is defined else unit.get('plant_count', 0)) %}
+          {% set sensor_count = (unit.sensor_count if unit.sensor_count is defined else unit.get('sensor_count', 0)) %}
+          {% set actuator_count = (unit.actuator_count if unit.actuator_count is defined else unit.get('actuator_count', 0)) %}
+          {% set camera_available = (unit.camera_available if unit.camera_available is defined else unit.get('camera_available', False)) %}
+
+          <article
+            class="unit-card unit-selector-card"
+            data-unit-id="{{ unit_id }}"
+            role="button"
+            tabindex="0"
+            aria-label="Select {{ unit_name or ('Unit ' ~ unit_id) }}"
+          >
+            <div class="unit-card-image">
+              {% if unit_image %}
+                <img src="{{ unit_image }}" alt="" loading="lazy">
+              {% endif %}
+
+              <div class="unit-card-image-overlay">
+                <div class="unit-card-actions">
+                  <button
+                    type="button"
+                    class="unit-action-btn edit edit-unit-btn"
+                    data-unit-id="{{ unit_id }}"
+                    aria-label="Edit unit"
+                  >
+                    <i class="fas fa-edit" aria-hidden="true"></i>
+                  </button>
+
+                  <button
+                    type="button"
+                    class="unit-action-btn camera view-camera-btn {% if camera_available %}active{% endif %}"
+                    data-unit-id="{{ unit_id }}"
+                    aria-label="Open camera view"
+                  >
+                    <i class="fas fa-camera" aria-hidden="true"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="unit-card-header">
+              <div class="unit-card-title">
+                <h3>{{ unit_name or ('Unit ' ~ unit_id) }}</h3>
+                {% if unit_location %}
+                  <span class="unit-location">
+                    <i class="fas fa-map-marker-alt" aria-hidden="true"></i>
+                    {{ unit_location }}
+                  </span>
+                {% endif %}
+              </div>
+
+              {% if unit_dimensions %}
+                {% set w = (unit_dimensions.width if unit_dimensions.width is defined else unit_dimensions.get('width')) %}
+                {% set h = (unit_dimensions.height if unit_dimensions.height is defined else unit_dimensions.get('height')) %}
+                {% set d = (unit_dimensions.depth if unit_dimensions.depth is defined else unit_dimensions.get('depth')) %}
+                {% if w and h and d %}
+                  <div class="unit-dimensions">
+                    <strong>Size:</strong> {{ w }} × {{ h }} × {{ d }}
+                  </div>
+                {% endif %}
+              {% endif %}
+
+              <div class="unit-stats" aria-label="Unit statistics">
+                <div class="unit-stat">
+                  <i class="fas fa-leaf" aria-hidden="true"></i>
+                  {{ plant_count or 0 }} plants
+                </div>
+                <div class="unit-stat">
+                  <i class="fas fa-microchip" aria-hidden="true"></i>
+                  {{ sensor_count or 0 }} sensors
+                </div>
+                <div class="unit-stat">
+                  <i class="fas fa-bolt" aria-hidden="true"></i>
+                  {{ actuator_count or 0 }} actuators
+                </div>
+              </div>
+            </div>
+
+            <div class="unit-card-body">
+              <div class="plants-section-title">Plants</div>
+              {% if unit_plants %}
+                <div class="plants-preview" aria-label="Plants preview">
+                  {% for plant in unit_plants %}
+                    {% set moisture_level = (plant.moisture_level if plant.moisture_level is defined else plant.get('moisture_level', 0)) %}
+                    {% set moisture_status = (plant.moisture_status if plant.moisture_status is defined else plant.get('moisture_status')) %}
+                    {% set status_value =
+                      (moisture_status.status if moisture_status is defined and moisture_status.status is defined else
+                       (moisture_status.get('status') if moisture_status else 'normal'))
+                    %}
+                    {% set status_class = 'moisture-' ~ (status_value|replace('_', '-')) %}
+                    {% set icon = (plant.icon if plant.icon is defined else plant.get('icon')) %}
+                    {% set plant_name = (plant.name if plant.name is defined else plant.get('name', 'Plant')) %}
+
+                    <div class="plant-preview-card">
+                      <div class="moisture-ring-container {{ status_class }}">
+                        <svg class="moisture-ring-svg" viewBox="0 0 60 60" aria-hidden="true">
+                          <circle class="moisture-ring-bg" cx="30" cy="30" r="24" pathLength="100"></circle>
+                          <circle
+                            class="moisture-ring-progress {{ status_class }}"
+                            cx="30"
+                            cy="30"
+                            r="24"
+                            pathLength="100"
+                            stroke-dasharray="100"
+                            stroke-dashoffset="{{ 100 - (moisture_level|float) }}"
+                          ></circle>
+                        </svg>
+
+                        <div class="plant-icon-wrapper" aria-hidden="true">
+                          {% if icon %}{{ icon }}{% else %}<i class="fas fa-seedling"></i>{% endif %}
+                        </div>
+                        <div class="moisture-percentage">{{ moisture_level|round(0) }}%</div>
+                      </div>
+                      <div class="plant-name" title="{{ plant_name }}">{{ plant_name }}</div>
+                    </div>
+                  {% endfor %}
+                </div>
+              {% else %}
+                <div class="no-plants-message">No plants in this unit yet.</div>
+              {% endif %}
+            </div>
+
+            <div class="unit-card-footer">
+              <button type="button" class="open-unit-btn">
+                <i class="fas fa-arrow-right" aria-hidden="true"></i>
+                Open Unit
+              </button>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <div class="empty-state-icon" aria-hidden="true"><i class="fas fa-seedling"></i></div>
+        <h3>No growth units yet</h3>
+        <p>Create your first unit to start tracking sensors, plants, and automation.</p>
+        <button type="button" class="create-unit-btn">
+          <i class="fas fa-plus" aria-hidden="true"></i>
+          Create Unit
+        </button>
+      </div>
+    {% endif %}
+
+    <div
+      class="modal hidden"
+      id="unitModal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modalTitle"
+      aria-hidden="true"
+    >
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 id="modalTitle"><i class="fas fa-plus-circle" aria-hidden="true"></i> Create Growth Unit</h2>
+          <button type="button" class="modal-close close-modal-btn" aria-label="Close modal">
+            <i class="fas fa-times" aria-hidden="true"></i>
+          </button>
+        </div>
+
+        <form id="unitForm" class="modal-body">
+          <input type="hidden" id="unitId" name="unit_id" value="">
+
+          <div class="form-group">
+            <label for="unitName">Name</label>
+            <input id="unitName" name="name" type="text" class="form-control" required>
+          </div>
+
+          <div class="form-group">
+            <label for="unitLocation">Location</label>
+            <input id="unitLocation" name="location" type="text" class="form-control" placeholder="Indoor">
+          </div>
+
+          <div class="form-group">
+            <label for="unitImage">Image URL</label>
+            <input
+              id="unitImage"
+              name="custom_image"
+              type="text"
+              class="form-control"
+              placeholder="/static/images/my-unit.png"
+            >
+          </div>
+
+          <div class="form-group">
+            <label>Dimensions (optional)</label>
+            <div class="form-row">
+              <input id="unitWidth" name="width" type="number" step="0.1" min="0" class="form-control" placeholder="Width">
+              <input id="unitHeight" name="height" type="number" step="0.1" min="0" class="form-control" placeholder="Height">
+              <input id="unitDepth" name="depth" type="number" step="0.1" min="0" class="form-control" placeholder="Depth">
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary close-modal-btn">Cancel</button>
+            <button type="submit" class="btn btn-primary">
+              <span id="submitBtnText">Create Unit</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer" role="status" aria-live="polite" aria-atomic="true"></div>
+  </div>
+</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/api.js') }}"></script>
+<script type="module">
+  import { initUnitSelector } from "{{ url_for('static', filename='js/unit_selector.js') }}";
+  initUnitSelector();
+</script>
+{% endblock %}

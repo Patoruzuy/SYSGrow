@@ -1,0 +1,839 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui %}
+
+{% block title %}Units Management - SYSGrow{% endblock %}
+{% block body_class %}units-page{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/units.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="page-shell">
+    {# Page Header #}
+    {{ ui.page_header(
+      title="Units Management",
+      icon="fas fa-cubes",
+      subtitle="Comprehensive growth unit management, monitoring, and control center",
+      actions='
+        <button type="button" class="btn btn-primary" data-action="open-create-unit-modal" title="Create New Unit">
+            <i class="fas fa-plus me-1"></i> New Unit
+        </button>
+        <button type="button" class="btn btn-outline-secondary" data-action="refresh-all-units" title="Refresh Data">
+            <i class="fas fa-sync-alt"></i>
+        </button>
+      '
+    ) }}
+
+    <!-- Contextual Help Banner -->
+    <div class="help-banner">
+      <i class="fas fa-cubes"></i>
+      <div class="help-banner-content">
+        <p class="help-banner-title">Growth Unit Management</p>
+        <p class="help-banner-text">Configure your grow spaces, link devices, and set up automation schedules.</p>
+      </div>
+      {{ ui.help_link('schedules', 'schedule-types', 'Schedule Guide') }}
+    </div>
+
+    {# Status Overview Cards #}
+    <div class="row g-3 mb-4" id="unitsOverview">
+        <div class="col-md-3">
+            {{ ui.kpi_card(
+                id='total-units',
+                label='Total Units',
+                value=(units | length if units else 0),
+                icon='fas fa-cubes',
+                variant='primary',
+                value_id='totalUnits'
+            ) }}
+        </div>
+        <div class="col-md-3">
+            {{ ui.kpi_card(
+                id='active-plants',
+                label='Active Plants',
+                value='-',
+                icon='fas fa-leaf',
+                variant='success',
+                value_id='activePlants'
+            ) }}
+        </div>
+        <div class="col-md-3">
+            {{ ui.kpi_card(
+                id='connected-devices',
+                label='Devices',
+                value='-',
+                icon='fas fa-microchip',
+                variant='warning',
+                value_id='connectedDevices'
+            ) }}
+        </div>
+        <div class="col-md-3">
+            {{ ui.kpi_card(
+                id='active-cameras',
+                label='Active Cameras',
+                value='-',
+                icon='fas fa-camera',
+                variant='info',
+                value_id='activeCameras'
+            ) }}
+        </div>
+    </div>
+
+    <!-- Units Grid -->
+    <div class="row g-4" id="unitsContainer">
+    {% if units %}
+        {% for unit in units %}
+            {% set unit_id = unit.unit_id or unit.id %}
+            {% set unit_name = unit.name or ('Unit ' ~ unit_id) %}
+            <div class="col-xl-4 col-lg-6 col-md-6">
+                {% call ui.content_card(title=unit_name, subtitle='ID: ' ~ unit_id, icon="fas fa-cube", class="unit-card", id="unit-card-" ~ unit_id, header_extra='
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="status-indicator active" title="Unit Status"><i class="fas fa-circle fs-xs text-success"></i></span>
+                        <button type="button" class="btn btn-link btn-sm p-0 text-muted camera-indicator hidden" data-action="toggle-camera" data-unit-id="' ~ unit_id ~ '" id="camera-indicator-' ~ unit_id ~ '" title="Toggle Camera">
+                            <i class="fas fa-camera"></i>
+                        </button>
+                        <button type="button" class="btn btn-link btn-sm p-0 text-muted" data-action="open-unit-settings" data-unit-id="' ~ unit_id ~ '" title="Unit Settings"><i class="fas fa-cog"></i></button>
+                        <button type="button" class="btn btn-link btn-sm p-0 text-danger" data-action="delete-unit" data-unit-id="' ~ unit_id ~ '" title="Delete Unit"><i class="fas fa-trash"></i></button>
+                    </div>
+                ', **{'data-unit-id': unit_id}) %}
+                    <div class="mb-3 d-flex justify-content-between align-items-center">
+                        <div class="unit-location small text-muted">
+                            <i class="fas fa-map-marker-alt me-1"></i> {{ unit.location or 'Indoor' }}
+                        </div>
+                        {% if unit.dimensions %}
+                        <div class="unit-dimensions small text-muted">
+                            <i class="fas fa-ruler-combined me-1"></i>
+                            {% if unit.dimensions is string %}
+                                {{ unit.dimensions }}
+                            {% else %}
+                                {{ "%.1f"|format(unit.dimensions.width|float) }}x{{ "%.1f"|format(unit.dimensions.height|float) }}x{{ "%.1f"|format(unit.dimensions.depth|float) }} cm
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Quick Stats Pill -->
+                    <div class="d-flex gap-2 mb-4">
+                        <div class="bg-light rounded-pill px-3 py-1 flex-fill text-center">
+                            <div class="fw-bold" id="plants-count-{{ unit_id }}">0</div>
+                            <div class="small text-muted" style="font-size: 0.7rem;">Plants</div>
+                        </div>
+                        <div class="bg-light rounded-pill px-3 py-1 flex-fill text-center">
+                            <div class="fw-bold" id="sensors-count-{{ unit_id }}">0</div>
+                            <div class="small text-muted" style="font-size: 0.7rem;">Sensors</div>
+                        </div>
+                        <div class="bg-light rounded-pill px-3 py-1 flex-fill text-center">
+                            <div class="fw-bold" id="actuators-count-{{ unit_id }}">0</div>
+                            <div class="small text-muted" style="font-size: 0.7rem;">Actuators</div>
+                        </div>
+                    </div>
+
+                    <!-- Health Monitoring Section -->
+                    <div class="unit-health mb-4 p-3 bg-light rounded" id="health-{{ unit_id }}">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-bold small">Unit Health</span>
+                            <span class="badge bg-success" id="health-score-{{ unit_id }}">--%</span>
+                        </div>
+                        <div class="d-flex justify-content-around">
+                            <div class="text-center" id="plant-health-{{ unit_id }}" title="Plant Health">
+                                <i class="fas fa-leaf text-success d-block mb-1"></i>
+                                <span class="small fw-bold">--</span>
+                            </div>
+                            <div class="text-center" id="device-health-{{ unit_id }}" title="Device Health">
+                                <i class="fas fa-microchip text-primary d-block mb-1"></i>
+                                <span class="small fw-bold">--</span>
+                            </div>
+                            <div class="text-center" id="env-health-{{ unit_id }}" title="Environmental Health">
+                                <i class="fas fa-thermometer-half text-info d-block mb-1"></i>
+                                <span class="small fw-bold">--</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Environmental Readings -->
+                    <div class="d-flex gap-2 mb-4" id="env-chips-{{ unit_id }}">
+                        <div class="flex-fill p-2 bg-light border-start border-4 border-info rounded">
+                            <div class="small text-muted mb-1"><i class="fas fa-thermometer-half me-1"></i> Temp</div>
+                            <div class="fw-bold env-chip-value">--°C</div>
+                        </div>
+                        <div class="flex-fill p-2 bg-light border-start border-4 border-primary rounded">
+                            <div class="small text-muted mb-1"><i class="fas fa-tint me-1"></i> Humidity</div>
+                            <div class="fw-bold env-chip-value">--%</div>
+                        </div>
+                    </div>
+
+                    <!-- Action Links -->
+                    <div class="row g-2 mb-3">
+                        <div class="col-4">
+                            <a href="{{ url_for('ui.plants_hub') }}" class="btn btn-outline-light text-dark btn-sm w-100 py-2 border">
+                                <i class="fas fa-heartbeat text-danger d-block mb-1"></i><span style="font-size: 0.7rem;">Plants</span>
+                            </a>
+                        </div>
+                        <div class="col-4">
+                            <a href="{{ url_for('ui.sensor_analytics') }}" class="btn btn-outline-light text-dark btn-sm w-100 py-2 border">
+                                <i class="fas fa-chart-line text-primary d-block mb-1"></i><span style="font-size: 0.7rem;">Sensors</span>
+                            </a>
+                        </div>
+                        <div class="col-4">
+                            <a href="{{ url_for('ui.energy_analytics') }}" class="btn btn-outline-light text-dark btn-sm w-100 py-2 border">
+                                <i class="fas fa-bolt text-warning d-block mb-1"></i><span style="font-size: 0.7rem;">Energy</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Expandable Details -->
+                    <div class="unit-details hidden border-top pt-3 mt-3" id="details-{{ unit_id }}">
+                        <h6 class="mb-3 small fw-bold"><i class="fas fa-leaf me-1"></i> Live Plants</h6>
+                        <div id="plants-list-{{ unit_id }}" class="mb-4">
+                            <div class="text-center text-muted py-2 small">Loading...</div>
+                        </div>
+                        
+                        <h6 class="mb-3 small fw-bold"><i class="fas fa-microchip me-1 text-primary"></i> Hardware Status</h6>
+                        <div id="devices-list-{{ unit_id }}" class="mb-4">
+                            <div class="text-center text-muted py-2 small">Loading...</div>
+                        </div>
+                    </div>
+                    
+                    <button type="button" class="btn btn-link btn-sm w-100 text-decoration-none mt-2 text-muted border-top pt-2 unit-toggle" data-action="toggle-unit-details" data-unit-id="{{ unit_id }}">
+                        <span class="toggle-text">Show Details</span> <i class="fas fa-chevron-down ms-1"></i>
+                    </button>
+                {% endcall %}
+            </div>
+        {% endfor %}
+    {% else %}
+        <div class="col-12">
+            <div class="empty-state text-center p-5 bg-white rounded shadow-sm">
+                <div class="mb-4 display-4 text-muted"><i class="fas fa-seedling"></i></div>
+                <h3>No Growth Units Found</h3>
+                <p class="text-muted mb-4">Create your first growth unit to start managing your smart agriculture system.</p>
+                <button type="button" class="btn btn-primary px-4" data-action="open-create-unit-modal">
+                    <i class="fas fa-plus me-2"></i> Create First Unit
+                </button>
+            </div>
+        </div>
+    {% endif %}
+    </div>
+
+<!-- Create Unit Modal -->
+<div class="modal" id="createUnitModal">
+    <div class="modal-content large">
+        <div class="modal-header">
+            <h2><i class="fas fa-plus-circle"></i> Create New Growth Unit</h2>
+            <button type="button" class="modal-close" data-action="close-modal" data-modal-id="createUnitModal" aria-label="Close">&times;</button>
+        </div>
+        <form id="createUnitForm" class="modal-form">
+            <!-- Basic Information -->
+            <div class="form-section">
+                <h3><i class="fas fa-info-circle"></i> Basic Information</h3>
+                {{ ui.form_field('unitName', 'Unit Name *', required=True, placeholder='e.g., Greenhouse A, Indoor Garden 1', name_attr='name') }}
+                {{ ui.select_field('unitLocation', 'Location', [
+                    ('Indoor','Indoor'),
+                    ('Outdoor','Outdoor'),
+                    ('Greenhouse','Greenhouse'),
+                    ('Hydroponics','Hydroponics')
+                ], name_attr='location') }}
+            </div>
+
+            <!-- Dimensions -->
+            <div class="form-section">
+                <h3><i class="fas fa-ruler-combined"></i> Dimensions (Optional)</h3>
+                <small class="form-help">Enter the physical dimensions of your grow space in centimeters</small>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="dimensionWidth">Width (cm)</label>
+                        <input type="number" id="dimensionWidth" name="dimensions[width]" 
+                               min="0" step="0.1" placeholder="e.g., 300">
+                    </div>
+                    <div class="form-group">
+                        <label for="dimensionHeight">Height (cm)</label>
+                        <input type="number" id="dimensionHeight" name="dimensions[height]" 
+                               min="0" step="0.1" placeholder="e.g., 250">
+                    </div>
+                    <div class="form-group">
+                        <label for="dimensionDepth">Depth (cm)</label>
+                        <input type="number" id="dimensionDepth" name="dimensions[depth]" 
+                               min="0" step="0.1" placeholder="e.g., 200">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Device Schedules -->
+            <div class="form-section">
+                <h3><i class="fas fa-clock"></i> Device Schedules (Optional)</h3>
+                <small class="form-help">Configure when devices should be active (24-hour format)</small>
+                <div id="deviceSchedulesContainer">
+                    <!-- Initial schedule row -->
+                    <div class="schedule-row" data-schedule-index="0">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Device Type</label>
+                                <select name="device_schedules[0][device_type]" class="schedule-device-type" aria-label="Device Type">
+                                    <option value="">Select device...</option>
+                                    <option value="light">Light</option>
+                                    <option value="fan">Fan</option>
+                                    <option value="pump">Water Pump</option>
+                                    <option value="heater">Heater</option>
+                                    <option value="cooler">Cooler</option>
+                                    <option value="humidifier">Humidifier</option>
+                                    <option value="dehumidifier">Dehumidifier</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Start Time</label>
+                                <input type="time" name="device_schedules[0][start_time]" class="schedule-start-time" aria-label="Start Time">
+                            </div>
+                            <div class="form-group">
+                                <label>End Time</label>
+                                <input type="time" name="device_schedules[0][end_time]" class="schedule-end-time" aria-label="End Time">
+                            </div>
+                            <div class="form-group-checkbox">
+                                <label>
+                                    <input type="checkbox" name="device_schedules[0][enabled]" checked>
+                                    Enabled
+                                </label>
+                            </div>
+                            <div class="form-group-action">
+                                <button type="button" class="btn-icon btn-danger" 
+                                        data-action="remove-schedule-row" data-row-index="0" title="Remove schedule">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline" data-action="add-schedule-row">
+                    <i class="fas fa-plus"></i> Add Device Schedule
+                </button>
+            </div>
+
+            <!-- Camera Settings -->
+            <div class="form-section">
+                <h3><i class="fas fa-camera"></i> Camera Settings</h3>
+                {{ ui.checkbox_field('cameraEnabled', 'Enable camera for this unit', name_attr='camera_enabled', wrapper_class='form-group-checkbox', help_text='Enable camera to capture time-lapse images and monitor growth', help_class='form-help') }}
+            </div>
+
+            <!-- Form Actions -->
+            <div class="form-actions">
+                <button type="button" class="btn btn-outline" data-action="close-modal" data-modal-id="createUnitModal">Cancel</button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i>
+                    Create Unit
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Unit Management Modal -->
+<div class="modal" id="unitManagementModal">
+    <div class="modal-content large">
+        <div class="modal-header">
+            <h2><i class="fas fa-edit"></i> Manage Growth Unit</h2>
+            <button type="button" class="modal-close" data-action="close-modal" data-modal-id="unitManagementModal" aria-label="Close">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="management-tabs">
+                <button type="button" class="tab-btn active" data-action="switch-tab" data-tab="plants">
+                    <i class="fas fa-leaf"></i> Plants
+                </button>
+                <button type="button" class="tab-btn" data-action="switch-tab" data-tab="devices">
+                    <i class="fas fa-microchip"></i> Devices
+                </button>
+                <button type="button" class="tab-btn" data-action="switch-tab" data-tab="schedule">
+                    <i class="fas fa-clock"></i> Schedule
+                </button>
+                <button type="button" class="tab-btn" data-action="switch-tab" data-tab="thresholds">
+                    <i class="fas fa-sliders-h"></i> Thresholds
+                </button>
+            </div>
+            
+            <!-- Tab Contents -->
+            <div id="plantsTab" class="tab-content active">
+                <div class="tab-header">
+                    <h3>Plant Management</h3>
+                    <button type="button" class="btn btn-primary" data-action="open-add-plant-form">
+                        <i class="fas fa-plus"></i> Add Plant
+                    </button>
+                </div>
+                <div id="plantsManagementContent">
+                    <!-- Plants content loaded dynamically -->
+                </div>
+            </div>
+            
+            <div id="devicesTab" class="tab-content">
+                <div class="tab-header">
+                    <h3>Device Management</h3>
+                    <button type="button" class="btn btn-primary" data-action="open-link-device-form">
+                        <i class="fas fa-link"></i> Link Device
+                    </button>
+                </div>
+                <div id="devicesManagementContent">
+                    <!-- Devices content loaded dynamically -->
+                </div>
+            </div>
+            
+            <div id="scheduleTab" class="tab-content">
+                <div class="tab-header">
+                    <h3>Schedule Management</h3>
+                    <div class="tab-header-actions">
+                        <div class="btn-group me-2">
+                            <button type="button" class="btn btn-success btn-sm" data-action="auto-generate-schedules" title="Auto-generate schedules based on active plant stage">
+                                <i class="fas fa-magic"></i> Auto-Generate
+                            </button>
+                            <button type="button" class="btn btn-success btn-sm dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+                                <span class="visually-hidden">Toggle Dropdown</span>
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="#" data-action="view-templates"><i class="fas fa-list"></i> View Templates</a></li>
+                                <li><a class="dropdown-item" href="#" data-action="generate-from-template"><i class="fas fa-file-import"></i> From Template...</a></li>
+                            </ul>
+                        </div>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-action="preview-schedules" title="Preview upcoming events">
+                            <i class="fas fa-calendar-alt"></i> Preview
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-action="check-conflicts" title="Check for conflicts">
+                            <i class="fas fa-exclamation-triangle"></i> Conflicts
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-action="view-schedule-history" title="View change history">
+                            <i class="fas fa-history"></i> History
+                        </button>
+                        <button type="button" class="btn btn-primary" data-action="open-schedule-form">
+                            <i class="fas fa-plus"></i> Add Schedule
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Bulk Actions Bar (hidden by default) -->
+                <div id="scheduleBulkActions" class="bulk-actions-bar hidden">
+                    <div class="bulk-select-info">
+                        <input type="checkbox" id="selectAllSchedules" class="form-check-input" title="Select all">
+                        <span id="selectedScheduleCount">0 selected</span>
+                    </div>
+                    <div class="bulk-action-buttons">
+                        <button type="button" class="btn btn-sm btn-outline-success" data-action="bulk-enable" title="Enable selected">
+                            <i class="fas fa-toggle-on"></i> Enable
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-warning" data-action="bulk-disable" title="Disable selected">
+                            <i class="fas fa-toggle-off"></i> Disable
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger" data-action="bulk-delete" title="Delete selected">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Active Schedules Summary -->
+                <div id="schedulesSummary" class="schedules-summary mb-3">
+                    <!-- Loaded dynamically -->
+                </div>
+                
+                <!-- Schedule List -->
+                <div id="scheduleManagementContent" class="schedules-list">
+                    <!-- Schedule content loaded dynamically -->
+                </div>
+                
+                <!-- Schedule Preview Panel (hidden by default) -->
+                <div id="schedulePreviewPanel" class="schedule-preview-panel hidden">
+                    <div class="panel-header">
+                        <h4><i class="fas fa-calendar-alt"></i> Schedule Preview (Next 24 Hours)</h4>
+                        <button type="button" class="btn btn-sm btn-close" data-action="close-preview-panel">&times;</button>
+                    </div>
+                    <div id="schedulePreviewContent" class="preview-content">
+                        <!-- Preview events loaded dynamically -->
+                    </div>
+                </div>
+                
+                <!-- Conflicts Panel (hidden by default) -->
+                <div id="scheduleConflictsPanel" class="schedule-conflicts-panel hidden">
+                    <div class="panel-header">
+                        <h4><i class="fas fa-exclamation-triangle"></i> Schedule Conflicts</h4>
+                        <button type="button" class="btn btn-sm btn-close" data-action="close-conflicts-panel">&times;</button>
+                    </div>
+                    <div id="scheduleConflictsContent" class="conflicts-content">
+                        <!-- Conflicts loaded dynamically -->
+                    </div>
+                </div>
+                
+                <!-- History Panel (hidden by default) -->
+                <div id="scheduleHistoryPanel" class="schedule-history-panel hidden">
+                    <div class="panel-header">
+                        <h4><i class="fas fa-history"></i> Schedule History</h4>
+                        <button type="button" class="btn btn-sm btn-close" data-action="close-history-panel">&times;</button>
+                    </div>
+                    <div id="scheduleHistoryContent" class="history-content">
+                        <!-- History loaded dynamically -->
+                    </div>
+                </div>
+                
+                <!-- Templates Panel (hidden by default) -->
+                <div id="scheduleTemplatesPanel" class="schedule-templates-panel hidden">
+                    <div class="panel-header">
+                        <h4><i class="fas fa-file-alt"></i> Schedule Templates</h4>
+                        <button type="button" class="btn btn-sm btn-close" data-action="close-templates-panel">&times;</button>
+                    </div>
+                    <div id="scheduleTemplatesContent" class="templates-content">
+                        <p class="templates-description">
+                            These templates are based on the current plant's growth stage requirements. 
+                            Click "Apply" to generate schedules automatically.
+                        </p>
+                        <div id="templatesList" class="templates-list">
+                            <!-- Templates loaded dynamically -->
+                        </div>
+                        <div class="templates-actions mt-3">
+                            <button type="button" class="btn btn-primary" data-action="apply-templates">
+                                <i class="fas fa-check"></i> Apply Selected Templates
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" data-action="close-templates-panel">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Schedule Form (initially hidden) -->
+                <div id="scheduleFormContainer" class="schedule-form-container hidden">
+                    <h4 id="scheduleFormTitle">Add Device Schedule</h4>
+                    <form id="deviceScheduleForm" class="schedule-form">
+                        <input type="hidden" id="scheduleId" name="schedule_id" value="">
+                        
+                        <div class="form-row">
+                            {{ ui.form_field('scheduleName', 'Schedule Name *', type='text', required=True, name_attr='name', placeholder='e.g., Morning Light Schedule') }}
+                        </div>
+                        
+                        <div class="form-row">
+                            {{ ui.select_field('scheduleDeviceType', 'Device Type *', [
+                                ('','Select device...'),
+                                ('light','Light'),
+                                ('fan','Fan'),
+                                ('pump','Water Pump'),
+                                ('heater','Heater'),
+                                ('cooler','Cooler'),
+                                ('humidifier','Humidifier'),
+                                ('dehumidifier','Dehumidifier')
+                            ], required=True, name_attr='device_type') }}
+                            
+                            {{ ui.select_field('scheduleType', 'Schedule Type', [
+                                ('simple','Simple (Time-based)'),
+                                ('photoperiod','Photoperiod (Light-aware)'),
+                                ('interval','Interval (Repeating)'),
+                                ('automatic','Automatic (Plant Stage)')
+                            ], name_attr='schedule_type') }}
+                        </div>
+                        
+                        <div class="form-row">
+                            {{ ui.form_field('scheduleStartTime', 'Start Time *', type='time', required=True, name_attr='start_time') }}
+                            {{ ui.form_field('scheduleEndTime', 'End Time *', type='time', required=True, name_attr='end_time') }}
+                        </div>
+                        
+                        <!-- Days of Week -->
+                        <div class="form-row">
+                            <div class="form-group days-of-week-group">
+                                <label>Active Days</label>
+                                <div class="days-checkboxes">
+                                    <label class="day-checkbox"><input type="checkbox" name="days_of_week" value="0" checked> Mon</label>
+                                    <label class="day-checkbox"><input type="checkbox" name="days_of_week" value="1" checked> Tue</label>
+                                    <label class="day-checkbox"><input type="checkbox" name="days_of_week" value="2" checked> Wed</label>
+                                    <label class="day-checkbox"><input type="checkbox" name="days_of_week" value="3" checked> Thu</label>
+                                    <label class="day-checkbox"><input type="checkbox" name="days_of_week" value="4" checked> Fri</label>
+                                    <label class="day-checkbox"><input type="checkbox" name="days_of_week" value="5" checked> Sat</label>
+                                    <label class="day-checkbox"><input type="checkbox" name="days_of_week" value="6" checked> Sun</label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Photoperiod Settings (shown when schedule_type is photoperiod) -->
+                        <div id="photoperiodSettings" class="form-row hidden">
+                            {{ ui.select_field('photoperiodSource', 'Photoperiod Source', [
+                                ('schedule','Schedule Only'),
+                                ('sensor','Sensor-based'),
+                                ('sun_api','Sunrise/Sunset')
+                            ], name_attr='photoperiod_source') }}
+                            {{ ui.form_field('sensorThreshold', 'Sensor Threshold (lux)', type='number', min=0, max=100000, name_attr='sensor_threshold', placeholder='e.g., 500', help_text='Lux level below which it is treated as night.') }}
+                        </div>
+
+                        <!-- Interval Settings (shown when schedule_type is interval) -->
+                        <div id="intervalSettings" class="form-row hidden">
+                            {{ ui.form_field('intervalMinutes', 'Interval (minutes)', type='number', min=1, name_attr='interval_minutes', placeholder='e.g., 120', help_text='How often the schedule repeats within the time window.') }}
+                            {{ ui.form_field('durationMinutes', 'Duration (minutes)', type='number', min=1, name_attr='duration_minutes', placeholder='e.g., 20', help_text='How long each cycle stays active.') }}
+                        </div>
+                        
+                        <div class="form-row">
+                            {{ ui.form_field('schedulePriority', 'Priority', type='number', min=1, max=100, value='50', name_attr='priority', help_text='Higher priority schedules override lower ones') }}
+                            {{ ui.form_field('scheduleValue', 'Value/Intensity (%)', type='number', min=0, max=100, name_attr='value', placeholder='Leave empty for on/off') }}
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group-checkbox">
+                                <label>
+                                    <input type="checkbox" id="scheduleEnabled" name="enabled" checked>
+                                    Enabled
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-outline" data-action="close-schedule-form">Cancel</button>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Save Schedule
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div id="thresholdsTab" class="tab-content">
+                <div class="tab-header">
+                    <h3>Environmental Thresholds</h3>
+                </div>
+                <form id="thresholdsForm" class="thresholds-form">
+                    <div class="form-row">
+                        {{ ui.form_field('tempThreshold', 'Temperature Threshold (°C)', type='number', step=0.1, min=0, max=50, name_attr='temperature_threshold') }}
+                        {{ ui.form_field('humidityThreshold', 'Humidity Threshold (%)', type='number', step=0.1, min=0, max=100, name_attr='humidity_threshold') }}
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Update Thresholds
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Plant Modal -->
+<div class="modal" id="addPlantModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2><i class="fas fa-leaf"></i> Add Plant</h2>
+            <button type="button" class="modal-close" data-action="close-modal" data-modal-id="addPlantModal" aria-label="Close">&times;</button>
+        </div>
+        <form id="addPlantForm" class="modal-form">
+            <div class="form-section">
+                {{ ui.form_field('addPlantName', 'Plant Name *', required=True, placeholder='e.g., Basil', name_attr='name') }}
+                {{ ui.form_field('addPlantType', 'Plant Type *', required=True, placeholder='e.g., basil', name_attr='plant_type') }}
+                {{ ui.select_field('addPlantStage', 'Current Stage *', [
+                    ('Seed','Seed'),
+                    ('Seedling','Seedling'),
+                    ('Vegetative','Vegetative'),
+                    ('Flowering','Flowering'),
+                    ('Fruiting','Fruiting'),
+                    ('Harvest','Harvest')
+                ], required=True, name_attr='current_stage') }}
+                {{ ui.form_field('addPlantDaysInStage', 'Days in stage', type='number', min=0, step=1, value='0', name_attr='days_in_stage') }}
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-outline" data-action="close-modal" data-modal-id="addPlantModal">Cancel</button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Add Plant
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Update Plant Stage Modal -->
+<div class="modal" id="updatePlantStageModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2><i class="fas fa-seedling"></i> Update Plant Stage</h2>
+            <button type="button" class="modal-close" data-action="close-modal" data-modal-id="updatePlantStageModal" aria-label="Close">&times;</button>
+        </div>
+        <form id="updatePlantStageForm" class="modal-form">
+            <input type="hidden" id="updatePlantStagePlantId" name="plant_id">
+            <div class="form-section">
+                <div class="form-row">
+                    {{ ui.select_field('updatePlantStageStage', 'New Stage *', [
+                        ('Seed','Seed'),
+                        ('Seedling','Seedling'),
+                        ('Vegetative','Vegetative'),
+                        ('Flowering','Flowering'),
+                        ('Fruiting','Fruiting'),
+                        ('Harvest','Harvest')
+                    ], required=True, name_attr='stage') }}
+                    {{ ui.form_field('updatePlantStageDays', 'Days in stage', type='number', min=0, step=1, value='0', name_attr='days_in_stage') }}
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-outline" data-action="close-modal" data-modal-id="updatePlantStageModal">Cancel</button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Update Stage
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Link Device Modal -->
+<div class="modal" id="linkDeviceModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2><i class="fas fa-link"></i> Link Device</h2>
+            <button type="button" class="modal-close" data-action="close-modal" data-modal-id="linkDeviceModal" aria-label="Close">&times;</button>
+        </div>
+        <form id="linkDeviceForm" class="modal-form">
+            <div class="form-section">
+                {{ ui.select_field('linkDeviceKind', 'Device Kind *', [
+                    ('sensor','Sensor'),
+                    ('actuator','Actuator')
+                ], required=True, name_attr='device_kind') }}
+
+                {{ ui.form_field('linkDeviceName', 'Device Name *', required=True, placeholder='e.g., Temp/Humidity Sensor', name_attr='name') }}
+            </div>
+
+            <div class="form-section" id="linkDeviceSensorFields">
+                <h3><i class="fas fa-microchip"></i> Sensor Details</h3>
+                {{ ui.select_field('linkSensorType', 'Sensor Type *', [
+                    ('environment_sensor','Environment (Multi)'),
+                    ('temp_humidity_sensor','Temp & Humidity'),
+                    ('temperature','Temperature'),
+                    ('humidity','Humidity'),
+                    ('soil_moisture','Soil Moisture'),
+                    ('light','Light'),
+                    ('lux_sensor','Lux'),
+                    ('co2','CO₂'),
+                    ('voc','VOC'),
+                    ('air_quality','Air Quality'),
+                    ('pressure','Pressure'),
+                    ('ph','pH'),
+                    ('ec','EC')
+                ], required=True, name_attr='sensor_type') }}
+                {{ ui.select_field('linkSensorModel', 'Sensor Model *', [
+                    ('DHT22','DHT22'),
+                    ('DHT11','DHT11'),
+                    ('BME280','BME280'),
+                    ('BME680','BME680'),
+                    ('ENS160AHT21','ENS160AHT21'),
+                    ('BH1750','BH1750'),
+                    ('TSL2591','TSL2591'),
+                    ('Soil-Moisture','Soil-Moisture'),
+                    ('Capacitive-Soil','Capacitive-Soil'),
+                    ('MH-Z19','MH-Z19'),
+                    ('SCD30','SCD30'),
+                    ('pH-Sensor','pH-Sensor'),
+                    ('EC-Sensor','EC-Sensor'),
+                    ('GENERIC_ZIGBEE','GENERIC_ZIGBEE')
+                ], required=True, name_attr='sensor_model') }}
+                {{ ui.select_field('linkSensorProtocol', 'Protocol', [
+                    ('GPIO','GPIO'),
+                    ('I2C','I2C'),
+                    ('ADC','ADC'),
+                    ('SPI','SPI'),
+                    ('mqtt','MQTT'),
+                    ('zigbee','Zigbee'),
+                    ('zigbee2mqtt','Zigbee2MQTT'),
+                    ('wireless','Wireless')
+                ], name_attr='sensor_protocol') }}
+                <div class="form-row">
+                    {{ ui.form_field('linkSensorGpio', 'GPIO Pin', type='number', min=0, step=1, name_attr='sensor_gpio_pin') }}
+                    {{ ui.form_field('linkSensorI2c', 'I2C Address', placeholder='0x76', name_attr='i2c_address') }}
+                </div>
+                <div class="form-row">
+                    {{ ui.form_field('linkSensorMqtt', 'MQTT Topic', placeholder='zigbee2mqtt/device', name_attr='mqtt_topic') }}
+                    {{ ui.form_field('linkSensorZigbee', 'Zigbee Address', placeholder='0x00158d...', name_attr='zigbee_address') }}
+                </div>
+                <div class="form-row">
+                    {{ ui.form_field('linkSensorEsp32', 'ESP32 ID', type='number', min=1, step=1, name_attr='sensor_esp32_id') }}
+                </div>
+            </div>
+
+            <div class="form-section hidden" id="linkDeviceActuatorFields">
+                <h3><i class="fas fa-toggle-on"></i> Actuator Details</h3>
+                {{ ui.select_field('linkActuatorType', 'Actuator Type *', [
+                    ('Light','Light'),
+                    ('Fan','Fan'),
+                    ('Water-Pump','Water Pump'),
+                    ('Heater','Heater'),
+                    ('Cooler','Cooler'),
+                    ('Humidifier','Humidifier'),
+                    ('Dehumidifier','Dehumidifier'),
+                    ('CO2-Injector','CO₂ Injector'),
+                    ('Relay','Relay'),
+                    ('Valve','Valve'),
+                    ('Motor','Motor')
+                ], required=True, name_attr='actuator_type') }}
+                {{ ui.select_field('linkActuatorProtocol', 'Protocol', [
+                    ('GPIO','GPIO'),
+                    ('I2C','I2C'),
+                    ('ADC','ADC'),
+                    ('SPI','SPI'),
+                    ('mqtt','MQTT'),
+                    ('zigbee','Zigbee'),
+                    ('zigbee2mqtt','Zigbee2MQTT'),
+                    ('wireless','Wireless')
+                ], name_attr='actuator_protocol') }}
+                <div class="form-row">
+                    {{ ui.form_field('linkActuatorGpio', 'GPIO Pin', type='number', min=0, step=1, name_attr='actuator_gpio_pin') }}
+                    {{ ui.form_field('linkActuatorEsp32', 'ESP32 ID', type='number', min=1, step=1, name_attr='actuator_esp32_id') }}
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="button" class="btn btn-outline" data-action="close-modal" data-modal-id="linkDeviceModal">Cancel</button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-link"></i> Link Device
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Camera Preview Modal -->
+<div class="modal" id="cameraModal">
+    <div class="modal-content large">
+        <div class="modal-header">
+            <h2><i class="fas fa-camera"></i> <span id="cameraModalTitle">Camera Control</span></h2>
+            <button type="button" class="modal-close" data-action="close-modal" data-modal-id="cameraModal" aria-label="Close">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="camera-controls">
+                <div class="camera-preview" id="cameraPreview">
+                    <!-- Camera feed will be inserted here -->
+                    <div class="camera-placeholder" id="cameraPlaceholder">
+                        <i class="fas fa-camera"></i>
+                        <p>Start the camera to see live feed</p>
+                    </div>
+                    <img id="cameraFeedImg" class="camera-feed hidden" alt="Live camera feed">
+                </div>
+                <div class="camera-actions">
+                    <button type="button" class="btn btn-success" id="startCameraBtn" data-action="start-camera">
+                        <i class="fas fa-play"></i> Start Camera
+                    </button>
+                    <button type="button" class="btn btn-danger hidden" id="stopCameraBtn" data-action="stop-camera">
+                        <i class="fas fa-stop"></i> Stop Camera
+                    </button>
+                    <button type="button" class="btn btn-primary" id="captureBtn" data-action="capture-photo">
+                        <i class="fas fa-camera"></i> Capture Photo
+                    </button>
+                    <a href="#" class="btn btn-outline" id="fullscreenBtn" target="_blank" rel="noopener">
+                        <i class="fas fa-expand"></i> Fullscreen
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay hidden" id="loadingOverlay">
+    <div class="loading-spinner">
+        <i class="fas fa-spinner fa-spin"></i>
+        <p>Loading...</p>
+    </div>
+</div>
+
+<!-- Toast Notifications -->
+<div class="toast-container" id="toastContainer"></div>
+
+    </div>
+  </div>
+</div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/api.js') }}"></script>
+<script src="{{ url_for('static', filename='js/utils/cache-service.js') }}"></script>
+<script src="{{ url_for('static', filename='js/units/data-service.js') }}"></script>
+<script src="{{ url_for('static', filename='js/units/ui-manager.js') }}"></script>
+<script src="{{ url_for('static', filename='js/units/main.js') }}"></script>
+{% endblock %}

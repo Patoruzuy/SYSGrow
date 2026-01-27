@@ -1,0 +1,4113 @@
+{
+  "plants_info": [
+    {
+      "id": 1,
+      "species": "Lactuca sativa",
+      "common_name": "Leafy Greens",
+      "variety": "Mixed Lettuce",
+      "pH_range": "6.0-7.0",
+      "water_requirements": "Keep soil consistently moist",
+      "sensor_requirements": {
+        "soil_moisture_range": {
+          "min": 70,
+          "max": 85
+        },
+        "soil_temperature_C": {
+          "min": 15,
+          "max": 22
+        },
+        "air_quality_sensitivity": "high",
+        "co2_requirements": {
+          "min": 400,
+          "max": 800
+        },
+        "light_spectrum": {
+          "blue_percent": 30,
+          "red_percent": 40,
+          "green_percent": 20,
+          "far_red_percent": 10
+        },
+        "vpd_range": {
+          "min": 0.6,
+          "max": 1.0
+        }
+      },
+      "yield_data": {
+        "expected_yield_per_plant": {
+          "min": 150,
+          "max": 400,
+          "unit": "grams"
+        },
+        "harvest_frequency": "single",
+        "harvest_period_weeks": 6,
+        "market_value_per_kg": 8.5,
+        "storage_life_days": 5,
+        "difficulty_level": "beginner",
+        "space_requirement_cm": {
+          "width": 20,
+          "depth": 20,
+          "height": 25
+        }
+      },
+      "nutritional_info": {
+        "calories_per_100g": 15,
+        "protein_g": 1.4,
+        "vitamin_c_mg": 9,
+        "vitamin_k_mcg": 126,
+        "key_nutrients": [
+          "Vitamin K",
+          "Folate",
+          "Iron",
+          "Vitamin A"
+        ],
+        "health_benefits": [
+          "Eye health",
+          "Bone strength",
+          "Heart health",
+          "Low calorie"
+        ]
+      },
+      "automation": {
+        "watering_schedule": {
+          "frequency_hours": 12,
+          "amount_ml_per_plant": 100,
+          "soil_moisture_trigger": 75,
+          "early_morning_boost": true
+        },
+        "lighting_schedule": {
+          "seedling": {
+            "hours": 14,
+            "intensity": 60
+          },
+          "vegetative": {
+            "hours": 14,
+            "intensity": 80
+          },
+          "harvest": {
+            "hours": 12,
+            "intensity": 70
+          }
+        },
+        "alert_thresholds": {
+          "temperature_min": 12,
+          "temperature_max": 25,
+          "humidity_min": 45,
+          "humidity_max": 75,
+          "soil_moisture_critical": 60
+        },
+        "environmental_controls": {
+          "ventilation_trigger_temp": 22,
+          "heating_trigger_temp": 15,
+          "dehumidify_trigger": 80
+        }
+      },
+      "growth_stages": [
+        {
+          "stage": "Germination",
+          "duration": {
+            "min_days": 3,
+            "max_days": 7
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 18,
+              "max": 24
+            },
+            "humidity_percent": {
+              "min": 50,
+              "max": 70
+            },
+            "hours_per_day": 14
+          },
+          "sensor_targets": {
+            "soil_moisture": 85,
+            "soil_temp": 20,
+            "vpd": 0.7
+          },
+          "care_instructions": [
+            "Keep seed starting mix consistently moist",
+            "Maintain warm, humid conditions for germination",
+            "Use gentle misting to avoid disturbing seeds"
+          ]
+        },
+        {
+          "stage": "Seedling",
+          "duration": {
+            "min_days": 14,
+            "max_days": 21
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 18,
+              "max": 24
+            },
+            "humidity_percent": {
+              "min": 50,
+              "max": 70
+            },
+            "hours_per_day": 14
+          },
+          "sensor_targets": {
+            "soil_moisture": 80,
+            "soil_temp": 19,
+            "vpd": 0.8
+          },
+          "care_instructions": [
+            "Begin gradual hardening process",
+            "Increase light intensity gradually",
+            "Monitor for damping off disease"
+          ]
+        },
+        {
+          "stage": "Vegetative",
+          "duration": {
+            "min_days": 28,
+            "max_days": 42
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 18,
+              "max": 24
+            },
+            "humidity_percent": {
+              "min": 50,
+              "max": 70
+            },
+            "hours_per_day": 14
+          },
+          "sensor_targets": {
+            "soil_moisture": 75,
+            "soil_temp": 18,
+            "vpd": 0.9
+          },
+          "care_instructions": [
+            "Begin regular fertilization schedule",
+            "Monitor for pest activity",
+            "Ensure adequate spacing for air circulation"
+          ]
+        },
+        {
+          "stage": "Harvest",
+          "duration": {
+            "min_days": 42,
+            "max_days": 56
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 18,
+              "max": 24
+            },
+            "humidity_percent": {
+              "min": 50,
+              "max": 70
+            },
+            "hours_per_day": 14
+          },
+          "sensor_targets": {
+            "soil_moisture": 70,
+            "soil_temp": 18,
+            "vpd": 1.0
+          },
+          "care_instructions": [
+            "Harvest outer leaves first for continuous production",
+            "Cut early morning for best quality",
+            "Keep harvested greens cool immediately"
+          ]
+        }
+      ],
+      "common_issues": [
+        {
+          "problem": "Bolting (premature flowering)",
+          "symptoms": [
+            "Tall flower stalk",
+            "Bitter taste",
+            "Reduced leaf quality"
+          ],
+          "causes": [
+            "High temperatures",
+            "Long day length",
+            "Plant stress"
+          ],
+          "solutions": [
+            "Provide shade cloth",
+            "Harvest immediately",
+            "Plant heat-resistant varieties"
+          ],
+          "prevention": "Monitor temperature and provide cooling",
+          "sensor_indicators": {
+            "temperature_sustained": "> 25°C",
+            "day_length": "> 14 hours"
+          }
+        },
+        {
+          "problem": "Tip burn",
+          "symptoms": [
+            "Brown leaf edges",
+            "Crispy leaf tips"
+          ],
+          "causes": [
+            "Low humidity",
+            "Calcium deficiency",
+            "Inconsistent watering"
+          ],
+          "solutions": [
+            "Increase humidity",
+            "Apply calcium fertilizer",
+            "Maintain consistent moisture"
+          ],
+          "prevention": "Monitor humidity and calcium levels"
+        }
+      ],
+      "companion_plants": {
+        "beneficial": [
+          "Radishes",
+          "Carrots",
+          "Onions",
+          "Herbs"
+        ],
+        "avoid": [
+          "Large brassicas",
+          "Tall plants that shade"
+        ],
+        "reasoning": "Radishes help break up soil and don't compete for nutrients"
+      },
+      "harvest_guide": {
+        "indicators": [
+          "Leaves reach full size for variety",
+          "Bright, vibrant color",
+          "Crisp texture when touched"
+        ],
+        "storage_tips": [
+          "Harvest in cool morning hours",
+          "Wash and dry thoroughly",
+          "Store in refrigerator in ventilated bags"
+        ],
+        "processing_options": [
+          "Fresh salads",
+          "Cooking greens",
+          "Smoothies",
+          "Dehydrating"
+        ]
+      },
+      "tips": "Avoid high temperatures to prevent bolting. Maintain consistent moisture.",
+      "disease_prevention": "Avoid overwatering to prevent root rot. Provide adequate spacing to reduce mold.",
+      "fertilizer_recommendations": "Use balanced NPK (10-10-10) every two weeks. Compost enhances growth."
+    },
+    {
+      "id": 2,
+      "species": "Solanum lycopersicum",
+      "common_name": "Tomatoes",
+      "aliases": [
+        "Tomato"
+      ],
+      "variety": "Cherry Tomato",
+      "pH_range": "6.2-6.8",
+      "water_requirements": "Regular watering, avoid waterlogging",
+      "sensor_requirements": {
+        "soil_moisture_range": {
+          "min": 65,
+          "max": 80
+        },
+        "soil_temperature_C": {
+          "min": 18,
+          "max": 24
+        },
+        "air_quality_sensitivity": "medium",
+        "co2_requirements": {
+          "min": 600,
+          "max": 1200
+        },
+        "light_spectrum": {
+          "blue_percent": 20,
+          "red_percent": 50,
+          "green_percent": 20,
+          "far_red_percent": 10
+        },
+        "vpd_range": {
+          "min": 0.8,
+          "max": 1.2
+        }
+      },
+      "yield_data": {
+        "expected_yield_per_plant": {
+          "min": 500,
+          "max": 2000,
+          "unit": "grams"
+        },
+        "harvest_frequency": "continuous",
+        "harvest_period_weeks": 8,
+        "market_value_per_kg": 12.0,
+        "storage_life_days": 14,
+        "difficulty_level": "intermediate",
+        "space_requirement_cm": {
+          "width": 40,
+          "depth": 40,
+          "height": 150
+        }
+      },
+      "nutritional_info": {
+        "calories_per_100g": 18,
+        "protein_g": 0.9,
+        "vitamin_c_mg": 14,
+        "lycopene_mg": 2.57,
+        "key_nutrients": [
+          "Lycopene",
+          "Vitamin C",
+          "Potassium",
+          "Folate"
+        ],
+        "health_benefits": [
+          "Heart health",
+          "Cancer protection",
+          "Skin health",
+          "Antioxidant rich"
+        ]
+      },
+      "automation": {
+        "watering_schedule": {
+          "frequency_hours": 24,
+          "amount_ml_per_plant": 200,
+          "soil_moisture_trigger": 70,
+          "early_morning_boost": true
+        },
+        "lighting_schedule": {
+          "seedling": {
+            "hours": 14,
+            "intensity": 60
+          },
+          "vegetative": {
+            "hours": 16,
+            "intensity": 80
+          },
+          "flowering": {
+            "hours": 16,
+            "intensity": 100
+          },
+          "fruiting": {
+            "hours": 14,
+            "intensity": 85
+          }
+        },
+        "alert_thresholds": {
+          "temperature_min": 18,
+          "temperature_max": 32,
+          "humidity_min": 35,
+          "humidity_max": 70,
+          "soil_moisture_critical": 50
+        },
+        "environmental_controls": {
+          "ventilation_trigger_temp": 28,
+          "heating_trigger_temp": 16,
+          "dehumidify_trigger": 75
+        }
+      },
+      "growth_stages": [
+        {
+          "stage": "Germination",
+          "duration": {
+            "min_days": 5,
+            "max_days": 10
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 22,
+              "max": 28
+            },
+            "humidity_percent": {
+              "min": 40,
+              "max": 60
+            },
+            "hours_per_day": 16
+          },
+          "sensor_targets": {
+            "soil_moisture": 80,
+            "soil_temp": 25,
+            "vpd": 0.6
+          },
+          "care_instructions": [
+            "Keep soil consistently moist but not waterlogged",
+            "Maintain warm temperature for faster germination",
+            "Cover seeds lightly with growing medium"
+          ]
+        },
+        {
+          "stage": "Seedling",
+          "duration": {
+            "min_days": 21,
+            "max_days": 28
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 22,
+              "max": 28
+            },
+            "humidity_percent": {
+              "min": 40,
+              "max": 60
+            },
+            "hours_per_day": 16
+          },
+          "sensor_targets": {
+            "soil_moisture": 75,
+            "soil_temp": 23,
+            "vpd": 0.7
+          },
+          "care_instructions": [
+            "Begin hardening process gradually",
+            "Start light fertilization schedule",
+            "Monitor for damping off"
+          ]
+        },
+        {
+          "stage": "Vegetative",
+          "duration": {
+            "min_days": 28,
+            "max_days": 42
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 22,
+              "max": 28
+            },
+            "humidity_percent": {
+              "min": 40,
+              "max": 60
+            },
+            "hours_per_day": 16
+          },
+          "sensor_targets": {
+            "soil_moisture": 70,
+            "soil_temp": 22,
+            "vpd": 0.9
+          },
+          "care_instructions": [
+            "Install support stakes or cages",
+            "Begin pruning suckers",
+            "Increase fertilization"
+          ]
+        },
+        {
+          "stage": "Flowering",
+          "duration": {
+            "min_days": 7,
+            "max_days": 14
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 22,
+              "max": 28
+            },
+            "humidity_percent": {
+              "min": 40,
+              "max": 60
+            },
+            "hours_per_day": 16
+          },
+          "sensor_targets": {
+            "soil_moisture": 68,
+            "soil_temp": 21,
+            "vpd": 1.0
+          },
+          "care_instructions": [
+            "Ensure adequate pollination",
+            "Switch to bloom fertilizer",
+            "Monitor for flower drop"
+          ]
+        },
+        {
+          "stage": "Fruit Development",
+          "duration": {
+            "min_days": 42,
+            "max_days": 56
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 22,
+              "max": 28
+            },
+            "humidity_percent": {
+              "min": 40,
+              "max": 60
+            },
+            "hours_per_day": 16
+          },
+          "sensor_targets": {
+            "soil_moisture": 65,
+            "soil_temp": 20,
+            "vpd": 1.1
+          },
+          "care_instructions": [
+            "Maintain consistent watering",
+            "Continue pruning and support",
+            "Watch for calcium deficiency signs"
+          ]
+        },
+        {
+          "stage": "Harvest",
+          "duration": {
+            "min_days": 60,
+            "max_days": 85
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 22,
+              "max": 28
+            },
+            "humidity_percent": {
+              "min": 40,
+              "max": 60
+            },
+            "hours_per_day": 16
+          },
+          "sensor_targets": {
+            "soil_moisture": 60,
+            "soil_temp": 19,
+            "vpd": 1.2
+          },
+          "care_instructions": [
+            "Harvest regularly to encourage production",
+            "Pick at proper ripeness stage",
+            "Reduce watering as season ends"
+          ]
+        }
+      ],
+      "common_issues": [
+        {
+          "problem": "Blossom End Rot",
+          "symptoms": [
+            "Dark, sunken spots on fruit bottom",
+            "Leathery texture"
+          ],
+          "causes": [
+            "Calcium deficiency",
+            "Inconsistent watering",
+            "Root damage"
+          ],
+          "solutions": [
+            "Ensure consistent watering",
+            "Add calcium supplement",
+            "Mulch around plants"
+          ],
+          "prevention": "Maintain steady soil moisture levels",
+          "sensor_indicators": {
+            "soil_moisture_fluctuation": "> 20%",
+            "ec_levels": "< 1.2"
+          }
+        },
+        {
+          "problem": "Yellowing Lower Leaves",
+          "symptoms": [
+            "Yellow leaves starting from bottom",
+            "Progressive upward yellowing"
+          ],
+          "causes": [
+            "Natural aging",
+            "Nitrogen deficiency",
+            "Overwatering"
+          ],
+          "solutions": [
+            "Remove affected leaves",
+            "Check fertilization schedule",
+            "Improve drainage"
+          ],
+          "prevention": "Balanced fertilization program"
+        },
+        {
+          "problem": "Cracking Fruit",
+          "symptoms": [
+            "Splitting skin",
+            "Circular or radial cracks"
+          ],
+          "causes": [
+            "Irregular watering",
+            "Rapid growth spurts",
+            "Variety susceptibility"
+          ],
+          "solutions": [
+            "Maintain consistent moisture",
+            "Harvest earlier",
+            "Use resistant varieties"
+          ],
+          "prevention": "Steady watering schedule"
+        }
+      ],
+      "companion_plants": {
+        "beneficial": [
+          "Basil",
+          "Marigold",
+          "Parsley",
+          "Carrots"
+        ],
+        "avoid": [
+          "Fennel",
+          "Walnut trees",
+          "Brassicas"
+        ],
+        "reasoning": "Basil improves flavor and repels pests, marigolds deter nematodes"
+      },
+      "harvest_guide": {
+        "indicators": [
+          "Firm fruit with full color development",
+          "Slight give when gently squeezed",
+          "Easy separation from vine",
+          "Sweet aroma at stem end"
+        ],
+        "storage_tips": [
+          "Store at room temperature until fully ripe",
+          "Refrigerate only when fully ripe",
+          "Keep stem end up to prevent bruising",
+          "Don't store with ethylene-sensitive vegetables"
+        ],
+        "processing_options": [
+          "Fresh eating",
+          "Sauces",
+          "Canning",
+          "Dehydrating",
+          "Freezing"
+        ]
+      },
+      "tips": "Support plants with stakes or cages. Ensure good airflow to prevent fungal diseases. Prune suckers for better fruit development.",
+      "disease_prevention": "Rotate crops yearly to prevent soil diseases. Avoid wetting leaves to reduce blight risk. Ensure good air circulation.",
+      "fertilizer_recommendations": "High phosphorus (5-10-10) for root and fruit development. Apply calcium to prevent blossom end rot. Weekly liquid feeding during fruiting."
+    },
+    {
+      "id": 3,
+      "species": "Capsicum annuum",
+      "common_name": "Peppers",
+      "aliases": [
+        "Pepper"
+      ],
+      "pH_range": "6.0-6.8",
+      "water_requirements": "Allow soil to dry slightly between watering",
+      "growth_stages": [
+        {
+          "stage": "Germination",
+          "duration": {
+            "min_days": 7,
+            "max_days": 14
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 22,
+              "max": 28
+            },
+            "humidity_percent": {
+              "min": 40,
+              "max": 60
+            },
+            "hours_per_day": 16
+          }
+        },
+        {
+          "stage": "Seedling",
+          "duration": {
+            "min_days": 21,
+            "max_days": 28
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 22,
+              "max": 28
+            },
+            "humidity_percent": {
+              "min": 40,
+              "max": 60
+            },
+            "hours_per_day": 16
+          }
+        },
+        {
+          "stage": "Vegetative",
+          "duration": {
+            "min_days": 28,
+            "max_days": 42
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 22,
+              "max": 28
+            },
+            "humidity_percent": {
+              "min": 40,
+              "max": 60
+            },
+            "hours_per_day": 16
+          }
+        },
+        {
+          "stage": "Flowering",
+          "duration": {
+            "min_days": 14,
+            "max_days": 21
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 22,
+              "max": 28
+            },
+            "humidity_percent": {
+              "min": 40,
+              "max": 60
+            },
+            "hours_per_day": 16
+          }
+        },
+        {
+          "stage": "Fruit Development",
+          "duration": {
+            "min_days": 56,
+            "max_days": 70
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 22,
+              "max": 28
+            },
+            "humidity_percent": {
+              "min": 40,
+              "max": 60
+            },
+            "hours_per_day": 16
+          }
+        },
+        {
+          "stage": "Harvest",
+          "duration": {
+            "min_days": 70,
+            "max_days": 90
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 22,
+              "max": 28
+            },
+            "humidity_percent": {
+              "min": 40,
+              "max": 60
+            },
+            "hours_per_day": 16
+          }
+        }
+      ],
+      "tips": "Peppers benefit from slightly dry conditions between watering.",
+      "disease_prevention": "Avoid excessive moisture to prevent fungal infections like damping-off.",
+      "fertilizer_recommendations": "Use balanced 10-10-10 fertilizer; increase potassium for fruiting.",
+      "variety": "Hot Pepper",
+      "sensor_requirements": {
+        "soil_moisture_range": {
+          "min": 55,
+          "max": 70
+        },
+        "soil_temperature_C": {
+          "min": 20,
+          "max": 26
+        },
+        "air_quality_sensitivity": "medium",
+        "co2_requirements": {
+          "min": 400,
+          "max": 1000
+        },
+        "light_spectrum": {
+          "blue_percent": 20,
+          "red_percent": 50,
+          "green_percent": 20,
+          "far_red_percent": 10
+        },
+        "vpd_range": {
+          "min": 0.8,
+          "max": 1.3
+        }
+      },
+      "yield_data": {
+        "expected_yield_per_plant": {
+          "min": 200,
+          "max": 800,
+          "unit": "grams"
+        },
+        "harvest_frequency": "continuous",
+        "harvest_period_weeks": 10,
+        "market_value_per_kg": 15.0,
+        "storage_life_days": 21,
+        "difficulty_level": "intermediate",
+        "space_requirement_cm": {
+          "width": 35,
+          "depth": 35,
+          "height": 120
+        }
+      },
+      "nutritional_info": {
+        "calories_per_100g": 31,
+        "protein_g": 1.9,
+        "vitamin_c_mg": 190,
+        "capsaicin_mg": 16,
+        "key_nutrients": [
+          "Vitamin C",
+          "Vitamin A",
+          "Capsaicin",
+          "Potassium"
+        ],
+        "health_benefits": [
+          "Metabolism boost",
+          "Pain relief",
+          "Heart health",
+          "Anti-inflammatory"
+        ]
+      },
+      "automation": {
+        "watering_schedule": {
+          "frequency_hours": 36,
+          "amount_ml_per_plant": 150,
+          "soil_moisture_trigger": 62,
+          "stress_watering": true
+        },
+        "lighting_schedule": {
+          "seedling": {
+            "hours": 14,
+            "intensity": 60
+          },
+          "vegetative": {
+            "hours": 16,
+            "intensity": 80
+          },
+          "flowering": {
+            "hours": 16,
+            "intensity": 90
+          },
+          "fruiting": {
+            "hours": 14,
+            "intensity": 85
+          }
+        },
+        "alert_thresholds": {
+          "temperature_min": 18,
+          "temperature_max": 30,
+          "humidity_min": 35,
+          "humidity_max": 65,
+          "soil_moisture_critical": 45
+        }
+      },
+      "common_issues": [
+        {
+          "problem": "Blossom Drop",
+          "symptoms": [
+            "Flowers fall without fruit formation"
+          ],
+          "causes": [
+            "Temperature stress",
+            "Low humidity",
+            "Poor pollination"
+          ],
+          "solutions": [
+            "Maintain optimal temperature",
+            "Increase humidity",
+            "Hand pollination"
+          ],
+          "prevention": "Monitor environmental conditions closely"
+        }
+      ],
+      "companion_plants": {
+        "beneficial": [
+          "Tomatoes",
+          "Basil",
+          "Onions"
+        ],
+        "avoid": [
+          "Fennel",
+          "Kohlrabi"
+        ],
+        "reasoning": "Similar growing requirements and pest deterrent properties"
+      },
+      "harvest_guide": {
+        "indicators": [
+          "Full size and color development",
+          "Firm texture when squeezed",
+          "Glossy skin appearance",
+          "Sweet aroma at stem end"
+        ],
+        "storage_tips": [
+          "Store in cool, dry place",
+          "Keep away from direct sunlight",
+          "Use within 2 weeks for best flavor",
+          "Can be frozen or dried for long-term storage"
+        ],
+        "processing_options": [
+          "Fresh consumption",
+          "Roasting",
+          "Pickling",
+          "Drying/powder",
+          "Freezing"
+        ]
+      }
+    },
+    {
+      "id": 4,
+      "species": "Various (e.g., Basil, Parsley, Thyme)",
+      "common_name": "Herbs",
+      "pH_range": "6.0-7.5",
+      "water_requirements": "Water when soil surface feels dry",
+      "growth_stages": [
+        {
+          "stage": "Germination",
+          "duration": {
+            "min_days": 5,
+            "max_days": 14
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 18,
+              "max": 24
+            },
+            "humidity_percent": {
+              "min": 50,
+              "max": 70
+            },
+            "hours_per_day": 14
+          }
+        },
+        {
+          "stage": "Seedling",
+          "duration": {
+            "min_days": 14,
+            "max_days": 21
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 18,
+              "max": 24
+            },
+            "humidity_percent": {
+              "min": 50,
+              "max": 70
+            },
+            "hours_per_day": 14
+          }
+        },
+        {
+          "stage": "Vegetative",
+          "duration": {
+            "min_days": 28,
+            "max_days": 56
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 18,
+              "max": 24
+            },
+            "humidity_percent": {
+              "min": 50,
+              "max": 70
+            },
+            "hours_per_day": 14
+          }
+        },
+        {
+          "stage": "Harvest",
+          "duration": {
+            "min_days": 28,
+            "max_days": 56
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 18,
+              "max": 24
+            },
+            "humidity_percent": {
+              "min": 50,
+              "max": 70
+            },
+            "hours_per_day": 14
+          }
+        }
+      ],
+      "tips": "Regularly trim to promote bushier growth and prevent flowering.",
+      "disease_prevention": "Ensure proper air circulation to prevent mildew. Water at the base to avoid fungal diseases.",
+      "fertilizer_recommendations": "Use diluted liquid fertilizer every 2-3 weeks; compost tea for organic growth.",
+      "variety": "Mixed Culinary Herbs",
+      "sensor_requirements": {
+        "soil_moisture_range": {
+          "min": 45,
+          "max": 65
+        },
+        "soil_temperature_C": {
+          "min": 16,
+          "max": 24
+        },
+        "air_quality_sensitivity": "low",
+        "co2_requirements": {
+          "min": 350,
+          "max": 700
+        },
+        "light_spectrum": {
+          "blue_percent": 35,
+          "red_percent": 35,
+          "green_percent": 20,
+          "far_red_percent": 10
+        },
+        "vpd_range": {
+          "min": 0.7,
+          "max": 1.1
+        }
+      },
+      "yield_data": {
+        "expected_yield_per_plant": {
+          "min": 50,
+          "max": 200,
+          "unit": "grams"
+        },
+        "harvest_frequency": "continuous",
+        "harvest_period_weeks": 12,
+        "market_value_per_kg": 25.0,
+        "storage_life_days": 7,
+        "difficulty_level": "beginner",
+        "space_requirement_cm": {
+          "width": 15,
+          "depth": 15,
+          "height": 30
+        }
+      },
+      "nutritional_info": {
+        "calories_per_100g": 22,
+        "protein_g": 3.2,
+        "vitamin_k_mcg": 415,
+        "essential_oils_percent": 2.5,
+        "key_nutrients": [
+          "Vitamin K",
+          "Iron",
+          "Antioxidants",
+          "Essential oils"
+        ],
+        "health_benefits": [
+          "Digestive aid",
+          "Anti-inflammatory",
+          "Antimicrobial",
+          "Aromatic therapy"
+        ]
+      },
+      "automation": {
+        "watering_schedule": {
+          "frequency_hours": 48,
+          "amount_ml_per_plant": 75,
+          "soil_moisture_trigger": 55,
+          "drought_stress": true
+        },
+        "lighting_schedule": {
+          "all_stages": {
+            "hours": 14,
+            "intensity": 70
+          }
+        },
+        "alert_thresholds": {
+          "temperature_min": 14,
+          "temperature_max": 26,
+          "humidity_min": 40,
+          "humidity_max": 75,
+          "soil_moisture_critical": 35
+        }
+      },
+      "common_issues": [
+        {
+          "problem": "Powdery Mildew",
+          "symptoms": [
+            "White powdery coating on leaves"
+          ],
+          "causes": [
+            "High humidity",
+            "Poor air circulation"
+          ],
+          "solutions": [
+            "Increase ventilation",
+            "Reduce humidity",
+            "Organic fungicides"
+          ],
+          "prevention": "Maintain good air circulation"
+        }
+      ],
+      "companion_plants": {
+        "beneficial": [
+          "Tomatoes",
+          "Peppers",
+          "Radishes",
+          "Lettuce"
+        ],
+        "avoid": [
+          "Large plants that compete for space",
+          "Heavy feeders"
+        ],
+        "reasoning": "Herbs have shallow roots and benefit from companions that don't compete for nutrients"
+      },
+      "harvest_guide": {
+        "indicators": [
+          "Leaves are fully developed",
+          "Strong aroma when touched",
+          "Before flowering for best flavor",
+          "Morning harvest after dew dries"
+        ],
+        "storage_tips": [
+          "Keep fresh in water like flowers",
+          "Store in refrigerator in damp paper towel",
+          "Freeze in ice cubes with oil",
+          "Dry in well-ventilated area"
+        ],
+        "processing_options": [
+          "Fresh use",
+          "Drying",
+          "Freezing",
+          "Infused oils",
+          "Herbal teas"
+        ]
+      }
+    },
+    {
+      "id": 5,
+      "species": "Cucumis sativus",
+      "common_name": "Cucumbers",
+      "aliases": [
+        "Cucumber"
+      ],
+      "pH_range": "6.0-6.8",
+      "water_requirements": "Keep soil consistently moist, but avoid overwatering",
+      "growth_stages": [
+        {
+          "stage": "Germination",
+          "duration": {
+            "min_days": 3,
+            "max_days": 7
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 24,
+              "max": 29
+            },
+            "humidity_percent": {
+              "min": 40,
+              "max": 70
+            },
+            "hours_per_day": 16
+          }
+        },
+        {
+          "stage": "Seedling",
+          "duration": {
+            "min_days": 14,
+            "max_days": 21
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 24,
+              "max": 29
+            },
+            "humidity_percent": {
+              "min": 40,
+              "max": 70
+            },
+            "hours_per_day": 16
+          }
+        },
+        {
+          "stage": "Vegetative",
+          "duration": {
+            "min_days": 28,
+            "max_days": 42
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 24,
+              "max": 29
+            },
+            "humidity_percent": {
+              "min": 40,
+              "max": 70
+            },
+            "hours_per_day": 16
+          }
+        },
+        {
+          "stage": "Flowering",
+          "duration": {
+            "min_days": 7,
+            "max_days": 14
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 24,
+              "max": 29
+            },
+            "humidity_percent": {
+              "min": 40,
+              "max": 70
+            },
+            "hours_per_day": 16
+          }
+        },
+        {
+          "stage": "Fruit Development",
+          "duration": {
+            "min_days": 28,
+            "max_days": 42
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 24,
+              "max": 29
+            },
+            "humidity_percent": {
+              "min": 40,
+              "max": 70
+            },
+            "hours_per_day": 16
+          }
+        },
+        {
+          "stage": "Harvest",
+          "duration": {
+            "min_days": 50,
+            "max_days": 70
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 24,
+              "max": 29
+            },
+            "humidity_percent": {
+              "min": 40,
+              "max": 70
+            },
+            "hours_per_day": 16
+          }
+        }
+      ],
+      "tips": "Provide trellising for vertical growth. Maintain consistent watering.",
+      "disease_prevention": "Use mulch to prevent soil-borne diseases. Avoid overhead watering to reduce mildew.",
+      "fertilizer_recommendations": "Apply nitrogen early for vine growth, then switch to phosphorus and potassium for fruiting.",
+      "variety": "Climbing Cucumber",
+      "sensor_requirements": {
+        "soil_moisture_range": {
+          "min": 70,
+          "max": 85
+        },
+        "soil_temperature_C": {
+          "min": 20,
+          "max": 28
+        },
+        "air_quality_sensitivity": "medium",
+        "co2_requirements": {
+          "min": 600,
+          "max": 1200
+        },
+        "vpd_range": {
+          "min": 0.8,
+          "max": 1.2
+        }
+      },
+      "yield_data": {
+        "expected_yield_per_plant": {
+          "min": 1000,
+          "max": 3000,
+          "unit": "grams"
+        },
+        "harvest_frequency": "continuous",
+        "harvest_period_weeks": 8,
+        "market_value_per_kg": 6.0,
+        "storage_life_days": 10,
+        "difficulty_level": "intermediate",
+        "space_requirement_cm": {
+          "width": 30,
+          "depth": 30,
+          "height": 180
+        }
+      },
+      "nutritional_info": {
+        "calories_per_100g": 16,
+        "protein_g": 0.7,
+        "vitamin_k_mcg": 16.4,
+        "water_percent": 95,
+        "key_nutrients": [
+          "Vitamin K",
+          "Potassium",
+          "Vitamin C",
+          "Silica"
+        ],
+        "health_benefits": [
+          "Hydration",
+          "Skin health",
+          "Weight management",
+          "Antioxidants"
+        ]
+      },
+      "automation": {
+        "watering_schedule": {
+          "frequency_hours": 24,
+          "amount_ml_per_plant": 400,
+          "soil_moisture_trigger": 72,
+          "early_morning_boost": true
+        },
+        "lighting_schedule": {
+          "seedling": {
+            "hours": 14,
+            "intensity": 60
+          },
+          "vegetative": {
+            "hours": 16,
+            "intensity": 80
+          },
+          "flowering": {
+            "hours": 16,
+            "intensity": 85
+          },
+          "fruiting": {
+            "hours": 14,
+            "intensity": 80
+          }
+        },
+        "alert_thresholds": {
+          "temperature_min": 18,
+          "temperature_max": 32,
+          "humidity_min": 40,
+          "humidity_max": 75,
+          "soil_moisture_critical": 65
+        },
+        "environmental_controls": {
+          "fan_trigger_temp": 28,
+          "misting_humidity_threshold": 50,
+          "co2_injection_ppm": 1000
+        }
+      },
+      "common_issues": [
+        {
+          "problem": "Powdery Mildew",
+          "symptoms": [
+            "White powdery coating on leaves",
+            "Yellowing leaves"
+          ],
+          "causes": [
+            "High humidity",
+            "Poor air circulation",
+            "Overhead watering"
+          ],
+          "solutions": [
+            "Improve ventilation",
+            "Apply organic fungicides",
+            "Remove infected leaves",
+            "Water at base of plant"
+          ],
+          "prevention": "Maintain good air circulation and avoid wetting foliage"
+        },
+        {
+          "problem": "Bitter Fruit",
+          "symptoms": [
+            "Cucumbers taste bitter"
+          ],
+          "causes": [
+            "Water stress",
+            "Heat stress",
+            "Over-maturity"
+          ],
+          "solutions": [
+            "Maintain consistent watering",
+            "Harvest at right time",
+            "Provide shade during extreme heat"
+          ],
+          "prevention": "Regular watering and timely harvest"
+        }
+      ],
+      "companion_plants": {
+        "beneficial": [
+          "Beans",
+          "Peas",
+          "Radishes",
+          "Sunflowers",
+          "Dill"
+        ],
+        "avoid": [
+          "Potatoes",
+          "Aromatic herbs (sage, rosemary)",
+          "Melons (cross-pollination)"
+        ],
+        "reasoning": "Beans fix nitrogen, radishes deter cucumber beetles, and sunflowers provide natural trellising"
+      },
+      "harvest_guide": {
+        "indicators": [
+          "Uniform green color",
+          "Firm texture",
+          "6-8 inches long (for slicing type)",
+          "Harvest before yellowing"
+        ],
+        "storage_tips": [
+          "Store in refrigerator",
+          "Keep in plastic bag to retain moisture",
+          "Use within 3-5 days",
+          "Don't store with ethylene-producing fruits"
+        ],
+        "processing_options": [
+          "Fresh consumption",
+          "Pickling",
+          "Salads",
+          "Cold soups",
+          "Juicing"
+        ]
+      }
+    },
+    {
+      "id": 6,
+      "species": "Fragaria × ananassa",
+      "common_name": "Strawberries",
+      "aliases": [
+        "Strawberry"
+      ],
+      "pH_range": "5.5-6.5",
+      "water_requirements": "Keep soil slightly acidic and moist, avoid wetting foliage",
+      "growth_stages": [
+        {
+          "stage": "Germination",
+          "duration": {
+            "min_days": 7,
+            "max_days": 14
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 18,
+              "max": 24
+            },
+            "humidity_percent": {
+              "min": 40,
+              "max": 60
+            },
+            "hours_per_day": 12
+          }
+        },
+        {
+          "stage": "Vegetative",
+          "duration": {
+            "min_days": 28,
+            "max_days": 42
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 18,
+              "max": 24
+            },
+            "humidity_percent": {
+              "min": 40,
+              "max": 60
+            },
+            "hours_per_day": 12
+          }
+        },
+        {
+          "stage": "Flowering",
+          "duration": {
+            "min_days": 14,
+            "max_days": 21
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 18,
+              "max": 24
+            },
+            "humidity_percent": {
+              "min": 40,
+              "max": 60
+            },
+            "hours_per_day": 12
+          }
+        },
+        {
+          "stage": "Fruit Development",
+          "duration": {
+            "min_days": 28,
+            "max_days": 42
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 18,
+              "max": 24
+            },
+            "humidity_percent": {
+              "min": 40,
+              "max": 60
+            },
+            "hours_per_day": 12
+          }
+        },
+        {
+          "stage": "Harvest",
+          "duration": {
+            "min_days": 70,
+            "max_days": 90
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 18,
+              "max": 24
+            },
+            "humidity_percent": {
+              "min": 40,
+              "max": 60
+            },
+            "hours_per_day": 12
+          }
+        }
+      ],
+      "tips": "Keep the soil slightly acidic. Avoid wetting the foliage to prevent fungal diseases.",
+      "disease_prevention": "Use well-drained soil to prevent root rot. Space plants to improve air circulation.",
+      "fertilizer_recommendations": "Use a balanced fertilizer with higher potassium (5-10-10) for fruit development.",
+      "variety": "Everbearing Strawberry",
+      "sensor_requirements": {
+        "soil_moisture_range": {
+          "min": 60,
+          "max": 75
+        },
+        "soil_temperature_C": {
+          "min": 15,
+          "max": 22
+        },
+        "air_quality_sensitivity": "medium",
+        "co2_requirements": {
+          "min": 400,
+          "max": 800
+        },
+        "vpd_range": {
+          "min": 0.6,
+          "max": 1.0
+        }
+      },
+      "yield_data": {
+        "expected_yield_per_plant": {
+          "min": 200,
+          "max": 500,
+          "unit": "grams"
+        },
+        "harvest_frequency": "continuous",
+        "harvest_period_weeks": 12,
+        "market_value_per_kg": 18.0,
+        "storage_life_days": 3,
+        "difficulty_level": "intermediate"
+      },
+      "nutritional_info": {
+        "calories_per_100g": 32,
+        "vitamin_c_mg": 59,
+        "anthocyanins_mg": 15,
+        "key_nutrients": [
+          "Vitamin C",
+          "Manganese",
+          "Anthocyanins",
+          "Folate"
+        ],
+        "health_benefits": [
+          "Antioxidant rich",
+          "Heart health",
+          "Blood sugar control"
+        ]
+      },
+      "automation": {
+        "watering_schedule": {
+          "frequency_hours": 48,
+          "amount_ml_per_plant": 200,
+          "soil_moisture_trigger": 65,
+          "avoid_foliage_wetting": true
+        },
+        "lighting_schedule": {
+          "seedling": {
+            "hours": 12,
+            "intensity": 50
+          },
+          "vegetative": {
+            "hours": 14,
+            "intensity": 70
+          },
+          "flowering": {
+            "hours": 12,
+            "intensity": 75
+          },
+          "fruiting": {
+            "hours": 12,
+            "intensity": 70
+          }
+        },
+        "alert_thresholds": {
+          "temperature_min": 13,
+          "temperature_max": 26,
+          "humidity_min": 35,
+          "humidity_max": 65,
+          "soil_moisture_critical": 55
+        },
+        "environmental_controls": {
+          "fan_trigger_temp": 24,
+          "misting_humidity_threshold": 45,
+          "co2_injection_ppm": 600
+        }
+      },
+      "common_issues": [
+        {
+          "problem": "Gray Mold (Botrytis)",
+          "symptoms": [
+            "Gray fuzzy mold on fruit",
+            "Fruit rot"
+          ],
+          "causes": [
+            "High humidity",
+            "Poor air circulation",
+            "Wounded fruit"
+          ],
+          "solutions": [
+            "Remove infected fruit immediately",
+            "Improve ventilation",
+            "Reduce humidity",
+            "Apply fungicides"
+          ],
+          "prevention": "Maintain low humidity and good air circulation"
+        },
+        {
+          "problem": "Slugs and Snails",
+          "symptoms": [
+            "Irregular holes in fruit",
+            "Slime trails"
+          ],
+          "causes": [
+            "Moist conditions",
+            "Mulch harboring pests"
+          ],
+          "solutions": [
+            "Hand-pick pests",
+            "Use beer traps",
+            "Diatomaceous earth barrier",
+            "Copper tape around plants"
+          ],
+          "prevention": "Reduce moisture around plants and use barriers"
+        }
+      ],
+      "companion_plants": {
+        "beneficial": [
+          "Borage",
+          "Thyme",
+          "Lettuce",
+          "Spinach",
+          "Onions"
+        ],
+        "avoid": [
+          "Cabbage family",
+          "Potatoes"
+        ],
+        "reasoning": "Borage attracts pollinators, thyme repels slugs, and alliums deter pests"
+      },
+      "harvest_guide": {
+        "indicators": [
+          "Bright red color all over",
+          "Shiny appearance",
+          "Slight softness when pressed",
+          "Sweet aroma",
+          "Easily separates from plant"
+        ],
+        "storage_tips": [
+          "Don't wash until ready to use",
+          "Store in refrigerator",
+          "Keep in single layer",
+          "Use within 2-3 days for best quality"
+        ],
+        "processing_options": [
+          "Fresh consumption",
+          "Jam making",
+          "Freezing",
+          "Dehydrating",
+          "Smoothies"
+        ]
+      }
+    },
+    {
+      "id": 7,
+      "species": "Daucus carota",
+      "common_name": "Carrots",
+      "pH_range": "6.0-6.8",
+      "water_requirements": "Water deeply but infrequently to encourage root growth",
+      "growth_stages": [
+        {
+          "stage": "Germination",
+          "duration": {
+            "min_days": 7,
+            "max_days": 14
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 18,
+              "max": 24
+            },
+            "humidity_percent": {
+              "min": 40,
+              "max": 60
+            },
+            "hours_per_day": 12
+          }
+        },
+        {
+          "stage": "Seedling",
+          "duration": {
+            "min_days": 21,
+            "max_days": 28
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 18,
+              "max": 24
+            },
+            "humidity_percent": {
+              "min": 40,
+              "max": 60
+            },
+            "hours_per_day": 12
+          }
+        },
+        {
+          "stage": "Vegetative",
+          "duration": {
+            "min_days": 42,
+            "max_days": 56
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 18,
+              "max": 24
+            },
+            "humidity_percent": {
+              "min": 40,
+              "max": 60
+            },
+            "hours_per_day": 12
+          }
+        },
+        {
+          "stage": "Harvest",
+          "duration": {
+            "min_days": 70,
+            "max_days": 80
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 18,
+              "max": 24
+            },
+            "humidity_percent": {
+              "min": 40,
+              "max": 60
+            },
+            "hours_per_day": 12
+          }
+        }
+      ],
+      "tips": "Thin seedlings to prevent overcrowding. Ensure deep, loose soil for root growth.",
+      "disease_prevention": "Avoid nitrogen-heavy fertilizers to reduce risk of leaf diseases. Rotate crops annually.",
+      "fertilizer_recommendations": "Use low-nitrogen, high-phosphorus fertilizers (5-10-10).",
+      "variety": "Nantes Carrot",
+      "sensor_requirements": {
+        "soil_moisture_range": {
+          "min": 50,
+          "max": 70
+        },
+        "soil_temperature_C": {
+          "min": 15,
+          "max": 22
+        },
+        "air_quality_sensitivity": "low",
+        "co2_requirements": {
+          "min": 350,
+          "max": 600
+        },
+        "vpd_range": {
+          "min": 0.7,
+          "max": 1.1
+        }
+      },
+      "yield_data": {
+        "expected_yield_per_plant": {
+          "min": 80,
+          "max": 200,
+          "unit": "grams"
+        },
+        "harvest_frequency": "single",
+        "harvest_period_weeks": 12,
+        "market_value_per_kg": 4.5,
+        "storage_life_days": 90,
+        "difficulty_level": "beginner"
+      },
+      "nutritional_info": {
+        "calories_per_100g": 41,
+        "beta_carotene_mcg": 8285,
+        "vitamin_a_iu": 16706,
+        "key_nutrients": [
+          "Beta-carotene",
+          "Vitamin A",
+          "Fiber",
+          "Potassium"
+        ],
+        "health_benefits": [
+          "Eye health",
+          "Immune support",
+          "Skin health"
+        ]
+      },
+      "automation": {
+        "watering_schedule": {
+          "frequency_hours": 72,
+          "amount_ml_per_plant": 150,
+          "soil_moisture_trigger": 60,
+          "deep_watering": true
+        },
+        "lighting_schedule": {
+          "seedling": {
+            "hours": 12,
+            "intensity": 55
+          },
+          "vegetative": {
+            "hours": 14,
+            "intensity": 65
+          },
+          "root_development": {
+            "hours": 12,
+            "intensity": 60
+          }
+        },
+        "alert_thresholds": {
+          "temperature_min": 15,
+          "temperature_max": 26,
+          "humidity_min": 35,
+          "humidity_max": 65,
+          "soil_moisture_critical": 50
+        },
+        "environmental_controls": {
+          "fan_trigger_temp": 24,
+          "co2_injection_ppm": 500
+        }
+      },
+      "common_issues": [
+        {
+          "problem": "Forked or Misshapen Roots",
+          "symptoms": [
+            "Twisted or split carrots",
+            "Multiple tap roots"
+          ],
+          "causes": [
+            "Rocky or compacted soil",
+            "Over-fertilization",
+            "Inconsistent watering"
+          ],
+          "solutions": [
+            "Improve soil structure",
+            "Loosen soil before planting",
+            "Maintain consistent watering"
+          ],
+          "prevention": "Prepare deep, loose, stone-free soil before planting"
+        },
+        {
+          "problem": "Carrot Rust Fly",
+          "symptoms": [
+            "Rusty tunnels in roots",
+            "Stunted growth"
+          ],
+          "causes": [
+            "Pest infestation"
+          ],
+          "solutions": [
+            "Use row covers",
+            "Rotate crops",
+            "Remove affected plants"
+          ],
+          "prevention": "Use floating row covers from planting"
+        }
+      ],
+      "companion_plants": {
+        "beneficial": [
+          "Onions",
+          "Leeks",
+          "Rosemary",
+          "Sage",
+          "Lettuce",
+          "Tomatoes"
+        ],
+        "avoid": [
+          "Dill",
+          "Parsnips",
+          "Fennel"
+        ],
+        "reasoning": "Onions and leeks repel carrot flies, herbs mask carrot scent from pests"
+      },
+      "harvest_guide": {
+        "indicators": [
+          "Carrot shoulders visible at soil surface",
+          "Desired diameter (¾ to 1 inch)",
+          "Bright orange color",
+          "60-80 days after planting"
+        ],
+        "storage_tips": [
+          "Remove green tops immediately",
+          "Store in refrigerator in perforated plastic bags",
+          "Can store in sand in cool cellar",
+          "Lasts 2-3 months with proper storage"
+        ],
+        "processing_options": [
+          "Fresh consumption",
+          "Juicing",
+          "Roasting",
+          "Canning",
+          "Freezing (blanch first)"
+        ]
+      }
+    },
+    {
+      "id": 8,
+      "species": "Cannabis sativa",
+      "common_name": "Cannabis",
+      "variety": "Photoperiod Sativa",
+      "pH_range": "6.0-7.0",
+      "water_requirements": "Keep soil moist but not soggy",
+      "sensor_requirements": {
+        "soil_moisture_range": {
+          "min": 55,
+          "max": 70
+        },
+        "soil_temperature_C": {
+          "min": 20,
+          "max": 25
+        },
+        "air_quality_sensitivity": "high",
+        "co2_requirements": {
+          "min": 800,
+          "max": 1500
+        },
+        "light_spectrum": {
+          "blue_percent": 25,
+          "red_percent": 45,
+          "green_percent": 20,
+          "far_red_percent": 10
+        },
+        "vpd_range": {
+          "min": 0.8,
+          "max": 1.4
+        }
+      },
+      "yield_data": {
+        "expected_yield_per_plant": {
+          "min": 100,
+          "max": 800,
+          "unit": "grams"
+        },
+        "harvest_frequency": "single",
+        "harvest_period_weeks": 16,
+        "market_value_per_kg": 2500.0,
+        "storage_life_days": 365,
+        "difficulty_level": "expert",
+        "space_requirement_cm": {
+          "width": 60,
+          "depth": 60,
+          "height": 200
+        }
+      },
+      "nutritional_info": {
+        "thc_percent": {
+          "min": 15,
+          "max": 25
+        },
+        "cbd_percent": {
+          "min": 0.5,
+          "max": 3
+        },
+        "terpenes": [
+          "Myrcene",
+          "Limonene",
+          "Pinene",
+          "Linalool"
+        ],
+        "key_compounds": [
+          "THC",
+          "CBD",
+          "CBG",
+          "Terpenes"
+        ],
+        "medicinal_benefits": [
+          "Pain relief",
+          "Anxiety reduction",
+          "Appetite stimulation",
+          "Sleep aid"
+        ]
+      },
+      "automation": {
+        "watering_schedule": {
+          "frequency_hours": 48,
+          "amount_ml_per_plant": 500,
+          "soil_moisture_trigger": 60,
+          "ph_adjustment": true
+        },
+        "lighting_schedule": {
+          "seedling": {
+            "hours": 18,
+            "intensity": 40
+          },
+          "vegetative": {
+            "hours": 18,
+            "intensity": 80
+          },
+          "flowering": {
+            "hours": 12,
+            "intensity": 100
+          },
+          "harvest": {
+            "hours": 0,
+            "intensity": 0
+          }
+        },
+        "alert_thresholds": {
+          "temperature_min": 18,
+          "temperature_max": 30,
+          "humidity_min": 30,
+          "humidity_max": 70,
+          "soil_moisture_critical": 45
+        },
+        "environmental_controls": {
+          "ventilation_trigger_temp": 26,
+          "heating_trigger_temp": 20,
+          "dehumidify_trigger": 60,
+          "co2_enrichment": true
+        }
+      },
+      "growth_stages": [
+        {
+          "stage": "Germination",
+          "duration": {
+            "min_days": 3,
+            "max_days": 7
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 22,
+              "max": 28
+            },
+            "humidity_percent": {
+              "min": 70,
+              "max": 90
+            },
+            "hours_per_day": 18
+          },
+          "sensor_targets": {
+            "soil_moisture": 75,
+            "soil_temp": 25,
+            "vpd": 0.5
+          },
+          "care_instructions": [
+            "Use sterile growing medium",
+            "Maintain high humidity for germination",
+            "Keep temperature consistent",
+            "Avoid overwatering"
+          ]
+        },
+        {
+          "stage": "Seedling",
+          "duration": {
+            "min_days": 10,
+            "max_days": 14
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 20,
+              "max": 25
+            },
+            "humidity_percent": {
+              "min": 65,
+              "max": 70
+            },
+            "hours_per_day": 18
+          },
+          "sensor_targets": {
+            "soil_moisture": 65,
+            "soil_temp": 22,
+            "vpd": 0.7
+          },
+          "care_instructions": [
+            "Begin light feeding schedule",
+            "Gradually reduce humidity",
+            "Monitor for damping off",
+            "Provide gentle air circulation"
+          ]
+        },
+        {
+          "stage": "Vegetative",
+          "duration": {
+            "min_days": 21,
+            "max_days": 42
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 22,
+              "max": 28
+            },
+            "humidity_percent": {
+              "min": 40,
+              "max": 60
+            },
+            "hours_per_day": 18
+          },
+          "sensor_targets": {
+            "soil_moisture": 60,
+            "soil_temp": 24,
+            "vpd": 1.0
+          },
+          "care_instructions": [
+            "Increase nitrogen feeding",
+            "Begin training techniques (LST, topping)",
+            "Monitor for pests and diseases",
+            "Maintain strong air circulation"
+          ]
+        },
+        {
+          "stage": "Flowering",
+          "duration": {
+            "min_days": 42,
+            "max_days": 63
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 20,
+              "max": 26
+            },
+            "humidity_percent": {
+              "min": 40,
+              "max": 50
+            },
+            "hours_per_day": 12
+          },
+          "sensor_targets": {
+            "soil_moisture": 55,
+            "soil_temp": 22,
+            "vpd": 1.2
+          },
+          "care_instructions": [
+            "Switch to flowering nutrients (low N, high P-K)",
+            "Reduce humidity to prevent mold",
+            "Remove lower fan leaves",
+            "Monitor trichome development"
+          ]
+        },
+        {
+          "stage": "Harvest",
+          "duration": {
+            "min_days": 7,
+            "max_days": 14
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 18,
+              "max": 24
+            },
+            "humidity_percent": {
+              "min": 30,
+              "max": 40
+            },
+            "hours_per_day": 12
+          },
+          "sensor_targets": {
+            "soil_moisture": 40,
+            "soil_temp": 20,
+            "vpd": 1.4
+          },
+          "care_instructions": [
+            "Stop feeding 1-2 weeks before harvest",
+            "Flush with plain water",
+            "Monitor trichomes for harvest timing",
+            "Prepare drying environment"
+          ]
+        }
+      ],
+      "common_issues": [
+        {
+          "problem": "Bud Rot (Botrytis)",
+          "symptoms": [
+            "Gray/brown fuzzy mold",
+            "Musty smell",
+            "Dark, wet buds"
+          ],
+          "causes": [
+            "High humidity",
+            "Poor air circulation",
+            "Dense buds"
+          ],
+          "solutions": [
+            "Remove affected areas immediately",
+            "Increase ventilation",
+            "Reduce humidity"
+          ],
+          "prevention": "Maintain humidity below 50% during flowering",
+          "sensor_indicators": {
+            "humidity_sustained": "> 60%",
+            "air_circulation": "insufficient"
+          }
+        },
+        {
+          "problem": "Nutrient Burn",
+          "symptoms": [
+            "Brown, crispy leaf tips",
+            "Yellowing edges",
+            "Stunted growth"
+          ],
+          "causes": [
+            "Over-fertilization",
+            "High EC levels",
+            "pH imbalance"
+          ],
+          "solutions": [
+            "Flush with plain water",
+            "Reduce nutrient concentration",
+            "Check pH"
+          ],
+          "prevention": "Monitor EC levels and follow feeding schedule"
+        },
+        {
+          "problem": "Light Burn",
+          "symptoms": [
+            "Bleached upper leaves",
+            "Yellow/white coloring",
+            "Crispy texture"
+          ],
+          "causes": [
+            "Lights too close",
+            "Too intense lighting",
+            "Heat stress"
+          ],
+          "solutions": [
+            "Raise lights",
+            "Reduce intensity",
+            "Improve cooling"
+          ],
+          "prevention": "Monitor leaf temperature and maintain proper distance"
+        }
+      ],
+      "companion_plants": {
+        "beneficial": [
+          "Basil",
+          "Marigold",
+          "Lavender",
+          "Peppermint"
+        ],
+        "avoid": [
+          "Large trees",
+          "Competing heavy feeders"
+        ],
+        "reasoning": "Aromatic herbs can mask odors and deter pests"
+      },
+      "harvest_guide": {
+        "indicators": [
+          "Trichomes 10-30% amber",
+          "Pistils 70-90% brown",
+          "Swollen calyxes",
+          "Strong aroma development"
+        ],
+        "storage_tips": [
+          "Dry in 60-65°F, 45-55% RH",
+          "Cure in airtight containers",
+          "Burp jars daily for first 2 weeks",
+          "Store in cool, dark place"
+        ],
+        "processing_options": [
+          "Smoking",
+          "Vaporizing",
+          "Edibles",
+          "Concentrates",
+          "Tinctures"
+        ]
+      },
+      "tips": "Ensure good ventilation and prevent overwatering. Use appropriate nutrient levels for each stage.",
+      "disease_prevention": "Maintain airflow to prevent bud rot. Keep humidity lower during flowering.",
+      "fertilizer_recommendations": "High nitrogen in vegetative stage, switch to phosphorus & potassium-rich nutrients for flowering."
+    },
+    {
+      "id": 9,
+      "species": "Cannabis sativa",
+      "common_name": "Autoflowering Cannabis",
+      "pH_range": "6.0-7.0",
+      "water_requirements": "Water lightly but frequently",
+      "growth_stages": [
+        {
+          "stage": "Germination",
+          "duration": {
+            "min_days": 3,
+            "max_days": 7
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 22,
+              "max": 26
+            },
+            "humidity_percent": {
+              "min": 70,
+              "max": 90
+            },
+            "hours_per_day": 18
+          }
+        },
+        {
+          "stage": "Seedling",
+          "duration": {
+            "min_days": 7,
+            "max_days": 10
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 20,
+              "max": 25
+            },
+            "humidity_percent": {
+              "min": 60,
+              "max": 70
+            },
+            "hours_per_day": 18
+          }
+        },
+        {
+          "stage": "Vegetative",
+          "duration": {
+            "min_days": 14,
+            "max_days": 21
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 22,
+              "max": 28
+            },
+            "humidity_percent": {
+              "min": 40,
+              "max": 60
+            },
+            "hours_per_day": 18
+          }
+        },
+        {
+          "stage": "Flowering",
+          "duration": {
+            "min_days": 28,
+            "max_days": 42
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 20,
+              "max": 26
+            },
+            "humidity_percent": {
+              "min": 40,
+              "max": 50
+            },
+            "hours_per_day": 18
+          }
+        },
+        {
+          "stage": "Harvest",
+          "duration": {
+            "min_days": 7,
+            "max_days": 14
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 18,
+              "max": 24
+            },
+            "humidity_percent": {
+              "min": 30,
+              "max": 40
+            },
+            "hours_per_day": 12
+          }
+        }
+      ],
+      "tips": "Autoflowering strains require less maintenance and have a shorter lifecycle.",
+      "disease_prevention": "Prevent mold by keeping humidity low in late flowering. Avoid overwatering.",
+      "fertilizer_recommendations": "Use balanced 5-10-10 nutrients. Less feeding is needed due to shorter life cycle.",
+      "variety": "Autoflowering Cannabis",
+      "sensor_requirements": {
+        "soil_moisture_range": {
+          "min": 50,
+          "max": 65
+        },
+        "soil_temperature_C": {
+          "min": 20,
+          "max": 26
+        },
+        "air_quality_sensitivity": "high",
+        "co2_requirements": {
+          "min": 600,
+          "max": 1200
+        },
+        "vpd_range": {
+          "min": 0.8,
+          "max": 1.3
+        }
+      },
+      "yield_data": {
+        "expected_yield_per_plant": {
+          "min": 50,
+          "max": 150,
+          "unit": "grams"
+        },
+        "harvest_frequency": "single",
+        "harvest_period_weeks": 10,
+        "market_value_per_kg": 2000.0,
+        "storage_life_days": 365,
+        "difficulty_level": "intermediate"
+      },
+      "nutritional_info": {
+        "thc_percent": {
+          "min": 12,
+          "max": 20
+        },
+        "cbd_percent": {
+          "min": 0.3,
+          "max": 2
+        },
+        "terpenes": [
+          "Myrcene",
+          "Limonene",
+          "Caryophyllene"
+        ],
+        "key_compounds": [
+          "THC",
+          "CBD",
+          "Terpenes"
+        ],
+        "medicinal_benefits": [
+          "Fast relief",
+          "Compact growth",
+          "Easy cultivation"
+        ]
+      },
+      "automation": {
+        "watering_schedule": {
+          "frequency_hours": 36,
+          "amount_ml_per_plant": 200,
+          "soil_moisture_trigger": 58,
+          "ph_adjustment": true
+        },
+        "lighting_schedule": {
+          "entire_lifecycle": {
+            "hours": 20,
+            "intensity": 85
+          }
+        },
+        "alert_thresholds": {
+          "temperature_min": 18,
+          "temperature_max": 28,
+          "humidity_min": 45,
+          "humidity_max": 70,
+          "soil_moisture_critical": 48
+        },
+        "environmental_controls": {
+          "fan_trigger_temp": 26,
+          "misting_humidity_threshold": 55,
+          "co2_injection_ppm": 1000
+        }
+      },
+      "common_issues": [
+        {
+          "problem": "Nutrient Burn",
+          "symptoms": [
+            "Leaf tip browning",
+            "Curling leaves"
+          ],
+          "causes": [
+            "Over-fertilization",
+            "High EC levels"
+          ],
+          "solutions": [
+            "Flush with pH-balanced water",
+            "Reduce nutrient concentration",
+            "Monitor EC levels"
+          ],
+          "prevention": "Use lighter feeding schedule for autoflowers"
+        },
+        {
+          "problem": "Stunted Growth",
+          "symptoms": [
+            "Small plant size",
+            "Slow development"
+          ],
+          "causes": [
+            "Root damage",
+            "Poor light",
+            "Stress"
+          ],
+          "solutions": [
+            "Avoid transplanting",
+            "Increase light intensity",
+            "Minimize stress"
+          ],
+          "prevention": "Start in final container and provide optimal conditions from start"
+        }
+      ],
+      "companion_plants": {
+        "beneficial": [
+          "Basil",
+          "Marigolds",
+          "Lavender",
+          "Coriander"
+        ],
+        "avoid": [
+          "Competing heavy feeders",
+          "Tall plants that shade"
+        ],
+        "reasoning": "Aromatic herbs help mask odors and deter pests, while staying compact"
+      },
+      "harvest_guide": {
+        "indicators": [
+          "Trichomes milky-white (70-80%)",
+          "Some amber trichomes (20-30%)",
+          "Pistils darkened and curled",
+          "8-10 weeks from germination"
+        ],
+        "storage_tips": [
+          "Dry slowly in dark room (60-70°F, 45-55% RH)",
+          "Cure in glass jars for 2-4 weeks",
+          "Burp jars daily first week",
+          "Store in cool, dark place"
+        ],
+        "processing_options": [
+          "Smoking",
+          "Vaporizing",
+          "Edibles",
+          "Concentrates",
+          "Tinctures"
+        ]
+      }
+    },
+    {
+      "id": 10,
+      "species": "Cannabis indica",
+      "common_name": "Cannabis Indica",
+      "pH_range": "6.0-7.0",
+      "water_requirements": "Keep soil moist but not soggy",
+      "growth_stages": [
+        {
+          "stage": "Germination",
+          "duration": {
+            "min_days": 3,
+            "max_days": 7
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 22,
+              "max": 28
+            },
+            "humidity_percent": {
+              "min": 70,
+              "max": 90
+            },
+            "hours_per_day": 18
+          }
+        },
+        {
+          "stage": "Seedling",
+          "duration": {
+            "min_days": 10,
+            "max_days": 14
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 20,
+              "max": 25
+            },
+            "humidity_percent": {
+              "min": 65,
+              "max": 70
+            },
+            "hours_per_day": 18
+          }
+        },
+        {
+          "stage": "Vegetative",
+          "duration": {
+            "min_days": 21,
+            "max_days": 42
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 22,
+              "max": 28
+            },
+            "humidity_percent": {
+              "min": 40,
+              "max": 60
+            },
+            "hours_per_day": 16
+          }
+        },
+        {
+          "stage": "Flowering",
+          "duration": {
+            "min_days": 42,
+            "max_days": 56
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 18,
+              "max": 24
+            },
+            "humidity_percent": {
+              "min": 40,
+              "max": 50
+            },
+            "hours_per_day": 12
+          }
+        },
+        {
+          "stage": "Harvest",
+          "duration": {
+            "min_days": 7,
+            "max_days": 14
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 18,
+              "max": 24
+            },
+            "humidity_percent": {
+              "min": 30,
+              "max": 40
+            },
+            "hours_per_day": 12
+          }
+        }
+      ],
+      "tips": "Indica strains tend to be shorter and bushier. Keep humidity lower during flowering to prevent mold.",
+      "disease_prevention": "Ensure proper airflow and humidity control to prevent powdery mildew.",
+      "fertilizer_recommendations": "Use phosphorus-rich fertilizer during flowering for denser buds.",
+      "variety": "Indica Cannabis",
+      "sensor_requirements": {
+        "soil_moisture_range": {
+          "min": 55,
+          "max": 70
+        },
+        "soil_temperature_C": {
+          "min": 18,
+          "max": 24
+        },
+        "air_quality_sensitivity": "high",
+        "co2_requirements": {
+          "min": 800,
+          "max": 1400
+        },
+        "vpd_range": {
+          "min": 0.7,
+          "max": 1.2
+        }
+      },
+      "yield_data": {
+        "expected_yield_per_plant": {
+          "min": 80,
+          "max": 400,
+          "unit": "grams"
+        },
+        "harvest_frequency": "single",
+        "harvest_period_weeks": 14,
+        "market_value_per_kg": 2300.0,
+        "storage_life_days": 365,
+        "difficulty_level": "expert"
+      },
+      "nutritional_info": {
+        "thc_percent": {
+          "min": 16,
+          "max": 25
+        },
+        "cbd_percent": {
+          "min": 0.5,
+          "max": 4
+        },
+        "terpenes": [
+          "Myrcene",
+          "Linalool",
+          "Caryophyllene"
+        ],
+        "key_compounds": [
+          "THC",
+          "CBD",
+          "CBN",
+          "Terpenes"
+        ],
+        "medicinal_benefits": [
+          "Relaxation",
+          "Sleep aid",
+          "Pain relief",
+          "Appetite stimulation"
+        ]
+      },
+      "automation": {
+        "watering_schedule": {
+          "frequency_hours": 48,
+          "amount_ml_per_plant": 300,
+          "soil_moisture_trigger": 60,
+          "ph_adjustment": true
+        },
+        "lighting_schedule": {
+          "vegetative": {
+            "hours": 18,
+            "intensity": 85
+          },
+          "flowering": {
+            "hours": 12,
+            "intensity": 90
+          }
+        },
+        "alert_thresholds": {
+          "temperature_min": 18,
+          "temperature_max": 28,
+          "humidity_min": 40,
+          "humidity_max": 65,
+          "soil_moisture_critical": 50
+        },
+        "environmental_controls": {
+          "fan_trigger_temp": 26,
+          "misting_humidity_threshold": 50,
+          "co2_injection_ppm": 1200
+        }
+      },
+      "common_issues": [
+        {
+          "problem": "Powdery Mildew",
+          "symptoms": [
+            "White powdery coating on leaves"
+          ],
+          "causes": [
+            "High humidity",
+            "Poor air circulation"
+          ],
+          "solutions": [
+            "Improve ventilation",
+            "Reduce humidity",
+            "Apply sulfur-based treatments"
+          ],
+          "prevention": "Maintain humidity below 60% during flowering"
+        },
+        {
+          "problem": "Root Rot",
+          "symptoms": [
+            "Wilting despite wet soil",
+            "Brown, mushy roots"
+          ],
+          "causes": [
+            "Overwatering",
+            "Poor drainage"
+          ],
+          "solutions": [
+            "Improve drainage",
+            "Reduce watering frequency",
+            "Apply beneficial microbes"
+          ],
+          "prevention": "Use well-draining soil and avoid overwatering"
+        }
+      ],
+      "companion_plants": {
+        "beneficial": [
+          "Lavender",
+          "Basil",
+          "Peppermint",
+          "Chamomile"
+        ],
+        "avoid": [
+          "Other heavy feeders",
+          "Plants requiring different pH"
+        ],
+        "reasoning": "Aromatic herbs mask odor and deter pests while thriving in similar conditions"
+      },
+      "harvest_guide": {
+        "indicators": [
+          "Trichomes cloudy with 10-20% amber",
+          "Pistils 60-70% brown/red",
+          "Dense, sticky buds",
+          "Strong aroma",
+          "8-9 weeks of flowering"
+        ],
+        "storage_tips": [
+          "Dry for 7-10 days (60°F, 50% RH)",
+          "Cure in glass jars for 3-6 weeks",
+          "Burp jars daily for first 2 weeks",
+          "Store in cool, dark, dry place"
+        ],
+        "processing_options": [
+          "Smoking",
+          "Vaporizing",
+          "Edibles",
+          "Hash making",
+          "Rosin press"
+        ]
+      }
+    },
+    {
+      "id": 11,
+      "species": "Cannabis sativa × Cannabis indica",
+      "common_name": "Cannabis Hybrid",
+      "pH_range": "6.0-7.0",
+      "water_requirements": "Keep soil moist but not soggy",
+      "growth_stages": [
+        {
+          "stage": "Germination",
+          "duration": {
+            "min_days": 3,
+            "max_days": 7
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 22,
+              "max": 28
+            },
+            "humidity_percent": {
+              "min": 70,
+              "max": 90
+            },
+            "hours_per_day": 18
+          }
+        },
+        {
+          "stage": "Seedling",
+          "duration": {
+            "min_days": 10,
+            "max_days": 14
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 20,
+              "max": 26
+            },
+            "humidity_percent": {
+              "min": 65,
+              "max": 70
+            },
+            "hours_per_day": 18
+          }
+        },
+        {
+          "stage": "Vegetative",
+          "duration": {
+            "min_days": 21,
+            "max_days": 42
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 22,
+              "max": 28
+            },
+            "humidity_percent": {
+              "min": 40,
+              "max": 60
+            },
+            "hours_per_day": 16
+          }
+        },
+        {
+          "stage": "Flowering",
+          "duration": {
+            "min_days": 42,
+            "max_days": 60
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 18,
+              "max": 26
+            },
+            "humidity_percent": {
+              "min": 40,
+              "max": 50
+            },
+            "hours_per_day": 12
+          }
+        },
+        {
+          "stage": "Harvest",
+          "duration": {
+            "min_days": 7,
+            "max_days": 14
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 18,
+              "max": 24
+            },
+            "humidity_percent": {
+              "min": 30,
+              "max": 40
+            },
+            "hours_per_day": 12
+          }
+        }
+      ],
+      "tips": "Hybrids vary in growth depending on genetics. Adjust lighting and nutrients based on dominant traits.",
+      "disease_prevention": "Maintain low humidity in flowering to prevent bud rot. Ensure good airflow.",
+      "fertilizer_recommendations": "Use high nitrogen fertilizers in vegetative growth, switch to phosphorus & potassium-rich nutrients in flowering.",
+      "variety": "Hybrid Cannabis",
+      "sensor_requirements": {
+        "soil_moisture_range": {
+          "min": 55,
+          "max": 72
+        },
+        "soil_temperature_C": {
+          "min": 20,
+          "max": 26
+        },
+        "air_quality_sensitivity": "high",
+        "co2_requirements": {
+          "min": 700,
+          "max": 1400
+        },
+        "vpd_range": {
+          "min": 0.8,
+          "max": 1.3
+        }
+      },
+      "yield_data": {
+        "expected_yield_per_plant": {
+          "min": 100,
+          "max": 600,
+          "unit": "grams"
+        },
+        "harvest_frequency": "single",
+        "harvest_period_weeks": 15,
+        "market_value_per_kg": 2400.0,
+        "storage_life_days": 365,
+        "difficulty_level": "expert"
+      },
+      "nutritional_info": {
+        "thc_percent": {
+          "min": 14,
+          "max": 28
+        },
+        "cbd_percent": {
+          "min": 0.3,
+          "max": 6
+        },
+        "terpenes": [
+          "Myrcene",
+          "Limonene",
+          "Pinene",
+          "Caryophyllene"
+        ],
+        "key_compounds": [
+          "THC",
+          "CBD",
+          "CBG",
+          "Terpenes"
+        ],
+        "medicinal_benefits": [
+          "Balanced effects",
+          "Versatile use",
+          "Customizable effects"
+        ]
+      },
+      "automation": {
+        "watering_schedule": {
+          "frequency_hours": 48,
+          "amount_ml_per_plant": 350,
+          "soil_moisture_trigger": 58,
+          "ph_adjustment": true
+        },
+        "lighting_schedule": {
+          "vegetative": {
+            "hours": 18,
+            "intensity": 85
+          },
+          "flowering": {
+            "hours": 12,
+            "intensity": 95
+          }
+        },
+        "alert_thresholds": {
+          "temperature_min": 18,
+          "temperature_max": 28,
+          "humidity_min": 40,
+          "humidity_max": 60,
+          "soil_moisture_critical": 48
+        },
+        "environmental_controls": {
+          "fan_trigger_temp": 26,
+          "misting_humidity_threshold": 48,
+          "co2_injection_ppm": 1300
+        }
+      },
+      "common_issues": [
+        {
+          "problem": "Nutrient Deficiency",
+          "symptoms": [
+            "Yellowing leaves",
+            "Slow growth",
+            "Poor flowering"
+          ],
+          "causes": [
+            "Improper pH",
+            "Nutrient lockout",
+            "Underfeedineg"
+          ],
+          "solutions": [
+            "Adjust pH to 6.0-6.5",
+            "Flush and restart feeding",
+            "Use balanced nutrients"
+          ],
+          "prevention": "Monitor pH and EC regularly, follow feeding schedule"
+        },
+        {
+          "problem": "Hermaphroditism",
+          "symptoms": [
+            "Both male and female flowers",
+            "Seed development"
+          ],
+          "causes": [
+            "Stress",
+            "Light leaks",
+            "Genetics"
+          ],
+          "solutions": [
+            "Remove hermaphrodite plants",
+            "Fix light schedule",
+            "Reduce stress"
+          ],
+          "prevention": "Maintain stable environment and use stable genetics"
+        }
+      ],
+      "companion_plants": {
+        "beneficial": [
+          "Basil",
+          "Marigolds",
+          "Lavender",
+          "Dill"
+        ],
+        "avoid": [
+          "Other cannabis varieties (cross-pollination)",
+          "Heavy feeders"
+        ],
+        "reasoning": "Aromatic companions mask odor and deter pests while maintaining similar growing conditions"
+      },
+      "harvest_guide": {
+        "indicators": [
+          "Trichomes mostly cloudy with some amber",
+          "Pistils 70-80% brown",
+          "Dense, resinous buds",
+          "Strong terpene profile",
+          "Varies by genetics (check breeder specs)"
+        ],
+        "storage_tips": [
+          "Dry slowly for 10-14 days (60-65°F, 50-55% RH)",
+          "Cure in glass jars for 4-8 weeks minimum",
+          "Burp jars daily first 2 weeks, weekly after",
+          "Store long-term in vacuum-sealed containers"
+        ],
+        "processing_options": [
+          "Smoking",
+          "Vaporizing",
+          "Edibles",
+          "Concentrates (BHO, rosin, hash)",
+          "Tinctures"
+        ]
+      }
+    },
+    {
+      "id": 12,
+      "species": "Capsicum annuum",
+      "common_name": "Bell Peppers",
+      "pH_range": "6.0-6.8",
+      "water_requirements": "Allow soil to dry slightly between watering",
+      "growth_stages": [
+        {
+          "stage": "Germination",
+          "duration": {
+            "min_days": 7,
+            "max_days": 14
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 22,
+              "max": 28
+            },
+            "humidity_percent": {
+              "min": 40,
+              "max": 60
+            },
+            "hours_per_day": 16
+          }
+        },
+        {
+          "stage": "Seedling",
+          "duration": {
+            "min_days": 21,
+            "max_days": 28
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 22,
+              "max": 28
+            },
+            "humidity_percent": {
+              "min": 40,
+              "max": 60
+            },
+            "hours_per_day": 16
+          }
+        },
+        {
+          "stage": "Vegetative",
+          "duration": {
+            "min_days": 28,
+            "max_days": 42
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 22,
+              "max": 28
+            },
+            "humidity_percent": {
+              "min": 40,
+              "max": 60
+            },
+            "hours_per_day": 16
+          }
+        },
+        {
+          "stage": "Flowering",
+          "duration": {
+            "min_days": 14,
+            "max_days": 21
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 22,
+              "max": 28
+            },
+            "humidity_percent": {
+              "min": 40,
+              "max": 60
+            },
+            "hours_per_day": 16
+          }
+        },
+        {
+          "stage": "Fruit Development",
+          "duration": {
+            "min_days": 56,
+            "max_days": 70
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 22,
+              "max": 28
+            },
+            "humidity_percent": {
+              "min": 40,
+              "max": 60
+            },
+            "hours_per_day": 16
+          }
+        },
+        {
+          "stage": "Harvest",
+          "duration": {
+            "min_days": 70,
+            "max_days": 90
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 22,
+              "max": 28
+            },
+            "humidity_percent": {
+              "min": 40,
+              "max": 60
+            },
+            "hours_per_day": 16
+          }
+        }
+      ],
+      "tips": "Harvest bell peppers when they reach full size and color. Avoid overwatering.",
+      "disease_prevention": "Use crop rotation to prevent bacterial wilt. Maintain proper airflow to reduce fungal infections like powdery mildew.",
+      "fertilizer_recommendations": "Use a balanced fertilizer (10-10-10) early on, then switch to high potassium (5-10-10) during fruiting.",
+      "variety": "Sweet Bell Pepper",
+      "sensor_requirements": {
+        "soil_moisture_range": {
+          "min": 60,
+          "max": 75
+        },
+        "soil_temperature_C": {
+          "min": 20,
+          "max": 26
+        },
+        "air_quality_sensitivity": "medium",
+        "co2_requirements": {
+          "min": 500,
+          "max": 1000
+        },
+        "vpd_range": {
+          "min": 0.8,
+          "max": 1.2
+        }
+      },
+      "yield_data": {
+        "expected_yield_per_plant": {
+          "min": 800,
+          "max": 2000,
+          "unit": "grams"
+        },
+        "harvest_frequency": "continuous",
+        "harvest_period_weeks": 12,
+        "market_value_per_kg": 8.0,
+        "storage_life_days": 14,
+        "difficulty_level": "intermediate"
+      },
+      "nutritional_info": {
+        "calories_per_100g": 31,
+        "vitamin_c_mg": 127,
+        "vitamin_a_iu": 3131,
+        "key_nutrients": [
+          "Vitamin C",
+          "Vitamin A",
+          "Vitamin B6",
+          "Folate"
+        ],
+        "health_benefits": [
+          "Immune support",
+          "Eye health",
+          "Antioxidant rich"
+        ]
+      },
+      "automation": {
+        "watering_schedule": {
+          "frequency_hours": 36,
+          "amount_ml_per_plant": 250,
+          "soil_moisture_trigger": 65,
+          "stress_watering": false
+        },
+        "lighting_schedule": {
+          "seedling": {
+            "hours": 14,
+            "intensity": 60
+          },
+          "vegetative": {
+            "hours": 16,
+            "intensity": 80
+          },
+          "flowering": {
+            "hours": 14,
+            "intensity": 85
+          },
+          "fruiting": {
+            "hours": 14,
+            "intensity": 85
+          }
+        },
+        "alert_thresholds": {
+          "temperature_min": 18,
+          "temperature_max": 30,
+          "humidity_min": 40,
+          "humidity_max": 70,
+          "soil_moisture_critical": 55
+        },
+        "environmental_controls": {
+          "fan_trigger_temp": 28,
+          "misting_humidity_threshold": 52,
+          "co2_injection_ppm": 900
+        }
+      },
+      "common_issues": [
+        {
+          "problem": "Blossom End Rot",
+          "symptoms": [
+            "Dark, sunken spots on bottom of fruit"
+          ],
+          "causes": [
+            "Calcium deficiency",
+            "Inconsistent watering"
+          ],
+          "solutions": [
+            "Maintain consistent moisture",
+            "Add calcium supplement",
+            "Mulch to retain moisture"
+          ],
+          "prevention": "Regular watering and calcium-rich soil"
+        },
+        {
+          "problem": "Sunscald",
+          "symptoms": [
+            "White, papery patches on fruit"
+          ],
+          "causes": [
+            "Excessive sun exposure",
+            "Defoliation"
+          ],
+          "solutions": [
+            "Provide shade cloth",
+            "Maintain foliage cover",
+            "Harvest affected fruit"
+          ],
+          "prevention": "Avoid excessive pruning and provide afternoon shade"
+        }
+      ],
+      "companion_plants": {
+        "beneficial": [
+          "Basil",
+          "Onions",
+          "Carrots",
+          "Tomatoes"
+        ],
+        "avoid": [
+          "Fennel",
+          "Kohlrabi",
+          "Brassicas"
+        ],
+        "reasoning": "Basil improves flavor and deters pests, onions repel aphids"
+      },
+      "harvest_guide": {
+        "indicators": [
+          "Full size and color development",
+          "Firm, glossy skin",
+          "Thick walls",
+          "Easily snaps from plant with short stem"
+        ],
+        "storage_tips": [
+          "Store in refrigerator crisper",
+          "Keep in plastic bag to retain moisture",
+          "Use within 1-2 weeks",
+          "Can freeze for long-term storage"
+        ],
+        "processing_options": [
+          "Fresh consumption",
+          "Roasting",
+          "Grilling",
+          "Stuffing",
+          "Freezing (blanch first)"
+        ]
+      }
+    },
+    {
+      "id": 13,
+      "species": "Solanum melongena",
+      "common_name": "Eggplant (Aubergine)",
+      "pH_range": "5.5-7.0",
+      "water_requirements": "Keep soil evenly moist",
+      "growth_stages": [
+        {
+          "stage": "Germination",
+          "duration": {
+            "min_days": 7,
+            "max_days": 14
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 22,
+              "max": 30
+            },
+            "humidity_percent": {
+              "min": 50,
+              "max": 70
+            },
+            "hours_per_day": 14
+          }
+        },
+        {
+          "stage": "Seedling",
+          "duration": {
+            "min_days": 21,
+            "max_days": 35
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 22,
+              "max": 28
+            },
+            "humidity_percent": {
+              "min": 50,
+              "max": 70
+            },
+            "hours_per_day": 14
+          }
+        },
+        {
+          "stage": "Vegetative",
+          "duration": {
+            "min_days": 35,
+            "max_days": 50
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 22,
+              "max": 28
+            },
+            "humidity_percent": {
+              "min": 50,
+              "max": 70
+            },
+            "hours_per_day": 14
+          }
+        },
+        {
+          "stage": "Flowering",
+          "duration": {
+            "min_days": 14,
+            "max_days": 21
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 22,
+              "max": 28
+            },
+            "humidity_percent": {
+              "min": 50,
+              "max": 70
+            },
+            "hours_per_day": 14
+          }
+        },
+        {
+          "stage": "Fruit Development",
+          "duration": {
+            "min_days": 50,
+            "max_days": 80
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 22,
+              "max": 28
+            },
+            "humidity_percent": {
+              "min": 50,
+              "max": 70
+            },
+            "hours_per_day": 14
+          }
+        }
+      ],
+      "tips": "Eggplants need warm temperatures. Use stakes to support heavy fruit.",
+      "disease_prevention": "Avoid overhead watering to prevent fungal diseases. Rotate crops to minimize soil-borne pathogens like verticillium wilt.",
+      "fertilizer_recommendations": "Use nitrogen-rich fertilizer (10-5-10) during vegetative growth. Apply phosphorus and potassium-rich fertilizers when flowering starts.",
+      "variety": "Italian Eggplant",
+      "sensor_requirements": {
+        "soil_moisture_range": {
+          "min": 65,
+          "max": 80
+        },
+        "soil_temperature_C": {
+          "min": 22,
+          "max": 28
+        },
+        "air_quality_sensitivity": "medium",
+        "co2_requirements": {
+          "min": 500,
+          "max": 1000
+        },
+        "vpd_range": {
+          "min": 0.9,
+          "max": 1.3
+        }
+      },
+      "yield_data": {
+        "expected_yield_per_plant": {
+          "min": 1000,
+          "max": 3000,
+          "unit": "grams"
+        },
+        "harvest_frequency": "continuous",
+        "harvest_period_weeks": 10,
+        "market_value_per_kg": 7.5,
+        "storage_life_days": 7,
+        "difficulty_level": "intermediate"
+      },
+      "nutritional_info": {
+        "calories_per_100g": 25,
+        "fiber_g": 3,
+        "nasunin_mg": 5.2,
+        "key_nutrients": [
+          "Fiber",
+          "Nasunin",
+          "Potassium",
+          "Manganese"
+        ],
+        "health_benefits": [
+          "Heart health",
+          "Brain health",
+          "Cholesterol management"
+        ]
+      },
+      "automation": {
+        "watering_schedule": {
+          "frequency_hours": 36,
+          "amount_ml_per_plant": 300,
+          "soil_moisture_trigger": 68,
+          "early_morning_boost": true
+        },
+        "lighting_schedule": {
+          "seedling": {
+            "hours": 14,
+            "intensity": 65
+          },
+          "vegetative": {
+            "hours": 16,
+            "intensity": 80
+          },
+          "flowering": {
+            "hours": 14,
+            "intensity": 85
+          },
+          "fruiting": {
+            "hours": 14,
+            "intensity": 85
+          }
+        },
+        "alert_thresholds": {
+          "temperature_min": 18,
+          "temperature_max": 32,
+          "humidity_min": 50,
+          "humidity_max": 75,
+          "soil_moisture_critical": 60
+        },
+        "environmental_controls": {
+          "fan_trigger_temp": 28,
+          "misting_humidity_threshold": 58,
+          "co2_injection_ppm": 900
+        }
+      },
+      "common_issues": [
+        {
+          "problem": "Flea Beetles",
+          "symptoms": [
+            "Small holes in leaves",
+            "Damaged foliage"
+          ],
+          "causes": [
+            "Pest infestation"
+          ],
+          "solutions": [
+            "Use row covers",
+            "Apply neem oil",
+            "Diatomaceous earth around plants"
+          ],
+          "prevention": "Use floating row covers from transplanting"
+        },
+        {
+          "problem": "Verticillium Wilt",
+          "symptoms": [
+            "Wilting leaves",
+            "Yellowing",
+            "Stunted growth"
+          ],
+          "causes": [
+            "Soil-borne fungus"
+          ],
+          "solutions": [
+            "Remove infected plants",
+            "Solarize soil",
+            "Use resistant varieties"
+          ],
+          "prevention": "Rotate crops and improve soil drainage"
+        }
+      ],
+      "companion_plants": {
+        "beneficial": [
+          "Beans",
+          "Marigolds",
+          "Thyme",
+          "Spinach"
+        ],
+        "avoid": [
+          "Peppers",
+          "Tomatoes (same family - disease transfer)"
+        ],
+        "reasoning": "Beans provide nitrogen, marigolds deter pests, herbs improve flavor"
+      },
+      "harvest_guide": {
+        "indicators": [
+          "Fruit reaches full size",
+          "Glossy, firm skin",
+          "Slight give when pressed",
+          "Deep purple color",
+          "Harvest before flesh becomes spongy"
+        ],
+        "storage_tips": [
+          "Store at 50-54°F (not refrigerator)",
+          "Use within 5-7 days",
+          "Don't wash until ready to use",
+          "Keep away from ethylene-producing fruits"
+        ],
+        "processing_options": [
+          "Grilling",
+          "Roasting",
+          "Baking",
+          "Frying",
+          "Pickling"
+        ]
+      }
+    },
+    {
+      "id": 14,
+      "species": "Lactuca sativa",
+      "common_name": "Lettuce",
+      "pH_range": "6.0-6.8",
+      "water_requirements": "Keep soil consistently moist but not waterlogged",
+      "growth_stages": [
+        {
+          "stage": "Germination",
+          "duration": {
+            "min_days": 4,
+            "max_days": 10
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 15,
+              "max": 21
+            },
+            "humidity_percent": {
+              "min": 60,
+              "max": 80
+            },
+            "hours_per_day": 12
+          }
+        },
+        {
+          "stage": "Seedling",
+          "duration": {
+            "min_days": 10,
+            "max_days": 14
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 15,
+              "max": 21
+            },
+            "humidity_percent": {
+              "min": 60,
+              "max": 80
+            },
+            "hours_per_day": 12
+          }
+        },
+        {
+          "stage": "Vegetative",
+          "duration": {
+            "min_days": 14,
+            "max_days": 28
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 15,
+              "max": 21
+            },
+            "humidity_percent": {
+              "min": 60,
+              "max": 80
+            },
+            "hours_per_day": 12
+          }
+        },
+        {
+          "stage": "Harvest",
+          "duration": {
+            "min_days": 28,
+            "max_days": 40
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 15,
+              "max": 21
+            },
+            "humidity_percent": {
+              "min": 60,
+              "max": 80
+            },
+            "hours_per_day": 12
+          }
+        }
+      ],
+      "tips": "Avoid high temperatures to prevent bolting. Provide shade in hot climates.",
+      "disease_prevention": "Use well-draining soil to prevent root rot. Maintain airflow to reduce mildew.",
+      "fertilizer_recommendations": "Apply balanced NPK (10-10-10) fertilizer every two weeks. Use compost for organic growth.",
+      "variety": "Butterhead Lettuce",
+      "sensor_requirements": {
+        "soil_moisture_range": {
+          "min": 70,
+          "max": 85
+        },
+        "soil_temperature_C": {
+          "min": 12,
+          "max": 20
+        },
+        "air_quality_sensitivity": "high",
+        "co2_requirements": {
+          "min": 400,
+          "max": 800
+        },
+        "vpd_range": {
+          "min": 0.6,
+          "max": 1.0
+        }
+      },
+      "yield_data": {
+        "expected_yield_per_plant": {
+          "min": 120,
+          "max": 350,
+          "unit": "grams"
+        },
+        "harvest_frequency": "single",
+        "harvest_period_weeks": 6,
+        "market_value_per_kg": 9.0,
+        "storage_life_days": 5,
+        "difficulty_level": "beginner"
+      },
+      "nutritional_info": {
+        "calories_per_100g": 13,
+        "vitamin_k_mcg": 126,
+        "folate_mcg": 38,
+        "key_nutrients": [
+          "Vitamin K",
+          "Folate",
+          "Vitamin A",
+          "Iron"
+        ],
+        "health_benefits": [
+          "Bone health",
+          "Heart health",
+          "Low calorie",
+          "Hydration"
+        ]
+      },
+      "automation": {
+        "watering_schedule": {
+          "frequency_hours": 24,
+          "amount_ml_per_plant": 150,
+          "soil_moisture_trigger": 75,
+          "early_morning_boost": true
+        },
+        "lighting_schedule": {
+          "seedling": {
+            "hours": 12,
+            "intensity": 55
+          },
+          "vegetative": {
+            "hours": 14,
+            "intensity": 65
+          },
+          "harvest": {
+            "hours": 14,
+            "intensity": 60
+          }
+        },
+        "alert_thresholds": {
+          "temperature_min": 10,
+          "temperature_max": 24,
+          "humidity_min": 45,
+          "humidity_max": 75,
+          "soil_moisture_critical": 65
+        },
+        "environmental_controls": {
+          "fan_trigger_temp": 22,
+          "misting_humidity_threshold": 55,
+          "co2_injection_ppm": 600
+        }
+      },
+      "common_issues": [
+        {
+          "problem": "Bolting",
+          "symptoms": [
+            "Tall flower stalk",
+            "Bitter leaves"
+          ],
+          "causes": [
+            "High temperatures",
+            "Long days",
+            "Stress"
+          ],
+          "solutions": [
+            "Provide shade",
+            "Plant in cooler seasons",
+            "Harvest promptly"
+          ],
+          "prevention": "Grow in cool weather and provide shade in warm climates"
+        },
+        {
+          "problem": "Aphids",
+          "symptoms": [
+            "Sticky residue on leaves",
+            "Curling leaves",
+            "Visible insects"
+          ],
+          "causes": [
+            "Pest infestation"
+          ],
+          "solutions": [
+            "Spray with water",
+            "Apply insecticidal soap",
+            "Introduce beneficial insects"
+          ],
+          "prevention": "Monitor plants regularly and use companion planting"
+        }
+      ],
+      "companion_plants": {
+        "beneficial": [
+          "Carrots",
+          "Radishes",
+          "Strawberries",
+          "Onions",
+          "Peas"
+        ],
+        "avoid": [
+          "Potatoes",
+          "Fennel"
+        ],
+        "reasoning": "Radishes help break up soil, peas provide nitrogen, and strawberries don't compete for space"
+      },
+      "harvest_guide": {
+        "indicators": [
+          "Leaves 4-6 inches long",
+          "Bright green color",
+          "Before bolting",
+          "Harvest outer leaves first for continuous harvest"
+        ],
+        "storage_tips": [
+          "Store in refrigerator in crisper",
+          "Keep in perforated plastic bag",
+          "Use within 3-5 days",
+          "Don't wash until ready to use"
+        ],
+        "processing_options": [
+          "Fresh salads",
+          "Steaming",
+          "Sautéing",
+          "Smoothies",
+          "Freezing (blanch first)"
+        ]
+      }
+    },
+    {
+      "id": 15,
+      "species": "Spinacia oleracea",
+      "common_name": "Spinach",
+      "pH_range": "6.0-7.5",
+      "water_requirements": "Keep soil consistently moist, but avoid waterlogging",
+      "growth_stages": [
+        {
+          "stage": "Germination",
+          "duration": {
+            "min_days": 5,
+            "max_days": 10
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 10,
+              "max": 20
+            },
+            "humidity_percent": {
+              "min": 60,
+              "max": 80
+            },
+            "hours_per_day": 10
+          }
+        },
+        {
+          "stage": "Seedling",
+          "duration": {
+            "min_days": 10,
+            "max_days": 14
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 10,
+              "max": 20
+            },
+            "humidity_percent": {
+              "min": 60,
+              "max": 80
+            },
+            "hours_per_day": 10
+          }
+        },
+        {
+          "stage": "Vegetative",
+          "duration": {
+            "min_days": 14,
+            "max_days": 28
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 10,
+              "max": 20
+            },
+            "humidity_percent": {
+              "min": 60,
+              "max": 80
+            },
+            "hours_per_day": 10
+          }
+        },
+        {
+          "stage": "Harvest",
+          "duration": {
+            "min_days": 28,
+            "max_days": 45
+          },
+          "conditions": {
+            "temperature_C": {
+              "min": 10,
+              "max": 20
+            },
+            "humidity_percent": {
+              "min": 60,
+              "max": 80
+            },
+            "hours_per_day": 10
+          }
+        }
+      ],
+      "tips": "Spinach prefers cool temperatures. Avoid hot environments to prevent bolting.",
+      "disease_prevention": "Use crop rotation to prevent soil-borne diseases. Maintain airflow to reduce fungal issues.",
+      "fertilizer_recommendations": "Use nitrogen-rich fertilizer (5-10-10) to promote leaf growth. Compost works well for organic growth.",
+      "variety": "Baby Spinach",
+      "sensor_requirements": {
+        "soil_moisture_range": {
+          "min": 70,
+          "max": 85
+        },
+        "soil_temperature_C": {
+          "min": 8,
+          "max": 18
+        },
+        "air_quality_sensitivity": "high",
+        "co2_requirements": {
+          "min": 350,
+          "max": 700
+        },
+        "vpd_range": {
+          "min": 0.5,
+          "max": 0.9
+        }
+      },
+      "yield_data": {
+        "expected_yield_per_plant": {
+          "min": 80,
+          "max": 200,
+          "unit": "grams"
+        },
+        "harvest_frequency": "continuous",
+        "harvest_period_weeks": 8,
+        "market_value_per_kg": 12.0,
+        "storage_life_days": 7,
+        "difficulty_level": "beginner"
+      },
+      "nutritional_info": {
+        "calories_per_100g": 23,
+        "iron_mg": 2.7,
+        "vitamin_k_mcg": 483,
+        "key_nutrients": [
+          "Iron",
+          "Vitamin K",
+          "Folate",
+          "Vitamin A"
+        ],
+        "health_benefits": [
+          "Blood health",
+          "Bone strength",
+          "Eye health",
+          "Energy"
+        ]
+      },
+      "automation": {
+        "watering_schedule": {
+          "frequency_hours": 24,
+          "amount_ml_per_plant": 180,
+          "soil_moisture_trigger": 72,
+          "early_morning_boost": true
+        },
+        "lighting_schedule": {
+          "seedling": {
+            "hours": 12,
+            "intensity": 55
+          },
+          "vegetative": {
+            "hours": 14,
+            "intensity": 70
+          },
+          "harvest": {
+            "hours": 14,
+            "intensity": 65
+          }
+        },
+        "alert_thresholds": {
+          "temperature_min": 10,
+          "temperature_max": 22,
+          "humidity_min": 45,
+          "humidity_max": 70,
+          "soil_moisture_critical": 62
+        },
+        "environmental_controls": {
+          "fan_trigger_temp": 20,
+          "misting_humidity_threshold": 52,
+          "co2_injection_ppm": 650
+        }
+      },
+      "common_issues": [
+        {
+          "problem": "Downy Mildew",
+          "symptoms": [
+            "Yellow patches on leaves",
+            "White/gray fuzzy growth underneath"
+          ],
+          "causes": [
+            "Cool, moist conditions",
+            "Poor air circulation"
+          ],
+          "solutions": [
+            "Improve ventilation",
+            "Reduce humidity",
+            "Remove infected leaves",
+            "Apply organic fungicides"
+          ],
+          "prevention": "Maintain good air circulation and avoid overhead watering"
+        },
+        {
+          "problem": "Leaf Miners",
+          "symptoms": [
+            "Winding trails in leaves",
+            "Damaged foliage"
+          ],
+          "causes": [
+            "Pest larvae tunneling in leaves"
+          ],
+          "solutions": [
+            "Remove affected leaves",
+            "Use row covers",
+            "Apply neem oil",
+            "Introduce beneficial insects"
+          ],
+          "prevention": "Use floating row covers and monitor regularly"
+        }
+      ],
+      "companion_plants": {
+        "beneficial": [
+          "Strawberries",
+          "Peas",
+          "Beans",
+          "Cabbage",
+          "Radishes"
+        ],
+        "avoid": [
+          "Potatoes",
+          "Fennel"
+        ],
+        "reasoning": "Legumes provide nitrogen, strawberries provide ground cover, and alliums deter pests"
+      },
+      "harvest_guide": {
+        "indicators": [
+          "Leaves 3-5 inches long",
+          "Dark green color",
+          "Before hot weather",
+          "Harvest outer leaves for continuous production"
+        ],
+        "storage_tips": [
+          "Store in refrigerator",
+          "Keep in plastic bag with damp paper towel",
+          "Use within 3-7 days",
+          "Don't wash until ready to use"
+        ],
+        "processing_options": [
+          "Fresh salads",
+          "Steaming",
+          "Sautéing",
+          "Smoothies",
+          "Freezing (blanch first)",
+          "Soups"
+        ]
+      }
+    }
+  ]
+}

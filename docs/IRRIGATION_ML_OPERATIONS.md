@@ -37,8 +37,7 @@ Models are only used when they meet minimum quality thresholds. If not, inferenc
 | timing_predictor | top3_accuracy, MRR | **top3 ≥ 0.60** AND **MRR ≥ 0.55** |
 
 **Important behavior:**
-- **Timing prediction has no heuristic fallback**. If ML doesn’t pass gating, the API returns `preferred_time="00:00"` with `confidence=0.0` and a reason.
-- Threshold/response/duration still return heuristic fallbacks when ML is not ready.
+- **No heuristic fallbacks for irrigation ML predictions.** If ML doesn’t pass gating:\n+  - Timing returns `preferred_time="00:00"` with `confidence=0.0` and a reason.\n+  - Threshold returns the current threshold with `confidence=0.0` and a reason.\n+  - Duration returns the current default duration with `confidence=0.0`.\n+  - Response returns zeroed probabilities with `confidence=0.0`.
 
 ## Endpoints (Auth Required)
 All irrigation ML endpoints require a valid session `user_id` (401 if missing):

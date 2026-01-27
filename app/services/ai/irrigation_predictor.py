@@ -434,6 +434,26 @@ class IrrigationPredictor:
                     ),
                 )
 
+            metric_note = []
+            mae = metrics.get("mae")
+            r2 = metrics.get("test_score") if metrics.get("test_score") is not None else metrics.get("r2")
+            if mae is not None:
+                metric_note.append(f"mae={mae:.2f}")
+            if r2 is not None:
+                metric_note.append(f"r2={r2:.2f}")
+
+            return ThresholdPrediction(
+                optimal_threshold=round(float(current_threshold), 1),
+                current_threshold=current_threshold,
+                adjustment_direction="maintain",
+                adjustment_amount=0.0,
+                confidence=0.0,
+                reasoning=(
+                    "ML threshold model unavailable or below accuracy thresholds"
+                    + (f" ({', '.join(metric_note)})" if metric_note else "")
+                ),
+            )
+
             # Get training data for threshold optimization
             training_data = self._repo.get_training_data_for_model(
                 "threshold_optimizer",
@@ -618,6 +638,14 @@ class IrrigationPredictor:
                     confidence=confidence,
                 )
 
+            return UserResponsePrediction(
+                approve_probability=0.0,
+                delay_probability=0.0,
+                cancel_probability=0.0,
+                most_likely="approve",
+                confidence=0.0,
+            )
+
             # Get response history
             training_data = self._repo.get_training_data_for_model(
                 "response_predictor",
@@ -777,6 +805,14 @@ class IrrigationPredictor:
                         + (f" ({', '.join(metric_note)})" if metric_note else "")
                     ),
                 )
+
+            return DurationPrediction(
+                recommended_seconds=current_default_seconds,
+                current_default_seconds=current_default_seconds,
+                expected_moisture_increase=round(max(0.0, target_moisture - current_moisture), 1),
+                confidence=0.0,
+                reasoning="ML duration model unavailable or below accuracy thresholds",
+            )
 
             # Get duration history
             training_data = self._repo.get_training_data_for_model(

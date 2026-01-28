@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from datetime import datetime, date, time, timedelta
 from typing import Optional, Dict, Any, Tuple
 from functools import lru_cache
+from zoneinfo import ZoneInfo
 import json
 
 logger = logging.getLogger(__name__)
@@ -208,8 +209,11 @@ class SunTimesService:
             try:
                 # API returns UTC ISO 8601 format
                 dt = datetime.fromisoformat(iso_str.replace("Z", "+00:00"))
-                # Convert to local time if timezone configured
-                # For now, just extract time component
+                if self.timezone:
+                    try:
+                        dt = dt.astimezone(ZoneInfo(self.timezone))
+                    except Exception:
+                        logger.debug("Invalid timezone '%s' for sun times; using UTC", self.timezone)
                 return dt.time()
             except (ValueError, AttributeError):
                 return None

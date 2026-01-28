@@ -22,6 +22,7 @@ from datetime import datetime
 if TYPE_CHECKING:
     from infrastructure.database.repositories.plant_journal import PlantJournalRepository
     from app.services.ai.plant_health_monitor import PlantHealthMonitor
+    from app.services.application.manual_irrigation_service import ManualIrrigationService
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +38,8 @@ class PlantJournalService:
     def __init__(
         self,
         journal_repo: "PlantJournalRepository",
-        health_monitor: Optional["PlantHealthMonitor"] = None
+        health_monitor: Optional["PlantHealthMonitor"] = None,
+        manual_irrigation_service: Optional["ManualIrrigationService"] = None,
     ):
         """
         Initialize service.
@@ -48,6 +50,13 @@ class PlantJournalService:
         """
         self.repo = journal_repo
         self.health_monitor = health_monitor
+        self.manual_irrigation_service = manual_irrigation_service
+
+    def set_manual_irrigation_service(
+        self, service: Optional["ManualIrrigationService"]
+    ) -> None:
+        """Wire manual irrigation service after construction."""
+        self.manual_irrigation_service = service
 
     # ========================================================================
     # Observations
@@ -102,6 +111,62 @@ class PlantJournalService:
 
         except Exception as e:
             logger.error(f"Failed to record observation: {e}")
+            return None
+
+    def record_watering_event(
+        self,
+        plant_id: int,
+        unit_id: Optional[int],
+        *,
+        amount: Optional[float] = None,
+        unit: str = "ml",
+        notes: str = "",
+        user_id: Optional[int] = None,
+        watered_at_utc: Optional[str] = None,
+    ) -> Optional[int]:
+        """
+        Record a watering entry and optionally forward to irrigation logging.
+        """
+        try:
+            entry_id = self.repo.create_watering_entry(
+                plant_id=plant_id,
+                unit_id=unit_id,
+                amount=amount,
+                unit=unit,
+                notes=notes,
+                user_id=user_id,
+                observation_date=watered_at_utc,
+            )
+
+            if entry_id:
+                logger.info("Recorded watering entry for plant %s: %s", plant_id, entry_id)
+
+            if (
+                entry_id
+                and self.manual_irrigation_service
+                and unit_id is not None
+                and user_id is not None
+            ):
+                amount_ml = None
+                if amount is not None:
+                    normalized_unit = (unit or "").strip().lower()
+                    if normalized_unit in ("ml", "milliliter", "milliliters"):
+                        amount_ml = float(amount)
+                    elif normalized_unit in ("l", "liter", "liters"):
+                        amount_ml = float(amount) * 1000.0
+
+                self.manual_irrigation_service.log_watering_event(
+                    user_id=int(user_id),
+                    unit_id=int(unit_id),
+                    plant_id=int(plant_id),
+                    watered_at_utc=watered_at_utc,
+                    amount_ml=amount_ml,
+                    notes=notes,
+                )
+
+            return entry_id
+        except Exception as e:
+            logger.error("Failed to record watering entry: %s", e)
             return None
 
     def record_health_observation(

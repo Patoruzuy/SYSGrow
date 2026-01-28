@@ -757,7 +757,7 @@ class ContainerBuilder:
         # Plant journal service
         plant_journal_service = PlantJournalService(
             journal_repo=infra.plant_journal_repo,
-            health_monitor=ai.plant_health_monitor
+            health_monitor=ai.plant_health_monitor,
         )
 
         # Analytics service
@@ -866,6 +866,9 @@ class ContainerBuilder:
 
         # GrowthService ↔ DeviceHealthService (for health monitoring)
         growth_service.device_health_service = device_health_service
+
+        # PlantJournalService → ManualIrrigationService (optional watering logging)
+        plant_journal_service.set_manual_irrigation_service(manual_irrigation_service)
 
         # ActuatorManagementService ↔ DeviceHealthService (for actuator health)
         hardware.actuator_management_service.device_health_service = device_health_service
@@ -996,6 +999,10 @@ class ContainerBuilder:
         if optional_ai.personalized_learning:
             ai.climate_optimizer.personalized_learning = optional_ai.personalized_learning
             ai.disease_predictor.personalized_learning = optional_ai.personalized_learning
+            app.threshold_service.set_personalized_learning(optional_ai.personalized_learning)
+            optional_ai.personalized_learning.register_profile_update_callback(
+                app.threshold_service.clear_cache
+            )
             logger.info("✓ PersonalizedLearning wired into ClimateOptimizer and DiseasePredictor")
 
         logger.info("ServiceContainer built successfully.")

@@ -18,6 +18,7 @@ The irrigation ML stack learns from user feedback, execution telemetry, and envi
 - **Duration optimizer**: executed irrigations with before/after moisture deltas
 - **Timing predictor**: delayed responses (`user_response='delay'`) with `delayed_until`
 - **Next irrigation**: `PlantIrrigationModel` dry-down rate from moisture telemetry
+- **Manual watering**: optional journal entries can forward to manual irrigation logs
 
 ## Feature Sources (Single Source of Truth)
 All irrigation ML models share canonical feature lists in:

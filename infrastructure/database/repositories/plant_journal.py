@@ -268,6 +268,47 @@ class PlantJournalRepository:
                 return cursor.lastrowid
         except Exception as e:
             logger.error(f"Failed to create note: {e}")
+        return None
+
+    def create_watering_entry(
+        self,
+        plant_id: int,
+        unit_id: Optional[int] = None,
+        amount: Optional[float] = None,
+        unit: str = "ml",
+        notes: str = "",
+        user_id: Optional[int] = None,
+        observation_date: Optional[str] = None,
+    ) -> Optional[int]:
+        """
+        Create a watering entry.
+
+        Stores a watering record in the journal with entry_type 'watering'.
+        """
+        try:
+            with self.db.connection() as conn:
+                cursor = conn.execute(
+                    """
+                    INSERT INTO plant_journal (
+                        plant_id, unit_id, entry_type, observation_type,
+                        amount, unit, notes, user_id, observation_date
+                    )
+                    VALUES (?, ?, 'watering', 'watering', ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        plant_id,
+                        unit_id,
+                        amount,
+                        unit,
+                        notes,
+                        user_id,
+                        observation_date,
+                    ),
+                )
+                conn.commit()
+                return cursor.lastrowid
+        except Exception as e:
+            logger.error(f"Failed to create watering entry: {e}")
             return None
 
     # ========================================================================

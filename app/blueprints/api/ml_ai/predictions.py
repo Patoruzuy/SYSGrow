@@ -1316,8 +1316,10 @@ def get_irrigation_predictions(unit_id: int):
             plant_id=plant_id,
             feature_context=feature_context,
         )
-        
-        return _success(prediction.to_dict())
+
+        payload = prediction.to_dict()
+        payload["model_status"] = irrigation_predictor.get_model_statuses(enabled_models)
+        return _success(payload)
         
     except Exception as e:
         logger.error(f"Error getting irrigation predictions: {e}", exc_info=True)
@@ -1374,8 +1376,10 @@ def get_irrigation_threshold_prediction(unit_id: int):
             current_threshold=current_threshold,
             feature_context=feature_context,
         )
-        
-        return _success(prediction.to_dict())
+
+        payload = prediction.to_dict()
+        payload["model_status"] = irrigation_predictor.get_model_status("threshold_optimizer")
+        return _success(payload)
         
     except Exception as e:
         logger.error(f"Error getting threshold prediction: {e}", exc_info=True)
@@ -1425,8 +1429,10 @@ def get_irrigation_timing_prediction(unit_id: int):
             unit_timezone=unit_timezone,
             current_time=now,
         )
-        
-        return _success(prediction.to_dict())
+
+        payload = prediction.to_dict()
+        payload["model_status"] = irrigation_predictor.get_model_status("timing_predictor")
+        return _success(payload)
         
     except Exception as e:
         logger.error(f"Error getting timing prediction: {e}", exc_info=True)
@@ -1491,8 +1497,10 @@ def get_irrigation_response_prediction(unit_id: int):
             day_of_week=now.weekday(),
             feature_context=feature_context,
         )
-        
-        return _success(prediction.to_dict())
+
+        payload = prediction.to_dict()
+        payload["model_status"] = irrigation_predictor.get_model_status("response_predictor")
+        return _success(payload)
         
     except Exception as e:
         logger.error(f"Error getting response prediction: {e}", exc_info=True)
@@ -1555,8 +1563,10 @@ def get_irrigation_duration_prediction(unit_id: int):
             current_default_seconds=current_default,
             feature_context=feature_context,
         )
-        
-        return _success(prediction.to_dict())
+
+        payload = prediction.to_dict()
+        payload["model_status"] = irrigation_predictor.get_model_status("duration_optimizer")
+        return _success(payload)
         
     except Exception as e:
         logger.error(f"Error getting duration prediction: {e}", exc_info=True)

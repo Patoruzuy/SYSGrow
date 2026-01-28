@@ -160,6 +160,16 @@ class IrrigationPredictor:
             return False
 
     @staticmethod
+    def _model_name_for_key(model_key: str) -> str:
+        mapping = {
+            "threshold_optimizer": "irrigation_threshold",
+            "response_predictor": "irrigation_response",
+            "duration_optimizer": "irrigation_duration",
+            "timing_predictor": "irrigation_timing",
+        }
+        return mapping.get(model_key, model_key)
+
+    @staticmethod
     def _coerce_float(value: Any, default: float = 0.0) -> float:
         try:
             if value is None:
@@ -221,6 +231,42 @@ class IrrigationPredictor:
             return passed, confidence, metrics
 
         return False, 0.0, metrics
+
+    def get_model_status(self, model_key: str) -> Dict[str, Any]:
+        """Return gating status and metadata for a specific irrigation model key."""
+        bundle = self._model_bundles.get(model_key) if self._model_bundles else None
+        metadata = bundle.get("metadata") if bundle else None
+        model_name = bundle.get("model_name") if bundle else self._model_name_for_key(model_key)
+        version = None
+        if metadata is not None:
+            if hasattr(metadata, "version"):
+                version = getattr(metadata, "version")
+            elif isinstance(metadata, dict):
+                version = metadata.get("version")
+
+        passed, _, metrics = self._passes_gate(model_key)
+        return {
+            "model_key": model_key,
+            "model_name": model_name,
+            "model_version": version,
+            "ml_ready": bool(passed),
+            "gating_metrics": metrics,
+        }
+
+    def get_model_statuses(self, model_keys: Optional[List[str]] = None) -> Dict[str, Dict[str, Any]]:
+        """Return gating status for multiple irrigation model keys."""
+        known_keys = {
+            "threshold_optimizer",
+            "response_predictor",
+            "duration_optimizer",
+            "timing_predictor",
+        }
+        keys = model_keys or list(known_keys)
+        statuses: Dict[str, Dict[str, Any]] = {}
+        for key in keys:
+            if key in known_keys:
+                statuses[key] = self.get_model_status(key)
+        return statuses
 
     def _get_model_features(self, model_key: str) -> List[str]:
         bundle = self._model_bundles.get(model_key)

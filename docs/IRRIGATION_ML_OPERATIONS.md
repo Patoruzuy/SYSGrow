@@ -53,6 +53,12 @@ All irrigation ML endpoints require a valid session `user_id` (401 if missing):
 - `GET /api/ml/predictions/irrigation/<unit_id>/timing`
 - `GET /api/ml/predictions/irrigation/<unit_id>/next`
 
+### Response Metadata
+Irrigation prediction endpoints include a `model_status` section:
+- `ml_ready`: whether the model passes gating thresholds
+- `model_version`: production model version (if available)
+- `gating_metrics`: metrics used for gating (e.g., `macro_f1`, `mape`, `top3_accuracy`)
+
 Readiness endpoints:
 - `GET /api/ml/readiness/irrigation/<unit_id>`
 - `POST /api/ml/readiness/irrigation/<unit_id>/activate/<model>`

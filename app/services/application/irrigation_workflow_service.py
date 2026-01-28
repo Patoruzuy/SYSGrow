@@ -1785,6 +1785,22 @@ class IrrigationWorkflowService:
         bayesian_result = None
         plant_id = request.get("plant_id")
         current_threshold = float(request.get("soil_moisture_threshold", 50.0))
+        plant_context = None
+        plant_variety = None
+        strain_variety = None
+        pot_size_liters = None
+        if plant_id and self._plant_service:
+            try:
+                plant_context = self._plant_service.get_plant(int(plant_id))
+                if plant_context:
+                    plant_variety = getattr(plant_context, "plant_variety", None)
+                    strain_variety = getattr(plant_context, "strain_variety", None)
+                    pot_size_liters = getattr(plant_context, "pot_size_liters", None)
+            except Exception:
+                logger.debug(
+                    "Failed to resolve plant context for irrigation feedback",
+                    exc_info=True,
+                )
 
         threshold_feedback = None
         if response in timing_feedback:
@@ -1807,14 +1823,27 @@ class IrrigationWorkflowService:
             # Use Bayesian adjuster if available (intelligent learning)
             if self._bayesian_adjuster:
                 try:
+                    plant_type = (
+                        request.get("plant_type")
+                        or getattr(plant_context, "plant_type", None)
+                        or "default"
+                    )
+                    growth_stage = (
+                        request.get("growth_stage")
+                        or getattr(plant_context, "current_stage", None)
+                        or "Vegetative"
+                    )
                     bayesian_result = self._bayesian_adjuster.update_from_feedback(
                         unit_id=request["unit_id"],
                         user_id=user_id,
                         feedback=threshold_feedback.value,
                         current_threshold=current_threshold,
                         soil_moisture_at_request=request.get("soil_moisture_detected", 45.0),
-                        plant_type=request.get("plant_type", "default"),
-                        growth_stage=request.get("growth_stage", "Vegetative"),
+                        plant_type=plant_type,
+                        growth_stage=growth_stage,
+                        plant_variety=plant_variety,
+                        strain_variety=strain_variety,
+                        pot_size_liters=pot_size_liters,
                     )
                     
                     # Only apply if adjustment is significant

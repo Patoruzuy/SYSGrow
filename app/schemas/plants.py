@@ -9,6 +9,8 @@ from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List, Any
 from enum import Enum
 
+from app.enums.common import ConditionProfileMode
+
 
 class ObservationType(str, Enum):
     """Types of plant observations."""
@@ -127,6 +129,12 @@ class AddPlantToCrudRequest(BaseModel):
     strain_variety: Optional[str] = Field(default=None, description="Strain or variety")
     expected_yield_grams: float = Field(default=0.0, ge=0, description="Expected yield in grams")
     light_distance_cm: float = Field(default=0.0, ge=0, description="Light distance in cm")
+    condition_profile_id: Optional[str] = Field(default=None, description="Condition profile id")
+    condition_profile_mode: Optional[ConditionProfileMode] = Field(
+        default=None,
+        description="Condition profile mode (active/template)",
+    )
+    condition_profile_name: Optional[str] = Field(default=None, description="Condition profile name for clone")
 
 
 class ModifyPlantCrudRequest(BaseModel):

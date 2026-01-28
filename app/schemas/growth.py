@@ -8,7 +8,15 @@ Pydantic models for growth unit and plant request/response validation.
 from typing import Dict, List, Optional, Any
 from datetime import datetime, date
 from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict, AliasChoices
-from app.enums import LocationType, PlantStage, GrowthPhase, ScheduleType, ScheduleState, PhotoperiodSource
+from app.enums import (
+    LocationType,
+    PlantStage,
+    GrowthPhase,
+    ScheduleType,
+    ScheduleState,
+    PhotoperiodSource,
+    ConditionProfileMode,
+)
 
 
 # ============================================================================
@@ -318,6 +326,12 @@ class CreateGrowthUnitRequest(BaseModel):
     description: Optional[str] = Field(default=None, max_length=500, description="Unit description")
     area_size: Optional[float] = Field(default=None, gt=0, description="Area size (square meters)")
     thresholds: Optional[ThresholdSettings] = Field(default=None, description="Environmental thresholds")
+    condition_profile_id: Optional[str] = Field(default=None, description="Condition profile id")
+    condition_profile_mode: Optional[ConditionProfileMode] = Field(
+        default=None,
+        description="Condition profile mode (active/template)",
+    )
+    condition_profile_name: Optional[str] = Field(default=None, description="Condition profile name for clone")
     
     model_config = ConfigDict(
         json_schema_extra={
@@ -367,6 +381,9 @@ class CreateUnitPayload(BaseModel):
     device_schedules: Optional[Dict[str, DeviceScheduleInput]] = None
     camera_enabled: bool = False
     custom_image: Optional[str] = None
+    condition_profile_id: Optional[str] = None
+    condition_profile_mode: Optional[ConditionProfileMode] = None
+    condition_profile_name: Optional[str] = None
 
     model_config = ConfigDict(
         json_schema_extra={

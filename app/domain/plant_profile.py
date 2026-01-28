@@ -11,6 +11,8 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 import logging
 
+from app.enums.common import ConditionProfileMode
+
 logger = logging.getLogger(__name__)
 
 
@@ -85,6 +87,8 @@ class PlantProfile:
     expected_yield_grams: float = 0.0
     light_distance_cm: float = 0.0
     soil_moisture_threshold_override: Optional[float] = None
+    condition_profile_id: Optional[str] = None
+    condition_profile_mode: Optional[ConditionProfileMode] = None
     
     def __post_init__(self) -> None:
         self._recompute_metadata()
@@ -333,6 +337,8 @@ class PlantProfile:
             "expected_yield_grams": self.expected_yield_grams,
             "light_distance_cm": self.light_distance_cm,
             "soil_moisture_threshold_override": self.soil_moisture_threshold_override,
+            "condition_profile_id": self.condition_profile_id,
+            "condition_profile_mode": str(self.condition_profile_mode) if self.condition_profile_mode else None,
         }
 
     def get_status(self) -> Dict[str, Any]:

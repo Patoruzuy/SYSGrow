@@ -13,6 +13,7 @@ from app.blueprints.api._common import (
     success as _success,
     fail as _fail,
 )
+from app.enums.common import ConditionProfileMode, ConditionProfileVisibility
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,15 @@ def _get_personalized_service():
     if not container:
         return None
     return getattr(container, 'personalized_learning', None)
+
+
+def _parse_enum(enum_cls, value, field: str):
+    if value is None:
+        return None
+    try:
+        return enum_cls(value)
+    except ValueError:
+        raise ValueError(f"Invalid {field}")
 
 
 # ==============================================================================
@@ -155,6 +165,317 @@ def update_profile(unit_id: int):
         
     except Exception as e:
         logger.error(f"Error updating profile for unit {unit_id}: {e}", exc_info=True)
+        return _fail(str(e), 500)
+
+# ==============================================================================
+# CONDITION PROFILES (Per-plant stage thresholds)
+# ==============================================================================
+
+@personalized_bp.get("/condition-profiles")
+def get_condition_profile():
+    """
+    Get a per-user plant-stage condition profile.
+
+    Query params:
+        - user_id (required)
+        - profile_id (optional)
+        - plant_type (required if profile_id not provided)
+        - growth_stage (required if profile_id not provided)
+        - plant_variety (optional)
+        - strain_variety (optional)
+        - pot_size_liters (optional)
+        - mode (optional): active or template
+    """
+    try:
+        service = _get_personalized_service()
+        if not service:
+            return _fail("Personalized learning service is not enabled", 503)
+
+        user_id = request.args.get("user_id", type=int)
+        plant_type = request.args.get("plant_type")
+        growth_stage = request.args.get("growth_stage")
+        profile_id = request.args.get("profile_id")
+        plant_variety = request.args.get("plant_variety")
+        strain_variety = request.args.get("strain_variety")
+        pot_size_liters = request.args.get("pot_size_liters", type=float)
+        mode = request.args.get("mode")
+
+        preferred_mode = _parse_enum(ConditionProfileMode, mode, "mode") if mode else None
+
+        if user_id is None:
+            return _fail("user_id is required", 400)
+        if not profile_id and (not plant_type or not growth_stage):
+            return _fail("plant_type and growth_stage are required when profile_id is not provided", 400)
+
+        profile = service.get_condition_profile(
+            user_id=user_id,
+            plant_type=plant_type,
+            growth_stage=growth_stage,
+            profile_id=profile_id,
+            preferred_mode=preferred_mode,
+            plant_variety=plant_variety,
+            strain_variety=strain_variety,
+            pot_size_liters=pot_size_liters,
+        )
+        if not profile:
+            return _fail("Condition profile not found", 404)
+        return _success({"profile": profile.to_dict()})
+    except ValueError as e:
+        return _fail(str(e), 400)
+    except Exception as e:
+        logger.error("Error fetching condition profile: %s", e, exc_info=True)
+        return _fail(str(e), 500)
+
+
+@personalized_bp.get("/condition-profiles/user/<int:user_id>")
+def list_condition_profiles(user_id: int):
+    """List all condition profiles for a user."""
+    try:
+        service = _get_personalized_service()
+        if not service:
+            return _fail("Personalized learning service is not enabled", 503)
+        plant_type = request.args.get("plant_type")
+        growth_stage = request.args.get("growth_stage")
+        mode = request.args.get("mode")
+        visibility = request.args.get("visibility")
+        mode_enum = _parse_enum(ConditionProfileMode, mode, "mode") if mode else None
+        visibility_enum = _parse_enum(ConditionProfileVisibility, visibility, "visibility") if visibility else None
+
+        profiles = service.list_condition_profiles(user_id)
+        if plant_type:
+            profiles = [p for p in profiles if p.plant_type == plant_type]
+        if growth_stage:
+            profiles = [p for p in profiles if p.growth_stage == growth_stage]
+        if mode_enum:
+            profiles = [p for p in profiles if p.mode == mode_enum]
+        if visibility_enum:
+            profiles = [p for p in profiles if p.visibility == visibility_enum]
+        return _success({"profiles": [profile.to_dict() for profile in profiles]})
+    except ValueError as e:
+        return _fail(str(e), 400)
+    except Exception as e:
+        logger.error("Error listing condition profiles: %s", e, exc_info=True)
+        return _fail(str(e), 500)
+
+
+@personalized_bp.post("/condition-profiles")
+def upsert_condition_profile():
+    """
+    Create or update a per-user plant-stage condition profile.
+
+    Request body:
+        - user_id (required)
+        - plant_type (required)
+        - growth_stage (required)
+        - environment_thresholds (optional dict)
+        - soil_moisture_threshold (optional)
+        - rating (optional int)
+        - profile_id (optional)
+        - name (optional)
+        - image_url (optional)
+        - mode (optional): active or template
+        - visibility (optional): private, link, public
+        - allow_template_update (optional bool)
+        - plant_variety, strain_variety, pot_size_liters (optional)
+    """
+    try:
+        service = _get_personalized_service()
+        if not service:
+            return _fail("Personalized learning service is not enabled", 503)
+
+        data = request.get_json() or {}
+        user_id = data.get("user_id")
+        plant_type = data.get("plant_type")
+        growth_stage = data.get("growth_stage")
+        profile_id = data.get("profile_id")
+        name = data.get("name")
+        image_url = data.get("image_url")
+        mode = data.get("mode")
+        visibility = data.get("visibility")
+        allow_template_update = bool(data.get("allow_template_update", False))
+        if user_id is None or not plant_type or not growth_stage:
+            return _fail("user_id, plant_type, and growth_stage are required", 400)
+
+        mode_enum = _parse_enum(ConditionProfileMode, mode, "mode") if mode else None
+        visibility_enum = _parse_enum(ConditionProfileVisibility, visibility, "visibility") if visibility else None
+
+        profile = service.upsert_condition_profile(
+            user_id=int(user_id),
+            plant_type=plant_type,
+            growth_stage=growth_stage,
+            environment_thresholds=data.get("environment_thresholds") or data.get("thresholds"),
+            soil_moisture_threshold=data.get("soil_moisture_threshold"),
+            profile_id=profile_id,
+            name=name,
+            image_url=image_url,
+            mode=mode_enum,
+            visibility=visibility_enum,
+            allow_template_update=allow_template_update,
+            plant_variety=data.get("plant_variety"),
+            strain_variety=data.get("strain_variety"),
+            pot_size_liters=data.get("pot_size_liters"),
+            rating=data.get("rating"),
+        )
+
+        return _success({"profile": profile.to_dict()}, 201)
+    except ValueError as e:
+        return _fail(str(e), 400)
+    except Exception as e:
+        logger.error("Error upserting condition profile: %s", e, exc_info=True)
+        return _fail(str(e), 500)
+
+
+@personalized_bp.post("/condition-profiles/clone")
+def clone_condition_profile():
+    """
+    Clone an existing condition profile.
+
+    Body:
+        - user_id (required)
+        - source_profile_id (required)
+        - name (optional)
+        - mode (optional): active or template
+    """
+    try:
+        service = _get_personalized_service()
+        if not service:
+            return _fail("Personalized learning service is not enabled", 503)
+
+        data = request.get_json() or {}
+        user_id = data.get("user_id")
+        source_profile_id = data.get("source_profile_id")
+        name = data.get("name")
+        mode = data.get("mode")
+        if user_id is None or not source_profile_id:
+            return _fail("user_id and source_profile_id are required", 400)
+        mode_enum = _parse_enum(ConditionProfileMode, mode, "mode") if mode else ConditionProfileMode.ACTIVE
+
+        profile = service.clone_condition_profile(
+            user_id=int(user_id),
+            source_profile_id=source_profile_id,
+            name=name,
+            mode=mode_enum,
+        )
+        if not profile:
+            return _fail("Source profile not found", 404)
+        return _success({"profile": profile.to_dict()}, 201)
+    except ValueError as e:
+        return _fail(str(e), 400)
+    except Exception as e:
+        logger.error("Error cloning condition profile: %s", e, exc_info=True)
+        return _fail(str(e), 500)
+
+
+@personalized_bp.post("/condition-profiles/share")
+def share_condition_profile():
+    """
+    Share a condition profile (link or public).
+
+    Body:
+        - user_id (required)
+        - profile_id (required)
+        - visibility (optional): link or public
+    """
+    try:
+        service = _get_personalized_service()
+        if not service:
+            return _fail("Personalized learning service is not enabled", 503)
+
+        data = request.get_json() or {}
+        user_id = data.get("user_id")
+        profile_id = data.get("profile_id")
+        visibility = data.get("visibility")
+        if user_id is None or not profile_id:
+            return _fail("user_id and profile_id are required", 400)
+        visibility_enum = _parse_enum(
+            ConditionProfileVisibility, visibility, "visibility"
+        ) if visibility else ConditionProfileVisibility.LINK
+
+        result = service.share_condition_profile(
+            user_id=int(user_id),
+            profile_id=profile_id,
+            visibility=visibility_enum,
+        )
+        if not result:
+            return _fail("Profile not found", 404)
+        return _success(result)
+    except ValueError as e:
+        return _fail(str(e), 400)
+    except Exception as e:
+        logger.error("Error sharing condition profile: %s", e, exc_info=True)
+        return _fail(str(e), 500)
+
+
+@personalized_bp.get("/condition-profiles/shared/<string:token>")
+def get_shared_condition_profile(token: str):
+    """Fetch a shared condition profile by token."""
+    try:
+        service = _get_personalized_service()
+        if not service:
+            return _fail("Personalized learning service is not enabled", 503)
+        profile = service.get_shared_profile(token)
+        if not profile:
+            return _fail("Shared profile not found", 404)
+        return _success({"profile": profile})
+    except ValueError as e:
+        return _fail(str(e), 400)
+    except Exception as e:
+        logger.error("Error fetching shared profile: %s", e, exc_info=True)
+        return _fail(str(e), 500)
+
+
+@personalized_bp.get("/condition-profiles/shared")
+def list_shared_condition_profiles():
+    """List public shared condition profiles."""
+    try:
+        service = _get_personalized_service()
+        if not service:
+            return _fail("Personalized learning service is not enabled", 503)
+        profiles = service.list_shared_profiles()
+        return _success({"profiles": profiles})
+    except ValueError as e:
+        return _fail(str(e), 400)
+    except Exception as e:
+        logger.error("Error listing shared profiles: %s", e, exc_info=True)
+        return _fail(str(e), 500)
+
+
+@personalized_bp.post("/condition-profiles/import")
+def import_shared_condition_profile():
+    """
+    Import a shared condition profile.
+
+    Body:
+        - user_id (required)
+        - token (required)
+        - name (optional)
+        - mode (optional)
+    """
+    try:
+        service = _get_personalized_service()
+        if not service:
+            return _fail("Personalized learning service is not enabled", 503)
+        data = request.get_json() or {}
+        user_id = data.get("user_id")
+        token = data.get("token")
+        name = data.get("name")
+        mode = data.get("mode")
+        if user_id is None or not token:
+            return _fail("user_id and token are required", 400)
+        mode_enum = _parse_enum(ConditionProfileMode, mode, "mode") if mode else ConditionProfileMode.ACTIVE
+        profile = service.import_shared_profile(
+            user_id=int(user_id),
+            token=token,
+            name=name,
+            mode=mode_enum,
+        )
+        if not profile:
+            return _fail("Shared profile not found", 404)
+        return _success({"profile": profile.to_dict()}, 201)
+    except ValueError as e:
+        return _fail(str(e), 400)
+    except Exception as e:
+        logger.error("Error importing shared profile: %s", e, exc_info=True)
         return _fail(str(e), 500)
 
 

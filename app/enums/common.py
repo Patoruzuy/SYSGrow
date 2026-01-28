@@ -204,6 +204,43 @@ class SensorState(str, Enum):
         return self.value
 
 
+class ConditionProfileMode(str, Enum):
+    """
+    Condition profile modes.
+    Used by: personalized_learning, profile selection flows
+    """
+    TEMPLATE = "template"
+    ACTIVE = "active"
+
+    def __str__(self) -> str:
+        return self.value
+
+
+class ConditionProfileVisibility(str, Enum):
+    """
+    Condition profile visibility states.
+    Used by: personalized_learning sharing
+    """
+    PRIVATE = "private"
+    LINK = "link"
+    PUBLIC = "public"
+
+    def __str__(self) -> str:
+        return self.value
+
+
+class ConditionProfileTarget(str, Enum):
+    """
+    Link targets for condition profiles.
+    Used by: personalized_learning profile links
+    """
+    UNIT = "unit"
+    PLANT = "plant"
+
+    def __str__(self) -> str:
+        return self.value
+
+
 class NotificationType(str, Enum):
     """
     Notification type categories.

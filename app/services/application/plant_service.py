@@ -35,6 +35,7 @@ if TYPE_CHECKING:
 
 from app.utils.event_bus import EventBus
 from app.enums.events import PlantEvent, SensorEvent
+from app.enums.common import ConditionProfileMode, ConditionProfileTarget
 from app.domain.actuators import ActuatorType
 from app.hardware.compat.enums import app_to_infra_actuator_type
 from app.schemas.events import PlantStageUpdatePayload, PlantLifecyclePayload
@@ -225,6 +226,8 @@ class PlantViewService:
         light_distance_cm: float = 0.0,
         gdd_base_temp_c: Optional[float] = None,
         soil_moisture_threshold_override: Optional[float] = None,
+        condition_profile_id: Optional[str] = None,
+        condition_profile_mode: Optional[ConditionProfileMode] = None,
         **kwargs: Any,  # Added to prevent TypeError if legacy keys like aqi_threshold_override are passed
     ) -> PlantProfile:
         """
@@ -312,6 +315,8 @@ class PlantViewService:
             expected_yield_grams=expected_yield_grams,
             light_distance_cm=light_distance_cm,
             soil_moisture_threshold_override=soil_moisture_threshold_override,
+            condition_profile_id=condition_profile_id,
+            condition_profile_mode=condition_profile_mode,
         )
 
     def create_plant_profile(self, **kwargs: Any) -> PlantProfile:
@@ -586,6 +591,9 @@ class PlantViewService:
         moisture_level: float = 0.0,
         sensor_ids: Optional[List[int]] = None,
         soil_moisture_threshold_override: Optional[float] = None,
+        condition_profile_id: Optional[str] = None,
+        condition_profile_mode: Optional[ConditionProfileMode] = None,
+        condition_profile_name: Optional[str] = None,
         # Creation-time fields
         pot_size_liters: float = 0.0,
         pot_material: str = "plastic",
@@ -611,6 +619,9 @@ class PlantViewService:
             days_in_stage: Days in current stage
             sensor_ids: Optional list of sensor IDs to link
             soil_moisture_threshold_override: Optional per-plant soil moisture trigger
+            condition_profile_id: Optional condition profile id to seed thresholds
+            condition_profile_mode: Optional profile mode (active/template)
+            condition_profile_name: Optional name for cloned profile
             pot_size_liters: Container size in liters
             pot_material: Container material (plastic, ceramic, fabric, etc.)
             growing_medium: Growing medium (soil, coco_coir, hydroponics, etc.)
@@ -636,6 +647,12 @@ class PlantViewService:
             if light_distance_cm < 0:
                 raise ValueError(f"Light distance {light_distance_cm} must be >= 0")
 
+            if condition_profile_mode and not isinstance(condition_profile_mode, ConditionProfileMode):
+                try:
+                    condition_profile_mode = ConditionProfileMode(str(condition_profile_mode))
+                except ValueError:
+                    raise ValueError("Invalid condition profile mode")
+
             historical_overrides = self._resolve_historical_threshold_overrides(
                 unit_id=unit_id,
                 plant_type=plant_type,
@@ -644,9 +661,80 @@ class PlantViewService:
                 strain_variety=strain_variety,
                 pot_size_liters=pot_size_liters if pot_size_liters > 0 else None,
             )
+            profile_override = None
+            profile_present = False
+            selected_profile_id = None
+            selected_profile_mode = None
+            profile_service = None
+            user_id = self._get_unit_owner(unit_id)
+            if self.threshold_service and user_id:
+                profile_service = getattr(self.threshold_service, "personalized_learning", None)
+                if condition_profile_id and not profile_service:
+                    raise ValueError("Condition profile service not available")
+                if condition_profile_id and profile_service:
+                    profile = profile_service.get_condition_profile_by_id(
+                        user_id=user_id,
+                        profile_id=condition_profile_id,
+                    )
+                    if not profile:
+                        raise ValueError("Condition profile not found")
+                    desired_mode = condition_profile_mode or profile.mode
+                    if profile.mode == ConditionProfileMode.TEMPLATE and desired_mode == ConditionProfileMode.ACTIVE:
+                        cloned = profile_service.clone_condition_profile(
+                            user_id=user_id,
+                            source_profile_id=profile.profile_id,
+                            name=condition_profile_name,
+                            mode=ConditionProfileMode.ACTIVE,
+                        )
+                        if cloned:
+                            profile = cloned
+                            desired_mode = ConditionProfileMode.ACTIVE
+                    profile_present = True
+                    profile_override = profile.soil_moisture_threshold
+                    selected_profile_id = profile.profile_id
+                    selected_profile_mode = desired_mode
+                else:
+                    if profile_service:
+                        link = profile_service.get_condition_profile_link(
+                            user_id=user_id,
+                            target_type=ConditionProfileTarget.UNIT,
+                            target_id=int(unit_id),
+                        )
+                        if link:
+                            unit_profile = profile_service.get_condition_profile_by_id(
+                                user_id=user_id,
+                                profile_id=link.profile_id,
+                            )
+                            if unit_profile:
+                                if (
+                                    str(unit_profile.plant_type or "").strip().lower()
+                                    == str(plant_type or "").strip().lower()
+                                    and str(unit_profile.growth_stage or "").strip().lower()
+                                    == str(current_stage or "").strip().lower()
+                                ):
+                                    profile_present = True
+                                    profile_override = unit_profile.soil_moisture_threshold
+                                    selected_profile_id = unit_profile.profile_id
+                                    selected_profile_mode = link.mode
+
+                    if not profile_present:
+                        profile = self.threshold_service.get_condition_profile(
+                            user_id=user_id,
+                            plant_type=plant_type,
+                            growth_stage=current_stage,
+                            plant_variety=plant_variety,
+                            strain_variety=strain_variety,
+                            pot_size_liters=pot_size_liters if pot_size_liters > 0 else None,
+                        )
+                        if profile:
+                            profile_present = True
+                            profile_override = profile.get("soil_moisture_threshold")
 
             if soil_moisture_threshold_override is None:
-                soil_moisture_threshold_override = historical_overrides.get("soil_moisture_threshold")
+                if profile_override is not None:
+                    soil_moisture_threshold_override = profile_override
+                else:
+                    soil_moisture_threshold_override = historical_overrides.get("soil_moisture_threshold")
                 if soil_moisture_threshold_override is None:
                     soil_moisture_threshold_override = self._resolve_initial_soil_moisture_threshold(
                         plant_type=plant_type,
@@ -681,6 +769,15 @@ class PlantViewService:
                 logger.error(f"Failed to create plant '{plant_name}' in DB")
                 return None
 
+            if selected_profile_id and user_id and profile_service:
+                profile_service.link_condition_profile(
+                    user_id=user_id,
+                    target_type=ConditionProfileTarget.PLANT,
+                    target_id=int(plant_id),
+                    profile_id=selected_profile_id,
+                    mode=selected_profile_mode or ConditionProfileMode.ACTIVE,
+                )
+
             # Assign plant to unit
             try:
                 self.plant_repo.assign_plant_to_unit(unit_id, plant_id)
@@ -705,6 +802,8 @@ class PlantViewService:
                 expected_yield_grams=expected_yield_grams,
                 light_distance_cm=light_distance_cm,
                 soil_moisture_threshold_override=soil_moisture_threshold_override,
+                condition_profile_id=selected_profile_id,
+                condition_profile_mode=selected_profile_mode,
             )
             
             # Add to in-memory collection
@@ -725,7 +824,7 @@ class PlantViewService:
                 PlantLifecyclePayload(unit_id=unit_id, plant_id=plant_id),
             )
 
-            if historical_overrides:
+            if historical_overrides or profile_present:
                 self._propose_stage_thresholds(
                     plant=plant_profile,
                     old_stage="initial",
@@ -962,6 +1061,35 @@ class PlantViewService:
         if plant:
             plant.soil_moisture_threshold_override = value
 
+        resolved_unit_id = unit_id
+        if resolved_unit_id is None:
+            with self._plants_lock:
+                for uid, unit_plants in self._plants.items():
+                    if plant_id in unit_plants:
+                        resolved_unit_id = uid
+                        break
+
+        if (
+            plant
+            and resolved_unit_id is not None
+            and self.threshold_service
+            and plant.condition_profile_id
+            and plant.condition_profile_mode == ConditionProfileMode.ACTIVE
+        ):
+            profile_service = getattr(self.threshold_service, "personalized_learning", None)
+            user_id = self._get_unit_owner(resolved_unit_id)
+            if profile_service and user_id:
+                profile_service.upsert_condition_profile(
+                    user_id=user_id,
+                    profile_id=plant.condition_profile_id,
+                    plant_type=plant.plant_type or "unknown",
+                    growth_stage=plant.current_stage or "Unknown",
+                    soil_moisture_threshold=value,
+                    plant_variety=plant.plant_variety,
+                    strain_variety=plant.strain_variety,
+                    pot_size_liters=plant.pot_size_liters if plant.pot_size_liters > 0 else None,
+                )
+
         logger.info(
             "Updated soil moisture threshold override for plant %s to %.1f",
             plant_id,
@@ -1001,6 +1129,21 @@ class PlantViewService:
             resolved_unit_id = plant_dict.get("unit_id") or unit_id
             
             # Create PlantProfile from database data
+            condition_profile_id = None
+            condition_profile_mode = None
+            if resolved_unit_id is not None and self.threshold_service:
+                profile_service = getattr(self.threshold_service, "personalized_learning", None)
+                user_id = self._get_unit_owner(resolved_unit_id)
+                if profile_service and user_id:
+                    link = profile_service.get_condition_profile_link(
+                        user_id=user_id,
+                        target_type=ConditionProfileTarget.PLANT,
+                        target_id=int(plant_id),
+                    )
+                    if link:
+                        condition_profile_id = link.profile_id
+                        condition_profile_mode = link.mode
+
             plant = self._create_plant_profile(
                 plant_id=plant_id,
                 plant_name=plant_dict.get("plant_name") or plant_dict.get("name") or "Unknown Plant",
@@ -1018,6 +1161,8 @@ class PlantViewService:
                 expected_yield_grams=plant_dict.get("expected_yield_grams", 0.0),
                 light_distance_cm=plant_dict.get("light_distance_cm", 0.0),
                 soil_moisture_threshold_override=plant_dict.get("soil_moisture_threshold_override"),
+                condition_profile_id=condition_profile_id,
+                condition_profile_mode=condition_profile_mode,
             )
             
             if resolved_unit_id is None:
@@ -1146,6 +1291,17 @@ class PlantViewService:
             success = removed_from_memory or db_removed
             
             if success:
+                try:
+                    user_id = self._get_unit_owner(unit_id)
+                    profile_service = getattr(self.threshold_service, "personalized_learning", None) if self.threshold_service else None
+                    if user_id and profile_service:
+                        profile_service.unlink_condition_profile(
+                            user_id=user_id,
+                            target_type=ConditionProfileTarget.PLANT,
+                            target_id=int(plant_id),
+                        )
+                except Exception:
+                    logger.debug("Failed to unlink condition profile for plant %s", plant_id, exc_info=True)
                 # Emit event (GrowthService may subscribe for cache invalidation)
                 self.event_bus.publish(
                     PlantEvent.PLANT_REMOVED,
@@ -1657,9 +1813,19 @@ class PlantViewService:
 
         try:
             plant_type = plant.plant_type or "default"
-            
+            user_id = self._get_unit_owner(plant.unit_id)
+
             # Get optimal thresholds for new stage via ThresholdService
-            new_thresholds = self.threshold_service.get_thresholds(plant_type, new_stage)
+            new_thresholds = self.threshold_service.get_thresholds(
+                plant_type,
+                new_stage,
+                user_id=user_id,
+                profile_id=getattr(plant, "condition_profile_id", None),
+                preferred_mode=getattr(plant, "condition_profile_mode", None),
+                plant_variety=plant.plant_variety,
+                strain_variety=plant.strain_variety,
+                pot_size_liters=plant.pot_size_liters,
+            )
             proposed_map = new_thresholds.to_settings_dict()
             if seed_overrides:
                 for key, value in seed_overrides.items():

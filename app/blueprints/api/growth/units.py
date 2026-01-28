@@ -8,7 +8,7 @@ Also includes plant management endpoints that operate on units.
 from __future__ import annotations
 
 from flask import jsonify, request, session
-from typing import Any
+from typing import Any, Optional
 from app.schemas.growth import (
     CreateUnitPayload,
     UpdateUnitPayload,
@@ -31,6 +31,7 @@ from app.blueprints.api._common import (
     get_growth_service as _service,
     get_plant_service as _plant_service,
 )
+from app.enums.common import ConditionProfileMode, ConditionProfileTarget
 
 logger = logging.getLogger("growth_api.units")
 
@@ -62,6 +63,58 @@ def _unit_to_response(unit: dict[str, Any]) -> GrowthUnitResponse:
         created_at=unit.get("created_at"),
         updated_at=unit.get("updated_at"),
     )
+
+
+def _apply_condition_profile_to_unit(
+    *,
+    unit_id: int,
+    user_id: int,
+    profile_id: Optional[str],
+    mode: Optional[ConditionProfileMode],
+    name: Optional[str],
+) -> Optional[dict[str, Any]]:
+    if not profile_id:
+        return None
+    container = _container()
+    if not container:
+        return None
+    profile_service = getattr(container, "personalized_learning", None)
+    threshold_service = getattr(container, "threshold_service", None)
+    if not profile_service or not threshold_service:
+        return None
+
+    profile = profile_service.get_condition_profile_by_id(user_id=user_id, profile_id=profile_id)
+    if not profile:
+        raise ValueError("Condition profile not found")
+
+    desired_mode = mode
+    if desired_mode and not isinstance(desired_mode, ConditionProfileMode):
+        desired_mode = ConditionProfileMode(str(desired_mode))
+    desired_mode = desired_mode or profile.mode
+    if profile.mode == ConditionProfileMode.TEMPLATE and desired_mode == ConditionProfileMode.ACTIVE:
+        cloned = profile_service.clone_condition_profile(
+            user_id=user_id,
+            source_profile_id=profile.profile_id,
+            name=name,
+            mode=ConditionProfileMode.ACTIVE,
+        )
+        if cloned:
+            profile = cloned
+            desired_mode = ConditionProfileMode.ACTIVE
+
+    env_thresholds = profile.environment_thresholds or {}
+    if env_thresholds:
+        threshold_service.update_unit_thresholds(unit_id, env_thresholds)
+
+    profile_service.link_condition_profile(
+        user_id=user_id,
+        target_type=ConditionProfileTarget.UNIT,
+        target_id=int(unit_id),
+        profile_id=profile.profile_id,
+        mode=desired_mode or ConditionProfileMode.ACTIVE,
+    )
+
+    return profile.to_dict()
 
 
 # ============================================================================
@@ -149,11 +202,29 @@ def create_unit():
         if not unit_id:
             return _fail("Failed to create growth unit", 500)
 
+        condition_profile = None
+        try:
+            condition_profile = _apply_condition_profile_to_unit(
+                unit_id=unit_id,
+                user_id=user_id,
+                profile_id=getattr(typed, "condition_profile_id", None),
+                mode=getattr(typed, "condition_profile_mode", None),
+                name=getattr(typed, "condition_profile_name", None),
+            )
+        except ValueError as exc:
+            return _fail(str(exc), 400)
+
         created = _service().get_unit(unit_id)
         if not created:
-            return _success({"unit_id": unit_id}, status=201)
+            payload = {"unit_id": unit_id}
+            if condition_profile:
+                payload["condition_profile"] = condition_profile
+            return _success(payload, status=201)
 
-        return _success(_unit_to_response(created).model_dump(), status=201)
+        payload = _unit_to_response(created).model_dump()
+        if condition_profile:
+            payload["condition_profile"] = condition_profile
+        return _success(payload, status=201)
     except Exception as e:
         logger.exception("Error creating growth unit: %s", e)
         return _fail("Failed to create growth unit", 500)

@@ -199,13 +199,38 @@ class BayesianThresholdAdjuster:
         self._min_variance = min_variance or BAYESIAN_DEFAULTS["min_variance"]
         self._base_observation_variance = base_observation_variance or BAYESIAN_DEFAULTS["observation_variance"]
         
-        # In-memory belief cache: (unit_id, user_id) -> ThresholdBelief
-        self._beliefs: Dict[Tuple[int, int], ThresholdBelief] = {}
+        # In-memory belief cache: (unit_id, user_id, belief_key) -> ThresholdBelief
+        self._beliefs: Dict[Tuple[int, int, str], ThresholdBelief] = {}
+
+    @staticmethod
+    def _belief_key(
+        plant_type: str,
+        growth_stage: str,
+        plant_variety: Optional[str] = None,
+        strain_variety: Optional[str] = None,
+        pot_size_liters: Optional[float] = None,
+    ) -> str:
+        parts = [
+            (plant_type or "default").strip().lower(),
+            (growth_stage or "vegetative").strip().lower(),
+        ]
+        if plant_variety:
+            parts.append(f"variety:{plant_variety.strip().lower()}")
+        if strain_variety:
+            parts.append(f"strain:{strain_variety.strip().lower()}")
+        if pot_size_liters is not None:
+            parts.append(f"pot:{round(float(pot_size_liters), 2)}")
+        return "|".join(parts)
     
     def get_prior(
         self,
         plant_type: str,
         growth_stage: str,
+        *,
+        user_id: Optional[int] = None,
+        plant_variety: Optional[str] = None,
+        strain_variety: Optional[str] = None,
+        pot_size_liters: Optional[float] = None,
     ) -> ThresholdBelief:
         """
         Get prior belief for a plant type and growth stage.
@@ -220,7 +245,14 @@ class BayesianThresholdAdjuster:
         Returns:
             Prior ThresholdBelief
         """
-        prior_mean = self._get_threshold_from_service(plant_type, growth_stage)
+        prior_mean = self._get_threshold_from_service(
+            plant_type,
+            growth_stage,
+            user_id=user_id,
+            plant_variety=plant_variety,
+            strain_variety=strain_variety,
+            pot_size_liters=pot_size_liters,
+        )
         
         return ThresholdBelief(
             mean=prior_mean,
@@ -235,6 +267,11 @@ class BayesianThresholdAdjuster:
         self,
         plant_type: str,
         growth_stage: str,
+        *,
+        user_id: Optional[int] = None,
+        plant_variety: Optional[str] = None,
+        strain_variety: Optional[str] = None,
+        pot_size_liters: Optional[float] = None,
     ) -> float:
         """
         Get soil moisture threshold from ThresholdService or fallback.
@@ -249,7 +286,14 @@ class BayesianThresholdAdjuster:
         # Try to get real threshold from ThresholdService
         if self._threshold_service:
             try:
-                thresholds = self._threshold_service.get_thresholds(plant_type, growth_stage)
+                thresholds = self._threshold_service.get_thresholds(
+                    plant_type,
+                    growth_stage,
+                    user_id=user_id,
+                    plant_variety=plant_variety,
+                    strain_variety=strain_variety,
+                    pot_size_liters=pot_size_liters,
+                )
                 if thresholds and thresholds.soil_moisture:
                     logger.debug(
                         f"Using ThresholdService data for {plant_type}/{growth_stage}: "
@@ -279,6 +323,10 @@ class BayesianThresholdAdjuster:
         user_id: int,
         plant_type: str = "default",
         growth_stage: str = "Vegetative",
+        *,
+        plant_variety: Optional[str] = None,
+        strain_variety: Optional[str] = None,
+        pot_size_liters: Optional[float] = None,
     ) -> ThresholdBelief:
         """
         Get current belief about optimal threshold for a unit/user.
@@ -294,7 +342,14 @@ class BayesianThresholdAdjuster:
         Returns:
             Current ThresholdBelief
         """
-        cache_key = (unit_id, user_id)
+        belief_key = self._belief_key(
+            plant_type,
+            growth_stage,
+            plant_variety=plant_variety,
+            strain_variety=strain_variety,
+            pot_size_liters=pot_size_liters,
+        )
+        cache_key = (unit_id, user_id, belief_key)
         
         # Check cache first
         if cache_key in self._beliefs:
@@ -305,15 +360,29 @@ class BayesianThresholdAdjuster:
             try:
                 pref = self._workflow_repo.get_user_preference(user_id, unit_id)
                 if pref and pref.get("threshold_belief_json"):
-                    belief_data = json.loads(pref["threshold_belief_json"])
-                    belief = ThresholdBelief.from_dict(belief_data)
-                    self._beliefs[cache_key] = belief
-                    return belief
+                    belief_payload = json.loads(pref["threshold_belief_json"])
+                    belief_data = None
+                    if isinstance(belief_payload, dict) and "mean" in belief_payload:
+                        # Legacy single-belief format
+                        belief_data = belief_payload
+                    elif isinstance(belief_payload, dict):
+                        belief_data = belief_payload.get(belief_key) or belief_payload.get("default")
+                    if belief_data:
+                        belief = ThresholdBelief.from_dict(belief_data)
+                        self._beliefs[cache_key] = belief
+                        return belief
             except (json.JSONDecodeError, KeyError, TypeError) as e:
                 logger.warning(f"Failed to load belief from DB: {e}")
         
         # Create prior from plant type
-        prior = self.get_prior(plant_type, growth_stage)
+        prior = self.get_prior(
+            plant_type,
+            growth_stage,
+            user_id=user_id,
+            plant_variety=plant_variety,
+            strain_variety=strain_variety,
+            pot_size_liters=pot_size_liters,
+        )
         self._beliefs[cache_key] = prior
         return prior
     
@@ -326,6 +395,10 @@ class BayesianThresholdAdjuster:
         soil_moisture_at_request: float,
         plant_type: str = "default",
         growth_stage: str = "Vegetative",
+        *,
+        plant_variety: Optional[str] = None,
+        strain_variety: Optional[str] = None,
+        pot_size_liters: Optional[float] = None,
     ) -> AdjustmentResult:
         """
         Update belief based on user feedback.
@@ -346,7 +419,15 @@ class BayesianThresholdAdjuster:
             AdjustmentResult with new recommended threshold
         """
         # Get current belief
-        belief = self.get_belief(unit_id, user_id, plant_type, growth_stage)
+        belief = self.get_belief(
+            unit_id,
+            user_id,
+            plant_type,
+            growth_stage,
+            plant_variety=plant_variety,
+            strain_variety=strain_variety,
+            pot_size_liters=pot_size_liters,
+        )
         
         # Convert feedback to observation
         adjustment_magnitude = self._estimate_adjustment_magnitude(belief)
@@ -396,8 +477,15 @@ class BayesianThresholdAdjuster:
         )
         
         # Cache and persist
-        self._beliefs[(unit_id, user_id)] = new_belief
-        self._persist_belief(unit_id, user_id, new_belief)
+        belief_key = self._belief_key(
+            plant_type,
+            growth_stage,
+            plant_variety=plant_variety,
+            strain_variety=strain_variety,
+            pot_size_liters=pot_size_liters,
+        )
+        self._beliefs[(unit_id, user_id, belief_key)] = new_belief
+        self._persist_belief(unit_id, user_id, new_belief, belief_key=belief_key)
         
         # Calculate adjustment from current
         adjustment_amount = posterior_mean - current_threshold
@@ -438,6 +526,10 @@ class BayesianThresholdAdjuster:
         current_threshold: float,
         plant_type: str = "default",
         growth_stage: str = "Vegetative",
+        *,
+        plant_variety: Optional[str] = None,
+        strain_variety: Optional[str] = None,
+        pot_size_liters: Optional[float] = None,
     ) -> AdjustmentResult:
         """
         Get recommended threshold based on current belief.
@@ -454,7 +546,15 @@ class BayesianThresholdAdjuster:
         Returns:
             AdjustmentResult with recommendation
         """
-        belief = self.get_belief(unit_id, user_id, plant_type, growth_stage)
+        belief = self.get_belief(
+            unit_id,
+            user_id,
+            plant_type,
+            growth_stage,
+            plant_variety=plant_variety,
+            strain_variety=strain_variety,
+            pot_size_liters=pot_size_liters,
+        )
         
         adjustment_amount = belief.mean - current_threshold
         
@@ -618,6 +718,8 @@ class BayesianThresholdAdjuster:
         unit_id: int,
         user_id: int,
         belief: ThresholdBelief,
+        *,
+        belief_key: Optional[str] = None,
     ) -> bool:
         """
         Persist belief to database.
@@ -628,7 +730,26 @@ class BayesianThresholdAdjuster:
             return False
         
         try:
-            belief_json = json.dumps(belief.to_dict())
+            belief_key = belief_key or self._belief_key(
+                belief.plant_type or "default",
+                belief.growth_stage or "vegetative",
+            )
+            existing = {}
+            try:
+                pref = self._workflow_repo.get_user_preference(user_id, unit_id)
+                if pref and pref.get("threshold_belief_json"):
+                    existing = json.loads(pref["threshold_belief_json"]) or {}
+            except (json.JSONDecodeError, TypeError):
+                existing = {}
+
+            if isinstance(existing, dict) and "mean" in existing:
+                existing = {"default": existing}
+
+            if not isinstance(existing, dict):
+                existing = {}
+
+            existing[belief_key] = belief.to_dict()
+            belief_json = json.dumps(existing)
             
             # Update the preference record
             # Note: This requires a new column in IrrigationUserPreference
@@ -659,11 +780,12 @@ class BayesianThresholdAdjuster:
         
         Useful when user wants to start fresh or plant changes.
         """
-        cache_key = (unit_id, user_id)
+        belief_key = self._belief_key(plant_type, growth_stage)
+        cache_key = (unit_id, user_id, belief_key)
         
-        prior = self.get_prior(plant_type, growth_stage)
+        prior = self.get_prior(plant_type, growth_stage, user_id=user_id)
         self._beliefs[cache_key] = prior
-        self._persist_belief(unit_id, user_id, prior)
+        self._persist_belief(unit_id, user_id, prior, belief_key=belief_key)
         
         logger.info(f"Reset threshold belief for unit {unit_id}, user {user_id}")
         return prior
@@ -672,11 +794,25 @@ class BayesianThresholdAdjuster:
         self,
         unit_id: int,
         user_id: int,
+        plant_type: str = "default",
+        growth_stage: str = "Vegetative",
+        *,
+        plant_variety: Optional[str] = None,
+        strain_variety: Optional[str] = None,
+        pot_size_liters: Optional[float] = None,
     ) -> Dict[str, Any]:
         """
         Get statistics about the threshold learning for a unit/user.
         """
-        belief = self.get_belief(unit_id, user_id)
+        belief = self.get_belief(
+            unit_id,
+            user_id,
+            plant_type,
+            growth_stage,
+            plant_variety=plant_variety,
+            strain_variety=strain_variety,
+            pot_size_liters=pot_size_liters,
+        )
         
         lower, upper = belief.credible_interval(0.95)
         

@@ -19,6 +19,7 @@ from typing import Optional, Dict, Any, Callable, TYPE_CHECKING
 from app.utils.plant_json_handler import PlantJsonHandler
 from app.domain.environmental_thresholds import EnvironmentalThresholds
 from app.constants import THRESHOLD_UPDATE_TOLERANCE
+from app.enums.common import ConditionProfileTarget, ConditionProfileMode
 from app.enums.events import RuntimeEvent
 from app.schemas.events import ThresholdsPersistPayload
 
@@ -26,7 +27,9 @@ if TYPE_CHECKING:
     from infrastructure.database.repositories.growth import GrowthRepository
     from app.services.ai.climate_optimizer import ClimateOptimizer
     from app.services.application.notifications_service import NotificationsService
+    from app.services.ai.personalized_learning import PersonalizedLearningService
     from app.utils.event_bus import EventBus
+    from app.enums.common import ConditionProfileMode
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +75,7 @@ class ThresholdService:
         growth_repo: Optional["GrowthRepository"] = None,
         notifications_service: Optional["NotificationsService"] = None,
         event_bus: Optional["EventBus"] = None,
+        personalized_learning: Optional["PersonalizedLearningService"] = None,
     ):
         """
         Initialize threshold service.
@@ -88,6 +92,7 @@ class ThresholdService:
         self.growth_repo = growth_repo
         self.notifications_service = notifications_service
         self.event_bus = event_bus
+        self.personalized_learning = personalized_learning
         self._threshold_cache = {}
         self._unit_threshold_cache: Dict[int, EnvironmentalThresholds] = {}
         self._plant_override_cache: Dict[int, Dict[str, float]] = {}
@@ -129,6 +134,40 @@ class ThresholdService:
             callback: Function accepting unit_id to invalidate cache
         """
         self._invalidate_unit_cache_callback = callback
+
+    def set_personalized_learning(self, service: Optional["PersonalizedLearningService"]) -> None:
+        """Wire PersonalizedLearningService after initialization."""
+        self.personalized_learning = service
+
+    def get_condition_profile(
+        self,
+        *,
+        user_id: Optional[int],
+        plant_type: str,
+        growth_stage: Optional[str],
+        profile_id: Optional[str] = None,
+        preferred_mode: Optional["ConditionProfileMode"] = None,
+        plant_variety: Optional[str] = None,
+        strain_variety: Optional[str] = None,
+        pot_size_liters: Optional[float] = None,
+    ) -> Optional[Dict[str, Any]]:
+        if not user_id:
+            return None
+        if not profile_id and (not plant_type or not growth_stage):
+            return None
+        if not self.personalized_learning:
+            return None
+        profile = self.personalized_learning.get_condition_profile(
+            user_id=user_id,
+            plant_type=plant_type,
+            growth_stage=growth_stage,
+            profile_id=profile_id,
+            preferred_mode=preferred_mode,
+            plant_variety=plant_variety,
+            strain_variety=strain_variety,
+            pot_size_liters=pot_size_liters,
+        )
+        return profile.to_dict() if profile else None
 
     def _handle_thresholds_persist(self, payload: ThresholdsPersistPayload) -> None:
         """
@@ -285,6 +324,34 @@ class ThresholdService:
                 self._unit_threshold_cache[unit_id] = cached.merge(payload)
             else:
                 self._unit_threshold_cache.pop(unit_id, None)
+            if self.personalized_learning:
+                try:
+                    unit = self.growth_repo.get_unit(unit_id)
+                    user_id = unit.get("user_id") if unit else None
+                    if user_id:
+                        link = self.personalized_learning.get_condition_profile_link(
+                            user_id=int(user_id),
+                            target_type=ConditionProfileTarget.UNIT,
+                            target_id=int(unit_id),
+                        )
+                        if link and link.mode == ConditionProfileMode.ACTIVE:
+                            profile = self.personalized_learning.get_condition_profile_by_id(
+                                user_id=int(user_id),
+                                profile_id=link.profile_id,
+                            )
+                            if profile:
+                                self.personalized_learning.upsert_condition_profile(
+                                    user_id=int(user_id),
+                                    profile_id=link.profile_id,
+                                    plant_type=profile.plant_type,
+                                    growth_stage=profile.growth_stage,
+                                    environment_thresholds=payload,
+                                    plant_variety=profile.plant_variety,
+                                    strain_variety=profile.strain_variety,
+                                    pot_size_liters=profile.pot_size_liters,
+                                )
+                except Exception:
+                    logger.debug("Failed to update linked condition profile for unit %s", unit_id, exc_info=True)
             return True
         except Exception as exc:
             logger.error("Failed to persist thresholds for unit %s: %s", unit_id, exc, exc_info=True)
@@ -365,7 +432,14 @@ class ThresholdService:
     def get_thresholds(
         self,
         plant_type: str,
-        growth_stage: Optional[str] = None
+        growth_stage: Optional[str] = None,
+        *,
+        user_id: Optional[int] = None,
+        profile_id: Optional[str] = None,
+        preferred_mode: Optional["ConditionProfileMode"] = None,
+        plant_variety: Optional[str] = None,
+        strain_variety: Optional[str] = None,
+        pot_size_liters: Optional[float] = None,
     ) -> EnvironmentalThresholds:
         """
         Get environmental thresholds as immutable domain object.
@@ -378,7 +452,7 @@ class ThresholdService:
         Returns:
             EnvironmentalThresholds domain object with validated thresholds
         """
-        cache_key = f"thresholds_{plant_type}_{growth_stage or 'all'}"
+        cache_key = f"thresholds_{plant_type}_{growth_stage or 'all'}_{user_id}_{profile_id}_{preferred_mode}_{plant_variety}_{strain_variety}_{pot_size_liters}"
         
         # Check cache first
         if cache_key in self._threshold_cache:
@@ -387,17 +461,32 @@ class ThresholdService:
                 return cached
         
         try:
+            profile = self.get_condition_profile(
+                user_id=user_id,
+                plant_type=plant_type,
+                growth_stage=growth_stage or "",
+                profile_id=profile_id,
+                preferred_mode=preferred_mode,
+                plant_variety=plant_variety,
+                strain_variety=strain_variety,
+                pot_size_liters=pot_size_liters,
+            )
+
             # Search for plant by common name
             plants = self.plant_handler.search_plants(common_name=plant_type)
-            
-            if not plants:
-                logger.warning(f"Plant type '{plant_type}' not found, using generic thresholds")
-                return self.generic_thresholds
-            
-            plant = plants[0]
-            
-            # Extract optimal values from plant data
-            thresholds = self._extract_optimal_thresholds(plant, growth_stage)
+            thresholds = self.generic_thresholds
+            if plants:
+                plant = plants[0]
+                # Extract optimal values from plant data
+                thresholds = self._extract_optimal_thresholds(plant, growth_stage)
+
+            # Apply profile overrides if available
+            if profile:
+                merged = thresholds.to_settings_dict()
+                merged.update(profile.get("environment_thresholds", {}))
+                if profile.get("soil_moisture_threshold") is not None:
+                    merged["soil_moisture_threshold"] = profile["soil_moisture_threshold"]
+                thresholds = EnvironmentalThresholds.from_dict(merged)
             
             # Cache and return
             self._threshold_cache[cache_key] = thresholds
@@ -508,6 +597,13 @@ class ThresholdService:
         self,
         plant_type: str,
         growth_stage: Optional[str] = None,
+        *,
+        user_id: Optional[int] = None,
+        profile_id: Optional[str] = None,
+        preferred_mode: Optional["ConditionProfileMode"] = None,
+        plant_variety: Optional[str] = None,
+        strain_variety: Optional[str] = None,
+        pot_size_liters: Optional[float] = None,
     ) -> Dict[str, Dict[str, float]]:
         """
         Get min/max/optimal ranges for hardware control and UI.
@@ -523,7 +619,7 @@ class ThresholdService:
         - "optimal" is the midpoint of min/max when ranges exist, otherwise the
           value from `get_thresholds()`.
         """
-        cache_key = f"ranges_{plant_type}_{growth_stage or 'all'}"
+        cache_key = f"ranges_{plant_type}_{growth_stage or 'all'}_{user_id}_{profile_id}_{preferred_mode}_{plant_variety}_{strain_variety}_{pot_size_liters}"
         cached = self._threshold_cache.get(cache_key)
         if isinstance(cached, dict):
             return cached
@@ -574,7 +670,16 @@ class ThresholdService:
                     hum_mins.append(float(hum_range["min"]))
                     hum_maxs.append(float(hum_range["max"]))
 
-            thresholds = self.get_thresholds(plant_type, growth_stage)
+            thresholds = self.get_thresholds(
+                plant_type,
+                growth_stage,
+                user_id=user_id,
+                profile_id=profile_id,
+                preferred_mode=preferred_mode,
+                plant_variety=plant_variety,
+                strain_variety=strain_variety,
+                pot_size_liters=pot_size_liters,
+            )
 
             temperature_min = min(temp_mins) if temp_mins else thresholds.temperature
             temperature_max = max(temp_maxs) if temp_maxs else thresholds.temperature
@@ -618,6 +723,30 @@ class ThresholdService:
                 },
             }
 
+            profile = self.get_condition_profile(
+                user_id=user_id,
+                plant_type=plant_type,
+                growth_stage=growth_stage or "",
+                plant_variety=plant_variety,
+                strain_variety=strain_variety,
+                pot_size_liters=pot_size_liters,
+            )
+            if profile:
+                env = profile.get("environment_thresholds", {})
+                mapping = {
+                    "temperature_threshold": "temperature",
+                    "humidity_threshold": "humidity",
+                    "co2_threshold": "co2",
+                    "voc_threshold": "voc",
+                    "lux_threshold": "lux",
+                    "air_quality_threshold": "air_quality",
+                }
+                for key, metric in mapping.items():
+                    if key in env and metric in ranges:
+                        ranges[metric]["optimal"] = float(env[key])
+                if profile.get("soil_moisture_threshold") is not None:
+                    ranges["soil_moisture"]["optimal"] = float(profile["soil_moisture_threshold"])
+
             self._threshold_cache[cache_key] = ranges
             return ranges
 
@@ -642,7 +771,14 @@ class ThresholdService:
         self,
         plant_type: str,
         growth_stage: str,
-        use_ai: bool = True
+        use_ai: bool = True,
+        *,
+        user_id: Optional[int] = None,
+        profile_id: Optional[str] = None,
+        preferred_mode: Optional["ConditionProfileMode"] = None,
+        plant_variety: Optional[str] = None,
+        strain_variety: Optional[str] = None,
+        pot_size_liters: Optional[float] = None,
     ) -> EnvironmentalThresholds:
         """
         Get optimal environmental conditions with optional AI enhancement.
@@ -659,7 +795,16 @@ class ThresholdService:
         """
         try:
             # Get base thresholds as domain object
-            thresholds = self.get_thresholds(plant_type, growth_stage)
+            thresholds = self.get_thresholds(
+                plant_type,
+                growth_stage,
+                user_id=user_id,
+                profile_id=profile_id,
+                preferred_mode=preferred_mode,
+                plant_variety=plant_variety,
+                strain_variety=strain_variety,
+                pot_size_liters=pot_size_liters,
+            )
             
             # If AI disabled, return as-is
             if not use_ai or not self.climate_optimizer:

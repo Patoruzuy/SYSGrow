@@ -13,10 +13,18 @@ Features:
 
 import logging
 import json
+import secrets
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any, TYPE_CHECKING
-from dataclasses import dataclass
+from typing import Dict, List, Optional, Any, TYPE_CHECKING, Callable
+from dataclasses import dataclass, field
 from pathlib import Path
+from uuid import uuid4
+
+from app.enums.common import (
+    ConditionProfileMode,
+    ConditionProfileVisibility,
+    ConditionProfileTarget,
+)
 
 # ML libraries lazy loaded in methods for faster startup
 # import numpy as np
@@ -27,6 +35,15 @@ if TYPE_CHECKING:
     from infrastructure.database.repositories.ai import AITrainingDataRepository
 
 logger = logging.getLogger(__name__)
+
+ENV_THRESHOLD_KEYS = (
+    "temperature_threshold",
+    "humidity_threshold",
+    "co2_threshold",
+    "voc_threshold",
+    "lux_threshold",
+    "air_quality_threshold",
+)
 
 
 @dataclass
@@ -92,6 +109,136 @@ class GrowingSuccess:
         }
 
 
+@dataclass
+class ConditionProfileLink:
+    """Link between a plant/unit and a condition profile."""
+
+    user_id: int
+    target_type: ConditionProfileTarget
+    target_id: int
+    profile_id: str
+    mode: ConditionProfileMode
+    created_at: datetime = field(default_factory=datetime.now)
+    updated_at: datetime = field(default_factory=datetime.now)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "user_id": self.user_id,
+            "target_type": str(self.target_type),
+            "target_id": self.target_id,
+            "profile_id": self.profile_id,
+            "mode": str(self.mode),
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+        }
+
+    @staticmethod
+    def from_dict(data: Dict[str, Any]) -> "ConditionProfileLink":
+        return ConditionProfileLink(
+            user_id=int(data["user_id"]),
+            target_type=ConditionProfileTarget(data.get("target_type", ConditionProfileTarget.UNIT)),
+            target_id=int(data.get("target_id", 0)),
+            profile_id=str(data.get("profile_id", "")),
+            mode=ConditionProfileMode(data.get("mode") or ConditionProfileMode.ACTIVE),
+            created_at=datetime.fromisoformat(data.get("created_at")) if data.get("created_at") else datetime.now(),
+            updated_at=datetime.fromisoformat(data.get("updated_at")) if data.get("updated_at") else datetime.now(),
+        )
+
+@dataclass
+class PlantStageConditionProfile:
+    """Per-user plant-stage condition profile for threshold reuse."""
+
+    profile_id: str
+    name: Optional[str]
+    image_url: Optional[str]
+    user_id: int
+    plant_type: str
+    growth_stage: str
+    plant_variety: Optional[str]
+    strain_variety: Optional[str]
+    pot_size_liters: Optional[float]
+    environment_thresholds: Dict[str, float]
+    soil_moisture_threshold: Optional[float]
+    mode: ConditionProfileMode = ConditionProfileMode.ACTIVE
+    visibility: ConditionProfileVisibility = ConditionProfileVisibility.PRIVATE
+    shared_token: Optional[str] = None
+    shared_at: Optional[datetime] = None
+    source_profile_id: Optional[str] = None
+    source_profile_name: Optional[str] = None
+    tags: List[str] = field(default_factory=list)
+    rating_count: int = 0
+    rating_avg: float = 0.0
+    last_rating: Optional[int] = None
+    created_at: datetime = field(default_factory=datetime.now)
+    updated_at: datetime = field(default_factory=datetime.now)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "profile_id": self.profile_id,
+            "name": self.name,
+            "image_url": self.image_url,
+            "user_id": self.user_id,
+            "plant_type": self.plant_type,
+            "growth_stage": self.growth_stage,
+            "plant_variety": self.plant_variety,
+            "strain_variety": self.strain_variety,
+            "pot_size_liters": self.pot_size_liters,
+            "environment_thresholds": self.environment_thresholds,
+            "soil_moisture_threshold": self.soil_moisture_threshold,
+            "mode": str(self.mode),
+            "visibility": str(self.visibility),
+            "shared_token": self.shared_token,
+            "shared_at": self.shared_at.isoformat() if self.shared_at else None,
+            "source_profile_id": self.source_profile_id,
+            "source_profile_name": self.source_profile_name,
+            "tags": list(self.tags),
+            "rating_count": self.rating_count,
+            "rating_avg": self.rating_avg,
+            "last_rating": self.last_rating,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+        }
+
+    @staticmethod
+    def from_dict(data: Dict[str, Any]) -> "PlantStageConditionProfile":
+        mode_raw = data.get("mode") or ConditionProfileMode.ACTIVE
+        visibility_raw = data.get("visibility") or ConditionProfileVisibility.PRIVATE
+        try:
+            mode = ConditionProfileMode(mode_raw)
+        except ValueError:
+            mode = ConditionProfileMode.ACTIVE
+        try:
+            visibility = ConditionProfileVisibility(visibility_raw)
+        except ValueError:
+            visibility = ConditionProfileVisibility.PRIVATE
+        return PlantStageConditionProfile(
+            profile_id=str(data.get("profile_id") or uuid4().hex),
+            name=data.get("name"),
+            image_url=data.get("image_url"),
+            user_id=int(data["user_id"]),
+            plant_type=data.get("plant_type", ""),
+            growth_stage=data.get("growth_stage", ""),
+            plant_variety=data.get("plant_variety"),
+            strain_variety=data.get("strain_variety"),
+            pot_size_liters=data.get("pot_size_liters"),
+            environment_thresholds=data.get("environment_thresholds", {}),
+            soil_moisture_threshold=data.get("soil_moisture_threshold"),
+            mode=mode,
+            visibility=visibility,
+            shared_token=data.get("shared_token"),
+            shared_at=datetime.fromisoformat(data.get("shared_at"))
+            if data.get("shared_at")
+            else None,
+            source_profile_id=data.get("source_profile_id"),
+            source_profile_name=data.get("source_profile_name"),
+            tags=list(data.get("tags") or []),
+            rating_count=int(data.get("rating_count", 0)),
+            rating_avg=float(data.get("rating_avg", 0.0)),
+            last_rating=data.get("last_rating"),
+            created_at=datetime.fromisoformat(data.get("created_at")) if data.get("created_at") else datetime.now(),
+            updated_at=datetime.fromisoformat(data.get("updated_at")) if data.get("updated_at") else datetime.now(),
+        )
+
 
 
 class PersonalizedLearningService:
@@ -127,8 +274,32 @@ class PersonalizedLearningService:
         # Success/failure tracking
         self.successes_dir = self.profiles_dir / "successes"
         self.successes_dir.mkdir(exist_ok=True)
+
+        self.condition_profiles_dir = self.profiles_dir / "condition_profiles"
+        self.condition_profiles_dir.mkdir(exist_ok=True)
+        self._condition_profile_cache: Dict[int, List[PlantStageConditionProfile]] = {}
+        self.condition_profile_links_dir = self.condition_profiles_dir / "links"
+        self.condition_profile_links_dir.mkdir(exist_ok=True)
+        self._condition_profile_links_cache: Dict[int, List[ConditionProfileLink]] = {}
+
+        self.shared_profiles_dir = self.condition_profiles_dir / "shared"
+        self.shared_profiles_dir.mkdir(exist_ok=True)
+        self.shared_profiles_index = self.shared_profiles_dir / "index.json"
+        self._profile_update_callbacks: List[Callable[[], None]] = []
         
         logger.info("PersonalizedLearningService initialized")
+
+    def register_profile_update_callback(self, callback: Callable[[], None]) -> None:
+        """Register a callback to invoke when condition profiles change."""
+        if callback not in self._profile_update_callbacks:
+            self._profile_update_callbacks.append(callback)
+
+    def _notify_profile_update(self) -> None:
+        for callback in self._profile_update_callbacks:
+            try:
+                callback()
+            except Exception:
+                logger.exception("Profile update callback failed")
     
     def create_environment_profile(
         self,
@@ -222,6 +393,383 @@ class PersonalizedLearningService:
         # Save updated profile
         self._save_profile(profile)
         self._profile_cache[unit_id] = profile
+
+    # ------------------------------------------------------------------
+    # Condition profiles (per-user plant-stage thresholds)
+    # ------------------------------------------------------------------
+
+    def get_condition_profile(
+        self,
+        *,
+        user_id: int,
+        plant_type: str,
+        growth_stage: str,
+        profile_id: Optional[str] = None,
+        preferred_mode: Optional[ConditionProfileMode] = None,
+        plant_variety: Optional[str] = None,
+        strain_variety: Optional[str] = None,
+        pot_size_liters: Optional[float] = None,
+    ) -> Optional[PlantStageConditionProfile]:
+        profiles = self._load_condition_profiles(user_id)
+        if profile_id:
+            for profile in profiles:
+                if profile.profile_id == profile_id:
+                    return profile
+            return None
+        matches = [
+            profile
+            for profile in profiles
+            if self._profile_matches(
+                profile,
+                plant_type=plant_type,
+                growth_stage=growth_stage,
+                plant_variety=plant_variety,
+                strain_variety=strain_variety,
+                pot_size_liters=pot_size_liters,
+            )
+        ]
+        if not matches:
+            return None
+        if preferred_mode:
+            preferred = [p for p in matches if p.mode == preferred_mode]
+            if preferred:
+                preferred.sort(key=lambda p: p.updated_at, reverse=True)
+                return preferred[0]
+        matches.sort(key=lambda p: p.updated_at, reverse=True)
+        return matches[0]
+
+    def get_condition_profile_by_id(
+        self, user_id: int, profile_id: str
+    ) -> Optional[PlantStageConditionProfile]:
+        profiles = self._load_condition_profiles(user_id)
+        for profile in profiles:
+            if profile.profile_id == profile_id:
+                return profile
+        return None
+
+    def list_condition_profiles(self, user_id: int) -> List[PlantStageConditionProfile]:
+        return list(self._load_condition_profiles(user_id))
+
+    def upsert_condition_profile(
+        self,
+        *,
+        user_id: int,
+        plant_type: str,
+        growth_stage: str,
+        environment_thresholds: Optional[Dict[str, Any]] = None,
+        soil_moisture_threshold: Optional[float] = None,
+        profile_id: Optional[str] = None,
+        name: Optional[str] = None,
+        image_url: Optional[str] = None,
+        mode: Optional[ConditionProfileMode] = None,
+        visibility: Optional[ConditionProfileVisibility] = None,
+        allow_template_update: bool = False,
+        plant_variety: Optional[str] = None,
+        strain_variety: Optional[str] = None,
+        pot_size_liters: Optional[float] = None,
+        rating: Optional[int] = None,
+    ) -> PlantStageConditionProfile:
+        profiles = self._load_condition_profiles(user_id)
+        existing = None
+        for profile in profiles:
+            if self._profile_matches(
+                profile,
+                plant_type=plant_type,
+                growth_stage=growth_stage,
+                plant_variety=plant_variety,
+                strain_variety=strain_variety,
+                pot_size_liters=pot_size_liters,
+                require_exact=True,
+                profile_id=profile_id,
+            ):
+                existing = profile
+                break
+
+        env_payload: Dict[str, float] = {}
+        for key, value in (environment_thresholds or {}).items():
+            if key not in ENV_THRESHOLD_KEYS:
+                continue
+            try:
+                env_payload[key] = float(value)
+            except (TypeError, ValueError):
+                continue
+
+        now = datetime.now()
+
+        if existing:
+            if existing.mode == ConditionProfileMode.TEMPLATE and not allow_template_update:
+                return existing
+            if env_payload:
+                existing.environment_thresholds.update(env_payload)
+            if soil_moisture_threshold is not None:
+                try:
+                    existing.soil_moisture_threshold = float(soil_moisture_threshold)
+                except (TypeError, ValueError):
+                    pass
+            if name:
+                existing.name = name
+            if image_url is not None:
+                existing.image_url = image_url
+            if mode:
+                existing.mode = mode
+            if visibility:
+                existing.visibility = visibility
+            if rating is not None:
+                try:
+                    rating_int = int(rating)
+                except (TypeError, ValueError):
+                    rating_int = None
+                if rating_int is not None:
+                    new_count = existing.rating_count + 1
+                    existing.rating_avg = (
+                        (existing.rating_avg * existing.rating_count) + rating_int
+                    ) / new_count
+                    existing.rating_count = new_count
+                    existing.last_rating = rating_int
+            existing.updated_at = now
+            profile = existing
+        else:
+            profile = PlantStageConditionProfile(
+                profile_id=profile_id or uuid4().hex,
+                name=name,
+                image_url=image_url,
+                user_id=user_id,
+                plant_type=plant_type,
+                growth_stage=growth_stage,
+                plant_variety=plant_variety,
+                strain_variety=strain_variety,
+                pot_size_liters=pot_size_liters,
+                environment_thresholds=env_payload,
+                soil_moisture_threshold=float(soil_moisture_threshold)
+                if soil_moisture_threshold is not None
+                else None,
+                mode=mode or ConditionProfileMode.ACTIVE,
+                visibility=visibility or ConditionProfileVisibility.PRIVATE,
+                rating_count=1 if rating is not None else 0,
+                rating_avg=float(rating) if rating is not None else 0.0,
+                last_rating=int(rating) if rating is not None else None,
+                created_at=now,
+                updated_at=now,
+            )
+            profiles.append(profile)
+
+        self._save_condition_profiles(user_id, profiles)
+        self._condition_profile_cache[user_id] = profiles
+        self._notify_profile_update()
+        return profile
+
+    def clone_condition_profile(
+        self,
+        *,
+        user_id: int,
+        source_profile_id: str,
+        name: Optional[str] = None,
+        mode: ConditionProfileMode = ConditionProfileMode.ACTIVE,
+    ) -> Optional[PlantStageConditionProfile]:
+        profiles = self._load_condition_profiles(user_id)
+        source = None
+        for profile in profiles:
+            if profile.profile_id == source_profile_id:
+                source = profile
+                break
+        if not source:
+            return None
+
+        now = datetime.now()
+        cloned = PlantStageConditionProfile(
+            profile_id=uuid4().hex,
+            name=name or (f"Copy of {source.name}" if source.name else None),
+            image_url=source.image_url,
+            user_id=user_id,
+            plant_type=source.plant_type,
+            growth_stage=source.growth_stage,
+            plant_variety=source.plant_variety,
+            strain_variety=source.strain_variety,
+            pot_size_liters=source.pot_size_liters,
+            environment_thresholds=dict(source.environment_thresholds),
+            soil_moisture_threshold=source.soil_moisture_threshold,
+            mode=mode,
+            visibility=ConditionProfileVisibility.PRIVATE,
+            shared_token=None,
+            shared_at=None,
+            source_profile_id=source.profile_id,
+            source_profile_name=source.name,
+            tags=list(source.tags),
+            rating_count=0,
+            rating_avg=0.0,
+            last_rating=None,
+            created_at=now,
+            updated_at=now,
+        )
+        profiles.append(cloned)
+        self._save_condition_profiles(user_id, profiles)
+        self._condition_profile_cache[user_id] = profiles
+        self._notify_profile_update()
+        return cloned
+
+    def share_condition_profile(
+        self,
+        *,
+        user_id: int,
+        profile_id: str,
+        visibility: ConditionProfileVisibility = ConditionProfileVisibility.LINK,
+    ) -> Optional[Dict[str, Any]]:
+        profile = self.get_condition_profile_by_id(user_id, profile_id)
+        if not profile:
+            return None
+
+        token = profile.shared_token or secrets.token_urlsafe(16)
+        profile.shared_token = token
+        profile.shared_at = datetime.now()
+        profile.visibility = visibility
+
+        self._save_condition_profiles(user_id, self._load_condition_profiles(user_id))
+        self._condition_profile_cache.pop(user_id, None)
+
+        snapshot = profile.to_dict()
+        self._save_shared_profile_snapshot(token, snapshot)
+        if visibility == ConditionProfileVisibility.PUBLIC:
+            self._update_shared_index(snapshot)
+
+        return {
+            "token": token,
+            "profile": snapshot,
+        }
+
+    def get_shared_profile(self, token: str) -> Optional[Dict[str, Any]]:
+        path = self.shared_profiles_dir / f"{token}.json"
+        if not path.exists():
+            return None
+        try:
+            with open(path, "r") as fh:
+                return json.load(fh)
+        except Exception as exc:
+            logger.error("Failed to load shared profile %s: %s", token, exc)
+            return None
+
+    def list_shared_profiles(self) -> List[Dict[str, Any]]:
+        if not self.shared_profiles_index.exists():
+            return []
+        try:
+            with open(self.shared_profiles_index, "r") as fh:
+                return json.load(fh) or []
+        except Exception as exc:
+            logger.error("Failed to load shared profile index: %s", exc)
+            return []
+
+    def import_shared_profile(
+        self,
+        *,
+        user_id: int,
+        token: str,
+        name: Optional[str] = None,
+        mode: ConditionProfileMode = ConditionProfileMode.ACTIVE,
+    ) -> Optional[PlantStageConditionProfile]:
+        snapshot = self.get_shared_profile(token)
+        if not snapshot:
+            return None
+        source = PlantStageConditionProfile.from_dict(snapshot)
+        now = datetime.now()
+        imported = PlantStageConditionProfile(
+            profile_id=uuid4().hex,
+            name=name or source.name,
+            image_url=source.image_url,
+            user_id=user_id,
+            plant_type=source.plant_type,
+            growth_stage=source.growth_stage,
+            plant_variety=source.plant_variety,
+            strain_variety=source.strain_variety,
+            pot_size_liters=source.pot_size_liters,
+            environment_thresholds=dict(source.environment_thresholds),
+            soil_moisture_threshold=source.soil_moisture_threshold,
+            mode=mode,
+            visibility=ConditionProfileVisibility.PRIVATE,
+            shared_token=None,
+            shared_at=None,
+            source_profile_id=source.profile_id,
+            source_profile_name=source.name,
+            tags=list(source.tags),
+            rating_count=0,
+            rating_avg=0.0,
+            last_rating=None,
+            created_at=now,
+            updated_at=now,
+        )
+        profiles = self._load_condition_profiles(user_id)
+        profiles.append(imported)
+        self._save_condition_profiles(user_id, profiles)
+        self._condition_profile_cache[user_id] = profiles
+        self._notify_profile_update()
+        return imported
+
+    def link_condition_profile(
+        self,
+        *,
+        user_id: int,
+        target_type: ConditionProfileTarget,
+        target_id: int,
+        profile_id: str,
+        mode: ConditionProfileMode,
+    ) -> ConditionProfileLink:
+        links = self._load_condition_profile_links(user_id)
+        existing = None
+        for link in links:
+            if link.target_type == target_type and link.target_id == target_id:
+                existing = link
+                break
+
+        now = datetime.now()
+        if existing:
+            existing.profile_id = profile_id
+            existing.mode = mode
+            existing.updated_at = now
+            link = existing
+        else:
+            link = ConditionProfileLink(
+                user_id=user_id,
+                target_type=target_type,
+                target_id=target_id,
+                profile_id=profile_id,
+                mode=mode,
+                created_at=now,
+                updated_at=now,
+            )
+            links.append(link)
+
+        self._save_condition_profile_links(user_id, links)
+        self._condition_profile_links_cache[user_id] = links
+        return link
+
+    def get_condition_profile_link(
+        self,
+        *,
+        user_id: int,
+        target_type: ConditionProfileTarget,
+        target_id: int,
+    ) -> Optional[ConditionProfileLink]:
+        links = self._load_condition_profile_links(user_id)
+        for link in links:
+            if link.target_type == target_type and link.target_id == target_id:
+                return link
+        return None
+
+    def unlink_condition_profile(
+        self,
+        *,
+        user_id: int,
+        target_type: ConditionProfileTarget,
+        target_id: int,
+    ) -> bool:
+        links = self._load_condition_profile_links(user_id)
+        remaining = [
+            link for link in links
+            if not (link.target_type == target_type and link.target_id == target_id)
+        ]
+        if len(remaining) == len(links):
+            return False
+        self._save_condition_profile_links(user_id, remaining)
+        self._condition_profile_links_cache[user_id] = remaining
+        return True
     
     def record_success(self, success: GrowingSuccess):
         """
@@ -377,6 +925,154 @@ class PersonalizedLearningService:
         # Sort by similarity and return top matches
         similar_growers.sort(key=lambda x: x['similarity_score'], reverse=True)
         return similar_growers[:limit]
+
+    def _profile_matches(
+        self,
+        profile: PlantStageConditionProfile,
+        *,
+        plant_type: str,
+        growth_stage: str,
+        profile_id: Optional[str] = None,
+        plant_variety: Optional[str],
+        strain_variety: Optional[str],
+        pot_size_liters: Optional[float],
+        require_exact: bool = False,
+    ) -> bool:
+        if profile_id is not None and profile.profile_id != profile_id:
+            return False
+        if self._normalize(profile.plant_type) != self._normalize(plant_type):
+            return False
+        if self._normalize(profile.growth_stage) != self._normalize(growth_stage):
+            return False
+        if plant_variety and self._normalize(profile.plant_variety) != self._normalize(plant_variety):
+            return False
+        if strain_variety and self._normalize(profile.strain_variety) != self._normalize(strain_variety):
+            return False
+        if pot_size_liters is not None:
+            if profile.pot_size_liters is None:
+                return False if require_exact else True
+            if abs(float(profile.pot_size_liters) - float(pot_size_liters)) > 0.1:
+                return False
+        if require_exact:
+            if plant_variety is None and profile.plant_variety:
+                return False
+            if strain_variety is None and profile.strain_variety:
+                return False
+            if pot_size_liters is None and profile.pot_size_liters is not None:
+                return False
+        return True
+
+    @staticmethod
+    def _normalize(value: Optional[str]) -> str:
+        return str(value or "").strip().lower()
+
+    def _condition_profiles_path(self, user_id: int) -> Path:
+        return self.condition_profiles_dir / f"user_{user_id}_condition_profiles.json"
+
+    def _condition_profile_links_path(self, user_id: int) -> Path:
+        return self.condition_profile_links_dir / f"user_{user_id}_condition_profile_links.json"
+
+    def _load_condition_profiles(self, user_id: int) -> List[PlantStageConditionProfile]:
+        if user_id in self._condition_profile_cache:
+            return self._condition_profile_cache[user_id]
+        path = self._condition_profiles_path(user_id)
+        if not path.exists():
+            self._condition_profile_cache[user_id] = []
+            return []
+        try:
+            with open(path, "r") as fh:
+                raw = json.load(fh) or []
+            profiles = [PlantStageConditionProfile.from_dict(item) for item in raw]
+            self._condition_profile_cache[user_id] = profiles
+            return profiles
+        except Exception as exc:
+            logger.error("Failed to load condition profiles: %s", exc)
+            return []
+
+    def _save_condition_profiles(
+        self, user_id: int, profiles: List[PlantStageConditionProfile]
+    ) -> None:
+        path = self._condition_profiles_path(user_id)
+        payload = [profile.to_dict() for profile in profiles]
+        tmp_path = path.with_suffix(".tmp")
+        try:
+            with open(tmp_path, "w") as fh:
+                json.dump(payload, fh, indent=2)
+            tmp_path.replace(path)
+        except Exception as exc:
+            logger.error("Failed to save condition profiles: %s", exc)
+
+    def _load_condition_profile_links(self, user_id: int) -> List[ConditionProfileLink]:
+        if user_id in self._condition_profile_links_cache:
+            return self._condition_profile_links_cache[user_id]
+        path = self._condition_profile_links_path(user_id)
+        if not path.exists():
+            self._condition_profile_links_cache[user_id] = []
+            return []
+        try:
+            with open(path, "r") as fh:
+                raw = json.load(fh) or []
+            links = [ConditionProfileLink.from_dict(item) for item in raw]
+            self._condition_profile_links_cache[user_id] = links
+            return links
+        except Exception as exc:
+            logger.error("Failed to load condition profile links: %s", exc)
+            return []
+
+    def _save_condition_profile_links(
+        self, user_id: int, links: List[ConditionProfileLink]
+    ) -> None:
+        path = self._condition_profile_links_path(user_id)
+        payload = [link.to_dict() for link in links]
+        tmp_path = path.with_suffix(".tmp")
+        try:
+            with open(tmp_path, "w") as fh:
+                json.dump(payload, fh, indent=2)
+            tmp_path.replace(path)
+        except Exception as exc:
+            logger.error("Failed to save condition profile links: %s", exc)
+
+    def _save_shared_profile_snapshot(self, token: str, payload: Dict[str, Any]) -> None:
+        path = self.shared_profiles_dir / f"{token}.json"
+        tmp_path = path.with_suffix(".tmp")
+        try:
+            with open(tmp_path, "w") as fh:
+                json.dump(payload, fh, indent=2)
+            tmp_path.replace(path)
+        except Exception as exc:
+            logger.error("Failed to save shared profile snapshot: %s", exc)
+
+    def _update_shared_index(self, payload: Dict[str, Any]) -> None:
+        index: List[Dict[str, Any]] = []
+        if self.shared_profiles_index.exists():
+            try:
+                with open(self.shared_profiles_index, "r") as fh:
+                    index = json.load(fh) or []
+            except Exception:
+                index = []
+        entry = {
+            "profile_id": payload.get("profile_id"),
+            "name": payload.get("name"),
+            "image_url": payload.get("image_url"),
+            "plant_type": payload.get("plant_type"),
+            "growth_stage": payload.get("growth_stage"),
+            "plant_variety": payload.get("plant_variety"),
+            "strain_variety": payload.get("strain_variety"),
+            "pot_size_liters": payload.get("pot_size_liters"),
+            "shared_token": payload.get("shared_token"),
+            "shared_at": payload.get("shared_at"),
+            "rating_avg": payload.get("rating_avg"),
+            "rating_count": payload.get("rating_count"),
+        }
+        index = [item for item in index if item.get("profile_id") != entry["profile_id"]]
+        index.append(entry)
+        tmp_path = self.shared_profiles_index.with_suffix(".tmp")
+        try:
+            with open(tmp_path, "w") as fh:
+                json.dump(index, fh, indent=2)
+            tmp_path.replace(self.shared_profiles_index)
+        except Exception as exc:
+            logger.error("Failed to update shared profile index: %s", exc)
     
     def _analyze_historical_patterns(self, unit_id: int) -> Dict[str, Any]:
         """Analyze historical data to find patterns."""

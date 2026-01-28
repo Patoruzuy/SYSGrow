@@ -1,0 +1,81 @@
+# Condition Profiles
+
+Condition profiles let users reuse proven growing thresholds and optionally keep learning from new runs. Profiles are **optional** and can be selected at unit creation, plant creation, or applied later to an existing unit.
+
+## Concepts
+
+- **Template profile**: Frozen snapshot. Never mutates unless explicitly allowed.
+- **Active profile**: Learns over time (threshold updates and feedback).
+- **Lineage**: Active profiles can be cloned from templates and preserve the source ID/name.
+- **Sharing**: Link-based sharing now; public listing is prepared for future multi-user sharing.
+
+## Storage (local)
+
+- Profiles: `data/user_profiles/condition_profiles/user_<user_id>_condition_profiles.json`
+- Links: `data/user_profiles/condition_profiles/links/user_<user_id>_condition_profile_links.json`
+- Shared snapshots:
+  - `data/user_profiles/condition_profiles/shared/<token>.json`
+  - `data/user_profiles/condition_profiles/shared/index.json`
+
+## Profile Fields
+
+- `profile_id`, `name`, `image_url`
+- `plant_type`, `growth_stage`, `plant_variety`, `strain_variety`, `pot_size_liters`
+- `environment_thresholds`, `soil_moisture_threshold`
+- `mode`: `template` | `active`
+- `visibility`: `private` | `link` | `public`
+- `rating_count`, `rating_avg`, `last_rating`
+- `source_profile_id`, `source_profile_name`
+
+## Selection Flows
+
+### Unit creation
+
+- Pass `condition_profile_id` + optional `condition_profile_mode` + `condition_profile_name`.
+- If a template is selected with `mode=active`, the service clones it to a new active profile.
+- Environment thresholds are applied to the unit immediately.
+- A unit-level link is stored for future learning updates.
+
+### Plant creation
+
+- Pass `condition_profile_id` + optional `condition_profile_mode` + `condition_profile_name`.
+- If a template is selected with `mode=active`, it is cloned.
+- Soil moisture threshold is seeded from the selected profile.
+- A plant-level link is stored for learning updates.
+
+### Apply to existing unit
+
+- `POST /api/growth/v2/units/<unit_id>/thresholds/apply-profile`
+- Applies environment thresholds + creates/updates the unit-level link.
+
+## Learning Behavior
+
+- **Unit environment thresholds** (temperature/humidity/etc.) update the linked **active** unit profile.
+- **Plant soil moisture thresholds** update the linked **active** plant profile.
+- Template profiles are never modified unless explicitly allowed by the user.
+
+## Sharing
+
+- `POST /api/ml/personalized/condition-profiles/share`
+  - `visibility=link` (default) returns a share token and snapshot.
+  - `visibility=public` also updates the public index.
+- `GET /api/ml/personalized/condition-profiles/shared/<token>` retrieves a snapshot.
+- `POST /api/ml/personalized/condition-profiles/import` imports a shared snapshot.
+
+## API Summary
+
+- `GET /api/ml/personalized/condition-profiles`
+- `GET /api/ml/personalized/condition-profiles/user/<user_id>`
+- `POST /api/ml/personalized/condition-profiles`
+- `POST /api/ml/personalized/condition-profiles/clone`
+- `POST /api/ml/personalized/condition-profiles/share`
+- `GET /api/ml/personalized/condition-profiles/shared`
+- `GET /api/ml/personalized/condition-profiles/shared/<token>`
+- `POST /api/ml/personalized/condition-profiles/import`
+- `POST /api/growth/v2/units/<unit_id>/thresholds/apply-profile`
+
+## Notes
+
+- Profiles are optional. If none are selected, defaults (PlantJsonHandler + learned overrides) apply.
+- Ratings are included in all profile responses and share index entries.
+- `image_url` is an optional field for profile thumbnails.

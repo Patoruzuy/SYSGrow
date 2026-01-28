@@ -7,6 +7,8 @@ For unit-specific thresholds, use /api/growth/v2/units/<id>/thresholds.
 """
 from __future__ import annotations
 
+import logging
+
 from flask import request
 
 from . import settings_api
@@ -19,6 +21,8 @@ from app.blueprints.api._common import (
 )
 from app.services.application.threshold_service import THRESHOLD_KEYS
 
+logger = logging.getLogger("settings.environment")
+LEGACY_MESSAGE = "Legacy endpoint. Use /api/growth/v2/units/<unit_id>/thresholds."
 
 # ==================== GLOBAL ENVIRONMENT THRESHOLDS ====================
 
@@ -41,14 +45,13 @@ def get_environment_thresholds():
     except (TypeError, ValueError):
         return _fail("Invalid unit_id.", 400)
 
+    logger.warning("Legacy /api/settings/environment read for unit %s", unit_id)
     data = _threshold_service().get_environment_thresholds(unit_id=unit_id)
     if not data:
         return _fail("Environment thresholds not configured for unit.", 404)
     if isinstance(data, dict):
         data.pop("soil_moisture_threshold", None)
-    if isinstance(data, dict):
-        data.pop("soil_moisture_threshold", None)
-    return _success(data, 200)
+    return _success(data, 200, message=LEGACY_MESSAGE)
 
 
 @settings_api.put("/environment")
@@ -87,10 +90,11 @@ def update_environment_thresholds():
     if not threshold_payload:
         return _fail("No valid threshold fields provided.", 400)
 
+    logger.warning("Legacy /api/settings/environment update for unit %s", unit_id)
     data = _threshold_service().update_environment_thresholds(
         unit_id=unit_id,
         thresholds=threshold_payload,
     )
     if not data:
         return _fail("Failed to update environment thresholds.", 500)
-    return _success(data, 200)
+    return _success(data, 200, message=LEGACY_MESSAGE)

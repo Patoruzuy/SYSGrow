@@ -7,7 +7,8 @@ Includes recommended thresholds based on plant type and growth stage.
 """
 from __future__ import annotations
 
-from flask import jsonify, request
+from flask import jsonify, request, session
+from typing import Optional
 from app.schemas.growth import (
     UnitThresholdUpdate,
     UnitThresholdUpdateV2,
@@ -16,6 +17,7 @@ from app.schemas.growth import (
 )
 from app.domain.environmental_thresholds import EnvironmentalThresholds
 from app.services.application.threshold_service import THRESHOLD_KEYS
+from app.enums.common import ConditionProfileMode, ConditionProfileTarget
 import logging
 
 from pydantic import ValidationError
@@ -28,6 +30,56 @@ from app.blueprints.api._common import (
 )
 
 logger = logging.getLogger("growth_api.thresholds")
+
+
+def _apply_condition_profile_to_unit(
+    *,
+    unit_id: int,
+    user_id: int,
+    profile_id: Optional[str],
+    mode: Optional[ConditionProfileMode],
+    name: Optional[str],
+) -> Optional[dict]:
+    if not profile_id:
+        return None
+    container = _container()
+    profile_service = getattr(container, "personalized_learning", None) if container else None
+    threshold_service = getattr(container, "threshold_service", None) if container else None
+    if not profile_service or not threshold_service:
+        return None
+
+    profile = profile_service.get_condition_profile_by_id(user_id=user_id, profile_id=profile_id)
+    if not profile:
+        raise ValueError("Condition profile not found")
+
+    desired_mode = mode
+    if desired_mode and not isinstance(desired_mode, ConditionProfileMode):
+        desired_mode = ConditionProfileMode(str(desired_mode))
+    desired_mode = desired_mode or profile.mode
+    if profile.mode == ConditionProfileMode.TEMPLATE and desired_mode == ConditionProfileMode.ACTIVE:
+        cloned = profile_service.clone_condition_profile(
+            user_id=user_id,
+            source_profile_id=profile.profile_id,
+            name=name,
+            mode=ConditionProfileMode.ACTIVE,
+        )
+        if cloned:
+            profile = cloned
+            desired_mode = ConditionProfileMode.ACTIVE
+
+    env_thresholds = profile.environment_thresholds or {}
+    if env_thresholds:
+        threshold_service.update_unit_thresholds(unit_id, env_thresholds)
+
+    profile_service.link_condition_profile(
+        user_id=user_id,
+        target_type=ConditionProfileTarget.UNIT,
+        target_id=int(unit_id),
+        profile_id=profile.profile_id,
+        mode=desired_mode or ConditionProfileMode.ACTIVE,
+    )
+
+    return profile.to_dict()
 
 
 def _unit_to_response(unit: dict) -> GrowthUnitResponse:
@@ -148,6 +200,60 @@ def get_unit_thresholds_v2(unit_id: int):
         return _fail("Failed to fetch thresholds", 500)
 
 
+@growth_api.post("/v2/units/<int:unit_id>/thresholds/apply-profile")
+def apply_condition_profile_to_unit(unit_id: int):
+    """
+    Apply a condition profile to unit environment thresholds.
+
+    Body:
+      - user_id (optional; defaults to session)
+      - profile_id (required)
+      - mode (optional): active or template
+      - name (optional): name for cloned profile
+    """
+    try:
+        raw = request.get_json() or {}
+        user_id = raw.get("user_id")
+        if user_id is None:
+            user_id = request.args.get("user_id") or session.get("user_id")
+        if user_id is None:
+            return _fail("user_id is required", 400)
+        try:
+            user_id = int(user_id)
+        except (TypeError, ValueError):
+            return _fail("Invalid user_id", 400)
+
+        profile_id = raw.get("profile_id")
+        if not profile_id:
+            return _fail("profile_id is required", 400)
+
+        mode = raw.get("mode")
+        mode_enum = None
+        if mode:
+            try:
+                mode_enum = ConditionProfileMode(mode)
+            except ValueError:
+                return _fail("Invalid mode", 400)
+
+        name = raw.get("name")
+
+        try:
+            profile = _apply_condition_profile_to_unit(
+                unit_id=unit_id,
+                user_id=user_id,
+                profile_id=profile_id,
+                mode=mode_enum,
+                name=name,
+            )
+        except ValueError as exc:
+            return _fail(str(exc), 404)
+
+        return _success({"unit_id": unit_id, "condition_profile": profile})
+    except Exception as e:
+        logger.exception("Error applying condition profile to unit %s: %s", unit_id, e)
+        return _fail("Failed to apply condition profile", 500)
+
+
 @growth_api.get("/thresholds/recommended")
 def get_recommended_thresholds():
     """
@@ -156,6 +262,10 @@ def get_recommended_thresholds():
     Query parameters:
       - plant_type (required): common name, e.g. 'Tomatoes'
       - growth_stage (optional): stage name, e.g. 'Vegetative'
+      - user_id (optional): user id for personalized profiles (defaults to session)
+      - plant_variety (optional): cultivar/variety name
+      - strain_variety (optional): strain name
+      - pot_size_liters (optional): pot size in liters
 
     Response:
       {
@@ -167,9 +277,18 @@ def get_recommended_thresholds():
     """
     plant_type = request.args.get("plant_type")
     growth_stage = request.args.get("growth_stage")
+    user_id = request.args.get("user_id") or session.get("user_id")
+    plant_variety = request.args.get("plant_variety")
+    strain_variety = request.args.get("strain_variety")
+    pot_size_liters = request.args.get("pot_size_liters", type=float)
 
     if not plant_type:
         return _fail("plant_type is required", 400)
+    if user_id is not None:
+        try:
+            user_id = int(user_id)
+        except (TypeError, ValueError):
+            return _fail("Invalid user_id", 400)
 
     container = _container()
     threshold_service = getattr(container, "threshold_service", None) if container else None
@@ -177,19 +296,34 @@ def get_recommended_thresholds():
         return _fail("Threshold service not available", 503)
 
     # Get domain object (modern API - returns EnvironmentalThresholds)
-    thresholds_obj = threshold_service.get_thresholds(plant_type, growth_stage)
-    
-    # Convert to dict for API response
-    thresholds_dict = thresholds_obj.to_dict()
+    thresholds_obj = threshold_service.get_thresholds(
+        plant_type,
+        growth_stage,
+        user_id=user_id,
+        plant_variety=plant_variety,
+        strain_variety=strain_variety,
+        pot_size_liters=pot_size_liters,
+    )
+    ranges = threshold_service.get_threshold_ranges(
+        plant_type,
+        growth_stage,
+        user_id=user_id,
+        plant_variety=plant_variety,
+        strain_variety=strain_variety,
+        pot_size_liters=pot_size_liters,
+    )
 
-    # Build settings from domain object
+    # Build settings from range data
+    temp_range = ranges.get("temperature", {})
+    humidity_range = ranges.get("humidity", {})
+    soil_range = ranges.get("soil_moisture", {})
     settings = ThresholdSettings(
-        min_temp=thresholds_dict['temperature'] * 0.9,  # 10% tolerance
-        max_temp=thresholds_dict['temperature'] * 1.1,
-        min_humidity=thresholds_dict['humidity'] * 0.9,
-        max_humidity=thresholds_dict['humidity'] * 1.1,
-        min_soil_moisture=thresholds_dict['soil_moisture'] * 0.9,
-        max_soil_moisture=thresholds_dict['soil_moisture'] * 1.1,
+        min_temp=temp_range.get("min"),
+        max_temp=temp_range.get("max"),
+        min_humidity=humidity_range.get("min"),
+        max_humidity=humidity_range.get("max"),
+        min_soil_moisture=soil_range.get("min"),
+        max_soil_moisture=soil_range.get("max"),
     )
 
     return _success(
@@ -198,6 +332,7 @@ def get_recommended_thresholds():
             "growth_stage": growth_stage,
             "thresholds": settings.model_dump(),
             "raw": thresholds_obj.to_settings_dict(),  # Full map from ThresholdService
+            "ranges": ranges,
         }
     )
 

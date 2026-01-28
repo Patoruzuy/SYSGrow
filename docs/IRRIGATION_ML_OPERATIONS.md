@@ -40,6 +40,9 @@ Models are only used when they meet minimum quality thresholds. If not, inferenc
 | duration_optimizer | MAE, MAPE | **MAE ≤ 25** AND **MAPE ≤ 0.40** |
 | timing_predictor | top3_accuracy, MRR | **top3 ≥ 0.60** AND **MRR ≥ 0.55** |
 
+### Gating Telemetry
+When ML gating blocks inference, the system logs a structured message with the model key, reason, and metrics.
+
 ## Class Balance Monitoring (Timing Predictor)
 Timing training checks for class imbalance. If the smallest hour bucket has fewer than 3 samples or <5% of data, a warning is logged and the metadata includes:\n+- `class_distribution`\n+- `class_balance_warning`
 

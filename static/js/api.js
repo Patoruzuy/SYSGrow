@@ -3134,6 +3134,101 @@ const PersonalizedLearningAPI = {
      */
     findSimilarGrowers(unitId, limit = 5) {
         return get(`/api/ml/personalized/similar-growers/${unitId}?limit=${limit}`);
+    },
+
+    /**
+     * Fetch condition profile selector payload for wizard UI
+     * @param {Object} params - selector filters
+     * @returns {Promise<Object>} selector payload
+     */
+    getConditionProfileSelector(params = {}) {
+        const query = new URLSearchParams(params).toString();
+        return get(`/api/ml/personalized/condition-profiles/selector${query ? `?${query}` : ''}`);
+    },
+
+    /**
+     * List condition profiles for a user
+     * @param {number} userId - User ID
+     * @param {Object} [filters] - Optional filters
+     * @returns {Promise<Object>} Profiles list
+     */
+    listConditionProfiles(userId, filters = {}) {
+        const query = new URLSearchParams(filters).toString();
+        return get(`/api/ml/personalized/condition-profiles/user/${userId}${query ? `?${query}` : ''}`);
+    },
+
+    /**
+     * Get a single condition profile
+     * @param {Object} params - query params
+     * @returns {Promise<Object>} Profile payload
+     */
+    getConditionProfile(params = {}) {
+        const query = new URLSearchParams(params).toString();
+        return get(`/api/ml/personalized/condition-profiles${query ? `?${query}` : ''}`);
+    },
+
+    /**
+     * Create or update a condition profile
+     * @param {Object} payload - Profile data
+     * @returns {Promise<Object>} Upserted profile
+     */
+    upsertConditionProfile(payload) {
+        return post('/api/ml/personalized/condition-profiles', payload);
+    },
+
+    /**
+     * Clone a condition profile
+     * @param {Object} payload - Clone request
+     * @returns {Promise<Object>} Cloned profile
+     */
+    cloneConditionProfile(payload) {
+        return post('/api/ml/personalized/condition-profiles/clone', payload);
+    },
+
+    /**
+     * Share a condition profile
+     * @param {Object} payload - Share request
+     * @returns {Promise<Object>} Share payload
+     */
+    shareConditionProfile(payload) {
+        return post('/api/ml/personalized/condition-profiles/share', payload);
+    },
+
+    /**
+     * List public shared profiles
+     * @returns {Promise<Object>} Shared profiles
+     */
+    listSharedConditionProfiles() {
+        return get('/api/ml/personalized/condition-profiles/shared');
+    },
+
+    /**
+     * Import a shared profile
+     * @param {Object} payload - Import request
+     * @returns {Promise<Object>} Imported profile
+     */
+    importSharedConditionProfile(payload) {
+        return post('/api/ml/personalized/condition-profiles/import', payload);
+    },
+
+    /**
+     * Apply a condition profile to a unit (environment thresholds)
+     * @param {number} unitId - Unit ID
+     * @param {Object} payload - Apply request
+     * @returns {Promise<Object>} Apply result
+     */
+    applyConditionProfileToUnit(unitId, payload) {
+        return post(`/api/growth/v2/units/${unitId}/thresholds/apply-profile`, payload);
+    },
+
+    /**
+     * Apply a condition profile to a live plant
+     * @param {number} plantId - Plant ID
+     * @param {Object} payload - Apply request
+     * @returns {Promise<Object>} Apply result
+     */
+    applyConditionProfileToPlant(plantId, payload) {
+        return post(`/api/plants/${plantId}/apply-profile`, payload);
     }
 };
 

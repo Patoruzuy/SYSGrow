@@ -199,6 +199,45 @@ def update_plant(plant_id: int):
         return _fail("Failed to update plant", 500)
 
 
+@plants_api.post("/plants/<int:plant_id>/apply-profile")
+def apply_condition_profile_to_plant(plant_id: int):
+    """
+    Apply a condition profile to a live plant.
+
+    Body:
+        - profile_id (required)
+        - mode (optional): active or template
+        - name (optional): name for cloned profile
+        - user_id (optional)
+    """
+    try:
+        raw = request.get_json() or {}
+        profile_id = raw.get("profile_id")
+        if not profile_id:
+            return _fail("profile_id is required", 400)
+
+        plant_service = _plant_service()
+        user_id = raw.get("user_id")
+        mode = raw.get("mode")
+        name = raw.get("name")
+
+        result = plant_service.apply_condition_profile_to_plant(
+            plant_id=plant_id,
+            profile_id=profile_id,
+            mode=mode,
+            name=name,
+            user_id=user_id,
+        )
+        if not result:
+            return _fail("Failed to apply condition profile", 500)
+        return _success(result)
+    except ValueError as e:
+        return _fail(str(e), 400)
+    except Exception as e:
+        logger.exception("Error applying condition profile to plant %s: %s", plant_id, e)
+        return _fail("Failed to apply condition profile", 500)
+
+
 @plants_api.delete("/units/<int:unit_id>/plants/<int:plant_id>")
 def remove_plant(unit_id: int, plant_id: int):
     """Remove a plant from a growth unit"""

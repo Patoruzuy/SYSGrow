@@ -71,7 +71,6 @@ def test_unit_runtime_creation():
         settings = UnitSettings(
             temperature_threshold=25.0,
             humidity_threshold=60.0,
-            soil_moisture_threshold=50.0,
             device_schedules={
                 "light": {"start_time": "08:00", "end_time": "20:00", "enabled": True}
             }

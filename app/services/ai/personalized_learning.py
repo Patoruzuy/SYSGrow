@@ -1059,8 +1059,13 @@ class PersonalizedLearningService:
             "plant_variety": payload.get("plant_variety"),
             "strain_variety": payload.get("strain_variety"),
             "pot_size_liters": payload.get("pot_size_liters"),
+            "mode": payload.get("mode"),
+            "visibility": payload.get("visibility"),
             "shared_token": payload.get("shared_token"),
             "shared_at": payload.get("shared_at"),
+            "source_profile_id": payload.get("source_profile_id"),
+            "source_profile_name": payload.get("source_profile_name"),
+            "tags": payload.get("tags"),
             "rating_avg": payload.get("rating_avg"),
             "rating_count": payload.get("rating_count"),
         }

@@ -73,7 +73,6 @@ class UnitSettings:
 
     temperature_threshold: float = 24.0
     humidity_threshold: float = 50.0
-    soil_moisture_threshold: float = 40.0
     co2_threshold: float = 1000.0
     voc_threshold: float = 1000.0
     lux_threshold: float = 1000.0
@@ -86,7 +85,6 @@ class UnitSettings:
         return {
             "temperature_threshold": self.temperature_threshold,
             "humidity_threshold": self.humidity_threshold,
-            "soil_moisture_threshold": self.soil_moisture_threshold,
             "co2_threshold": self.co2_threshold,
             "voc_threshold": self.voc_threshold,
             "lux_threshold": self.lux_threshold,
@@ -106,7 +104,6 @@ class UnitSettings:
         return UnitSettings(
             temperature_threshold=data.get("temperature_threshold", 24.0),
             humidity_threshold=data.get("humidity_threshold", 50.0),
-            soil_moisture_threshold=data.get("soil_moisture_threshold", 40.0),
             co2_threshold=data.get("co2_threshold", 1000.0),
             voc_threshold=data.get("voc_threshold", 1000.0),
             lux_threshold=data.get("lux_threshold", 1000.0),
@@ -334,20 +331,16 @@ class UnitRuntime:
                             # Climate model gets 60% weight, growth model gets 40%
                             temperature = optimal.temperature * 0.6 + growth_conditions.temperature * 0.4
                             humidity = optimal.humidity * 0.6 + growth_conditions.humidity * 0.4
-                            soil_moisture = optimal.soil_moisture * 0.6 + growth_conditions.soil_moisture * 0.4
-
                             optimal = optimal.merge(
                                 {
                                     "temperature": temperature,
                                     "humidity": humidity,
-                                    "soil_moisture": soil_moisture,
                                 }
                             )
                             
                             logger.debug(
                                 f"Blended AI predictions: temp={optimal.temperature:.1f} C, "
-                                f"humidity={optimal.humidity:.1f}%, "
-                                f"moisture={optimal.soil_moisture:.1f}% "
+                                f"humidity={optimal.humidity:.1f}% "
                                 f"(confidence: {growth_conditions.confidence:.2f})"
                             )
                     except Exception as e:
@@ -357,7 +350,6 @@ class UnitRuntime:
                 threshold_keys = (
                     "temperature_threshold",
                     "humidity_threshold",
-                    "soil_moisture_threshold",
                     "co2_threshold",
                     "voc_threshold",
                     "lux_threshold",

@@ -429,8 +429,6 @@ class GrowthService:
         current_thresholds = runtime.settings.to_dict()
         changes: Dict[str, float] = {}
         for key, value in overrides.items():
-            if key == "soil_moisture_threshold":
-                continue
             if key not in THRESHOLD_KEYS:
                 continue
             if current_thresholds.get(key) != value:
@@ -1033,18 +1031,12 @@ class GrowthService:
                 thresholds = dict(thresholds)
                 thresholds["lux_threshold"] = thresholds.get("lux")
 
-        if "soil_moisture_threshold" in thresholds:
-            thresholds = dict(thresholds)
-            thresholds.pop("soil_moisture_threshold", None)
-
         runtime = self.get_unit_runtime(unit_id)
         if runtime and hasattr(runtime, "update_settings"):
             runtime.update_settings(**thresholds)
 
         repo_fields: Dict[str, float] = {}
         for key in THRESHOLD_KEYS:
-            if key == "soil_moisture_threshold":
-                continue
             if key in thresholds:
                 repo_fields[key] = thresholds[key]
 
@@ -1515,7 +1507,6 @@ class GrowthService:
         thresholds: Dict[str, Any] = {}
         if self.threshold_service:
             thresholds = self.threshold_service.get_unit_thresholds_dict(unit_id)
-            thresholds.pop("soil_moisture_threshold", None)
 
         # Add non-threshold settings from runtime or unit data
         if unit_id in self._unit_runtimes:
@@ -1564,7 +1555,6 @@ class GrowthService:
         *,
         temperature_threshold: Optional[float] = None,
         humidity_threshold: Optional[float] = None,
-        soil_moisture_threshold: Optional[float] = None,
     ) -> Optional[dict[str, Any]]:
         """
         Set environmental thresholds for a unit.
@@ -1575,8 +1565,6 @@ class GrowthService:
             unit_id: Unit identifier
             temperature_threshold: Temperature threshold
             humidity_threshold: Humidity threshold
-            soil_moisture_threshold: Deprecated (per-plant only)
-            
         Returns:
             Updated unit dictionary
         """

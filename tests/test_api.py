@@ -60,7 +60,6 @@ def test_growth_unit_lifecycle(client):
         json={
             "temperature_threshold": 24.5,
             "humidity_threshold": 55.0,
-            "soil_moisture_threshold": 35.0,
         },
     )
     assert response.status_code == 200

@@ -137,7 +137,6 @@ def test_environment_thresholds_validation(client):
             "unit_id": unit_id,
             "temperature_threshold": 24.5,
             "humidity_threshold": 55.0,
-            "soil_moisture_threshold": 35.0,
         },
     )
     assert good_response.status_code == 200

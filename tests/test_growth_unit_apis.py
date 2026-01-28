@@ -170,8 +170,7 @@ def _get_test_data_for_endpoint(endpoint):
     elif "/thresholds" in endpoint:
         return {
             "temperature_threshold": 24.0,
-            "humidity_threshold": 60.0,
-            "soil_moisture_threshold": 40.0
+            "humidity_threshold": 60.0
         }
     else:
         return {}

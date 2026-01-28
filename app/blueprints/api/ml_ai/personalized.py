@@ -10,10 +10,21 @@ from flask import Blueprint, request
 
 from app.blueprints.api._common import (
     get_container as _container,
+    get_user_id as _get_user_id,
     success as _success,
     fail as _fail,
 )
-from app.enums.common import ConditionProfileMode, ConditionProfileVisibility
+from app.enums.common import (
+    ConditionProfileMode,
+    ConditionProfileVisibility,
+    ConditionProfileTarget,
+)
+from app.schemas.personalized import (
+    ConditionProfileCard,
+    ConditionProfileSection,
+    ConditionProfileLinkSummary,
+    ConditionProfileSelectorResponse,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +46,71 @@ def _parse_enum(enum_cls, value, field: str):
         return enum_cls(value)
     except ValueError:
         raise ValueError(f"Invalid {field}")
+
+
+def _coerce_mode(value) -> ConditionProfileMode | None:
+    if value is None:
+        return None
+    try:
+        return ConditionProfileMode(value)
+    except ValueError:
+        return None
+
+
+def _coerce_visibility(value) -> ConditionProfileVisibility | None:
+    if value is None:
+        return None
+    try:
+        return ConditionProfileVisibility(value)
+    except ValueError:
+        return None
+
+
+def _build_profile_card(
+    profile_data,
+    *,
+    fallback_visibility: ConditionProfileVisibility | None = None,
+) -> ConditionProfileCard:
+    if hasattr(profile_data, "to_dict"):
+        payload = profile_data.to_dict()
+    else:
+        payload = dict(profile_data or {})
+
+    mode = _coerce_mode(payload.get("mode"))
+    visibility = _coerce_visibility(payload.get("visibility"))
+    if visibility is None and fallback_visibility is not None:
+        visibility = fallback_visibility
+
+    try:
+        rating_avg = float(payload.get("rating_avg", 0.0) or 0.0)
+    except (TypeError, ValueError):
+        rating_avg = 0.0
+    try:
+        rating_count = int(payload.get("rating_count", 0) or 0)
+    except (TypeError, ValueError):
+        rating_count = 0
+
+    return ConditionProfileCard(
+        profile_id=str(payload.get("profile_id", "")),
+        name=payload.get("name"),
+        image_url=payload.get("image_url"),
+        plant_type=str(payload.get("plant_type", "")),
+        growth_stage=str(payload.get("growth_stage", "")),
+        plant_variety=payload.get("plant_variety"),
+        strain_variety=payload.get("strain_variety"),
+        pot_size_liters=payload.get("pot_size_liters"),
+        mode=mode,
+        visibility=visibility,
+        rating_avg=rating_avg,
+        rating_count=rating_count,
+        last_rating=payload.get("last_rating"),
+        shared_token=payload.get("shared_token"),
+        source_profile_id=payload.get("source_profile_id"),
+        source_profile_name=payload.get("source_profile_name"),
+        tags=list(payload.get("tags") or []),
+        created_at=payload.get("created_at"),
+        updated_at=payload.get("updated_at"),
+    )
 
 
 # ==============================================================================
@@ -255,6 +331,123 @@ def list_condition_profiles(user_id: int):
         return _fail(str(e), 400)
     except Exception as e:
         logger.error("Error listing condition profiles: %s", e, exc_info=True)
+        return _fail(str(e), 500)
+
+
+@personalized_bp.get("/condition-profiles/selector")
+def get_condition_profile_selector():
+    """
+    UI helper for the profile-selection wizard.
+
+    Query params:
+        - user_id (optional, defaults to session)
+        - plant_type (optional)
+        - growth_stage (optional)
+        - target_type (optional): unit or plant
+        - target_id (optional): id for target_type
+    """
+    try:
+        service = _get_personalized_service()
+        if not service:
+            return _fail("Personalized learning service is not enabled", 503)
+
+        user_id = request.args.get("user_id", type=int) or _get_user_id()
+        plant_type = request.args.get("plant_type")
+        growth_stage = request.args.get("growth_stage")
+        target_type = request.args.get("target_type")
+        target_id = request.args.get("target_id", type=int)
+
+        target_type_enum = (
+            _parse_enum(ConditionProfileTarget, target_type, "target_type")
+            if target_type
+            else None
+        )
+
+        profiles = service.list_condition_profiles(user_id)
+        if plant_type:
+            profiles = [
+                p
+                for p in profiles
+                if str(p.plant_type).strip().lower() == plant_type.strip().lower()
+            ]
+        if growth_stage:
+            profiles = [
+                p
+                for p in profiles
+                if str(p.growth_stage).strip().lower() == growth_stage.strip().lower()
+            ]
+
+        templates = [p for p in profiles if p.mode == ConditionProfileMode.TEMPLATE]
+        active = [p for p in profiles if p.mode == ConditionProfileMode.ACTIVE]
+
+        shared_profiles = service.list_shared_profiles()
+        if plant_type:
+            shared_profiles = [
+                p
+                for p in shared_profiles
+                if str(p.get("plant_type", "")).strip().lower()
+                == plant_type.strip().lower()
+            ]
+        if growth_stage:
+            shared_profiles = [
+                p
+                for p in shared_profiles
+                if str(p.get("growth_stage", "")).strip().lower()
+                == growth_stage.strip().lower()
+            ]
+
+        sections = [
+            ConditionProfileSection(
+                section_type=ConditionProfileMode.TEMPLATE,
+                label="Templates",
+                description="Starter profiles you can clone and tune.",
+                profiles=[_build_profile_card(p) for p in templates],
+            ),
+            ConditionProfileSection(
+                section_type=ConditionProfileMode.ACTIVE,
+                label="Active Profiles",
+                description="Profiles currently tuned to your grows.",
+                profiles=[_build_profile_card(p) for p in active],
+            ),
+            ConditionProfileSection(
+                section_type=ConditionProfileVisibility.PUBLIC,
+                label="Shared",
+                description="Community profiles you can import.",
+                profiles=[
+                    _build_profile_card(
+                        p, fallback_visibility=ConditionProfileVisibility.PUBLIC
+                    )
+                    for p in shared_profiles
+                ],
+            ),
+        ]
+
+        linked_profile = None
+        if target_type_enum and target_id is not None:
+            link = service.get_condition_profile_link(
+                user_id=user_id,
+                target_type=target_type_enum,
+                target_id=target_id,
+            )
+            if link:
+                linked_profile = ConditionProfileLinkSummary(
+                    target_type=link.target_type,
+                    target_id=link.target_id,
+                    profile_id=link.profile_id,
+                    mode=link.mode,
+                )
+
+        payload = ConditionProfileSelectorResponse(
+            sections=sections,
+            linked_profile=linked_profile,
+            plant_type=plant_type,
+            growth_stage=growth_stage,
+        )
+        return _success({"selector": payload.model_dump()})
+    except ValueError as e:
+        return _fail(str(e), 400)
+    except Exception as e:
+        logger.error("Error building condition profile selector: %s", e, exc_info=True)
         return _fail(str(e), 500)
 
 

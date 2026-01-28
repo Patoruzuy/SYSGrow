@@ -1186,6 +1186,108 @@ class PlantViewService:
             logger.error(f"Error getting plant {plant_id}: {e}", exc_info=True)
             return None
 
+    def apply_condition_profile_to_plant(
+        self,
+        *,
+        plant_id: int,
+        profile_id: str,
+        mode: Optional[ConditionProfileMode] = None,
+        name: Optional[str] = None,
+        user_id: Optional[int] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Apply a condition profile to an existing plant.
+
+        Updates soil moisture threshold and links profile (active/template).
+        """
+        plant = self.get_plant(plant_id)
+        if not plant:
+            return None
+
+        resolved_unit_id = self._resolve_unit_id_for_plant(plant_id)
+        if resolved_unit_id is None:
+            return None
+
+        if user_id is None:
+            user_id = self._get_unit_owner(resolved_unit_id)
+        if user_id is None:
+            return None
+
+        if not self.threshold_service:
+            raise ValueError("Threshold service not available")
+        profile_service = getattr(self.threshold_service, "personalized_learning", None)
+        if not profile_service:
+            raise ValueError("Condition profile service not available")
+
+        profile = profile_service.get_condition_profile_by_id(
+            user_id=user_id,
+            profile_id=profile_id,
+        )
+        if not profile:
+            raise ValueError("Condition profile not found")
+
+        desired_mode = mode
+        if desired_mode and not isinstance(desired_mode, ConditionProfileMode):
+            desired_mode = ConditionProfileMode(str(desired_mode))
+        desired_mode = desired_mode or profile.mode
+
+        if profile.mode == ConditionProfileMode.TEMPLATE and desired_mode == ConditionProfileMode.ACTIVE:
+            cloned = profile_service.clone_condition_profile(
+                user_id=user_id,
+                source_profile_id=profile.profile_id,
+                name=name,
+                mode=ConditionProfileMode.ACTIVE,
+            )
+            if cloned:
+                profile = cloned
+                desired_mode = ConditionProfileMode.ACTIVE
+
+        applied_threshold = None
+        if profile.soil_moisture_threshold is not None:
+            applied_threshold = float(profile.soil_moisture_threshold)
+            if not self.update_soil_moisture_threshold(
+                plant_id=plant_id,
+                threshold=applied_threshold,
+                unit_id=resolved_unit_id,
+            ):
+                return None
+
+        profile_service.link_condition_profile(
+            user_id=user_id,
+            target_type=ConditionProfileTarget.PLANT,
+            target_id=int(plant_id),
+            profile_id=profile.profile_id,
+            mode=desired_mode or ConditionProfileMode.ACTIVE,
+        )
+
+        plant.condition_profile_id = profile.profile_id
+        plant.condition_profile_mode = desired_mode
+
+        return {
+            "plant_id": plant_id,
+            "unit_id": resolved_unit_id,
+            "profile": profile.to_dict(),
+            "applied_threshold": applied_threshold,
+        }
+
+    def _resolve_unit_id_for_plant(self, plant_id: int) -> Optional[int]:
+        with self._plants_lock:
+            for unit_id, unit_plants in self._plants.items():
+                if plant_id in unit_plants:
+                    return unit_id
+        try:
+            row = self.plant_repo.get_plant(plant_id)
+        except Exception:
+            return None
+        if not row:
+            return None
+        if isinstance(row, dict):
+            return row.get("unit_id")
+        try:
+            return row["unit_id"]
+        except Exception:
+            return None
+
     def get_plant_as_dict(self, plant_id: int, unit_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
         """
         Get plant details as dictionary with linked sensor information.

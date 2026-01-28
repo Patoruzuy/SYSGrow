@@ -109,6 +109,13 @@ from app.schemas.ml import (
     ModelType,
 )
 
+from app.schemas.personalized import (
+    ConditionProfileCard,
+    ConditionProfileSection,
+    ConditionProfileLinkSummary,
+    ConditionProfileSelectorResponse,
+)
+
 __all__ = [
     # Growth schemas
     'CreateGrowthUnitRequest',
@@ -186,6 +193,12 @@ __all__ = [
     'RootCauseAnalysisRequest',
     'ScheduleType',
     'ModelType',
+
+    # Personalized learning schemas
+    'ConditionProfileCard',
+    'ConditionProfileSection',
+    'ConditionProfileLinkSummary',
+    'ConditionProfileSelectorResponse',
 
     # Event payload schemas
     'SensorUpdatePayload',

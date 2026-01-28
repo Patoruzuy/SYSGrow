@@ -232,6 +232,22 @@ class IrrigationPredictor:
 
         return False, 0.0, metrics
 
+    def _log_gate_block(
+        self,
+        model_key: str,
+        metrics: Dict[str, float],
+        reason: str,
+    ) -> None:
+        try:
+            logger.info(
+                "Irrigation ML gated off: model=%s reason=%s metrics=%s",
+                model_key,
+                reason,
+                metrics,
+            )
+        except Exception:
+            pass
+
     def get_model_status(self, model_key: str) -> Dict[str, Any]:
         """Return gating status and metadata for a specific irrigation model key."""
         bundle = self._model_bundles.get(model_key) if self._model_bundles else None
@@ -503,6 +519,10 @@ class IrrigationPredictor:
                     ),
                 )
 
+            reason = "metrics_below_threshold"
+            if not metrics:
+                reason = "metrics_missing"
+            self._log_gate_block("threshold_optimizer", metrics, reason)
             metric_note = []
             mae = metrics.get("mae")
             r2 = metrics.get("test_score") if metrics.get("test_score") is not None else metrics.get("r2")
@@ -707,6 +727,10 @@ class IrrigationPredictor:
                     confidence=confidence,
                 )
 
+            reason = "metrics_below_threshold"
+            if not metrics:
+                reason = "metrics_missing"
+            self._log_gate_block("response_predictor", metrics, reason)
             return UserResponsePrediction(
                 approve_probability=0.0,
                 delay_probability=0.0,
@@ -875,6 +899,10 @@ class IrrigationPredictor:
                     ),
                 )
 
+            reason = "metrics_below_threshold"
+            if not metrics:
+                reason = "metrics_missing"
+            self._log_gate_block("duration_optimizer", metrics, reason)
             return DurationPrediction(
                 recommended_seconds=current_default_seconds,
                 current_default_seconds=current_default_seconds,
@@ -1091,6 +1119,10 @@ class IrrigationPredictor:
                     ),
                 )
 
+            reason = "metrics_below_threshold"
+            if not metrics:
+                reason = "metrics_missing"
+            self._log_gate_block("timing_predictor", metrics, reason)
             metric_note = []
             if metrics.get("top3_accuracy") is not None:
                 metric_note.append(f"top3={metrics.get('top3_accuracy'):.2f}")

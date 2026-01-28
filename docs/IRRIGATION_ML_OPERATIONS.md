@@ -40,6 +40,9 @@ Models are only used when they meet minimum quality thresholds. If not, inferenc
 | duration_optimizer | MAE, MAPE | **MAE ≤ 25** AND **MAPE ≤ 0.40** |
 | timing_predictor | top3_accuracy, MRR | **top3 ≥ 0.60** AND **MRR ≥ 0.55** |
 
+## Class Balance Monitoring (Timing Predictor)
+Timing training checks for class imbalance. If the smallest hour bucket has fewer than 3 samples or <5% of data, a warning is logged and the metadata includes:\n+- `class_distribution`\n+- `class_balance_warning`
+
 **Important behavior:**
 - **No heuristic fallbacks for irrigation ML predictions.** If ML doesn’t pass gating:\n+  - Timing returns `preferred_time="00:00"` with `confidence=0.0` and a reason.\n+  - Threshold returns the current threshold with `confidence=0.0` and a reason.\n+  - Duration returns the current default duration with `confidence=0.0`.\n+  - Response returns zeroed probabilities with `confidence=0.0`.
 

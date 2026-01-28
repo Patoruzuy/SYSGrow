@@ -1239,6 +1239,21 @@ class MLTrainerService:
             label_encoder = LabelEncoder()
             y = label_encoder.fit_transform(df["preferred_hour"].astype(int))
             class_names = list(label_encoder.classes_)
+            class_values, class_counts = np.unique(df["preferred_hour"].astype(int), return_counts=True)
+            class_distribution = {
+                int(label): int(count) for label, count in zip(class_values, class_counts)
+            }
+            total_samples = int(class_counts.sum()) if len(class_counts) else 0
+            min_count = int(class_counts.min()) if len(class_counts) else 0
+            min_fraction = (min_count / total_samples) if total_samples > 0 else 0.0
+            class_balance_warning = bool(min_count < 3 or min_fraction < 0.05)
+            if class_balance_warning:
+                self.logger.warning(
+                    "Timing training data is imbalanced: min_count=%s min_fraction=%.3f classes=%s",
+                    min_count,
+                    min_fraction,
+                    class_distribution,
+                )
 
             X_train, X_test, y_train, y_test = train_test_split(
                 X,
@@ -1316,7 +1331,11 @@ class MLTrainerService:
                     "model_type": "irrigation_timing_prediction",
                     "features": feature_columns,
                     "metrics": metrics,
-                    "parameters": {"class_names": class_names},
+                    "parameters": {
+                        "class_names": class_names,
+                        "class_distribution": class_distribution,
+                        "class_balance_warning": class_balance_warning,
+                    },
                     "training_samples": len(X_train),
                     "feature_importance": {k: float(v) for k, v in feature_importance.items()},
                 }
@@ -1341,6 +1360,8 @@ class MLTrainerService:
                 "mrr": round(mrr, 4),
                 "cv_mean": round(float(np.mean(cv_scores)), 4),
                 "cv_std": round(float(np.std(cv_scores)), 4),
+                "class_distribution": class_distribution,
+                "class_balance_warning": class_balance_warning,
                 "feature_importance": {k: round(float(v), 4) for k, v in feature_importance.items()},
                 "training_time_seconds": round(training_time, 2),
             }

@@ -41,7 +41,7 @@ class PlantJournalRepository:
                     entry_id INTEGER PRIMARY KEY AUTOINCREMENT,
                     plant_id INTEGER NOT NULL,
                     unit_id INTEGER,        -- Unit ID for context
-                    entry_type TEXT NOT NULL,  -- 'observation', 'nutrient', 'treatment', 'note'
+                    entry_type TEXT NOT NULL,  -- 'observation', 'nutrient', 'treatment', 'note', 'watering'
                     
                     -- Observation fields
                     observation_type TEXT,  -- 'health', 'growth', 'pest', 'disease', 'general'

@@ -72,6 +72,10 @@ Readiness endpoints:
 - `POST /api/ml/readiness/irrigation/<unit_id>/deactivate/<model>`
 - `GET /api/ml/readiness/irrigation/<unit_id>/status`
 
+## Journal Watering Endpoint
+Manual watering entries can be recorded via:
+- `POST /api/plants/journal/watering`
+
 ## Retraining Schedule
 Automated retraining jobs are registered in `AutomatedRetrainingService`:
 

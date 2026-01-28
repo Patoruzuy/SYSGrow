@@ -439,7 +439,7 @@ def get_journal_entries():
         limit: Maximum number of entries (default: 100)
         plant_id: Filter by plant ID
         unit_id: Filter by unit ID
-        entry_type: Filter by type (observation|nutrient|treatment|note)
+        entry_type: Filter by type (observation|nutrient|treatment|note|watering)
         days: Only entries from last N days
     
     Returns:
@@ -449,7 +449,7 @@ def get_journal_entries():
                     "entry_id": int,
                     "plant_id": int,
                     "plant_name": str,
-                    "entry_type": "observation|nutrient|treatment|note",
+                    "entry_type": "observation|nutrient|treatment|note|watering",
                     "observation_type": str (if observation),
                     "nutrient_type": str (if nutrient),
                     "amount": float (if nutrient),
@@ -628,3 +628,56 @@ def create_nutrient_record():
     except Exception as e:
         logger.error(f"Error recording nutrients: {e}")
         return _fail("Failed to record nutrients", 500)
+
+
+@plants_api.post("/journal/watering")
+def create_watering_record():
+    """
+    Record a manual watering event in the plant journal.
+
+    Form Data:
+        plant_id: int (required)
+        unit_id: int (optional - will be inferred if missing)
+        amount: float (optional)
+        unit: str (optional) - ml|l (default: ml)
+        notes: str (optional)
+        watered_at_utc: str (optional ISO timestamp)
+        user_id: int (optional)
+    """
+    try:
+        plant_id = request.form.get("plant_id", type=int)
+        unit_id = request.form.get("unit_id", type=int)
+        amount = request.form.get("amount", type=float)
+        unit = request.form.get("unit", "ml")
+        notes = request.form.get("notes", "").strip()
+        watered_at_utc = request.form.get("watered_at_utc")
+        user_id = request.form.get("user_id", type=int)
+
+        if not plant_id:
+            return _fail("plant_id is required", 400)
+
+        if unit_id is None:
+            plant = _plant_service().get_plant(plant_id)
+            if plant is not None:
+                unit_id = getattr(plant, "unit_id", None) or getattr(plant, "unit", None)
+
+        entry_id = _journal_service().record_watering_event(
+            plant_id=plant_id,
+            unit_id=unit_id,
+            amount=amount,
+            unit=unit,
+            notes=notes,
+            user_id=user_id,
+            watered_at_utc=watered_at_utc,
+        )
+
+        if not entry_id:
+            return _fail("Failed to record watering event", 500)
+
+        return _success({
+            "entry_id": entry_id,
+            "message": "Watering recorded successfully",
+        }, 201)
+    except Exception as e:
+        logger.error(f"Error recording watering event: {e}")
+        return _fail("Failed to record watering event", 500)

@@ -1693,6 +1693,7 @@ class MLTrainerService:
     ):
         """Collect training data for irrigation timing prediction model."""
         import pandas as pd
+        from zoneinfo import ZoneInfo
 
         try:
             start_date = (datetime.now() - timedelta(days=days)).isoformat()
@@ -1709,15 +1710,50 @@ class MLTrainerService:
 
             # Temporal features from detected_at
             if "detected_at" in df.columns:
-                df["detected_at"] = pd.to_datetime(df["detected_at"])
-                df["hour_of_day"] = df["detected_at"].dt.hour
-                df["day_of_week"] = df["detected_at"].dt.dayofweek
-                df["is_weekend"] = (df["day_of_week"] >= 5).astype(int)
+                df["detected_at"] = pd.to_datetime(df["detected_at"], utc=True, errors="coerce")
 
             # Preferred hour label from delayed_until
             if "delayed_until" in df.columns:
-                df["delayed_until"] = pd.to_datetime(df["delayed_until"])
-                df["preferred_hour"] = df["delayed_until"].dt.hour
+                df["delayed_until"] = pd.to_datetime(df["delayed_until"], utc=True, errors="coerce")
+
+            detected_series = df.get("detected_at")
+            delayed_series = df.get("delayed_until")
+            if "timezone" in df.columns and df["timezone"].notna().any():
+                detected_local = detected_series.copy()
+                delayed_local = delayed_series.copy()
+                tz_cache: Dict[str, Optional[ZoneInfo]] = {}
+
+                def _resolve_tz(tz_name: Optional[str]) -> Optional[ZoneInfo]:
+                    if not tz_name:
+                        return None
+                    cached = tz_cache.get(tz_name)
+                    if cached is not None or tz_name in tz_cache:
+                        return cached
+                    try:
+                        tz_cache[tz_name] = ZoneInfo(tz_name)
+                    except Exception:
+                        self.logger.debug("Invalid timezone '%s' in timing data; using UTC", tz_name)
+                        tz_cache[tz_name] = None
+                    return tz_cache[tz_name]
+
+                for tz_name, idx in df.groupby("timezone").groups.items():
+                    tz = _resolve_tz(tz_name)
+                    if tz:
+                        try:
+                            detected_local.loc[idx] = detected_series.loc[idx].dt.tz_convert(tz)
+                            delayed_local.loc[idx] = delayed_series.loc[idx].dt.tz_convert(tz)
+                        except Exception:
+                            self.logger.debug("Failed to localize timing timestamps for timezone %s", tz_name)
+                detected_series = detected_local
+                delayed_series = delayed_local
+
+            if detected_series is not None:
+                df["hour_of_day"] = detected_series.dt.hour
+                df["day_of_week"] = detected_series.dt.dayofweek
+                df["is_weekend"] = (df["day_of_week"] >= 5).astype(int)
+
+            if delayed_series is not None:
+                df["preferred_hour"] = delayed_series.dt.hour
 
             # Drop rows without target
             df = df.dropna(subset=["preferred_hour"])

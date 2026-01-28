@@ -26,6 +26,10 @@ All irrigation ML models share canonical feature lists in:
 Feature alignment is enforced via:
 - `FeatureEngineer.align_features(df, feature_list)`
 
+## Timezone Handling (Timing Predictor)
+Timing features are computed in the unit’s local timezone (IANA string from `GrowthUnits.timezone`):
+- Training: `detected_at` and `delayed_until` are converted to unit-local time before extracting hour/day.\n+- Inference: the unit’s timezone is used to compute current hour/day for timing features.
+
 ## Metric Gating (Tolerances)
 Models are only used when they meet minimum quality thresholds. If not, inference returns confidence **0.0** and a reasoning string indicating ML is not ready.
 

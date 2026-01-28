@@ -21,6 +21,7 @@ from typing import Any, Dict
 from flask import Blueprint, jsonify, request, session
 from pydantic import ValidationError
 from app.utils.time import iso_now
+from zoneinfo import ZoneInfo
 
 from app.enums.growth import PlantStage
 from app.schemas import DiseaseRiskRequest, GrowthComparisonRequest, WhatIfSimulationRequest
@@ -35,6 +36,26 @@ from app.blueprints.api._common import (
 logger = logging.getLogger(__name__)
 
 predictions_bp = Blueprint("ml_predictions", __name__, url_prefix="/api/ml/predictions")
+
+def _get_unit_timezone(unit_id: int) -> str | None:
+    try:
+        growth_service = get_growth_service()
+        if not growth_service:
+            return None
+        unit = growth_service.get_unit(unit_id)
+        if isinstance(unit, dict):
+            return unit.get("timezone")
+        return getattr(unit, "timezone", None)
+    except Exception:
+        return None
+
+def _resolve_unit_now(unit_timezone: str | None) -> datetime:
+    if not unit_timezone:
+        return datetime.now()
+    try:
+        return datetime.now(ZoneInfo(unit_timezone))
+    except Exception:
+        return datetime.now()
 
 
 def _get_irrigation_predictor(container):
@@ -151,13 +172,16 @@ def _build_irrigation_feature_context(
             "irrigation_history": [],
             "user_preferences": {},
             "plant_info": {},
+            "unit_timezone": _get_unit_timezone(unit_id),
         }
 
-    return workflow_service.build_irrigation_feature_inputs(
+    context = workflow_service.build_irrigation_feature_inputs(
         unit_id=unit_id,
         plant_id=plant_id,
         user_id=user_id,
     )
+    context["unit_timezone"] = _get_unit_timezone(unit_id)
+    return context
 
 
 # ==================== Disease Prediction ====================
@@ -1377,14 +1401,13 @@ def get_irrigation_timing_prediction(unit_id: int):
     }
     """
     try:
-        from datetime import datetime
-        
         container = _container()
         irrigation_predictor = _get_irrigation_predictor(container)
         if not irrigation_predictor:
             return _fail("Irrigation prediction service not available", 503)
         
-        now = datetime.now()
+        unit_timezone = _get_unit_timezone(unit_id)
+        now = _resolve_unit_now(unit_timezone)
         user_id, auth_error = _require_user_id()
         if auth_error:
             return auth_error
@@ -1399,6 +1422,8 @@ def get_irrigation_timing_prediction(unit_id: int):
             unit_id=unit_id,
             day_of_week=now.weekday(),
             feature_context=feature_context,
+            unit_timezone=unit_timezone,
+            current_time=now,
         )
         
         return _success(prediction.to_dict())

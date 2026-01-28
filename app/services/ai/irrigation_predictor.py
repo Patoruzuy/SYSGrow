@@ -16,7 +16,8 @@ Date: January 2026
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
 from app.domain.irrigation import (
@@ -352,6 +353,28 @@ class IrrigationPredictor:
             feature_context.get("user_preferences") or {},
             feature_context.get("plant_info") or {},
         )
+
+    @staticmethod
+    def _resolve_feature_timezone(feature_context: Optional[Dict[str, Any]]) -> Optional[str]:
+        if not feature_context:
+            return None
+        tz_value = feature_context.get("unit_timezone")
+        if tz_value:
+            return str(tz_value)
+        current_conditions = feature_context.get("current_conditions") or {}
+        tz_value = current_conditions.get("unit_timezone")
+        return str(tz_value) if tz_value else None
+
+    @staticmethod
+    def _localize_time(dt: datetime, unit_timezone: Optional[str]) -> datetime:
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        if unit_timezone:
+            try:
+                return dt.astimezone(ZoneInfo(unit_timezone))
+            except Exception:
+                pass
+        return dt
     
     def predict_threshold(
         self,
@@ -916,6 +939,8 @@ class IrrigationPredictor:
         day_of_week: int,
         *,
         feature_context: Optional[Dict[str, Any]] = None,
+        unit_timezone: Optional[str] = None,
+        current_time: Optional[datetime] = None,
     ) -> TimingPrediction:
         """
         Predict user's preferred irrigation time.
@@ -936,7 +961,10 @@ class IrrigationPredictor:
                 current_conditions, irrigation_history, _, _ = self._build_feature_context(
                     feature_context
                 )
-                now = utc_now()
+                tz_name = unit_timezone or self._resolve_feature_timezone(feature_context)
+                base_time = current_time or utc_now()
+                now = self._localize_time(base_time, tz_name)
+                day_of_week = now.weekday()
                 hours_since = (
                     current_conditions.get("hours_since_last_irrigation")
                     or self._compute_hours_since_last_irrigation(irrigation_history, now=now)
@@ -1076,7 +1104,8 @@ class IrrigationPredictor:
         Returns:
             IrrigationPrediction with all predictions
         """
-        now = utc_now()
+        unit_timezone = self._resolve_feature_timezone(feature_context)
+        now = self._localize_time(utc_now(), unit_timezone)
         predictions = IrrigationPrediction(
             unit_id=unit_id,
             generated_at=now.isoformat(),
@@ -1137,6 +1166,8 @@ class IrrigationPredictor:
                 unit_id=unit_id,
                 day_of_week=now.weekday(),
                 feature_context=feature_context,
+                unit_timezone=unit_timezone,
+                current_time=now,
             )
             if predictions.timing.confidence > 0:
                 predictions.models_used.append("timing_predictor")

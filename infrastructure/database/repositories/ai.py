@@ -1262,8 +1262,10 @@ class AITrainingDataRepository:
                     p.soil_moisture_threshold,
                     p.temperature_at_detection,
                     p.humidity_at_detection,
-                    p.hours_since_last_irrigation
+                    p.hours_since_last_irrigation,
+                    g.timezone
                 FROM PendingIrrigationRequest p
+                LEFT JOIN GrowthUnits g ON p.unit_id = g.unit_id
                 WHERE {where_clause}
                 ORDER BY p.detected_at DESC
                 LIMIT ?

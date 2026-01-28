@@ -310,23 +310,3 @@ class PlantRepository:
     def get_plant_total_light_hours(self, plant_id: int) -> float:
         """Get total light hours for a plant."""
         return self._backend.get_plant_total_light_hours(plant_id)
-
-    def get_latest_threshold_overrides(
-        self,
-        *,
-        user_id: int,
-        plant_type: str,
-        growth_stage: str,
-        plant_variety: Optional[str] = None,
-        strain_variety: Optional[str] = None,
-        pot_size_liters: Optional[float] = None,
-    ) -> Optional[Dict[str, Any]]:
-        """Fetch latest threshold overrides for a matching plant context."""
-        return self._backend.get_latest_threshold_overrides(
-            user_id=user_id,
-            plant_type=plant_type,
-            growth_stage=growth_stage,
-            plant_variety=plant_variety,
-            strain_variety=strain_variety,
-            pot_size_liters=pot_size_liters,
-        )

@@ -1,9 +1,10 @@
 import requests
 import sys
 import json
+import os
 
 def verify_sensor_graph():
-    url = "http://127.0.0.1:5000/api/analytics/sensors/history"
+    url = os.getenv("SENSOR_GRAPH_URL", "http://127.0.0.1:5000/api/analytics/sensors/history")
     try:
         print(f"Requesting {url}...")
         response = requests.get(url)

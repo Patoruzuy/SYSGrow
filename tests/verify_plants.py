@@ -6,7 +6,10 @@ with open('plants_info.json', 'r') as f:
 print(f'Total plants: {len(data["plants_info"])}')
 
 for plant_id in [10, 11, 12, 13, 14, 15]:
-    p = [p for p in data['plants_info'] if p['id'] == plant_id][0]
+    p = next((p for p in data['plants_info'] if p['id'] == plant_id), None)
+    if p is None:
+        print(f"\nPlant {plant_id} not found in data.")
+        continue
     print(f"\nPlant {plant_id} ({p['common_name']}):")
     has_automation = 'automation' in p
     has_common_issues = 'common_issues' in p

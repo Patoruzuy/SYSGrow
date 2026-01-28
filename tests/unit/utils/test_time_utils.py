@@ -25,4 +25,5 @@ def test_coerce_datetime_parses_naive_as_utc():
     assert dt.tzinfo is not None
     assert dt.utcoffset() == timedelta(0)
 
-    _ = utc_now() - dt
+    time_diff = utc_now() - dt
+    assert isinstance(time_diff, timedelta)

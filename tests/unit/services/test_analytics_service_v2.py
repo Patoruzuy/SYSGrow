@@ -96,7 +96,7 @@ class TestAnalyticsServiceV2:
             # (90*0.4) + (80*0.3) + (70*0.3) = 36 + 24 + 21 = 81
             assert result['overall_score'] == 81.0
             assert result['grade'] == 'B'
-            assert result['trend'] == 'stable' # 81.0 - (85*0.4 + 82*0.3 + 75*0.3) = 81.0 - (34 + 24.6 + 22.5) = 81.0 - 81.1 = -0.1
+            assert result['trend'] == 'stable'  # delta = 81.0 - (85*0.4 + 82*0.3 + 75*0.3) = 81.0 - 81.1 = -0.1; abs(delta) < 0.5 is treated as a 'stable' trend
 
     def test_get_actuators_analytics_overview(self, analytics_service, mock_device_repo):
         # Setup

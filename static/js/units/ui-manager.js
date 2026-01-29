@@ -65,6 +65,8 @@
     init() {
       this._cacheElements();
       this._setupEventListeners();
+      this._initUnitProfileSelector();
+      this._initUnitPlantProfileSelector();
       this.loadUnitsOverview();
     }
 
@@ -84,6 +86,23 @@
                                    document.getElementById('add-plant-form');
       this.elements.thresholdsForm = document.getElementById('thresholdsForm') ||
                                      document.getElementById('thresholds-form');
+
+      this.elements.unitProfileSelector = document.getElementById('unitProfileSelector');
+      this.elements.unitProfileSelectionSummary = document.getElementById('unitProfileSelectionSummary');
+      this.elements.unitProfileChip = document.getElementById('unitProfileChip');
+      this.elements.unitProfilePlantType = document.getElementById('unitProfilePlantType');
+      this.elements.unitProfileStage = document.getElementById('unitProfileStage');
+      this.elements.unitProfileImportToken = document.getElementById('unitProfileImportToken');
+      this.elements.unitConditionProfileId = document.getElementById('unitConditionProfileId');
+      this.elements.unitConditionProfileMode = document.getElementById('unitConditionProfileMode');
+      this.elements.unitProfileCloneName = document.getElementById('unitProfileCloneName');
+
+      this.elements.unitPlantProfileSelector = document.getElementById('unitPlantProfileSelector');
+      this.elements.unitPlantProfileSelectionSummary = document.getElementById('unitPlantProfileSelectionSummary');
+      this.elements.unitPlantProfileChip = document.getElementById('unitPlantProfileChip');
+      this.elements.unitPlantProfileImportToken = document.getElementById('unitPlantProfileImportToken');
+      this.elements.unitPlantConditionProfileId = document.getElementById('unitPlantConditionProfileId');
+      this.elements.unitPlantConditionProfileMode = document.getElementById('unitPlantConditionProfileMode');
 
       // Cache overview stat elements
       this.elements.totalUnits = document.getElementById('totalUnits');
@@ -126,6 +145,10 @@
       modal.classList.add('active');
       document.body.style.overflow = 'hidden';
 
+      if (modalId === 'createUnitModal') {
+        this._loadUnitProfileSelector();
+      }
+
       // Focus trap
       const focusable = modal.querySelectorAll('button, input, select, textarea, [tabindex]:not([tabindex="-1"])');
       if (focusable.length) {
@@ -144,6 +167,12 @@
       // Reset forms within modal
       const forms = modal.querySelectorAll('form');
       forms.forEach(form => form.reset());
+      if (modalId === 'createUnitModal') {
+        this._resetUnitProfileSelection();
+      }
+      if (modalId === 'addPlantModal') {
+        this._resetUnitPlantProfileSelection();
+      }
     }
 
     closeAllModals() {
@@ -888,6 +917,15 @@
       const form = e.target;
       const formData = new FormData(form);
       const data = Object.fromEntries(formData.entries());
+      const profileId = data.condition_profile_id || null;
+      const profileMode = data.condition_profile_mode || 'active';
+      const profileName = data.condition_profile_name || null;
+
+      delete data.condition_profile_id;
+      delete data.condition_profile_mode;
+      delete data.condition_profile_name;
+      delete data.profile_plant_type;
+      delete data.profile_growth_stage;
 
       const submitBtn = form.querySelector('button[type="submit"]');
       if (submitBtn) {
@@ -899,6 +937,15 @@
         const result = await this.dataService.createUnit(data);
 
         if (result.ok) {
+          const unit = result.data || {};
+          const unitId = unit.unit_id || unit.id || unit.unitId;
+          if (profileId && unitId) {
+            await API.PersonalizedLearning.applyConditionProfileToUnit(unitId, {
+              profile_id: profileId,
+              mode: profileMode,
+              name: profileName || undefined,
+            });
+          }
           this.closeModal('createUnitModal');
           await this.loadUnitsOverview();
           this.showToast('Unit created successfully', 'success');
@@ -913,6 +960,210 @@
           submitBtn.disabled = false;
           submitBtn.innerHTML = '<i class="fas fa-plus"></i> Create Unit';
         }
+      }
+    }
+
+    _getUserId() {
+      const raw = document.body?.dataset?.userId;
+      const parsed = raw ? parseInt(raw, 10) : NaN;
+      return Number.isFinite(parsed) ? parsed : 1;
+    }
+
+    _initUnitProfileSelector() {
+      if (!this.elements.unitProfileSelector || !window.ProfileSelector) {
+        return;
+      }
+      this.unitProfileSelector = new window.ProfileSelector(
+        this.elements.unitProfileSelector,
+        {
+          onSelect: async (profile, sectionType) => {
+            let selectedProfile = profile;
+            if (sectionType === 'public' && profile.shared_token) {
+              const imported = await API.PersonalizedLearning.importSharedConditionProfile({
+                user_id: this._getUserId(),
+                token: profile.shared_token,
+                name: profile.name || undefined,
+                mode: 'active',
+              });
+              selectedProfile = imported?.profile || imported?.data?.profile || profile;
+            }
+            const mode = sectionType === 'template' ? 'active' : (profile.mode || 'active');
+            this._setUnitProfileSelection(selectedProfile, mode);
+            return selectedProfile;
+          },
+        }
+      );
+
+      if (this.elements.unitProfilePlantType) {
+        this.elements.unitProfilePlantType.addEventListener('input', () => {
+          this._loadUnitProfileSelector();
+        });
+      }
+      if (this.elements.unitProfileStage) {
+        this.elements.unitProfileStage.addEventListener('change', () => {
+          this._loadUnitProfileSelector();
+        });
+      }
+    }
+
+    _loadUnitProfileSelector() {
+      if (!this.unitProfileSelector) return;
+      const plantType = this.elements.unitProfilePlantType?.value?.trim();
+      const growthStage = this.elements.unitProfileStage?.value?.trim();
+      this.unitProfileSelector.load({
+        user_id: this._getUserId(),
+        plant_type: plantType || undefined,
+        growth_stage: growthStage || undefined,
+      });
+    }
+
+    _setUnitProfileSelection(profile, mode) {
+      if (this.elements.unitConditionProfileId) {
+        this.elements.unitConditionProfileId.value = profile?.profile_id || '';
+      }
+      if (this.elements.unitConditionProfileMode) {
+        this.elements.unitConditionProfileMode.value = mode || 'active';
+      }
+      if (this.elements.unitProfileSelectionSummary) {
+        this.elements.unitProfileSelectionSummary.textContent = profile
+          ? `Selected: ${profile.name || profile.profile_id}`
+          : 'No profile selected';
+      }
+      if (this.elements.unitProfileChip) {
+        this.elements.unitProfileChip.textContent = profile ? (profile.name || 'Profile selected') : 'No profile';
+        this.elements.unitProfileChip.classList.toggle('active', Boolean(profile));
+      }
+    }
+
+    _resetUnitProfileSelection() {
+      this._setUnitProfileSelection(null, 'active');
+      if (this.unitProfileSelector) {
+        this.unitProfileSelector.setSelected('');
+      }
+    }
+
+    async handleImportUnitProfile() {
+      if (!this.elements.unitProfileImportToken) return;
+      const token = this.elements.unitProfileImportToken.value.trim();
+      if (!token) {
+        this.showToast('Paste a share token first', 'error');
+        return;
+      }
+      try {
+        const imported = await API.PersonalizedLearning.importSharedConditionProfile({
+          user_id: this._getUserId(),
+          token,
+          mode: 'active',
+        });
+        const profile = imported?.profile || imported?.data?.profile;
+        if (profile) {
+          this._setUnitProfileSelection(profile, 'active');
+          this.unitProfileSelector.setSelected(profile.profile_id);
+          this.showToast('Profile imported', 'success');
+          this._loadUnitProfileSelector();
+        }
+      } catch (error) {
+        console.error('[UnitsUIManager] import profile failed:', error);
+        this.showToast('Failed to import profile', 'error');
+      }
+    }
+
+    _initUnitPlantProfileSelector() {
+      if (!this.elements.unitPlantProfileSelector || !window.ProfileSelector) {
+        return;
+      }
+      this.unitPlantProfileSelector = new window.ProfileSelector(
+        this.elements.unitPlantProfileSelector,
+        {
+          onSelect: async (profile, sectionType) => {
+            let selectedProfile = profile;
+            if (sectionType === 'public' && profile.shared_token) {
+              const imported = await API.PersonalizedLearning.importSharedConditionProfile({
+                user_id: this._getUserId(),
+                token: profile.shared_token,
+                name: profile.name || undefined,
+                mode: 'active',
+              });
+              selectedProfile = imported?.profile || imported?.data?.profile || profile;
+            }
+            const mode = sectionType === 'template' ? 'active' : (profile.mode || 'active');
+            this._setUnitPlantProfileSelection(selectedProfile, mode);
+            return selectedProfile;
+          },
+        }
+      );
+      const plantTypeInput = document.querySelector('#addPlantForm [name="plant_type"]');
+      if (plantTypeInput) {
+        plantTypeInput.addEventListener('input', () => this._loadUnitPlantProfileSelector());
+      }
+      const stageInput = document.querySelector('#addPlantForm [name="current_stage"]');
+      if (stageInput) {
+        stageInput.addEventListener('change', () => this._loadUnitPlantProfileSelector());
+      }
+    }
+
+    _loadUnitPlantProfileSelector() {
+      if (!this.unitPlantProfileSelector) {
+        this._initUnitPlantProfileSelector();
+      }
+      if (!this.unitPlantProfileSelector) return;
+      const plantType = document.querySelector('#addPlantForm [name="plant_type"]')?.value?.trim();
+      const stage = document.querySelector('#addPlantForm [name="current_stage"]')?.value?.trim();
+      this.unitPlantProfileSelector.load({
+        user_id: this._getUserId(),
+        plant_type: plantType || undefined,
+        growth_stage: stage || undefined,
+      });
+    }
+
+    _setUnitPlantProfileSelection(profile, mode) {
+      if (this.elements.unitPlantConditionProfileId) {
+        this.elements.unitPlantConditionProfileId.value = profile?.profile_id || '';
+      }
+      if (this.elements.unitPlantConditionProfileMode) {
+        this.elements.unitPlantConditionProfileMode.value = mode || 'active';
+      }
+      if (this.elements.unitPlantProfileSelectionSummary) {
+        this.elements.unitPlantProfileSelectionSummary.textContent = profile
+          ? `Selected: ${profile.name || profile.profile_id}`
+          : 'No profile selected';
+      }
+      if (this.elements.unitPlantProfileChip) {
+        this.elements.unitPlantProfileChip.textContent = profile ? (profile.name || 'Profile selected') : 'No profile';
+        this.elements.unitPlantProfileChip.classList.toggle('active', Boolean(profile));
+      }
+    }
+
+    _resetUnitPlantProfileSelection() {
+      this._setUnitPlantProfileSelection(null, 'active');
+      if (this.unitPlantProfileSelector) {
+        this.unitPlantProfileSelector.setSelected('');
+      }
+    }
+
+    async handleImportUnitPlantProfile() {
+      if (!this.elements.unitPlantProfileImportToken) return;
+      const token = this.elements.unitPlantProfileImportToken.value.trim();
+      if (!token) {
+        this.showToast('Paste a share token first', 'error');
+        return;
+      }
+      try {
+        const imported = await API.PersonalizedLearning.importSharedConditionProfile({
+          user_id: this._getUserId(),
+          token,
+          mode: 'active',
+        });
+        const profile = imported?.profile || imported?.data?.profile;
+        if (profile) {
+          this._setUnitPlantProfileSelection(profile, 'active');
+          this.unitPlantProfileSelector?.setSelected(profile.profile_id);
+          this.showToast('Profile imported', 'success');
+          this._loadUnitPlantProfileSelector();
+        }
+      } catch (error) {
+        console.error('[UnitsUIManager] import plant profile failed:', error);
+        this.showToast('Failed to import profile', 'error');
       }
     }
 
@@ -2050,6 +2301,10 @@
 
       const unitId = data.unit_id || this.state.currentUnitId;
 
+      if (!data.condition_profile_id) delete data.condition_profile_id;
+      if (!data.condition_profile_mode) delete data.condition_profile_mode;
+      if (!data.condition_profile_name) delete data.condition_profile_name;
+
       try {
         const result = await this.dataService.addPlant({ ...data, unit_id: unitId });
 
@@ -2114,6 +2369,8 @@
       }
 
       this.openModal(modal.id);
+      this._resetUnitPlantProfileSelection();
+      this._loadUnitPlantProfileSelector();
     }
 
     // --------------------------------------------------------------------------
@@ -2386,6 +2643,22 @@
           // Template's button actions
           case 'open-create-unit-modal':
             this.openModal('createUnitModal');
+            break;
+
+          case 'import-unit-profile':
+            this.handleImportUnitProfile();
+            break;
+
+          case 'import-unit-plant-profile':
+            this.handleImportUnitPlantProfile();
+            break;
+
+          case 'clear-unit-profile':
+            this._resetUnitProfileSelection();
+            break;
+
+          case 'clear-unit-plant-profile':
+            this._resetUnitPlantProfileSelection();
             break;
 
           case 'refresh-all-units':

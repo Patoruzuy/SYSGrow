@@ -57,6 +57,21 @@ class PlantsUIManager extends BaseManager {
             this.addEventListener(guideSearchInput, 'input', (e) => this.searchGuide(e.target.value));
         }
 
+        // Import shared profile tokens
+        this.addDelegatedListener(
+            document.body,
+            'click',
+            '[data-action="import-plant-profile"]',
+            () => this.handleImportPlantProfile()
+        );
+
+        this.addDelegatedListener(
+            document.body,
+            'click',
+            '[data-action="clear-plant-profile"]',
+            () => this._resetPlantProfileSelection()
+        );
+
         // Modal trigger buttons
         const addPlantBtn = document.getElementById('add-plant-btn');
         if (addPlantBtn) {
@@ -794,6 +809,11 @@ class PlantsUIManager extends BaseManager {
             this._plantSelectHandler = (e) => this.handleCatalogSelection(e.target.value);
             plantSelect.addEventListener('change', this._plantSelectHandler);
         }
+
+        const customPlantType = document.getElementById('custom-plant-type');
+        if (customPlantType) {
+            customPlantType.addEventListener('input', () => this._loadPlantProfileSelector());
+        }
         
         // Bind form submission
         const form = document.getElementById('add-plant-form');
@@ -803,6 +823,12 @@ class PlantsUIManager extends BaseManager {
             }
             this._formSubmitHandler = (e) => this.handleAddPlant(e);
             form.addEventListener('submit', this._formSubmitHandler);
+        }
+
+        // Bind stage change for profile filtering
+        const stageSelect = document.getElementById('plant-stage');
+        if (stageSelect) {
+            stageSelect.addEventListener('change', () => this._loadPlantProfileSelector());
         }
         
         // Bind cancel button
@@ -814,6 +840,9 @@ class PlantsUIManager extends BaseManager {
         modal.hidden = false;
         modal.classList.add('is-open');
         modal.setAttribute('aria-hidden', 'false');
+        this._initPlantProfileSelector();
+        this._resetPlantProfileSelection();
+        this._loadPlantProfileSelector();
         this.log('Opened add plant modal');
     }
 
@@ -842,6 +871,7 @@ class PlantsUIManager extends BaseManager {
         }
         
         this.log(`Switched to ${mode} mode`);
+        this._loadPlantProfileSelector();
     }
 
     /**
@@ -863,6 +893,9 @@ class PlantsUIManager extends BaseManager {
             strain_variety: formData.get('strain_variety') || null,
             expected_yield_grams: parseFloat(formData.get('expected_yield_grams')) || null,
             light_distance_cm: parseFloat(formData.get('light_distance_cm')) || null,
+            condition_profile_id: formData.get('condition_profile_id') || null,
+            condition_profile_mode: formData.get('condition_profile_mode') || null,
+            condition_profile_name: formData.get('condition_profile_name') || null,
             csrf_token: formData.get('csrf_token')
         };
         
@@ -1046,6 +1079,7 @@ class PlantsUIManager extends BaseManager {
             modal.classList.remove('active');
             modal.setAttribute('aria-hidden', 'true');
         });
+        this._resetPlantProfileSelection?.();
         this.log('Closed all modals');
     }
 
@@ -1133,6 +1167,7 @@ class PlantsUIManager extends BaseManager {
             this.log('Selected plant:', plant);
             this.fillPlantFromCatalog(plant);
             this.displayPlantRequirements(plant);
+            this._loadPlantProfileSelector();
         } catch (error) {
             this.error('Failed to load plant details:', error);
         }
@@ -1255,6 +1290,106 @@ class PlantsUIManager extends BaseManager {
         if (potHelp) potHelp.textContent = '';
         
         this.log('Cleared plant requirements');
+    }
+
+    _getUserId() {
+        const raw = document.body?.dataset?.userId;
+        const parsed = raw ? parseInt(raw, 10) : NaN;
+        return Number.isFinite(parsed) ? parsed : 1;
+    }
+
+    _initPlantProfileSelector() {
+        const container = document.getElementById('plantProfileSelector');
+        if (!container || !window.ProfileSelector) {
+            return;
+        }
+        if (this.plantProfileSelector) {
+            return;
+        }
+        this.plantProfileSelector = new window.ProfileSelector(container, {
+            onSelect: async (profile, sectionType) => {
+                let selectedProfile = profile;
+                if (sectionType === 'public' && profile.shared_token) {
+                    const imported = await API.PersonalizedLearning.importSharedConditionProfile({
+                        user_id: this._getUserId(),
+                        token: profile.shared_token,
+                        name: profile.name || undefined,
+                        mode: 'active',
+                    });
+                    selectedProfile = imported?.profile || imported?.data?.profile || profile;
+                }
+                const mode = sectionType === 'template' ? 'active' : (profile.mode || 'active');
+                this._setPlantProfileSelection(selectedProfile, mode);
+                return selectedProfile;
+            },
+        });
+    }
+
+    _getPlantTypeForProfile() {
+        if (this.currentPlantMode === 'custom') {
+            return document.getElementById('custom-plant-type')?.value?.trim();
+        }
+        return document.getElementById('plant-type')?.value?.trim();
+    }
+
+    _loadPlantProfileSelector() {
+        if (!this.plantProfileSelector) return;
+        const plantType = this._getPlantTypeForProfile();
+        const growthStage = document.getElementById('plant-stage')?.value?.trim();
+        this.plantProfileSelector.load({
+            user_id: this._getUserId(),
+            plant_type: plantType || undefined,
+            growth_stage: growthStage || undefined,
+        });
+    }
+
+    _setPlantProfileSelection(profile, mode) {
+        const idInput = document.getElementById('plantConditionProfileId');
+        const modeInput = document.getElementById('plantConditionProfileMode');
+        const summary = document.getElementById('plantProfileSelectionSummary');
+        const chip = document.getElementById('plantProfileChip');
+        if (idInput) idInput.value = profile?.profile_id || '';
+        if (modeInput) modeInput.value = mode || 'active';
+        if (summary) {
+            summary.textContent = profile ? `Selected: ${profile.name || profile.profile_id}` : 'No profile selected';
+        }
+        if (chip) {
+            chip.textContent = profile ? (profile.name || 'Profile selected') : 'No profile';
+            chip.classList.toggle('active', Boolean(profile));
+        }
+    }
+
+    _resetPlantProfileSelection() {
+        this._setPlantProfileSelection(null, 'active');
+        if (this.plantProfileSelector) {
+            this.plantProfileSelector.setSelected('');
+        }
+    }
+
+    async handleImportPlantProfile() {
+        const tokenInput = document.getElementById('plantProfileImportToken');
+        if (!tokenInput) return;
+        const token = tokenInput.value.trim();
+        if (!token) {
+            alert('Paste a share token first');
+            return;
+        }
+        try {
+            const imported = await API.PersonalizedLearning.importSharedConditionProfile({
+                user_id: this._getUserId(),
+                token,
+                mode: 'active',
+            });
+            const profile = imported?.profile || imported?.data?.profile;
+            if (profile) {
+                this._setPlantProfileSelection(profile, 'active');
+                this.plantProfileSelector?.setSelected(profile.profile_id);
+                await this._loadPlantProfileSelector();
+            }
+        } catch (error) {
+            this.error('Failed to import profile:', error);
+            alert('Failed to import profile');
+        }
     }
 
     exportJournal() {

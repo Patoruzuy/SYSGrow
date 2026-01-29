@@ -66,6 +66,7 @@
 <body
   class="{% block body_class %}{% endblock %}"
   {% if _active_unit_id %}data-active-unit-id="{{ _active_unit_id }}"{% endif %}
+  data-user-id="{{ session.get('user_id', 1) }}"
 >
   <a href="#main-content" class="skip-link">Skip to main content</a>
 

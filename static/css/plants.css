@@ -192,6 +192,149 @@ body.plants-compact #disease-units .disease-unit-card .recommendations {
     display: none;
 }
 
+/* Condition profile selector cards */
+.profile-card-panel .profile-selector {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.profile-card-panel .profile-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-3);
+}
+
+.profile-card-panel .profile-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--surface-1);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
+}
+
+.profile-card-panel .profile-card.selected {
+  border-color: var(--brand-600);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.profile-card-panel .profile-card-media {
+  position: relative;
+  height: 120px;
+  overflow: hidden;
+}
+
+.profile-card-panel .profile-card-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.profile-card-panel .profile-card-badge {
+  position: absolute;
+  top: var(--space-3);
+  left: var(--space-3);
+  background: var(--brand-600);
+  color: #fff;
+  font-size: 0.65rem;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.profile-card-panel .profile-card-badge.active { background: var(--brand-700); }
+.profile-card-panel .profile-card-badge.shared { background: var(--brand-500); }
+
+.profile-card-panel .profile-card-body {
+  padding: var(--space-3);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.profile-card-panel .profile-card-title {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--color-text-strong);
+}
+
+.profile-card-panel .profile-card-summary {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.profile-card-panel .profile-card-rating {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.profile-card-panel .profile-card-stars {
+  color: var(--brand-600);
+  display: inline-flex;
+  gap: 2px;
+}
+
+.profile-card-panel .profile-card-meta,
+.profile-card-panel .profile-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.profile-card-panel .profile-tag {
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.profile-card-panel .profile-selection-summary {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  margin: var(--space-2) 0;
+}
+
+.profile-card-panel .profile-selection-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-2);
+}
+
+.profile-chip {
+  margin-left: auto;
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--color-text-muted);
+}
+
+.profile-chip.active {
+  background: var(--brand-50);
+  border-color: var(--brand-300);
+  color: var(--brand-700);
+}
+
+.profile-card-panel .profile-import-row {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  margin-bottom: var(--space-2);
+}
+
+.profile-card-panel .profile-import-row input {
+  flex: 1;
+}
+
 body.plants-compact #disease-units .disease-unit-card .unit-details,
 body.plants-compact #disease-units .disease-unit-card .unit-info p.unit-details {
     display: none;
@@ -1613,4 +1756,3 @@ body.plants-compact #disease-units .disease-unit-card .unit-info p.unit-details 
         width: 100%;
     }
 }
-

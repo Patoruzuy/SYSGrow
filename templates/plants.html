@@ -317,6 +317,7 @@
                 <i class="fas fa-seedling"></i>
                 Add New Plant
             </h2>
+            <span class="profile-chip" id="plantProfileChip">No profile</span>
             <button type="button" class="modal-close" aria-label="Close">
                 <i class="fas fa-times"></i>
             </button>
@@ -406,6 +407,33 @@
                     </div>
                     <div class="col-md-6">
                         {{ ui.form_field('days-in-stage', 'Days in Stage', type='number', name_attr='days_in_stage', value='0', min=0, wrapper_class='form-field') }}
+                    </div>
+                </div>
+
+                <div class="info-card mb-4 p-3 border rounded profile-card-panel">
+                    <h4 class="h6 mb-3">
+                        <i class="fas fa-layer-group me-1"></i> Condition Profile (Optional)
+                    </h4>
+                    <div class="profile-import-row">
+                        <input type="text" id="plantProfileImportToken" placeholder="Paste share token to import">
+                        <button type="button" class="btn btn-outline btn-sm" data-action="import-plant-profile">
+                            <i class="fas fa-link"></i> Import
+                        </button>
+                    </div>
+                    <div class="profile-selection-summary" id="plantProfileSelectionSummary">
+                        No profile selected
+                    </div>
+                    <div class="profile-selection-actions">
+                        <button type="button" class="btn btn-outline btn-sm" data-action="clear-plant-profile">
+                            Clear selection
+                        </button>
+                    </div>
+                    <input type="hidden" id="plantConditionProfileId" name="condition_profile_id">
+                    <input type="hidden" id="plantConditionProfileMode" name="condition_profile_mode">
+                    <div id="plantProfileSelector" class="profile-selector"></div>
+                    <div class="form-group mt-2">
+                        <label for="plantProfileCloneName">Save as new name (optional)</label>
+                        <input type="text" id="plantProfileCloneName" name="condition_profile_name" placeholder="e.g., Veg Boost Profile">
                     </div>
                 </div>
                 
@@ -747,6 +775,7 @@
 
 <!-- Shared components -->
 <script src="{{ url_for('static', filename='js/components/plant-details-modal.js') }}?v=20251228193000"></script>
+<script src="{{ url_for('static', filename='js/components/profile-selector.js') }}?v=20260128193000"></script>
 
 <!-- Load Plants modules -->
 <script src="{{ url_for('static', filename='js/plants/data-service.js') }}?v=20251228193000"></script>

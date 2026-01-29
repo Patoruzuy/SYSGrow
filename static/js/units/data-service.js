@@ -685,7 +685,10 @@
      */
     async addPlant(payload) {
       try {
-        const response = await this.api.Plant.addPlant(payload);
+        const unitId = payload.unit_id;
+        const body = { ...payload };
+        delete body.unit_id;
+        const response = await this.api.Plant.addPlant(unitId, body);
         if (payload.unit_id) {
           this.cache.invalidate(this._key('plants', payload.unit_id));
         }

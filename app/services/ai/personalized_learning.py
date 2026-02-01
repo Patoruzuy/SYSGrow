@@ -664,12 +664,20 @@ class PersonalizedLearningService:
         token: str,
         name: Optional[str] = None,
         mode: ConditionProfileMode = ConditionProfileMode.ACTIVE,
-    ) -> Optional[PlantStageConditionProfile]:
+    ) -> Optional[tuple[PlantStageConditionProfile, bool]]:
         snapshot = self.get_shared_profile(token)
         if not snapshot:
             return None
         source = PlantStageConditionProfile.from_dict(snapshot)
         now = datetime.now()
+        profiles = self._load_condition_profiles(user_id)
+        for profile in profiles:
+            if (
+                profile.profile_id == source.profile_id
+                or profile.source_profile_id == source.profile_id
+                or profile.shared_token == token
+            ):
+                return profile, True
         imported = PlantStageConditionProfile(
             profile_id=uuid4().hex,
             name=name or source.name,
@@ -695,12 +703,11 @@ class PersonalizedLearningService:
             created_at=now,
             updated_at=now,
         )
-        profiles = self._load_condition_profiles(user_id)
         profiles.append(imported)
         self._save_condition_profiles(user_id, profiles)
         self._condition_profile_cache[user_id] = profiles
         self._notify_profile_update()
-        return imported
+        return imported, False
 
     def link_condition_profile(
         self,

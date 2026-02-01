@@ -781,8 +781,9 @@
         return await this._cached(
           cacheKey,
           async () => {
-            const response = await this.api.Analytics.getEnvironmentalMetrics(unitId);
-            return response?.metrics || response?.data || response || null;
+            const response = await this.api.Analytics.getEnvironmentalSummary(unitId);
+            const payload = response?.data || response || null;
+            return payload?.current || payload || null;
           },
           { force }
         );

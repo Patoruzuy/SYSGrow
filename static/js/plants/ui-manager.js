@@ -1007,17 +1007,41 @@ class PlantsUIManager extends BaseManager {
         // Attempt to infer unit id from stored plants
         const plant = this.plants.find(p => Number(p.plant_id) === Number(plantId));
         const unitId = plant?.unit_id || document.body?.dataset?.activeUnitId || null;
+        
+        console.log('[PlantsUIManager] Opening link sensor modal for plant:', plantId, 'unit:', unitId, 'plant:', plant);
 
         try {
-            const data = await window.API.Plant.getAvailableSensors(unitId);
-            const sensors = data?.data || data?.sensors || [];
-            if (!sensors || sensors.length === 0) {
+            // Get already linked sensors for this plant
+            let linkedSensorIds = new Set();
+            try {
+                const linkedResp = await window.API.Plant.getPlantSensors(plantId);
+                console.log('[PlantsUIManager] Linked sensors response:', linkedResp);
+                const linkedSensors = linkedResp?.data?.sensors || linkedResp?.sensors || [];
+                linkedSensorIds = new Set(linkedSensors.map(s => Number(s.sensor_id)));
+            } catch (err) {
+                console.warn('[PlantsUIManager] Could not fetch linked sensors:', err);
+            }
+
+            // Get available sensors
+            const response = await window.API.Plant.getAvailableSensors(unitId);
+            console.log('[PlantsUIManager] Available sensors response:', response);
+            // Handle nested data structure: response.data.sensors
+            const allSensors = response?.data?.sensors || response?.sensors || [];
+            console.log('[PlantsUIManager] All sensors:', allSensors, 'Linked IDs:', Array.from(linkedSensorIds));
+            // Filter out already linked sensors
+            const availableSensors = allSensors.filter(s => !linkedSensorIds.has(Number(s.sensor_id)));
+            console.log('[PlantsUIManager] Available sensors after filtering:', availableSensors);
+            
+            if (!availableSensors || availableSensors.length === 0) {
                 select.innerHTML = '<option value="">No sensors available</option>';
             } else {
-                select.innerHTML = '<option value="">-- Select sensor --</option>' + sensors.map(s => `<option value="${s.sensor_id}">${s.name || s.sensor_id} (${s.type || ''})</option>`).join('');
+                select.innerHTML = '<option value="">-- Select sensor --</option>' + 
+                    availableSensors.map(s => 
+                        `<option value="${s.sensor_id}">${window.escapeHtml(s.name || s.sensor_id)} (${window.escapeHtml(s.type || '')})</option>`
+                    ).join('');
             }
         } catch (err) {
-            console.error('Failed to load sensors', err);
+            console.error('[PlantsUIManager] Failed to load sensors', err);
             select.innerHTML = '<option value="">Failed to load sensors</option>';
         }
 
@@ -1316,13 +1340,38 @@ class PlantsUIManager extends BaseManager {
                         name: profile.name || undefined,
                         mode: 'active',
                     });
-                    selectedProfile = imported?.profile || imported?.data?.profile || profile;
+                    const payload = imported?.data || imported || {};
+                    if (payload.already_imported && window.showToast) {
+                        window.showToast('Profile already in your library. Selected existing profile.', 'info');
+                    }
+                    selectedProfile = payload.profile || imported?.profile || profile;
                 }
                 const mode = sectionType === 'template' ? 'active' : (profile.mode || 'active');
                 this._setPlantProfileSelection(selectedProfile, mode);
                 return selectedProfile;
             },
+            onLoad: (payload) => this._handlePlantProfileLoad(payload),
         });
+    }
+
+    _toggleProfileSelectable(container, hasProfiles) {
+        if (!container) return;
+        container.hidden = !hasProfiles;
+    }
+
+    _handlePlantProfileLoad(payload) {
+        const hasProfiles = Boolean(payload?.hasProfiles);
+        if (!hasProfiles) {
+            const hasFilters = Boolean(
+                this._getPlantTypeForProfile() ||
+                document.getElementById('plant-stage')?.value?.trim()
+            );
+            if (hasFilters) {
+                this._toggleProfileSelectable(document.getElementById('plantProfileSelectable'), true);
+                return;
+            }
+        }
+        this._toggleProfileSelectable(document.getElementById('plantProfileSelectable'), hasProfiles);
     }
 
     _getPlantTypeForProfile() {
@@ -1340,6 +1389,7 @@ class PlantsUIManager extends BaseManager {
             user_id: this._getUserId(),
             plant_type: plantType || undefined,
             growth_stage: growthStage || undefined,
+            target_type: 'plant',
         });
     }
 
@@ -1380,7 +1430,11 @@ class PlantsUIManager extends BaseManager {
                 token,
                 mode: 'active',
             });
-            const profile = imported?.profile || imported?.data?.profile;
+            const payload = imported?.data || imported || {};
+            if (payload.already_imported && window.showToast) {
+                window.showToast('Profile already in your library. Selected existing profile.', 'info');
+            }
+            const profile = payload.profile || imported?.profile;
             if (profile) {
                 this._setPlantProfileSelection(profile, 'active');
                 this.plantProfileSelector?.setSelected(profile.profile_id);

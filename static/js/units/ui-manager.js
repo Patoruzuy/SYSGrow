@@ -88,6 +88,7 @@
                                      document.getElementById('thresholds-form');
 
       this.elements.unitProfileSelector = document.getElementById('unitProfileSelector');
+      this.elements.unitProfileSelectable = document.getElementById('unitProfileSelectable');
       this.elements.unitProfileSelectionSummary = document.getElementById('unitProfileSelectionSummary');
       this.elements.unitProfileChip = document.getElementById('unitProfileChip');
       this.elements.unitProfilePlantType = document.getElementById('unitProfilePlantType');
@@ -98,6 +99,7 @@
       this.elements.unitProfileCloneName = document.getElementById('unitProfileCloneName');
 
       this.elements.unitPlantProfileSelector = document.getElementById('unitPlantProfileSelector');
+      this.elements.unitPlantProfileSelectable = document.getElementById('unitPlantProfileSelectable');
       this.elements.unitPlantProfileSelectionSummary = document.getElementById('unitPlantProfileSelectionSummary');
       this.elements.unitPlantProfileChip = document.getElementById('unitPlantProfileChip');
       this.elements.unitPlantProfileImportToken = document.getElementById('unitPlantProfileImportToken');
@@ -969,6 +971,39 @@
       return Number.isFinite(parsed) ? parsed : 1;
     }
 
+    _toggleProfileSelectable(container, hasProfiles) {
+      if (!container) return;
+      container.hidden = !hasProfiles;
+    }
+
+    _handleUnitProfileLoad(payload) {
+      const hasProfiles = Boolean(payload?.hasProfiles);
+      if (!hasProfiles) {
+        const hasFilters = Boolean(
+          this.elements.unitProfilePlantType?.value?.trim() ||
+          this.elements.unitProfileStage?.value?.trim()
+        );
+        if (hasFilters) {
+          this._toggleProfileSelectable(this.elements.unitProfileSelectable, true);
+          return;
+        }
+      }
+      this._toggleProfileSelectable(this.elements.unitProfileSelectable, hasProfiles);
+    }
+
+    _handleUnitPlantProfileLoad(payload) {
+      const hasProfiles = Boolean(payload?.hasProfiles);
+      if (!hasProfiles) {
+        const plantType = document.querySelector('#addPlantForm [name="plant_type"]')?.value?.trim();
+        const stage = document.querySelector('#addPlantForm [name="current_stage"]')?.value?.trim();
+        if (plantType || stage) {
+          this._toggleProfileSelectable(this.elements.unitPlantProfileSelectable, true);
+          return;
+        }
+      }
+      this._toggleProfileSelectable(this.elements.unitPlantProfileSelectable, hasProfiles);
+    }
+
     _initUnitProfileSelector() {
       if (!this.elements.unitProfileSelector || !window.ProfileSelector) {
         return;
@@ -985,12 +1020,17 @@
                 name: profile.name || undefined,
                 mode: 'active',
               });
-              selectedProfile = imported?.profile || imported?.data?.profile || profile;
+              const payload = imported?.data || imported || {};
+              if (payload.already_imported) {
+                this.showToast('Profile already in your library. Selected existing profile.', 'info');
+              }
+              selectedProfile = payload.profile || imported?.profile || profile;
             }
             const mode = sectionType === 'template' ? 'active' : (profile.mode || 'active');
             this._setUnitProfileSelection(selectedProfile, mode);
             return selectedProfile;
           },
+          onLoad: (payload) => this._handleUnitProfileLoad(payload),
         }
       );
 
@@ -1014,6 +1054,7 @@
         user_id: this._getUserId(),
         plant_type: plantType || undefined,
         growth_stage: growthStage || undefined,
+        target_type: 'unit',
       });
     }
 
@@ -1055,7 +1096,11 @@
           token,
           mode: 'active',
         });
-        const profile = imported?.profile || imported?.data?.profile;
+        const payload = imported?.data || imported || {};
+        if (payload.already_imported) {
+          this.showToast('Profile already in your library. Selected existing profile.', 'info');
+        }
+        const profile = payload.profile || imported?.profile;
         if (profile) {
           this._setUnitProfileSelection(profile, 'active');
           this.unitProfileSelector.setSelected(profile.profile_id);
@@ -1084,12 +1129,17 @@
                 name: profile.name || undefined,
                 mode: 'active',
               });
-              selectedProfile = imported?.profile || imported?.data?.profile || profile;
+              const payload = imported?.data || imported || {};
+              if (payload.already_imported) {
+                this.showToast('Profile already in your library. Selected existing profile.', 'info');
+              }
+              selectedProfile = payload.profile || imported?.profile || profile;
             }
             const mode = sectionType === 'template' ? 'active' : (profile.mode || 'active');
             this._setUnitPlantProfileSelection(selectedProfile, mode);
             return selectedProfile;
           },
+          onLoad: (payload) => this._handleUnitPlantProfileLoad(payload),
         }
       );
       const plantTypeInput = document.querySelector('#addPlantForm [name="plant_type"]');
@@ -1113,6 +1163,7 @@
         user_id: this._getUserId(),
         plant_type: plantType || undefined,
         growth_stage: stage || undefined,
+        target_type: 'plant',
       });
     }
 
@@ -1149,17 +1200,21 @@
         return;
       }
       try {
-        const imported = await API.PersonalizedLearning.importSharedConditionProfile({
-          user_id: this._getUserId(),
-          token,
-          mode: 'active',
-        });
-        const profile = imported?.profile || imported?.data?.profile;
-        if (profile) {
-          this._setUnitPlantProfileSelection(profile, 'active');
-          this.unitPlantProfileSelector?.setSelected(profile.profile_id);
-          this.showToast('Profile imported', 'success');
-          this._loadUnitPlantProfileSelector();
+          const imported = await API.PersonalizedLearning.importSharedConditionProfile({
+            user_id: this._getUserId(),
+            token,
+            mode: 'active',
+          });
+          const payload = imported?.data || imported || {};
+          if (payload.already_imported) {
+            this.showToast('Profile already in your library. Selected existing profile.', 'info');
+          }
+          const profile = payload.profile || imported?.profile;
+          if (profile) {
+            this._setUnitPlantProfileSelection(profile, 'active');
+            this.unitPlantProfileSelector?.setSelected(profile.profile_id);
+            this.showToast('Profile imported', 'success');
+            this._loadUnitPlantProfileSelector();
         }
       } catch (error) {
         console.error('[UnitsUIManager] import plant profile failed:', error);

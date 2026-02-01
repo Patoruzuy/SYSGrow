@@ -21,7 +21,7 @@ from app.services.application.plant_service import PlantViewService
 import logging
 
 from pydantic import ValidationError
-from infrastructure.utils.structured_fields import normalize_dimensions, normalize_device_schedules
+from infrastructure.utils.structured_fields import normalize_dimensions
 from . import growth_api
 from app.blueprints.api._common import (
     get_user_id,
@@ -30,8 +30,10 @@ from app.blueprints.api._common import (
     get_container as _container,
     get_growth_service as _service,
     get_plant_service as _plant_service,
+    get_scheduling_service as _scheduling_service,
 )
 from app.enums.common import ConditionProfileMode, ConditionProfileTarget
+from app.domain.schedules import Schedule
 
 logger = logging.getLogger("growth_api.units")
 
@@ -117,6 +119,50 @@ def _apply_condition_profile_to_unit(
     return profile.to_dict()
 
 
+def _create_unit_device_schedules(
+    *,
+    unit_id: int,
+    user_id: int,
+    device_schedules: Optional[dict[str, Any]],
+) -> None:
+    if not device_schedules:
+        return
+    try:
+        sched_service = _scheduling_service()
+    except Exception as exc:
+        logger.warning("Scheduling service unavailable for unit %s: %s", unit_id, exc)
+        return
+
+    for device_type, schedule_input in device_schedules.items():
+        if schedule_input is None:
+            continue
+        schedule_data = schedule_input.model_dump() if hasattr(schedule_input, "model_dump") else dict(schedule_input)
+        start_time = schedule_data.get("start_time")
+        end_time = schedule_data.get("end_time")
+        if not start_time or not end_time:
+            logger.warning(
+                "Skipping schedule for unit %s device %s: missing start_time/end_time",
+                unit_id,
+                device_type,
+            )
+            continue
+        schedule = Schedule.from_legacy_device_schedule(
+            unit_id=unit_id,
+            device_type=str(device_type).lower(),
+            start_time=start_time,
+            end_time=end_time,
+            enabled=bool(schedule_data.get("enabled", True)),
+        )
+        created = sched_service.create_schedule(
+            schedule,
+            check_conflicts=True,
+            source="unit_create",
+            user_id=user_id,
+        )
+        if not created:
+            logger.warning("Failed to create schedule for unit %s device %s", unit_id, device_type)
+
+
 # ============================================================================
 # GROWTH UNIT CRUD OPERATIONS
 # ============================================================================
@@ -170,10 +216,16 @@ def create_unit():
         payload_data["location"] = location
 
         try:
-            try:
-                typed = CreateGrowthUnitRequest(**payload_data)
-            except Exception:
-                typed = CreateUnitPayload(**payload_data)
+            if "device_schedules" in payload_data:
+                try:
+                    typed = CreateUnitPayload(**payload_data)
+                except Exception:
+                    typed = CreateGrowthUnitRequest(**payload_data)
+            else:
+                try:
+                    typed = CreateGrowthUnitRequest(**payload_data)
+                except Exception:
+                    typed = CreateUnitPayload(**payload_data)
         except ValidationError as ve:
             return _fail("Invalid growth unit payload", 400, details={"errors": ve.errors()})
 
@@ -184,9 +236,7 @@ def create_unit():
         if getattr(typed, "dimensions", None):
             dimensions = typed.dimensions.model_dump()
         if getattr(typed, "device_schedules", None):
-            device_schedules = {
-                k: v.model_dump() if hasattr(v, "model_dump") else dict(v) for k, v in typed.device_schedules.items()
-            }
+            device_schedules = typed.device_schedules
 
         unit_id = _service().create_unit(
             name=typed.name,
@@ -194,13 +244,27 @@ def create_unit():
             user_id=user_id,
             timezone=getattr(typed, "timezone", None),
             dimensions=dimensions,
-            device_schedules=device_schedules,
             custom_image=getattr(typed, "custom_image", None),
             camera_enabled=getattr(typed, "camera_enabled", False),
         )
 
         if not unit_id:
             return _fail("Failed to create growth unit", 500)
+
+        if device_schedules:
+            try:
+                _create_unit_device_schedules(
+                    unit_id=unit_id,
+                    user_id=user_id,
+                    device_schedules=device_schedules,
+                )
+            except Exception as exc:
+                logger.error(
+                    "Failed to create device schedules for unit %s: %s",
+                    unit_id,
+                    exc,
+                    exc_info=True,
+                )
 
         condition_profile = None
         try:

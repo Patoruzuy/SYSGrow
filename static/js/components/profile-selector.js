@@ -42,10 +42,25 @@
         const selector = payload?.selector || payload?.data?.selector || null;
         this.sections = selector?.sections || [];
         this.linkedProfile = selector?.linked_profile || null;
+        this.hasProfiles = this.sections.some((section) => (section.profiles || []).length > 0);
+        if (this.options.onLoad) {
+          this.options.onLoad({
+            hasProfiles: this.hasProfiles,
+            sections: this.sections,
+            linkedProfile: this.linkedProfile,
+          });
+        }
         this.render();
       } catch (error) {
         console.error('[ProfileSelector] load failed:', error);
         this.container.innerHTML = '<div class="text-danger small">Failed to load profiles.</div>';
+        if (this.options.onLoad) {
+          this.options.onLoad({
+            hasProfiles: false,
+            sections: [],
+            linkedProfile: null,
+          });
+        }
       }
     }
 

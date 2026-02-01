@@ -377,6 +377,19 @@ def get_condition_profile_selector():
                 if str(p.growth_stage).strip().lower() == growth_stage.strip().lower()
             ]
 
+        def _has_env_thresholds(profile: PlantStageConditionProfile) -> bool:
+            if not profile.environment_thresholds:
+                return False
+            return any(value is not None for value in profile.environment_thresholds.values())
+
+        def _has_soil_threshold(profile: PlantStageConditionProfile) -> bool:
+            return profile.soil_moisture_threshold is not None
+
+        if target_type_enum == ConditionProfileTarget.UNIT:
+            profiles = [p for p in profiles if _has_env_thresholds(p)]
+        elif target_type_enum == ConditionProfileTarget.PLANT:
+            profiles = [p for p in profiles if _has_soil_threshold(p)]
+
         templates = [p for p in profiles if p.mode == ConditionProfileMode.TEMPLATE]
         active = [p for p in profiles if p.mode == ConditionProfileMode.ACTIVE]
 
@@ -394,6 +407,18 @@ def get_condition_profile_selector():
                 for p in shared_profiles
                 if str(p.get("growth_stage", "")).strip().lower()
                 == growth_stage.strip().lower()
+            ]
+
+        if target_type_enum == ConditionProfileTarget.UNIT:
+            shared_profiles = [
+                p
+                for p in shared_profiles
+                if p.get("environment_thresholds")
+                and any(v is not None for v in p.get("environment_thresholds", {}).values())
+            ]
+        elif target_type_enum == ConditionProfileTarget.PLANT:
+            shared_profiles = [
+                p for p in shared_profiles if p.get("soil_moisture_threshold") is not None
             ]
 
         sections = [
@@ -656,15 +681,17 @@ def import_shared_condition_profile():
         if user_id is None or not token:
             return _fail("user_id and token are required", 400)
         mode_enum = _parse_enum(ConditionProfileMode, mode, "mode") if mode else ConditionProfileMode.ACTIVE
-        profile = service.import_shared_profile(
+        result = service.import_shared_profile(
             user_id=int(user_id),
             token=token,
             name=name,
             mode=mode_enum,
         )
-        if not profile:
+        if not result:
             return _fail("Shared profile not found", 404)
-        return _success({"profile": profile.to_dict()}, 201)
+        profile, already_imported = result
+        status = 200 if already_imported else 201
+        return _success({"profile": profile.to_dict(), "already_imported": already_imported}, status)
     except ValueError as e:
         return _fail(str(e), 400)
     except Exception as e:

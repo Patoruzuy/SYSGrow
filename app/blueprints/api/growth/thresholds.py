@@ -6,9 +6,9 @@ Endpoints for managing environmental sensor thresholds for growth units.
 Includes recommended thresholds based on plant type and growth stage.
 """
 from __future__ import annotations
+from typing import Optional
 
 from flask import jsonify, request, session
-from typing import Optional
 from app.schemas.growth import (
     UnitThresholdUpdate,
     UnitThresholdUpdateV2,
@@ -27,6 +27,7 @@ from app.blueprints.api._common import (
     fail as _fail,
     get_container as _container,
     get_growth_service as _service,
+    get_user_id,
 )
 
 logger = logging.getLogger("growth_api.thresholds")
@@ -52,10 +53,7 @@ def _apply_condition_profile_to_unit(
     if not profile:
         raise ValueError("Condition profile not found")
 
-    desired_mode = mode
-    if desired_mode and not isinstance(desired_mode, ConditionProfileMode):
-        desired_mode = ConditionProfileMode(str(desired_mode))
-    desired_mode = desired_mode or profile.mode
+    desired_mode = mode or profile.mode
     if profile.mode == ConditionProfileMode.TEMPLATE and desired_mode == ConditionProfileMode.ACTIVE:
         cloned = profile_service.clone_condition_profile(
             user_id=user_id,
@@ -215,9 +213,9 @@ def apply_condition_profile_to_unit(unit_id: int):
         raw = request.get_json() or {}
         user_id = raw.get("user_id")
         if user_id is None:
-            user_id = request.args.get("user_id") or session.get("user_id")
+            user_id = request.args.get("user_id")
         if user_id is None:
-            return _fail("user_id is required", 400)
+            user_id = get_user_id()
         try:
             user_id = int(user_id)
         except (TypeError, ValueError):

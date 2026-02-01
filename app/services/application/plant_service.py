@@ -2090,8 +2090,14 @@ class PlantViewService:
         """
         try:
             unit = self.unit_repo.get_unit(unit_id)
-            if unit:
+            if not unit:
+                return None
+            if isinstance(unit, dict):
                 return unit.get("user_id")
+            try:
+                return unit["user_id"]
+            except (TypeError, KeyError):
+                return getattr(unit, "user_id", None)
         except Exception as e:
             logger.error("Error getting unit owner for %s: %s", unit_id, e)
         return None

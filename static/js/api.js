@@ -3142,7 +3142,12 @@ const PersonalizedLearningAPI = {
      * @returns {Promise<Object>} selector payload
      */
     getConditionProfileSelector(params = {}) {
-        const query = new URLSearchParams(params).toString();
+        const cleaned = Object.fromEntries(
+            Object.entries(params).filter(([, value]) => (
+                value !== undefined && value !== null && value !== '' && value !== 'undefined'
+            ))
+        );
+        const query = new URLSearchParams(cleaned).toString();
         return get(`/api/ml/personalized/condition-profiles/selector${query ? `?${query}` : ''}`);
     },
 

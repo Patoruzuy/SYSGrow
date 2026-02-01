@@ -420,20 +420,22 @@
                             <i class="fas fa-link"></i> Import
                         </button>
                     </div>
-                    <div class="profile-selection-summary" id="plantProfileSelectionSummary">
-                        No profile selected
-                    </div>
-                    <div class="profile-selection-actions">
-                        <button type="button" class="btn btn-outline btn-sm" data-action="clear-plant-profile">
-                            Clear selection
-                        </button>
-                    </div>
-                    <input type="hidden" id="plantConditionProfileId" name="condition_profile_id">
-                    <input type="hidden" id="plantConditionProfileMode" name="condition_profile_mode">
-                    <div id="plantProfileSelector" class="profile-selector"></div>
-                    <div class="form-group mt-2">
-                        <label for="plantProfileCloneName">Save as new name (optional)</label>
-                        <input type="text" id="plantProfileCloneName" name="condition_profile_name" placeholder="e.g., Veg Boost Profile">
+                    <div id="plantProfileSelectable" class="profile-selectable" hidden>
+                        <div class="profile-selection-summary" id="plantProfileSelectionSummary">
+                            No profile selected
+                        </div>
+                        <div class="profile-selection-actions">
+                            <button type="button" class="btn btn-outline btn-sm" data-action="clear-plant-profile">
+                                Clear selection
+                            </button>
+                        </div>
+                        <input type="hidden" id="plantConditionProfileId" name="condition_profile_id">
+                        <input type="hidden" id="plantConditionProfileMode" name="condition_profile_mode">
+                        <div id="plantProfileSelector" class="profile-selector"></div>
+                        <div class="form-group mt-2">
+                            <label for="plantProfileCloneName">Save as new name (optional)</label>
+                            <input type="text" id="plantProfileCloneName" name="condition_profile_name" placeholder="e.g., Veg Boost Profile">
+                        </div>
                     </div>
                 </div>
                 

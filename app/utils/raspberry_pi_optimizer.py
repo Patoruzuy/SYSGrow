@@ -130,9 +130,8 @@ class RaspberryPiOptimizer:
     def _is_raspberry_pi(self) -> bool:
         """Check if running on Raspberry Pi."""
         try:
-            # Check for Raspberry Pi specific file
             return Path("/proc/device-tree/model").exists()
-        except:
+        except Exception:
             return False
     
     def _get_total_ram_mb(self) -> int:
@@ -143,7 +142,7 @@ class RaspberryPiOptimizer:
                     if line.startswith("MemTotal:"):
                         kb = int(line.split()[1])
                         return kb // 1024
-        except:
+        except Exception:
             pass
         return 4096  # Default assumption
     
@@ -288,7 +287,7 @@ class RaspberryPiOptimizer:
             if temp_file.exists():
                 temp = int(temp_file.read_text()) / 1000.0
                 return temp
-        except:
+        except Exception:
             pass
         return None
 
@@ -309,7 +308,7 @@ def is_raspberry_pi() -> bool:
     """Quick check if running on Raspberry Pi."""
     try:
         return Path("/proc/device-tree/model").exists()
-    except:
+    except Exception:
         return False
 
 

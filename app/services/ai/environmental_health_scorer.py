@@ -154,7 +154,8 @@ class EnvironmentalLeafHealthScorer:
             
             # Get historical stress
             stress_score, stress_factors = self._calculate_stress_score(
-                unit_id, current_conditions
+                unit_id, current_conditions,
+                plant_type=plant_type, growth_stage=growth_stage,
             )
             
             # Calculate overall health (weighted average)
@@ -173,7 +174,8 @@ class EnvironmentalLeafHealthScorer:
             
             # Predict issues
             predicted_issues = self._predict_leaf_issues(
-                current_conditions, stress_factors, disease_risk
+                current_conditions, stress_factors, disease_risk,
+                plant_type=plant_type, growth_stage=growth_stage,
             )
             
             # Generate recommendations
@@ -306,53 +308,65 @@ class EnvironmentalLeafHealthScorer:
             return 0.1
     
     def _calculate_stress_score(
-        self, unit_id: int, current: Dict[str, float]
+        self, unit_id: int, current: Dict[str, float],
+        plant_type: Optional[str] = None,
+        growth_stage: Optional[str] = None,
     ) -> tuple[float, List[str]]:
-        """Calculate accumulated stress from historical data"""
-        stress_factors = []
-        
+        """Calculate accumulated stress from historical data.
+
+        Uses ThresholdService ranges when available so that stress
+        boundaries are plant-specific rather than hardcoded.
+        """
+        stress_factors: List[str] = []
+
         if not self.analytics_repo:
             return 1.0, stress_factors
-        
+
+        # Resolve stress boundaries from ThresholdService or generic
+        ranges = self._get_stress_ranges(plant_type, growth_stage)
+        temp_lo = ranges["temperature"]["min"]
+        temp_hi = ranges["temperature"]["max"]
+        hum_lo = ranges["humidity"]["min"]
+        hum_hi = ranges["humidity"]["max"]
+        moist_lo = ranges["soil_moisture"]["min"]
+        moist_hi = ranges["soil_moisture"]["max"]
+
         try:
             # Get last 24 hours of data
             end_time = utc_now()
             start_time = end_time - timedelta(hours=24)
-            
+
             sensor_df = self.analytics_repo.get_sensor_time_series(
                 unit_id,
                 start_time.isoformat(),
                 end_time.isoformat(),
                 interval_hours=1
             )
-            
+
             if sensor_df.empty:
                 return 1.0, stress_factors
-            
-            # Count stress hours
+
+            # Count stress hours using plant-specific boundaries
             temp_stress_hours = 0
             humidity_stress_hours = 0
             moisture_stress_hours = 0
-            
+
             if 'temperature' in sensor_df.columns:
-                # Cold stress (<15°C) or heat stress (>32°C)
                 temp_stress_hours = (
-                    (sensor_df['temperature'] < 15) | 
-                    (sensor_df['temperature'] > 32)
+                    (sensor_df['temperature'] < temp_lo) |
+                    (sensor_df['temperature'] > temp_hi)
                 ).sum()
-            
+
             if 'humidity' in sensor_df.columns:
-                # Very high humidity (>85%) or very low (<30%)
                 humidity_stress_hours = (
-                    (sensor_df['humidity'] > 85) | 
-                    (sensor_df['humidity'] < 30)
+                    (sensor_df['humidity'] > hum_hi) |
+                    (sensor_df['humidity'] < hum_lo)
                 ).sum()
-            
+
             if 'soil_moisture' in sensor_df.columns:
-                # Drought stress (<30%) or waterlogged (>90%)
                 moisture_stress_hours = (
-                    (sensor_df['soil_moisture'] < 30) | 
-                    (sensor_df['soil_moisture'] > 90)
+                    (sensor_df['soil_moisture'] < moist_lo) |
+                    (sensor_df['soil_moisture'] > moist_hi)
                 ).sum()
             
             # Track stress factors
@@ -404,41 +418,54 @@ class EnvironmentalLeafHealthScorer:
         self,
         current: Dict[str, float],
         stress_factors: List[str],
-        disease_risk: RiskLevel
+        disease_risk: RiskLevel,
+        plant_type: Optional[str] = None,
+        growth_stage: Optional[str] = None,
     ) -> List[str]:
-        """Predict likely leaf issues from conditions"""
-        issues = []
-        
+        """Predict likely leaf issues from conditions.
+
+        Thresholds are resolved from ThresholdService when available so that
+        predictions are plant-specific.
+        """
+        issues: List[str] = []
+
+        ranges = self._get_stress_ranges(plant_type, growth_stage)
+        temp_lo = ranges["temperature"]["min"]
+        temp_hi = ranges["temperature"]["max"]
+        hum_hi = ranges["humidity"]["max"]
+        moist_lo = ranges["soil_moisture"]["min"]
+        moist_hi = ranges["soil_moisture"]["max"]
+
         # Temperature-related
         temp = current.get('temperature', 22.0)
-        if temp < 15:
+        if temp < temp_lo:
             issues.append('chlorosis_risk')  # Cold-induced yellowing
-        elif temp > 32:
+        elif temp > temp_hi:
             issues.append('leaf_burn_risk')
-        
+
         # Humidity/VPD related
         humidity = current.get('humidity', 60.0)
         vpd = current.get('vpd', 1.0)
-        
-        if humidity > 85 or vpd < 0.5:
+
+        if humidity > hum_hi or vpd < 0.5:
             issues.append('fungal_disease_risk')
-        
+
         if vpd > 1.8:
             issues.append('wilting_risk')  # Excessive transpiration
-        
+
         # Moisture-related
         moisture = current.get('soil_moisture', 60.0)
-        if moisture < 35:
+        if moisture < moist_lo:
             issues.append('drought_stress')
             issues.append('wilting_risk')
-        elif moisture > 85:
+        elif moisture > moist_hi:
             issues.append('overwatering_risk')
             issues.append('root_rot_risk')
-        
+
         # Stress accumulation
         if 'water_stress' in stress_factors:
             issues.append('nutrient_deficiency_risk')
-        
+
         return list(set(issues))  # Remove duplicates
     
     def _generate_recommendations(
@@ -495,7 +522,27 @@ class EnvironmentalLeafHealthScorer:
             recommendations.append("💧 Water plants - soil moisture is low")
         
         return recommendations
-    
+
+    def _get_stress_ranges(
+        self,
+        plant_type: Optional[str],
+        growth_stage: Optional[str],
+    ) -> Dict[str, Dict[str, float]]:
+        """Resolve stress-boundary ranges from ThresholdService or generic fallback."""
+        if self.threshold_service and plant_type:
+            try:
+                return self.threshold_service.get_threshold_ranges(
+                    plant_type, growth_stage,
+                )
+            except Exception as exc:
+                logger.debug("ThresholdService stress range lookup failed: %s", exc)
+        return {
+            "temperature": {"min": 15.0, "max": 32.0, "optimal": 24.0},
+            "humidity":    {"min": 30.0, "max": 85.0, "optimal": 60.0},
+            "soil_moisture": {"min": 30.0, "max": 90.0, "optimal": 65.0},
+            "co2":         {"min": 400.0, "max": 2000.0, "optimal": 1000.0},
+        }
+
     def _get_default_score(self, unit_id: int) -> LeafHealthScore:
         """Return default score when calculation fails"""
         return LeafHealthScore(

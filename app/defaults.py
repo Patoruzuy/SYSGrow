@@ -303,7 +303,7 @@ class SystemConfigDefaults():
                 try:
                     bus.write_quick(addr)
                     devices.append(hex(addr))
-                except:
+                except Exception:
                     continue
             return devices
         except Exception as e:

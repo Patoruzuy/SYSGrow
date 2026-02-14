@@ -15,6 +15,10 @@ from typing import Dict, List, Optional, Tuple, TYPE_CHECKING, Any
 from app.utils.time import iso_now
 from app.enums import DiseaseType, PlantHealthStatus
 from app.domain.plant_health import PlantHealthObservation, EnvironmentalCorrelation
+from app.domain.plant_symptoms import (
+    SYMPTOM_DATABASE as _SYMPTOM_DB,
+    TREATMENT_MAP as _TREATMENT_DB,
+)
 
 if TYPE_CHECKING:
     from infrastructure.database.repositories.ai import AIHealthDataRepository
@@ -40,73 +44,19 @@ class PlantHealthMonitor:
         - threshold_service: Set by ContainerBuilder for optimal conditions
     """
 
-    # Symptom database mapping symptoms to causes
-    SYMPTOM_DATABASE = {
-        "yellowing_leaves": {
-            "likely_causes": ["overwatering", "nitrogen_deficiency", "root_rot"],
-            "environmental_factors": ["soil_moisture", "drainage", "nutrition"],
-        },
-        "brown_spots": {
-            "likely_causes": ["fungal_infection", "bacterial_spot", "nutrient_burn"],
-            "environmental_factors": ["humidity", "air_circulation", "nutrition"],
-        },
-        "wilting": {
-            "likely_causes": ["underwatering", "root_damage", "heat_stress"],
-            "environmental_factors": ["soil_moisture", "temperature", "humidity"],
-        },
-        "stunted_growth": {
-            "likely_causes": ["poor_lighting", "nutrient_deficiency", "root_bound"],
-            "environmental_factors": ["lux", "nutrition", "space"],
-        },
-        "leaf_curl": {
-            "likely_causes": ["heat_stress", "pest_damage", "overwatering"],
-            "environmental_factors": ["temperature", "humidity", "soil_moisture"],
-        },
-        "white_powdery_coating": {
-            "likely_causes": ["powdery_mildew", "high_humidity"],
-            "environmental_factors": ["humidity", "air_circulation", "temperature"],
-        },
-        "webbing_on_leaves": {
-            "likely_causes": ["spider_mites", "low_humidity"],
-            "environmental_factors": ["humidity", "temperature", "air_circulation"],
-        },
-        "holes_in_leaves": {
-            "likely_causes": ["caterpillars", "beetles", "slugs"],
-            "environmental_factors": ["pest_control", "cleanliness"],
-        },
-    }
+    # Symptom & treatment knowledge — imported from single source of truth.
+    SYMPTOM_DATABASE = _SYMPTOM_DB
+    TREATMENT_MAP = _TREATMENT_DB
 
-    # Treatment recommendations by symptom
-    TREATMENT_MAP = {
-        "yellowing_leaves": [
-            "Check drainage and reduce watering if overwatered",
-            "Apply nitrogen fertilizer if deficiency suspected",
-            "Inspect roots for rot and trim if necessary",
-        ],
-        "brown_spots": [
-            "Improve air circulation",
-            "Reduce humidity if too high",
-            "Apply fungicide if fungal infection suspected",
-            "Isolate plant to prevent spread",
-        ],
-        "wilting": [
-            "Check soil moisture and water if dry",
-            "Reduce temperature if heat stress suspected",
-            "Inspect roots for damage",
-        ],
-        "white_powdery_coating": [
-            "Reduce humidity",
-            "Improve air circulation",
-            "Apply fungicide for powdery mildew",
-            "Remove affected leaves",
-        ],
-        "webbing_on_leaves": [
-            "Increase humidity",
-            "Apply miticide for spider mites",
-            "Improve air circulation",
-            "Regularly mist leaves",
-        ],
-    }
+    @property
+    def symptom_database(self) -> dict:
+        """Public accessor (used by API blueprints)."""
+        return self.SYMPTOM_DATABASE
+
+    @property
+    def treatment_map(self) -> dict:
+        """Public accessor (used by API blueprints)."""
+        return self.TREATMENT_MAP
 
     def __init__(
         self,

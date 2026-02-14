@@ -41,6 +41,8 @@ from app.hardware.sensors.processors.utils import (
     DASHBOARD_METRICS,
     UNIT_MAP,
     is_meta_key,
+    is_environment_sensor,
+    is_soil_sensor,
     get_meta_val,
     coerce_float,
     coerce_int,
@@ -490,20 +492,32 @@ class PriorityProcessor:
         return None
 
     def _auto_priority(self, sensor: Any, metric: str) -> int:
-        """Compute automatic priority based on explicit primary_metrics configuration.
+        """Compute automatic priority based on explicit config with safe fallback.
 
-        Simple rules:
+        Rules:
         - If metric is in sensor's primary_metrics: priority 10 (highest)
-        - Otherwise: priority 50 (low, secondary reading)
-        
-        No guessing based on sensor_type or model keywords - user's configuration wins.
+        - If sensor has any primary_metrics but not this metric: priority 50
+        - If sensor has no primary_metrics configured, apply compatibility fallback:
+          - Environment sensors preferred for air metrics (temperature/humidity/pressure/co2/voc/air_quality)
+          - Soil/plant sensors preferred for soil_moisture
         """
         primary_metrics = self._primary_metrics_for_sensor(sensor)
-        
+
         if metric in primary_metrics:
             return 10  # High priority - explicitly configured as primary
-        
-        return 50  # Low priority - not configured as primary
+
+        if primary_metrics:
+            return 50  # Explicit config exists; this metric is secondary
+
+        # Backward-compatible fallback when no explicit primary_metrics were configured.
+        # This preserves expected dashboard behavior for legacy sensor setups.
+        air_metrics = {"temperature", "humidity", "pressure", "co2", "voc", "air_quality"}
+        if metric in air_metrics:
+            return 20 if is_environment_sensor(sensor) else 40
+        if metric == "soil_moisture":
+            return 20 if is_soil_sensor(sensor) else 40
+
+        return 50
 
     def _primary_metrics_for_sensor(self, sensor: Any) -> Set[str]:
         """Return the set of primary metrics for a sensor.
@@ -894,11 +908,14 @@ class PriorityProcessor:
         preferred = primary_candidates or secondary_candidates
 
         # Sort by priority, then age, then quality
+        ref_now = utc_now()
+
         def sort_key(sid: int) -> Tuple[int, float, float]:
             sensor = resolved_cache.get(sid)
             pr = self._priority_for(sensor, metric) if sensor else 30
             last = self.last_seen.get(sid) or datetime.fromtimestamp(0, tz=timezone.utc)
-            age = (utc_now() - last).total_seconds()
+            # Use one consistent reference time for all candidates to keep ordering stable.
+            age = (ref_now - last).total_seconds()
             reading = self.last_readings.get(sid)
             qv = float(getattr(reading, "quality_score", 0.0) or 0.0)
             return (pr, age, -qv)

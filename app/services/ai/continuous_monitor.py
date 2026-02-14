@@ -25,6 +25,8 @@ if TYPE_CHECKING:
     from app.services.ai.climate_optimizer import ClimateOptimizer
     from app.services.ai.plant_health_monitor import PlantHealthMonitor
     from app.services.ai.plant_growth_predictor import PlantGrowthPredictor
+    from app.services.ai.environmental_health_scorer import EnvironmentalLeafHealthScorer
+    from app.services.ai.recommendation_provider import RecommendationProvider, RecommendationContext
     from infrastructure.database.repositories.analytics import AnalyticsRepository
     from app.services.application.notifications_service import NotificationsService
 
@@ -83,6 +85,8 @@ class ContinuousMonitoringService:
         growth_predictor: "PlantGrowthPredictor",
         analytics_repo: "AnalyticsRepository",
         check_interval: int = 300,  # 5 minutes default
+        environmental_health_scorer: Optional["EnvironmentalLeafHealthScorer"] = None,
+        recommendation_provider: Optional["RecommendationProvider"] = None,
     ):
         """
         Initialize continuous monitoring service.
@@ -94,6 +98,8 @@ class ContinuousMonitoringService:
             growth_predictor: Growth prediction service
             analytics_repo: Analytics repository for data access
             check_interval: Seconds between monitoring checks
+            environmental_health_scorer: Optional env leaf-health scorer
+            recommendation_provider: Optional recommendation provider
         """
         self.disease_predictor = disease_predictor
         self.climate_optimizer = climate_optimizer
@@ -101,6 +107,8 @@ class ContinuousMonitoringService:
         self.growth_predictor = growth_predictor
         self.analytics_repo = analytics_repo
         self.check_interval = check_interval
+        self.environmental_health_scorer = environmental_health_scorer
+        self.recommendation_provider = recommendation_provider
         
         # State management
         self._monitoring_thread: Optional[threading.Thread] = None
@@ -264,7 +272,7 @@ class ContinuousMonitoringService:
         
         # 2. Climate Optimization
         climate_insights = self._analyze_climate_optimization(
-            unit_id, growth_stage, current_conditions
+            unit_id, growth_stage, current_conditions, plant_type=plant_type
         )
         insights.extend(climate_insights)
         
@@ -277,6 +285,18 @@ class ContinuousMonitoringService:
         # 4. Trend Analysis
         trend_insights = self._analyze_trends(unit_id, current_conditions)
         insights.extend(trend_insights)
+        
+        # 5. Environmental Health Scoring
+        env_health_insights = self._analyze_environmental_health(
+            unit_id, plant_type, growth_stage, current_conditions
+        )
+        insights.extend(env_health_insights)
+        
+        # 6. Consolidated Recommendations
+        rec_insights = self._analyze_recommendations(
+            unit_id, plant_type, growth_stage, current_conditions
+        )
+        insights.extend(rec_insights)
         
         # Store insights
         if unit_id not in self._insights:
@@ -344,7 +364,9 @@ class ContinuousMonitoringService:
         self,
         unit_id: int,
         growth_stage: str,
-        current_conditions: Dict[str, float]
+        current_conditions: Dict[str, float],
+        *,
+        plant_type: Optional[str] = None,
     ) -> List[GrowingInsight]:
         """Analyze climate and generate optimization insights."""
         insights = []
@@ -662,6 +684,92 @@ class ContinuousMonitoringService:
         except Exception as e:
             logger.error(f"Failed to send insight notification: {e}", exc_info=True)
     
+    # ------------------------------------------------------------------
+    # A8 — additional analysis steps
+    # ------------------------------------------------------------------
+
+    def _analyze_environmental_health(
+        self,
+        unit_id: int,
+        plant_type: Optional[str],
+        growth_stage: Optional[str],
+        current_conditions: Dict[str, float],
+    ) -> List[GrowingInsight]:
+        """Score environmental leaf-health if scorer is available."""
+        if not self.environmental_health_scorer:
+            return []
+
+        insights: List[GrowingInsight] = []
+        try:
+            score = self.environmental_health_scorer.score_current_health(
+                sensor_data=current_conditions,
+                plant_type=plant_type,
+                growth_stage=growth_stage,
+            )
+            if score and score.overall_score < 60:
+                alert_level = (
+                    AlertLevel.CRITICAL if score.overall_score < 30
+                    else AlertLevel.WARNING
+                )
+                insights.append(GrowingInsight(
+                    unit_id=unit_id,
+                    insight_type="alert",
+                    alert_level=alert_level,
+                    title="Environmental Health Concern",
+                    description=(
+                        f"Leaf-health score is {score.overall_score:.0f}/100. "
+                        f"Stress score: {score.stress_score:.0f}/100."
+                    ),
+                    data=score.to_dict() if hasattr(score, "to_dict") else {},
+                    action_items=score.recommendations if hasattr(score, "recommendations") else [],
+                    timestamp=datetime.now(),
+                    expires_at=datetime.now() + timedelta(hours=12),
+                ))
+        except Exception as e:
+            logger.error(f"Error scoring environmental health: {e}", exc_info=True)
+        return insights
+
+    def _analyze_recommendations(
+        self,
+        unit_id: int,
+        plant_type: Optional[str],
+        growth_stage: Optional[str],
+        current_conditions: Dict[str, float],
+    ) -> List[GrowingInsight]:
+        """Generate consolidated recommendations if provider is available."""
+        if not self.recommendation_provider:
+            return []
+
+        insights: List[GrowingInsight] = []
+        try:
+            from app.services.ai.recommendation_provider import RecommendationContext
+
+            context = RecommendationContext(
+                plant_id=0,
+                unit_id=unit_id,
+                plant_type=plant_type,
+                growth_stage=growth_stage,
+                environmental_data=current_conditions,
+            )
+            recs = self.recommendation_provider.get_recommendations(context)
+            urgent = [r for r in recs if r.priority in ("urgent", "high")]
+            if urgent:
+                actions = [r.action for r in urgent]
+                insights.append(GrowingInsight(
+                    unit_id=unit_id,
+                    insight_type="recommendation",
+                    alert_level=AlertLevel.WARNING,
+                    title="Care Recommendations",
+                    description=f"{len(urgent)} high-priority recommendation(s) generated.",
+                    data={"recommendations": [r.to_dict() for r in urgent]},
+                    action_items=actions,
+                    timestamp=datetime.now(),
+                    expires_at=datetime.now() + timedelta(hours=12),
+                ))
+        except Exception as e:
+            logger.error(f"Error generating recommendations: {e}", exc_info=True)
+        return insights
+
     def get_status(self) -> Dict[str, Any]:
         """Get monitoring service status."""
         return {

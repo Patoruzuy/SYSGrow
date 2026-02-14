@@ -1,7 +1,9 @@
 import logging
+import shutil
 import sqlite3
 import threading
 from contextlib import contextmanager
+from datetime import datetime
 from pathlib import Path
 from typing import Iterator, Optional
 
@@ -105,11 +107,60 @@ class SQLiteDatabaseHandler(
     def get_db(self) -> sqlite3.Connection:
         connection: Optional[sqlite3.Connection] = getattr(self._local, "connection", None)
         if connection is None:
-            connection = sqlite3.connect(self._database_path, check_same_thread=False)
-            connection.row_factory = sqlite3.Row
-            self._configure_connection(connection)
+            try:
+                connection = self._open_connection()
+            except sqlite3.DatabaseError as exc:
+                if self._is_corruption_error(exc):
+                    logger.error("Database appears corrupt (%s). Recreating a fresh database.", exc)
+                    self._quarantine_corrupt_db()
+                    connection = self._open_connection()
+                else:
+                    raise
             self._local.connection = connection
         return connection
+
+    def _open_connection(self) -> sqlite3.Connection:
+        connection = sqlite3.connect(self._database_path, check_same_thread=False)
+        try:
+            connection.row_factory = sqlite3.Row
+            self._configure_connection(connection)
+            return connection
+        except Exception:
+            connection.close()
+            raise
+
+    def _is_corruption_error(self, exc: sqlite3.Error) -> bool:
+        message = str(exc).lower()
+        return (
+            "database disk image is malformed" in message
+            or "file is not a database" in message
+            or "file is encrypted or is not a database" in message
+            or "malformed" in message
+        )
+
+    def _quarantine_corrupt_db(self) -> Optional[Path]:
+        db_path = Path(self._database_path)
+        if not db_path.exists():
+            return None
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        quarantine_dir = db_path.parent / "corrupt"
+        quarantine_dir.mkdir(parents=True, exist_ok=True)
+
+        suffix = db_path.suffix or ".db"
+        quarantined = quarantine_dir / f"{db_path.stem}_corrupt_{timestamp}{suffix}"
+        try:
+            shutil.move(str(db_path), str(quarantined))
+            for sidecar_suffix in ("-wal", "-shm"):
+                sidecar = Path(f"{db_path}{sidecar_suffix}")
+                if sidecar.exists():
+                    sidecar_target = quarantine_dir / f"{sidecar.name}_{timestamp}"
+                    shutil.move(str(sidecar), str(sidecar_target))
+            logger.warning("Quarantined corrupt database to %s", quarantined)
+            return quarantined
+        except Exception as exc:
+            logger.error("Failed to quarantine corrupt database %s: %s", db_path, exc)
+            return None
 
     def _configure_connection(self, connection: sqlite3.Connection) -> None:
         """Configure SQLite connection with Raspberry Pi-friendly optimizations.
@@ -1546,4 +1597,3 @@ class SQLiteDatabaseHandler(
                 default_profiles
             )
         logging.info("Seeded DeviceEnergyProfiles table with %d default profiles.", len(default_profiles))
-

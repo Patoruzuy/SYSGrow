@@ -67,7 +67,11 @@ def _apply_condition_profile_to_unit(
 
     env_thresholds = profile.environment_thresholds or {}
     if env_thresholds:
-        threshold_service.update_unit_thresholds(unit_id, env_thresholds)
+        try:
+            growth_service = _service()
+            growth_service.update_unit_thresholds(unit_id, env_thresholds)
+        except Exception:
+            threshold_service.update_unit_thresholds(unit_id, env_thresholds)
 
     profile_service.link_condition_profile(
         user_id=user_id,

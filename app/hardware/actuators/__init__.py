@@ -22,7 +22,6 @@ from app.domain.actuators import (
     ControlMode,
     ActuatorCommand,
     ActuatorReading,
-    Schedule
 )
 from app.hardware.actuators.factory import ActuatorFactory
 from app.domain.energy import EnergyReading, PowerProfile, ConsumptionStats
@@ -45,7 +44,6 @@ __all__ = [
     'ControlMode',
     'ActuatorCommand',
     'ActuatorReading',
-    'Schedule',
     'ActuatorFactory',
     'EnergyMonitoringService',
     'EnergyReading',

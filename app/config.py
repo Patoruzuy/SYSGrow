@@ -48,6 +48,9 @@ class AppConfig:
     """Runtime configuration loaded from environment variables."""
 
     environment: str = field(default_factory=lambda: os.getenv("SYSGROW_ENV", "development"))
+    devhost_enabled: bool = field(
+        default_factory=lambda: _env_bool("SYSGROW_DEVHOST_ENABLED", True)
+    )
     secret_key: str = field(default_factory=lambda: os.getenv("SYSGROW_SECRET_KEY", "SYSGrowDevSecretKey"))
     database_path: str = field(
         default_factory=lambda: os.getenv("SYSGROW_DATABASE_PATH", "database/sysgrow.db")
@@ -206,7 +209,46 @@ class AppConfig:
     enable_computer_vision: bool = field(
         default_factory=lambda: _env_bool("ENABLE_COMPUTER_VISION", False)
     )
-    
+
+    # LLM Configuration
+    # Provider: "none" (disabled), "openai", "anthropic", "local"
+    llm_provider: str = field(
+        default_factory=lambda: os.getenv("LLM_PROVIDER", "none")
+    )
+    llm_api_key: str = field(
+        default_factory=lambda: os.getenv("LLM_API_KEY", "")
+    )
+    llm_model: str = field(
+        default_factory=lambda: os.getenv("LLM_MODEL", "")
+    )
+    llm_base_url: str = field(
+        default_factory=lambda: os.getenv("LLM_BASE_URL", "")
+    )
+    llm_local_model_path: str = field(
+        default_factory=lambda: os.getenv(
+            "LLM_LOCAL_MODEL_PATH",
+            "LGAI-EXAONE/EXAONE-4.0-1.2B-Instruct",
+        )
+    )
+    llm_local_device: str = field(
+        default_factory=lambda: os.getenv("LLM_LOCAL_DEVICE", "auto")
+    )
+    llm_local_quantize: bool = field(
+        default_factory=lambda: _env_bool("LLM_LOCAL_QUANTIZE", False)
+    )
+    llm_local_torch_dtype: str = field(
+        default_factory=lambda: os.getenv("LLM_LOCAL_TORCH_DTYPE", "float16")
+    )
+    llm_max_tokens: int = field(
+        default_factory=lambda: _env_int("LLM_MAX_TOKENS", 512)
+    )
+    llm_temperature: float = field(
+        default_factory=lambda: float(os.getenv("LLM_TEMPERATURE", "0.3"))
+    )
+    llm_timeout: int = field(
+        default_factory=lambda: _env_int("LLM_TIMEOUT", 30)
+    )
+
     # Monitoring Configuration
     monitoring_max_insights_per_unit: int = field(
         default_factory=lambda: _env_int("MONITORING_MAX_INSIGHTS_PER_UNIT", 50)

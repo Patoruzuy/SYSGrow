@@ -26,8 +26,6 @@ from app.domain.plant_profile import PlantProfile
 from app.domain.unit_runtime import UnitRuntime, UnitSettings
 
 if TYPE_CHECKING:
-    from infrastructure.database.repositories.growth import GrowthRepository
-    from app.services.application.threshold_service import ThresholdService
     from app.services.application.plant_service import PlantViewService
     from app.utils.plant_json_handler import PlantJsonHandler
 
@@ -56,21 +54,21 @@ class UnitRuntimeFactory:
     def __init__(
         self,
         plant_handler: 'PlantJsonHandler',
-        threshold_service: Optional['ThresholdService'] = None,
-        plant_service: Optional['PlantViewService'] = None
+        plant_service: Optional['PlantViewService'] = None,
+        # DEPRECATED: threshold_service accepted for backward compat but ignored.
+        threshold_service: Optional[Any] = None,
     ):
         """
         Initialize the factory with required dependencies.
 
         Args:
             plant_handler: Handler for plant growth stage definitions
-            threshold_service: Optional service for unified threshold management
             plant_service: Optional PlantService for creating PlantProfile instances.
                           If provided, factory delegates to PlantService.create_plant_profile().
                           If not provided, factory uses its own _create_plant_profile().
+            threshold_service: DEPRECATED — ignored. AI orchestration moved to GrowthService.
         """
         self.plant_handler = plant_handler
-        self.threshold_service = threshold_service
         self._plant_service = plant_service
 
         logger.debug("UnitRuntimeFactory initialized")
@@ -119,7 +117,6 @@ class UnitRuntimeFactory:
                 user_id=unit_data.get('user_id', 1),
                 settings=settings,
                 custom_image=unit_data.get('custom_image'),
-                threshold_service=self.threshold_service,
             )
 
             logger.info(

@@ -37,9 +37,9 @@ from app.domain.actuators import (
     ActuatorConfig,
     ActuatorCommand,
     ActuatorReading,
-    Schedule,
     ControlMode,
 )
+from app.domain.schedules import Schedule as DeviceSchedule
 from app.hardware.actuators.factory import ActuatorFactory
 from app.services.hardware.scheduling_service import SchedulingService
 from app.services.hardware.safety_service import SafetyService
@@ -712,27 +712,55 @@ class ActuatorManagementService:
         return actuator.get_state()
     
     @synchronized
-    def set_schedule(self, actuator_id: int, schedule: Schedule) -> None:
-        """Set automatic schedule."""
+    def set_schedule(self, actuator_id: int, schedule: DeviceSchedule) -> DeviceSchedule:
+        """Create a centralized schedule for an actuator."""
         actuator = self._actuators.get(actuator_id)
         if not actuator:
             raise ValueError(f"Actuator {actuator_id} not found")
-        
-        actuator.set_schedule(schedule)
-        self.scheduling_service.add_schedule(schedule)
-        logger.info(f"Set schedule for actuator {actuator_id}: {schedule.start_time} - {schedule.end_time}")
+
+        schedule.actuator_id = actuator_id
+        if schedule.unit_id <= 0:
+            metadata = self.get_actuator(actuator_id) or {}
+            schedule.unit_id = int(metadata.get("unit_id") or 0)
+        if schedule.unit_id <= 0:
+            raise ValueError(
+                f"Schedule unit_id is required for actuator {actuator_id}; "
+                "unable to resolve from actuator metadata"
+            )
+
+        created = self.scheduling_service.create_schedule(
+            schedule,
+            check_conflicts=True,
+            source="user",
+        )
+        if not created:
+            raise ValueError(f"Failed to create schedule for actuator {actuator_id}")
+        logger.info(
+            "Created schedule %s for actuator %s (%s-%s)",
+            created.schedule_id,
+            actuator_id,
+            created.start_time,
+            created.end_time,
+        )
+        return created
     
     @synchronized
-    def clear_schedule(self, actuator_id: int) -> None:
-        """Clear automatic schedule."""
+    def clear_schedule(self, actuator_id: int) -> int:
+        """Delete all centralized schedules linked to an actuator."""
         actuator = self._actuators.get(actuator_id)
         if not actuator:
             raise ValueError(f"Actuator {actuator_id} not found")
-        
-        if actuator.schedule:
-            self.scheduling_service.remove_schedule(actuator.schedule)
-        actuator.clear_schedule()
-        logger.info(f"Cleared schedule for actuator {actuator_id}")
+
+        deleted = 0
+        schedules = self.scheduling_service.get_schedules_for_actuator(actuator_id)
+        for schedule in schedules:
+            if not schedule.schedule_id:
+                continue
+            if self.scheduling_service.delete_schedule(schedule.schedule_id, source="user"):
+                deleted += 1
+
+        logger.info("Cleared %s schedules for actuator %s", deleted, actuator_id)
+        return deleted
     
     @synchronized
     def add_interlock(self, actuator_id: int, interlocked_with: int) -> None:

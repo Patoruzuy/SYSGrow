@@ -39,6 +39,7 @@ from infrastructure.database.repositories.notifications import NotificationRepos
 from infrastructure.database.repositories.irrigation_workflow import IrrigationWorkflowRepository
 from infrastructure.database.repositories.irrigation_ml import IrrigationMLRepository
 from infrastructure.database.repositories.schedules import ScheduleRepository
+from infrastructure.database.repositories.auth import AuthRepository
 from infrastructure.logging.audit import AuditLogger
 from app.services.application.activity_logger import ActivityLogger
 from app.services.application.alert_service import AlertService
@@ -156,6 +157,7 @@ class AIComponents:
     ab_testing: ABTestingService
     environmental_health_scorer: EnvironmentalLeafHealthScorer
     plant_health_scorer: PlantHealthScorer
+    recommendation_provider: Optional[object]  # RuleBasedRecommendationProvider
 
 
 @dataclass
@@ -165,6 +167,7 @@ class OptionalAIComponents:
     automated_retraining: Optional[AutomatedRetrainingService]
     personalized_learning: Optional[object]
     training_data_collector: Optional[object]
+    llm_advisor: Optional[object] = None  # LLMAdvisorService
 
 
 @dataclass
@@ -391,10 +394,9 @@ class ContainerBuilder:
         feature_engineer = FeatureEngineer()
         feature_extractor = EnvironmentalFeatureExtractor()
 
-        # Climate optimizer
+        # Climate optimizer (threshold_service, plant_handler, sun_times_service wired later)
         climate_optimizer = ClimateOptimizer(
-            analytics_repo=infra.analytics_repo,
-            model_registry=model_registry
+            model_registry=model_registry,
         )
 
         # Plant health monitor (threshold_service will be set later)
@@ -403,10 +405,10 @@ class ContainerBuilder:
             threshold_service=None  # Will be set after threshold_service initialization
         )
 
-        # Growth predictor
+        # Growth predictor (threshold_service wired later)
         growth_predictor = PlantGrowthPredictor(
             model_registry=model_registry,
-            enable_validation=True
+            enable_validation=True,
         )
 
         # Disease predictor
@@ -474,6 +476,46 @@ class ContainerBuilder:
 
         logger.info(f"✓ AI components initialized (models_path: {models_path})")
 
+        # Recommendation provider — LLM-backed when configured, otherwise
+        # rule-based.  threshold_service is wired post-creation.
+        from app.services.ai.recommendation_provider import (
+            RuleBasedRecommendationProvider,
+            LLMRecommendationProvider,
+        )
+        rule_based_provider = RuleBasedRecommendationProvider(
+            threshold_service=None,
+        )
+
+        llm_provider_name = getattr(self.config, "llm_provider", "none").strip().lower()
+        if llm_provider_name not in ("", "none"):
+            from app.services.ai.llm_backends import create_backend
+            llm_backend = create_backend(
+                provider=llm_provider_name,
+                api_key=getattr(self.config, "llm_api_key", ""),
+                model=getattr(self.config, "llm_model", ""),
+                base_url=getattr(self.config, "llm_base_url", "") or None,
+                local_model_path=getattr(self.config, "llm_local_model_path", ""),
+                local_device=getattr(self.config, "llm_local_device", "auto"),
+                local_quantize=getattr(self.config, "llm_local_quantize", False),
+                local_torch_dtype=getattr(self.config, "llm_local_torch_dtype", "float16"),
+                timeout=getattr(self.config, "llm_timeout", 30),
+            )
+            if llm_backend is not None:
+                recommendation_provider = LLMRecommendationProvider(
+                    backend=llm_backend,
+                    fallback_provider=rule_based_provider,
+                    max_tokens=getattr(self.config, "llm_max_tokens", 512),
+                    temperature=getattr(self.config, "llm_temperature", 0.3),
+                )
+                logger.info("✓ LLM recommendation provider active (backend=%s)", llm_backend.name)
+            else:
+                recommendation_provider = rule_based_provider
+                logger.info("LLM backend init failed — using rule-based recommendations")
+        else:
+            recommendation_provider = rule_based_provider
+
+        # Store the LLM backend reference for building the advisor later
+        self._llm_backend = locals().get("llm_backend")
 
         return AIComponents(
             model_registry=model_registry,
@@ -489,6 +531,7 @@ class ContainerBuilder:
             ab_testing=ab_testing,
             environmental_health_scorer=environmental_health_scorer,
             plant_health_scorer=plant_health_scorer,
+            recommendation_provider=recommendation_provider,
         )
 
     def build_optional_ai_components(
@@ -524,7 +567,9 @@ class ContainerBuilder:
                 health_monitor=ai.plant_health_monitor,
                 growth_predictor=ai.growth_predictor,
                 analytics_repo=infra.analytics_repo,
-                check_interval=check_interval
+                check_interval=check_interval,
+                environmental_health_scorer=ai.environmental_health_scorer,
+                recommendation_provider=ai.recommendation_provider,
             )
             
             # Wire notification service for AI-generated alerts
@@ -608,11 +653,25 @@ class ContainerBuilder:
             )
             logger.info(f"✓ Training Data Collector enabled (path: {training_data_path})")
 
+        # LLM Advisor (decision-maker service) — uses the same backend as
+        # the LLMRecommendationProvider built in build_ai_components().
+        llm_advisor = None
+        llm_backend = getattr(self, "_llm_backend", None)
+        if llm_backend is not None:
+            from app.services.ai.llm_advisor import LLMAdvisorService
+            llm_advisor = LLMAdvisorService(
+                backend=llm_backend,
+                max_tokens=getattr(self.config, "llm_max_tokens", 512),
+                temperature=getattr(self.config, "llm_temperature", 0.3),
+            )
+            logger.info("✓ LLM Advisor service enabled (backend=%s)", llm_backend.name)
+
         return OptionalAIComponents(
             continuous_monitor=continuous_monitor,
             automated_retraining=automated_retraining,
             personalized_learning=personalized_learning,
             training_data_collector=training_data_collector,
+            llm_advisor=llm_advisor,
         )
 
     def build_hardware_components(
@@ -716,9 +775,11 @@ class ContainerBuilder:
         logger.info("Building application components...")
 
         # Auth manager
+        auth_repo = AuthRepository(infra.database)
         auth_manager = UserAuthManager(
             database_handler=infra.database,
-            audit_logger=infra.audit_logger
+            audit_logger=infra.audit_logger,
+            auth_repo=auth_repo,
         )
 
         # Plant catalog
@@ -741,8 +802,19 @@ class ContainerBuilder:
         # Set threshold service on plant health monitor
         ai.plant_health_monitor.threshold_service = threshold_service
 
+        # Wire ClimateOptimizer with threshold_service and plant_handler
+        ai.climate_optimizer.threshold_service = threshold_service
+        ai.climate_optimizer.plant_handler = plant_catalog
+
         # Set threshold service on environmental and plant health scorers
         ai.environmental_health_scorer.threshold_service = threshold_service
+
+        # Wire growth predictor with threshold_service (A9)
+        ai.growth_predictor.threshold_service = threshold_service
+
+        # Wire recommendation provider with threshold_service (A4/A8)
+        if ai.recommendation_provider:
+            ai.recommendation_provider.threshold_service = threshold_service
 
         # Bayesian threshold adjuster with ThresholdService integration
         from app.services.ai.bayesian_threshold import BayesianThresholdAdjuster
@@ -881,9 +953,17 @@ class ContainerBuilder:
             "threshold_update",
             growth_service.handle_threshold_update_action,
         )
+        # AI threshold proposals use the same handler (approve/dismiss workflow)
+        infra.notifications_service.register_action_handler(
+            "threshold_proposal",
+            growth_service.handle_threshold_update_action,
+        )
 
         # Harvest service
-        harvest_service = PlantHarvestService(analytics_repo=infra.analytics_repo)
+        harvest_service = PlantHarvestService(
+            analytics_repo=infra.analytics_repo,
+            plant_repo=infra.plant_repo,
+        )
 
         # Camera service
         camera_service = CameraService(repository=infra.camera_repo)
@@ -1071,5 +1151,5 @@ class ContainerBuilder:
             with open('/proc/device-tree/model', 'r') as f:
                 model = f.read()
                 return 'raspberry pi' in model.lower()
-        except:
+        except Exception:
             return False

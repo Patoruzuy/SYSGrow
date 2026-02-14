@@ -860,6 +860,40 @@ class DeviceOperations:
             logging.error("Error getting health history: %s", exc)
             return []
 
+    def get_latest_health_batch(
+        self, sensor_ids: List[int]
+    ) -> Dict[int, Dict[str, Any]]:
+        """Get most recent health snapshot for each sensor in a single query.
+
+        Returns a dict mapping sensor_id → latest health row.  Sensors with no
+        history are omitted from the result.
+        """
+        if not sensor_ids:
+            return {}
+
+        try:
+            db = self.get_db()
+            placeholders = ",".join(["?"] * len(sensor_ids))
+            cursor = db.execute(
+                f"""
+                SELECT h.sensor_id, h.health_score, h.status, h.error_rate,
+                       h.total_readings, h.failed_readings, h.recorded_at
+                FROM SensorHealthHistory h
+                INNER JOIN (
+                    SELECT sensor_id, MAX(recorded_at) AS max_ts
+                    FROM SensorHealthHistory
+                    WHERE sensor_id IN ({placeholders})
+                    GROUP BY sensor_id
+                ) latest ON h.sensor_id = latest.sensor_id
+                           AND h.recorded_at = latest.max_ts
+                """,
+                tuple(sensor_ids),
+            )
+            return {row["sensor_id"]: dict(row) for row in cursor.fetchall()}
+        except sqlite3.Error as exc:
+            logging.error("Error batch-fetching latest health: %s", exc)
+            return {}
+
     # --- Anomaly Detection -----------------------------------------------------
     def log_anomaly(
         self,

@@ -177,21 +177,15 @@ class TestPhase3Integration:
         """Test Feature 2: Moisture decline rate tracking (mocked)."""
         # Setup
         mock_repo = Mock()
-        mock_db = Mock()
-        mock_cursor = Mock()
-        
         # Mock moisture history showing steady decline
         now = datetime.now()
-        mock_cursor.fetchall.return_value = [
-            (60.0, (now - timedelta(hours=24)).isoformat()),
-            (57.0, (now - timedelta(hours=18)).isoformat()),
-            (54.0, (now - timedelta(hours=12)).isoformat()),
-            (51.0, (now - timedelta(hours=6)).isoformat()),
-            (48.0, now.isoformat()),
+        mock_repo.get_moisture_history.return_value = [
+            {"soil_moisture": 60.0, "timestamp": (now - timedelta(hours=24)).isoformat()},
+            {"soil_moisture": 57.0, "timestamp": (now - timedelta(hours=18)).isoformat()},
+            {"soil_moisture": 54.0, "timestamp": (now - timedelta(hours=12)).isoformat()},
+            {"soil_moisture": 51.0, "timestamp": (now - timedelta(hours=6)).isoformat()},
+            {"soil_moisture": 48.0, "timestamp": now.isoformat()},
         ]
-        
-        mock_db.execute.return_value = mock_cursor
-        mock_repo._db.get_db.return_value = mock_db
         
         predictor = IrrigationPredictor(irrigation_ml_repo=mock_repo)
         
@@ -279,21 +273,15 @@ class TestMoistureDeclineCalculations:
         """Test linear regression math for decline rate."""
         # Setup
         mock_repo = Mock()
-        mock_db = Mock()
-        mock_cursor = Mock()
-        
         # Perfect linear decline: -0.5%/hour (need 5+ samples)
         now = datetime.now()
-        mock_cursor.fetchall.return_value = [
-            (52.5, (now - timedelta(hours=15)).isoformat()),
-            (51.25, (now - timedelta(hours=12)).isoformat()),
-            (50.0, (now - timedelta(hours=10)).isoformat()),
-            (47.5, (now - timedelta(hours=5)).isoformat()),
-            (45.0, now.isoformat()),
+        mock_repo.get_moisture_history.return_value = [
+            {"soil_moisture": 52.5, "timestamp": (now - timedelta(hours=15)).isoformat()},
+            {"soil_moisture": 51.25, "timestamp": (now - timedelta(hours=12)).isoformat()},
+            {"soil_moisture": 50.0, "timestamp": (now - timedelta(hours=10)).isoformat()},
+            {"soil_moisture": 47.5, "timestamp": (now - timedelta(hours=5)).isoformat()},
+            {"soil_moisture": 45.0, "timestamp": now.isoformat()},
         ]
-        
-        mock_db.execute.return_value = mock_cursor
-        mock_repo._db.get_db.return_value = mock_db
         
         predictor = IrrigationPredictor(irrigation_ml_repo=mock_repo)
         
@@ -314,18 +302,12 @@ class TestMoistureDeclineCalculations:
         """Test that insufficient data returns None."""
         # Setup
         mock_repo = Mock()
-        mock_db = Mock()
-        mock_cursor = Mock()
-        
         # Only 2 samples (need 5+)
         now = datetime.now()
-        mock_cursor.fetchall.return_value = [
-            (50.0, (now - timedelta(hours=5)).isoformat()),
-            (48.0, now.isoformat()),
+        mock_repo.get_moisture_history.return_value = [
+            {"soil_moisture": 50.0, "timestamp": (now - timedelta(hours=5)).isoformat()},
+            {"soil_moisture": 48.0, "timestamp": now.isoformat()},
         ]
-        
-        mock_db.execute.return_value = mock_cursor
-        mock_repo._db.get_db.return_value = mock_db
         
         predictor = IrrigationPredictor(irrigation_ml_repo=mock_repo)
         
@@ -343,20 +325,14 @@ class TestMoistureDeclineCalculations:
         """Test prediction when moisture already below threshold."""
         # Setup
         mock_repo = Mock()
-        mock_db = Mock()
-        mock_cursor = Mock()
-        
         now = datetime.now()
-        mock_cursor.fetchall.return_value = [
-            (48.0, (now - timedelta(hours=12)).isoformat()),
-            (45.0, (now - timedelta(hours=10)).isoformat()),
-            (42.0, (now - timedelta(hours=5)).isoformat()),
-            (40.5, (now - timedelta(hours=2)).isoformat()),
-            (39.0, now.isoformat()),  # Below threshold of 40
+        mock_repo.get_moisture_history.return_value = [
+            {"soil_moisture": 48.0, "timestamp": (now - timedelta(hours=12)).isoformat()},
+            {"soil_moisture": 45.0, "timestamp": (now - timedelta(hours=10)).isoformat()},
+            {"soil_moisture": 42.0, "timestamp": (now - timedelta(hours=5)).isoformat()},
+            {"soil_moisture": 40.5, "timestamp": (now - timedelta(hours=2)).isoformat()},
+            {"soil_moisture": 39.0, "timestamp": now.isoformat()},  # Below threshold of 40
         ]
-        
-        mock_db.execute.return_value = mock_cursor
-        mock_repo._db.get_db.return_value = mock_db
         
         predictor = IrrigationPredictor(irrigation_ml_repo=mock_repo)
         

@@ -26,8 +26,12 @@ def send_firebase_notification(voltage):
             "body": f"ESP32-C6 battery is low: {voltage}V. Recharge soon!",
         },
     }
-    response = requests.post(url, headers=headers, data=json.dumps(payload))
-    print(f"FCM Response: {response.text}")
+    try:
+        response = requests.post(url, headers=headers, data=json.dumps(payload), timeout=5)
+        print(f"FCM Response: {response.text}")
+    except requests.RequestException as e:
+        # Log and continue; notification failure should not crash MQTT processing
+        print(f"Failed to send FCM notification: {e}")
 
 def on_message(client, userdata, message):
     """Handle incoming MQTT messages."""

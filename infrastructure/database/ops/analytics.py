@@ -1343,6 +1343,76 @@ class AnalyticsOperations:
             logging.error(f"Error getting plant type performance for {plant_type}: {exc}")
             return {"error": str(exc)}
 
+    def get_plant_energy_summary(self, plant_id: int) -> Dict[str, Any]:
+        """Get comprehensive energy summary for a plant.
+
+        Returns dict with total_kwh, total_cost, avg_daily_power_watts,
+        by_stage, cost_by_stage, and by_device.
+        """
+        empty = {
+            "total_kwh": 0.0,
+            "total_cost": 0.0,
+            "avg_daily_power_watts": 0.0,
+            "by_stage": {},
+            "cost_by_stage": {},
+            "by_device": {},
+        }
+        try:
+            db = self.get_db()
+
+            # Total energy for this plant
+            result = db.execute(
+                """
+                SELECT
+                    SUM(er.energy_kwh)  AS total_kwh,
+                    AVG(er.power_watts) AS avg_power
+                FROM EnergyReadings er
+                JOIN Plants p ON p.unit_id = er.unit_id
+                WHERE p.plant_id = ?
+                """,
+                (plant_id,),
+            ).fetchone()
+
+            total_kwh = (result["total_kwh"] or 0.0) if result else 0.0
+            avg_power = (result["avg_power"] or 0.0) if result else 0.0
+
+            # Energy breakdown by growth stage
+            by_stage_rows = db.execute(
+                """
+                SELECT
+                    er.growth_stage  AS growth_stage,
+                    SUM(er.energy_kwh) AS stage_kwh,
+                    AVG(er.power_watts) AS stage_power
+                FROM EnergyReadings er
+                JOIN Plants p ON p.unit_id = er.unit_id
+                WHERE p.plant_id = ?
+                GROUP BY er.growth_stage
+                """,
+                (plant_id,),
+            ).fetchall()
+
+            by_stage = {
+                row["growth_stage"]: row["stage_kwh"]
+                for row in by_stage_rows
+                if row["growth_stage"]
+            }
+
+            cost_per_kwh = 0.20
+            total_cost = total_kwh * cost_per_kwh
+            cost_by_stage = {stage: kwh * cost_per_kwh for stage, kwh in by_stage.items()}
+
+            return {
+                "total_kwh": round(total_kwh, 2),
+                "total_cost": round(total_cost, 2),
+                "avg_daily_power_watts": round(avg_power, 2),
+                "by_stage": by_stage,
+                "cost_by_stage": cost_by_stage,
+                "by_device": {},
+            }
+        except sqlite3.Error as exc:
+            logging.error("Error getting plant energy summary for %s: %s", plant_id, exc)
+            return empty
+
     # Placeholder for static analysers
     def get_db(self):  # pragma: no cover
         raise NotImplementedError

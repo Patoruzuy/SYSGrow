@@ -346,6 +346,15 @@ class DeviceRepository:
         """Get health history for a sensor."""
         return self._backend.get_health_history(sensor_id, limit)
 
+    def get_latest_health_batch(
+        self, sensor_ids: List[int]
+    ) -> Dict[int, Dict[str, Any]]:
+        """Get most recent health snapshot for each sensor in a single query.
+
+        Returns a dict mapping sensor_id → latest health row.
+        """
+        return self._backend.get_latest_health_batch(sensor_ids)
+
     # Anomaly Detection --------------------------------------------------------
     def log_anomaly(
         self,

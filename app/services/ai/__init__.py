@@ -24,8 +24,9 @@ from app.services.ai.plant_health_monitor import (
 from app.services.ai.climate_optimizer import (
     ClimateOptimizer,
     ClimateConditions,
-    ClimateDifference,
-    ClimateIssue,
+    ClimateAnalysis,
+    ClimateRecommendation,
+    LightingRecommendation,
 )
 from app.services.ai.ml_trainer import MLTrainerService, TrainingMetrics
 from app.services.ai.drift_detector import ModelDriftDetectorService, DriftMetrics
@@ -75,6 +76,19 @@ from app.services.ai.recommendation_provider import (
     RecommendationContext,
     Recommendation,
 )
+from app.services.ai.llm_backends import (
+    LLMBackend,
+    LLMResponse,
+    OpenAIBackend,
+    AnthropicBackend,
+    LocalTransformersBackend,
+    create_backend,
+)
+from app.services.ai.llm_advisor import (
+    LLMAdvisorService,
+    DecisionQuery,
+    DecisionResponse,
+)
 
 __all__ = [
     # Model Management
@@ -94,8 +108,9 @@ __all__ = [
     # Climate Optimization
     "ClimateOptimizer",
     "ClimateConditions",
-    "ClimateDifference",
-    "ClimateIssue",
+    "ClimateAnalysis",
+    "ClimateRecommendation",
+    "LightingRecommendation",
     # ML Training
     "MLTrainerService",
     "TrainingMetrics",
@@ -155,4 +170,15 @@ __all__ = [
     "LLMRecommendationProvider",
     "RecommendationContext",
     "Recommendation",
+    # LLM Backends
+    "LLMBackend",
+    "LLMResponse",
+    "OpenAIBackend",
+    "AnthropicBackend",
+    "LocalTransformersBackend",
+    "create_backend",
+    # LLM Advisor (Decision Maker)
+    "LLMAdvisorService",
+    "DecisionQuery",
+    "DecisionResponse",
 ]

@@ -11,7 +11,6 @@ from .actuator_entity import (
     ActuatorConfig,
     ActuatorCommand,
     ActuatorReading,
-    Schedule,
     ActuatorAdapter,
     ActuatorEntity,
 )
@@ -27,7 +26,6 @@ __all__ = [
     "ActuatorConfig",
     "ActuatorCommand",
     "ActuatorReading",
-    "Schedule",
     "ActuatorAdapter",
     "ActuatorEntity",
     # Health

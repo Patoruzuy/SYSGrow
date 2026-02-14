@@ -1162,6 +1162,50 @@ class IrrigationWorkflowService:
 
         return results
 
+    def _log_execution_result(
+        self,
+        request: Dict[str, Any],
+        *,
+        planned_duration_s: Optional[int] = None,
+        pump_actuator_id: Optional[str] = None,
+        valve_actuator_id: Optional[str] = None,
+        assumed_flow_ml_s: Optional[float] = None,
+        estimated_volume_ml: Optional[float] = None,
+        execution_status: str = "failed",
+        execution_error: Optional[str] = None,
+        executed_at_utc: Optional[str] = None,
+    ) -> Optional[int]:
+        """Create a standardised execution log row.
+
+        Consolidates the repeated ``create_execution_log`` parameter lists that
+        were previously duplicated at each failure path inside
+        ``_execute_irrigation``.
+        """
+        return self._repo.create_execution_log(
+            request_id=request["request_id"],
+            user_id=request.get("user_id"),
+            unit_id=request["unit_id"],
+            plant_id=request.get("plant_id"),
+            sensor_id=(
+                str(request.get("sensor_id"))
+                if request.get("sensor_id") is not None
+                else None
+            ),
+            trigger_reason="below_threshold",
+            trigger_moisture=request.get("soil_moisture_detected"),
+            threshold_at_trigger=request.get("soil_moisture_threshold"),
+            triggered_at_utc=request.get("detected_at") or iso_now(),
+            planned_duration_s=planned_duration_s,
+            pump_actuator_id=pump_actuator_id,
+            valve_actuator_id=valve_actuator_id,
+            assumed_flow_ml_s=assumed_flow_ml_s,
+            estimated_volume_ml=estimated_volume_ml,
+            execution_status=execution_status,
+            execution_error=execution_error,
+            executed_at_utc=executed_at_utc or iso_now(),
+            post_moisture_delay_s=self._post_capture_delay_seconds,
+        )
+
     def _execute_irrigation(self, request: Dict[str, Any]) -> Dict[str, Any]:
         """
         Execute irrigation for a single request.
@@ -1193,25 +1237,11 @@ class IrrigationWorkflowService:
         if not self._actuator_service or not actuator_id:
             error = "No actuator available"
             logger.warning("No actuator manager or actuator ID for request %s", request_id)
-            self._repo.create_execution_log(
-                request_id=request_id,
-                user_id=request.get("user_id"),
-                unit_id=unit_id,
-                plant_id=plant_id,
-                sensor_id=str(request.get("sensor_id")) if request.get("sensor_id") is not None else None,
-                trigger_reason="below_threshold",
-                trigger_moisture=request.get("soil_moisture_detected"),
-                threshold_at_trigger=request.get("soil_moisture_threshold"),
-                triggered_at_utc=request.get("detected_at") or iso_now(),
-                planned_duration_s=None,
+            self._log_execution_result(
+                request,
                 pump_actuator_id=str(actuator_id) if actuator_id is not None else None,
-                valve_actuator_id=None,
-                assumed_flow_ml_s=None,
-                estimated_volume_ml=None,
                 execution_status="failed",
                 execution_error=error,
-                executed_at_utc=iso_now(),
-                post_moisture_delay_s=self._post_capture_delay_seconds,
             )
             self._repo.record_execution(
                 request_id,
@@ -1237,25 +1267,13 @@ class IrrigationWorkflowService:
         lock_seconds = max(60, int(irrigation_duration) + 120)
         if not self._repo.acquire_unit_lock(unit_id, lock_seconds, iso_now()):
             error = "Unit irrigation lock busy"
-            self._repo.create_execution_log(
-                request_id=request_id,
-                user_id=request.get("user_id"),
-                unit_id=unit_id,
-                plant_id=plant_id,
-                sensor_id=str(request.get("sensor_id")) if request.get("sensor_id") is not None else None,
-                trigger_reason="below_threshold",
-                trigger_moisture=request.get("soil_moisture_detected"),
-                threshold_at_trigger=request.get("soil_moisture_threshold"),
-                triggered_at_utc=request.get("detected_at") or iso_now(),
+            self._log_execution_result(
+                request,
                 planned_duration_s=int(irrigation_duration),
                 pump_actuator_id=str(actuator_id),
                 valve_actuator_id=str(valve_actuator_id) if valve_actuator_id is not None else None,
-                assumed_flow_ml_s=None,
-                estimated_volume_ml=None,
                 execution_status="failed",
                 execution_error=error,
-                executed_at_utc=iso_now(),
-                post_moisture_delay_s=self._post_capture_delay_seconds,
             )
             self._repo.record_execution(
                 request_id,
@@ -1287,25 +1305,13 @@ class IrrigationWorkflowService:
                 valve_result = self._actuator_service.turn_on(int(valve_actuator_id))
                 if valve_result.state in {ActuatorState.ERROR, ActuatorState.UNAVAILABLE}:
                     error = valve_result.error_message or "Valve open failed"
-                    self._repo.create_execution_log(
-                        request_id=request_id,
-                        user_id=request.get("user_id"),
-                        unit_id=unit_id,
-                        plant_id=plant_id,
-                        sensor_id=str(request.get("sensor_id")) if request.get("sensor_id") is not None else None,
-                        trigger_reason="below_threshold",
-                        trigger_moisture=request.get("soil_moisture_detected"),
-                        threshold_at_trigger=request.get("soil_moisture_threshold"),
-                        triggered_at_utc=request.get("detected_at") or iso_now(),
+                    self._log_execution_result(
+                        request,
                         planned_duration_s=int(irrigation_duration),
                         pump_actuator_id=str(actuator_id),
                         valve_actuator_id=str(valve_actuator_id),
-                        assumed_flow_ml_s=None,
-                        estimated_volume_ml=None,
                         execution_status="failed",
                         execution_error=error,
-                        executed_at_utc=iso_now(),
-                        post_moisture_delay_s=self._post_capture_delay_seconds,
                     )
                     self._repo.record_execution(
                         request_id,
@@ -1332,25 +1338,15 @@ class IrrigationWorkflowService:
                 if flow_rate is not None:
                     estimated_volume_ml = float(flow_rate) * float(irrigation_duration)
 
-            log_id = self._repo.create_execution_log(
-                request_id=request_id,
-                user_id=request.get("user_id"),
-                unit_id=unit_id,
-                plant_id=plant_id,
-                sensor_id=str(request.get("sensor_id")) if request.get("sensor_id") is not None else None,
-                trigger_reason="below_threshold",
-                trigger_moisture=request.get("soil_moisture_detected"),
-                threshold_at_trigger=request.get("soil_moisture_threshold"),
-                triggered_at_utc=request.get("detected_at") or started_at,
+            log_id = self._log_execution_result(
+                request,
                 planned_duration_s=int(irrigation_duration),
                 pump_actuator_id=str(actuator_id),
                 valve_actuator_id=str(valve_actuator_id) if valve_actuator_id is not None else None,
                 assumed_flow_ml_s=flow_rate,
                 estimated_volume_ml=estimated_volume_ml,
                 execution_status="started",
-                execution_error=None,
                 executed_at_utc=started_at,
-                post_moisture_delay_s=self._post_capture_delay_seconds,
             )
             if log_id is None:
                 raise Exception("Failed to create execution log")
@@ -1389,16 +1385,8 @@ class IrrigationWorkflowService:
                     execution_error=str(e),
                 )
             else:
-                self._repo.create_execution_log(
-                    request_id=request_id,
-                    user_id=request.get("user_id"),
-                    unit_id=unit_id,
-                    plant_id=plant_id,
-                    sensor_id=str(request.get("sensor_id")) if request.get("sensor_id") is not None else None,
-                    trigger_reason="below_threshold",
-                    trigger_moisture=request.get("soil_moisture_detected"),
-                    threshold_at_trigger=request.get("soil_moisture_threshold"),
-                    triggered_at_utc=request.get("detected_at") or iso_now(),
+                self._log_execution_result(
+                    request,
                     planned_duration_s=int(irrigation_duration),
                     pump_actuator_id=str(actuator_id),
                     valve_actuator_id=str(valve_actuator_id) if valve_actuator_id is not None else None,
@@ -1407,7 +1395,6 @@ class IrrigationWorkflowService:
                     execution_status="failed",
                     execution_error=str(e),
                     executed_at_utc=started_at or iso_now(),
-                    post_moisture_delay_s=self._post_capture_delay_seconds,
                 )
             self._repo.record_execution(
                 request_id,

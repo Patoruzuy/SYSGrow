@@ -65,7 +65,7 @@ def register_unit_routes(health_api: Blueprint):
                     actuators = actuator_svc.list_actuators(unit_id)
                     sensor_count = len(sensors) if sensors else 0
                     actuator_count = len(actuators) if actuators else 0
-                except:
+                except Exception:
                     pass
                 
                 # Get climate controller health from growth service
@@ -167,7 +167,7 @@ def register_unit_routes(health_api: Blueprint):
             try:
                 sensors = sensor_svc.list_sensors(unit_id) or []
                 actuators = actuator_svc.list_actuators(unit_id) or []
-            except:
+            except Exception:
                 pass
                 
             # Determine status

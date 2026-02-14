@@ -462,7 +462,7 @@ class PlantJournalService:
             if entry.get('symptoms'):
                 try:
                     entry['symptoms'] = json.loads(entry['symptoms'])
-                except:
+                except (ValueError, TypeError):
                     pass
 
         return entries
@@ -515,7 +515,7 @@ class PlantJournalService:
             if obs.get('symptoms'):
                 try:
                     obs['symptoms'] = json.loads(obs['symptoms'])
-                except:
+                except (ValueError, TypeError):
                     obs['symptoms'] = []
 
         return observations
@@ -644,7 +644,7 @@ class PlantJournalService:
             d1 = datetime.fromisoformat(date1.replace('Z', '+00:00'))
             d2 = datetime.fromisoformat(date2.replace('Z', '+00:00'))
             return abs((d2 - d1).days)
-        except:
+        except Exception:
             return 0
 
     def update_entry(

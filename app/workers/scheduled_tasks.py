@@ -31,6 +31,7 @@ from zoneinfo import ZoneInfo
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Dict, Optional
+from app.enums import ScheduleState
 
 if TYPE_CHECKING:
     from app.workers.unified_scheduler import UnifiedScheduler
@@ -259,6 +260,10 @@ def plant_health_check_task(container: "ServiceContainer") -> Dict[str, Any]:
 
 # State tracking for schedule transitions (keyed by schedule_id)
 _schedule_last_state: Dict[int, bool] = {}
+# Effective actuator command state (keyed by actuator_id)
+_actuator_last_command: Dict[int, tuple[str, Optional[float]]] = {}
+# Last schedule that drove each actuator command
+_actuator_last_schedule: Dict[int, Optional[int]] = {}
 
 
 def actuator_startup_sync_task(container: "ServiceContainer") -> Dict[str, Any]:
@@ -274,6 +279,9 @@ def actuator_startup_sync_task(container: "ServiceContainer") -> Dict[str, Any]:
     actuator_service = getattr(container, "actuator_management_service", None)
     growth_service = getattr(container, "growth_service", None)
     
+    global _actuator_last_command
+    global _actuator_last_schedule
+
     results = {
         "units_synced": 0,
         "actuators_synced": 0,
@@ -309,6 +317,8 @@ def actuator_startup_sync_task(container: "ServiceContainer") -> Dict[str, Any]:
         # Initialize _schedule_last_state from service's execution state
         for schedule_id, was_active in scheduling_service._last_execution_state.items():
             _schedule_last_state[schedule_id] = was_active
+        _actuator_last_command = {}
+        _actuator_last_schedule = {}
         
         results.update(sync_results)
         logger.info(
@@ -335,6 +345,8 @@ def actuator_schedule_check_task(container: "ServiceContainer") -> Dict[str, Any
     Celery name: actuator.schedule_check
     """
     global _schedule_last_state
+    global _actuator_last_command
+    global _actuator_last_schedule
 
     actuator_service = getattr(container, "actuator_management_service", None)
     analytics_service = getattr(container, "analytics_service", None)
@@ -390,33 +402,31 @@ def actuator_schedule_check_task(container: "ServiceContainer") -> Dict[str, Any
                 if any(s.device_type == "light" and s.photoperiod for s in schedules):
                     lux_reading = _get_lux_reading(analytics_service, unit_id)
 
+                schedule_by_id: Dict[int, Any] = {}
+                actuator_schedules: Dict[int, list] = {}
+                active_schedules_by_actuator: Dict[int, list] = {}
+
                 for schedule in schedules:
                     results["schedules_checked"] += 1
                     schedule_key = schedule.schedule_id
                     if schedule_key is None:
                         continue
+                    schedule_by_id[schedule_key] = schedule
 
                     try:
-                        # Determine if schedule is currently active
-                        if schedule.device_type == "light" and schedule.photoperiod:
-                            # Use photoperiod-aware evaluation
-                            is_active = scheduling_service.is_light_on(
-                                unit_id,
-                                check_time=now,
-                                lux_reading=lux_reading,
-                                unit_timezone=unit_timezone,
-                            )
-                        else:
-                            # Standard schedule evaluation
-                            is_active = schedule.is_active_at(now, timezone=unit_timezone)
-
+                        is_active = scheduling_service.is_schedule_active(
+                            schedule=schedule,
+                            unit_id=unit_id,
+                            check_time=now,
+                            lux_reading=lux_reading,
+                            unit_timezone=unit_timezone,
+                        )
                         was_active = scheduling_service.get_last_execution_state(schedule_key)
                         if was_active is None:
                             was_active = _schedule_last_state.get(schedule_key, None)
 
-                        # Skip if no actuator linked
-                        actuator_id = schedule.actuator_id
-                        if not actuator_id:
+                        # Execution log for schedules without linked actuators
+                        if not schedule.actuator_id:
                             if is_active and was_active is False:
                                 scheduling_service.record_execution(
                                     schedule=schedule,
@@ -435,36 +445,81 @@ def actuator_schedule_check_task(container: "ServiceContainer") -> Dict[str, Any
                             scheduling_service.set_last_execution_state(schedule_key, is_active)
                             continue
 
-                        # Handle transitions with retry logic
-                        if is_active and was_active is False:
-                            # Transition: inactive -> active
-                            _handle_schedule_activation(
-                                scheduling_service,
-                                actuator_service,
-                                schedule,
-                                actuator_id,
-                                results,
-                            )
-                        elif not is_active and was_active is True:
-                            # Transition: active -> inactive
-                            _handle_schedule_deactivation(
-                                scheduling_service,
-                                actuator_service,
-                                schedule,
-                                actuator_id,
-                                results,
-                            )
-                        elif was_active is None:
-                            # First check - set initial state without transition logging
-                            pass
+                        actuator_id = schedule.actuator_id
+                        actuator_schedules.setdefault(actuator_id, []).append(schedule)
+                        if is_active:
+                            active_schedules_by_actuator.setdefault(actuator_id, []).append(schedule)
 
                         _schedule_last_state[schedule_key] = is_active
                         scheduling_service.set_last_execution_state(schedule_key, is_active)
-
                     except Exception as e:
                         error_msg = f"Schedule {schedule_key} ({schedule.device_type}): {e}"
                         results["errors"].append(error_msg)
-                        logger.error(f"Error checking schedule: {error_msg}")
+                        logger.error("Error checking schedule: %s", error_msg)
+
+                for actuator_id, _all_for_actuator in actuator_schedules.items():
+                    active_for_actuator = active_schedules_by_actuator.get(actuator_id, [])
+                    selected = scheduling_service.select_effective_schedule(active_for_actuator)
+
+                    if selected is None:
+                        desired_command: tuple[str, Optional[float]] = ("off", None)
+                    elif selected.value is not None:
+                        desired_command = ("level", float(selected.value))
+                    elif selected.state_when_active == ScheduleState.ON:
+                        desired_command = ("on", None)
+                    else:
+                        desired_command = ("off", None)
+
+                    previous_command = _actuator_last_command.get(actuator_id)
+                    if previous_command is None:
+                        current_state = actuator_service.get_actuator_state(actuator_id)
+                        if current_state is True:
+                            previous_command = ("on", None)
+                        elif current_state is False:
+                            previous_command = ("off", None)
+                        else:
+                            previous_command = desired_command
+
+                    if desired_command == previous_command:
+                        _actuator_last_schedule[actuator_id] = selected.schedule_id if selected else None
+                        continue
+
+                    transition_ok = False
+                    if selected is not None:
+                        transition_ok = _handle_schedule_activation(
+                            scheduling_service,
+                            actuator_service,
+                            selected,
+                            actuator_id,
+                            results,
+                        )
+                    else:
+                        previous_schedule_id = _actuator_last_schedule.get(actuator_id)
+                        previous_schedule = schedule_by_id.get(previous_schedule_id) if previous_schedule_id else None
+                        if previous_schedule is not None:
+                            transition_ok = _handle_schedule_deactivation(
+                                scheduling_service,
+                                actuator_service,
+                                previous_schedule,
+                                actuator_id,
+                                results,
+                            )
+                        else:
+                            try:
+                                actuator_service.turn_off(actuator_id)
+                                results["transitions"] += 1
+                                transition_ok = True
+                            except Exception as e:
+                                results["errors"].append(f"Actuator {actuator_id} off: {str(e)}")
+                                logger.error(
+                                    "Failed to deactivate actuator %s without schedule context: %s",
+                                    actuator_id,
+                                    e,
+                                )
+
+                    if transition_ok:
+                        _actuator_last_command[actuator_id] = desired_command
+                        _actuator_last_schedule[actuator_id] = selected.schedule_id if selected else None
 
             except Exception as e:
                 error_msg = f"Unit {unit_id}: {e}"
@@ -543,12 +598,14 @@ def _handle_schedule_activation(
     schedule,
     actuator_id: int,
     results: dict,
-):
+) -> bool:
     """Handle transition from inactive to active state."""
     try:
         if scheduling_service:
             result = scheduling_service.execute_with_retry(
-                schedule, activate=True
+                schedule,
+                activate=True,
+                actuator_manager=actuator_service,
             )
             if result.success:
                 results["transitions"] += 1
@@ -556,11 +613,12 @@ def _handle_schedule_activation(
                     f"Schedule {schedule.schedule_id} ({schedule.device_type}) activated "
                     f"-> actuator {actuator_id}"
                 )
+                return True
             else:
                 results["errors"].append(
                     f"Actuator {actuator_id} on: {result.error_message}"
                 )
-            return
+            return False
 
         if schedule.value is not None:
             actuator_service.set_level(actuator_id, float(schedule.value))
@@ -574,9 +632,11 @@ def _handle_schedule_activation(
             f"Schedule {schedule.schedule_id} ({schedule.device_type}) activated "
             f"-> actuator {actuator_id}"
         )
+        return True
     except Exception as e:
         results["errors"].append(f"Actuator {actuator_id} on: {str(e)}")
         logger.error(f"Failed to activate schedule for actuator {actuator_id}: {e}")
+        return False
 
 
 def _handle_schedule_deactivation(
@@ -585,12 +645,14 @@ def _handle_schedule_deactivation(
     schedule,
     actuator_id: int,
     results: dict,
-):
+) -> bool:
     """Handle transition from active to inactive state."""
     try:
         if scheduling_service:
             result = scheduling_service.execute_with_retry(
-                schedule, activate=False
+                schedule,
+                activate=False,
+                actuator_manager=actuator_service,
             )
             if result.success:
                 results["transitions"] += 1
@@ -598,11 +660,12 @@ def _handle_schedule_deactivation(
                     f"Schedule {schedule.schedule_id} ({schedule.device_type}) deactivated "
                     f"-> actuator {actuator_id} OFF"
                 )
+                return True
             else:
                 results["errors"].append(
                     f"Actuator {actuator_id} off: {result.error_message}"
                 )
-            return
+            return False
 
         actuator_service.turn_off(actuator_id)
         results["transitions"] += 1
@@ -610,9 +673,11 @@ def _handle_schedule_deactivation(
             f"Schedule {schedule.schedule_id} ({schedule.device_type}) deactivated "
             f"-> actuator {actuator_id} OFF"
         )
+        return True
     except Exception as e:
         results["errors"].append(f"Actuator {actuator_id} off: {str(e)}")
         logger.error(f"Failed to deactivate schedule for actuator {actuator_id}: {e}")
+        return False
 
 
 # ==================== ML Namespace Tasks ====================

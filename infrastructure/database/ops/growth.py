@@ -31,8 +31,9 @@ class GrowthOperations:
         co2_threshold: float = 1000.0,
         voc_threshold: float = 1000.0,
         lux_threshold: float = 1000.0,
-        air_quality_threshold: float = 1000.0,
+        air_quality_threshold: float = 100.0,
         camera_enabled: bool = False,
+        aqi_threshold: Optional[float] = None,
     ) -> Optional[int]:
         """
         Insert a new growth unit.
@@ -40,6 +41,9 @@ class GrowthOperations:
         try:
             db = self.get_db()
             cursor = db.cursor()
+            if aqi_threshold is not None:
+                air_quality_threshold = aqi_threshold
+
             cursor.execute(
                 """
                 INSERT INTO GrowthUnits (
@@ -865,7 +869,7 @@ class GrowthOperations:
                     data.get('co2_threshold', 1000.0),
                     data.get('voc_threshold', 1000.0),
                     data.get('lux_threshold', data.get('lux_threshold', 1000.0)),
-                    data.get('air_quality_threshold', data.get('aqi_threshold', 1000.0)),
+                    data.get('air_quality_threshold', data.get('aqi_threshold', 100.0)),
                     device_schedules_json,
                     data.get('camera_enabled', False),
                 ),

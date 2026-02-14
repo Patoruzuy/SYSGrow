@@ -654,13 +654,18 @@ class PlantJournalRepository:
     def create_watering_entry(
         self,
         plant_id: int,
-        amount_ml: float,
+        amount_ml: Optional[float] = None,
         method: str = "manual",
         source: str = "user",
         ph_level: Optional[float] = None,
         ec_level: Optional[float] = None,
         notes: str = "",
-        user_id: Optional[int] = None
+        user_id: Optional[int] = None,
+        *,
+        unit_id: Optional[int] = None,
+        amount: Optional[float] = None,
+        unit: str = "ml",
+        observation_date: Optional[str] = None,
     ) -> Optional[int]:
         """
         Record a watering event.
@@ -679,10 +684,25 @@ class PlantJournalRepository:
             entry_id if successful, None otherwise
         """
         try:
-            # Store additional data as JSON in notes or dedicated fields
+            normalized_unit = (unit or "ml").strip().lower()
+            normalized_amount_ml: Optional[float]
+
+            if amount is not None:
+                if normalized_unit in ("l", "liter", "liters"):
+                    normalized_amount_ml = float(amount) * 1000.0
+                else:
+                    normalized_amount_ml = float(amount)
+            elif amount_ml is not None:
+                normalized_amount_ml = float(amount_ml)
+            else:
+                normalized_amount_ml = None
+
+            stored_unit = normalized_unit if amount is not None else "ml"
+
+            # Store advanced fields as JSON in notes while keeping flat columns populated
             import json
             extra_data = {
-                "amount_ml": amount_ml,
+                "amount_ml": normalized_amount_ml,
                 "method": method,
                 "source": source,
                 "ph_level": ph_level,
@@ -692,14 +712,14 @@ class PlantJournalRepository:
             with self.db.connection() as conn:
                 cursor = conn.execute("""
                     INSERT INTO plant_journal (
-                        plant_id, entry_type, treatment_type, treatment_name,
-                        amount, unit, notes, user_id
+                        plant_id, unit_id, entry_type, observation_type,
+                        treatment_type, treatment_name, amount, unit, notes, user_id, observation_date
                     )
-                    VALUES (?, 'watering', ?, ?, ?, 'ml', ?, ?)
+                    VALUES (?, ?, 'watering', 'watering', ?, ?, ?, ?, ?, ?, ?)
                 """, (
-                    plant_id, method, source, amount_ml,
+                    plant_id, unit_id, method, source, normalized_amount_ml, stored_unit,
                     f"{notes}\n---\n{json.dumps(extra_data)}" if notes else json.dumps(extra_data),
-                    user_id
+                    user_id, observation_date
                 ))
                 conn.commit()
                 return cursor.lastrowid

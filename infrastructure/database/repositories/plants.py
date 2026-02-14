@@ -310,3 +310,78 @@ class PlantRepository:
     def get_plant_total_light_hours(self, plant_id: int) -> float:
         """Get total light hours for a plant."""
         return self._backend.get_plant_total_light_hours(plant_id)
+
+    # Plant Cleanup (harvest) --------------------------------------------------
+    def cleanup_plant_data(self, plant_id: int) -> Dict[str, int]:
+        """Delete plant-specific data during harvest.
+
+        Removes health logs, sensor associations, unit associations,
+        clears ``active_plant_id`` on any growth unit, and finally
+        deletes the plant record itself.
+
+        Shared data (energy readings, sensor readings, environment data,
+        device history) is intentionally preserved.
+
+        Args:
+            plant_id: Plant ID whose records should be cleaned up.
+
+        Returns:
+            Dictionary with counts of deleted records per category.
+        """
+        import logging
+
+        _logger = logging.getLogger(__name__)
+
+        deleted: Dict[str, int] = {
+            "plant_health_logs": 0,
+            "plant_sensors": 0,
+            "plant_unit_associations": 0,
+            "plant_record": 0,
+        }
+        with self._backend.connection() as conn:
+            # 1. Health logs (plant-specific)
+            for table_name in ("PlantHealthLogs", "PlantHealth"):
+                try:
+                    cursor = conn.execute(
+                        f"DELETE FROM {table_name} WHERE plant_id = ?",  # nosec B608
+                        (plant_id,),
+                    )
+                    deleted["plant_health_logs"] += cursor.rowcount
+                except Exception as exc:
+                    if "no such table" in str(exc).lower():
+                        continue
+                    raise
+
+            # 2. Plant-sensor associations
+            cursor = conn.execute(
+                "DELETE FROM PlantSensors WHERE plant_id = ?", (plant_id,)
+            )
+            deleted["plant_sensors"] = cursor.rowcount
+
+            # 3. Plant-unit associations
+            cursor = conn.execute(
+                "DELETE FROM GrowthUnitPlants WHERE plant_id = ?", (plant_id,)
+            )
+            deleted["plant_unit_associations"] = cursor.rowcount
+
+            # 4. Clear active_plant_id on units (don't delete the unit)
+            conn.execute(
+                "UPDATE GrowthUnits SET active_plant_id = NULL WHERE active_plant_id = ?",
+                (plant_id,),
+            )
+
+            # 5. Delete the plant record itself (last!)
+            cursor = conn.execute(
+                "DELETE FROM Plants WHERE plant_id = ?", (plant_id,)
+            )
+            deleted["plant_record"] = cursor.rowcount
+
+        _logger.info(
+            "Cleaned up plant %s: health_logs=%d, sensors=%d, unit_assoc=%d, plant=%d",
+            plant_id,
+            deleted["plant_health_logs"],
+            deleted["plant_sensors"],
+            deleted["plant_unit_associations"],
+            deleted["plant_record"],
+        )
+        return deleted

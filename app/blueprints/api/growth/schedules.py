@@ -334,19 +334,34 @@ def toggle_schedule(unit_id: int, schedule_id: int):
         
         # Get new enabled state
         raw = request.get_json() or {}
-        enabled = raw.get("enabled")
-        if enabled is None:
+        enabled_raw = raw.get("enabled")
+        if enabled_raw is None:
             return _fail("'enabled' field is required", 400)
-        
+
+        if isinstance(enabled_raw, bool):
+            enabled = enabled_raw
+        elif isinstance(enabled_raw, (int, float)) and enabled_raw in (0, 1):
+            enabled = bool(enabled_raw)
+        elif isinstance(enabled_raw, str):
+            normalized = enabled_raw.strip().lower()
+            if normalized in {"true", "1", "yes", "on"}:
+                enabled = True
+            elif normalized in {"false", "0", "no", "off"}:
+                enabled = False
+            else:
+                return _fail("'enabled' must be a boolean", 400)
+        else:
+            return _fail("'enabled' must be a boolean", 400)
+
         # Update
-        success = sched_service.set_schedule_enabled(schedule_id, bool(enabled))
+        success = sched_service.set_schedule_enabled(schedule_id, enabled)
         if not success:
             return _fail("Failed to update schedule", 500)
         
         logger.info(f"Schedule {schedule_id} {'enabled' if enabled else 'disabled'}")
         return _success({
             "schedule_id": schedule_id,
-            "enabled": bool(enabled),
+            "enabled": enabled,
             "message": f"Schedule {'enabled' if enabled else 'disabled'}",
         })
         

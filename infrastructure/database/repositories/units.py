@@ -48,7 +48,7 @@ class UnitRepository:
         co2_threshold: float = 1000.0,
         voc_threshold: float = 1000.0,
         lux_threshold: float = 1000.0,
-        air_quality_threshold: float = 1000.0,
+        air_quality_threshold: float = 100.0,
         camera_enabled: bool = False,
     ) -> Optional[int]:
         """

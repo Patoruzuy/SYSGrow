@@ -24,6 +24,7 @@ from app.enums import PlantStage
 
 if TYPE_CHECKING:
     from app.services.ai.model_registry import ModelRegistry
+    from app.services.application.threshold_service import ThresholdService
 
 logger = logging.getLogger(__name__)
 
@@ -132,6 +133,7 @@ class PlantGrowthPredictor:
         self,
         model_registry: Optional["ModelRegistry"] = None,
         enable_validation: bool = True,
+        threshold_service: Optional["ThresholdService"] = None,
     ):
         """
         Initialize plant growth predictor.
@@ -139,9 +141,11 @@ class PlantGrowthPredictor:
         Args:
             model_registry: Optional ModelRegistry for ML model access
             enable_validation: If True, validate predictions against known ranges
+            threshold_service: Optional ThresholdService for plant-specific defaults
         """
         self.model_registry = model_registry
         self.enable_validation = enable_validation
+        self.threshold_service = threshold_service
 
         # Lazy-loaded components
         self._model: Optional[Any] = None
@@ -306,6 +310,12 @@ class PlantGrowthPredictor:
 
         # Fallback to defaults
         if use_fallback:
+            # Prefer ThresholdService (profile-aware, plant-specific)
+            ts_conditions = self._conditions_from_threshold_service(stage_name)
+            if ts_conditions is not None:
+                logger.debug(f"Using ThresholdService conditions for stage '{stage_name}'")
+                return ts_conditions
+
             default = self.DEFAULT_CONDITIONS.get(stage_name)
             if default is None:
                 # Try case-insensitive match
@@ -338,6 +348,52 @@ class PlantGrowthPredictor:
         if len(prediction) < 4:
             logger.warning("Prediction array has insufficient values")
             return False
+
+    # ------------------------------------------------------------------
+    # ThresholdService integration (A9)
+    # ------------------------------------------------------------------
+
+    def _conditions_from_threshold_service(
+        self,
+        stage_name: str,
+    ) -> Optional[GrowthConditions]:
+        """Try to build GrowthConditions from ThresholdService.
+
+        Returns ``None`` when the service is unavailable or lacks data.
+        """
+        if not self.threshold_service:
+            return None
+        try:
+            ranges = self.threshold_service.get_threshold_ranges(
+                plant_type=None,  # generic
+                growth_stage=stage_name,
+            )
+            if not ranges:
+                return None
+
+            temp = ranges.get("temperature", {})
+            hum = ranges.get("humidity", {})
+            sm = ranges.get("soil_moisture", {})
+
+            # Need at least temperature to be useful
+            if "optimal" not in temp:
+                return None
+
+            # Default lighting from DEFAULT_CONDITIONS if available
+            default = self.DEFAULT_CONDITIONS.get(stage_name)
+            lighting_hours = default.lighting_hours if default else 16.0
+
+            return GrowthConditions(
+                temperature=temp["optimal"],
+                humidity=hum.get("optimal", 60.0),
+                soil_moisture=sm.get("optimal", 70.0),
+                lighting_hours=lighting_hours,
+                confidence=0.7,
+                growth_stage=stage_name,
+            )
+        except Exception as exc:
+            logger.debug("ThresholdService lookup for growth predictor failed: %s", exc)
+            return None
 
         temp, humidity, moisture, light = prediction[:4]
 

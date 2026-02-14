@@ -2509,7 +2509,7 @@ class AnalyticsService:
         Returns:
             Dictionary with chart data and photoperiod summary
         """
-        # 1. Fetch readings (if not already provided by a higher level, which is rare)
+        # 1. Fetch readings
         readings = self.fetch_sensor_history(
             start_datetime,
             end_datetime,
@@ -2522,34 +2522,92 @@ class AnalyticsService:
         chart_data = self.format_sensor_chart_data(readings, interval)
 
         # 3. Timezone normalization and timestamp parsing
-        parsed_timestamps: List[Optional[datetime]] = []
-        normalized_timestamps: List[str] = []
-        for ts in chart_data.get("timestamps", []):
-            parsed = coerce_datetime(ts)
-            parsed_timestamps.append(parsed)
-            normalized_timestamps.append(parsed.isoformat() if parsed else str(ts))
-        chart_data["timestamps"] = normalized_timestamps
+        parsed_timestamps = self._normalize_chart_timestamps(chart_data)
 
-        # 4. Resolve Unit Settings (Schedule & Thresholds)
-        # PhotoperiodSource replaces light_mode: schedule, sensor, sun_api, hybrid
-        photoperiod_source = "schedule"  # Default
+        # 4–5. Resolve unit settings and determine source priority
+        pp_cfg = self._resolve_photoperiod_config(
+            unit_id=unit_id,
+            unit_data=unit_data,
+            lux_threshold_override=lux_threshold_override,
+            prefer_lux=prefer_lux,
+            day_start_override=day_start_override,
+            day_end_override=day_end_override,
+        )
+
+        # 6–7. Photoperiod analysis, mask computation, temperature DIF
+        photoperiod_summary = self._compute_photoperiod(
+            chart_data, parsed_timestamps, pp_cfg,
+        )
+
+        # Attach masks
+        chart_data["is_day_schedule"] = photoperiod_summary.pop("_schedule_mask")
+        chart_data["is_day_sensor"] = photoperiod_summary.pop("_sensor_mask")
+        chart_data["is_day"] = photoperiod_summary.pop("_day_mask")
+
+        return {
+            "start": start_datetime.isoformat(),
+            "end": end_datetime.isoformat(),
+            "unit_id": unit_id,
+            "sensor_id": sensor_id,
+            "interval": interval,
+            "count": len(readings),
+            "data": chart_data,
+            "photoperiod": photoperiod_summary,
+            "timestamp": utc_now().isoformat()
+        }
+
+    # ------------------------------------------------------------------
+    # Helpers extracted from get_enriched_sensor_history
+    # ------------------------------------------------------------------
+
+    def _normalize_chart_timestamps(
+        self, chart_data: Dict[str, Any],
+    ) -> List[Optional[datetime]]:
+        """Parse and normalize chart_data timestamps in-place.
+
+        Returns the list of parsed ``datetime`` objects (``None`` for unparseable).
+        """
+        parsed: List[Optional[datetime]] = []
+        normalized: List[str] = []
+        for ts in chart_data.get("timestamps", []):
+            dt = coerce_datetime(ts)
+            parsed.append(dt)
+            normalized.append(dt.isoformat() if dt else str(ts))
+        chart_data["timestamps"] = normalized
+        return parsed
+
+    def _resolve_photoperiod_config(
+        self,
+        *,
+        unit_id: Optional[int],
+        unit_data: Optional[Dict[str, Any]],
+        lux_threshold_override: Optional[float],
+        prefer_lux: bool,
+        day_start_override: Optional[str],
+        day_end_override: Optional[str],
+    ) -> Dict[str, Any]:
+        """Resolve schedule, threshold, and source-priority settings.
+
+        Returns a flat config dict consumed by ``_compute_photoperiod``.
+        """
+        photoperiod_source = "schedule"
         schedule_present = False
         schedule_enabled = False
         schedule_day_start = day_start_override
         schedule_day_end = day_end_override
         lux_threshold = lux_threshold_override if lux_threshold_override is not None else 100.0
 
+        # Try to load unit data from repo when not provided
         unit = unit_data
         if not unit and unit_id is not None and self.growth_repo:
             try:
-                # Fallback to repository if unit_data not provided
                 row = self.growth_repo.get_unit(unit_id)
                 if row:
-                    unit = {k: row[k] for k in row.keys()} if hasattr(row, 'keys') else None
+                    unit = {k: row[k] for k in row.keys()} if hasattr(row, "keys") else None
             except Exception as e:
                 self.logger.warning(f"Failed to fetch unit {unit_id} for analytics: {e}")
 
-        # Get light schedule from SchedulingService (single source of truth)
+        # Light schedule from SchedulingService
         if unit_id is not None and self.scheduling_service:
             try:
                 schedules = self.scheduling_service.get_schedules_for_unit(unit_id, device_type="light")
@@ -2559,15 +2617,14 @@ class AnalyticsService:
                     schedule_day_start = schedule_day_start or schedule.start_time
                     schedule_day_end = schedule_day_end or schedule.end_time
                     schedule_enabled = bool(schedule.enabled)
-                    # Get photoperiod source from schedule's photoperiod config
                     if schedule.photoperiod:
                         photoperiod_source = schedule.photoperiod.source.value if schedule.photoperiod.source else "schedule"
             except Exception as e:
                 self.logger.warning(f"Failed to get light schedule from SchedulingService: {e}")
 
+        # Lux threshold from unit / threshold service
         if unit:
             settings = unit.get("settings") or {}
-
             if lux_threshold_override is None:
                 threshold_val = None
                 if self.threshold_service and unit_id is not None:
@@ -2581,36 +2638,54 @@ class AnalyticsService:
                 if threshold_val is not None:
                     lux_threshold = float(threshold_val)
 
-        # 5. Determine Source priority (based on PhotoperiodSource)
+        # Source priority
         if photoperiod_source == "sensor":
             prefer_lux = True
             schedule_enabled = False
         elif photoperiod_source == "hybrid":
-            # Hybrid: prefer sensor if available, fallback to schedule
             prefer_lux = True
-        else:
-            # Default: schedule-based
-            prefer_lux = False
 
         schedule_day_start = schedule_day_start or "06:00"
         schedule_day_end = schedule_day_end or "18:00"
 
-        # 6. Photoperiod Analysis
-        lux_values = chart_data.get("lux", []) or []
-        sensor_enabled = any(v is not None for v in lux_values)
-        
-        day_mask: List[Optional[int]] = [None] * len(parsed_timestamps)
-        schedule_mask: List[Optional[int]] = [None] * len(parsed_timestamps)
-        sensor_mask: List[Optional[int]] = [None] * len(parsed_timestamps)
-
-        photoperiod_summary: Dict[str, Any] = {
-            "photoperiod_source": photoperiod_source,  # Replaces light_mode
-            "schedule_day_start": schedule_day_start,
-            "schedule_day_end": schedule_day_end,
+        return {
+            "photoperiod_source": photoperiod_source,
             "schedule_present": schedule_present,
             "schedule_enabled": schedule_enabled,
+            "schedule_day_start": schedule_day_start,
+            "schedule_day_end": schedule_day_end,
             "lux_threshold": float(lux_threshold),
             "prefer_lux": prefer_lux,
+        }
+
+    def _compute_photoperiod(
+        self,
+        chart_data: Dict[str, Any],
+        parsed_timestamps: List[Optional[datetime]],
+        cfg: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Build photoperiod masks + temperature DIF analysis.
+
+        Returns the photoperiod summary dict; masks are stored under
+        private keys ``_schedule_mask``, ``_sensor_mask``, ``_day_mask``
+        so the caller can pop them into ``chart_data``.
+        """
+        lux_values = chart_data.get("lux", []) or []
+        sensor_enabled = any(v is not None for v in lux_values)
+        n = len(parsed_timestamps)
+
+        day_mask: List[Optional[int]] = [None] * n
+        schedule_mask: List[Optional[int]] = [None] * n
+        sensor_mask: List[Optional[int]] = [None] * n
+
+        summary: Dict[str, Any] = {
+            "photoperiod_source": cfg["photoperiod_source"],
+            "schedule_day_start": cfg["schedule_day_start"],
+            "schedule_day_end": cfg["schedule_day_end"],
+            "schedule_present": cfg["schedule_present"],
+            "schedule_enabled": cfg["schedule_enabled"],
+            "lux_threshold": cfg["lux_threshold"],
+            "prefer_lux": cfg["prefer_lux"],
             "sensor_enabled": sensor_enabled,
             "source": None,
             "agreement_rate": None,
@@ -2629,11 +2704,11 @@ class AnalyticsService:
             lux_valid = [lux_values[i] for i in valid_indices]
 
             photoperiod = Photoperiod(
-                schedule_day_start=schedule_day_start,
-                schedule_day_end=schedule_day_end,
-                schedule_enabled=schedule_enabled,
-                sensor_threshold=float(lux_threshold),
-                greenhouse_outside=prefer_lux,
+                schedule_day_start=cfg["schedule_day_start"],
+                schedule_day_end=cfg["schedule_day_end"],
+                schedule_enabled=cfg["schedule_enabled"],
+                sensor_threshold=cfg["lux_threshold"],
+                greenhouse_outside=cfg["prefer_lux"],
                 sensor_enabled=sensor_enabled,
             )
 
@@ -2645,54 +2720,49 @@ class AnalyticsService:
             for local_idx, original_idx in enumerate(valid_indices):
                 if local_idx < len(schedule_mask_valid):
                     schedule_mask[original_idx] = 1 if schedule_mask_valid[local_idx] else 0
-
                 if local_idx < len(sensor_mask_valid):
                     sensor_val = sensor_mask_valid[local_idx]
                     sensor_mask[original_idx] = None if sensor_val is None else (1 if sensor_val else 0)
-
                 if local_idx < len(final_mask_valid):
                     day_mask[original_idx] = 1 if final_mask_valid[local_idx] else 0
 
-            # Alignment Analysis
+            # Alignment analysis
             if sensor_enabled:
                 alignment = photoperiod.analyze_alignment(timestamps_valid, lux_valid)
-                photoperiod_summary.update(alignment)
+                summary.update(alignment)
 
-            # Determine final source label
-            if sensor_enabled and prefer_lux:
-                photoperiod_summary["source"] = "lux"
-            elif schedule_enabled:
-                photoperiod_summary["source"] = "schedule"
+            # Final source label
+            if sensor_enabled and cfg["prefer_lux"]:
+                summary["source"] = "lux"
+            elif cfg["schedule_enabled"]:
+                summary["source"] = "schedule"
             elif sensor_enabled:
-                photoperiod_summary["source"] = "lux"
+                summary["source"] = "lux"
             else:
-                photoperiod_summary["source"] = "schedule"
+                summary["source"] = "schedule"
 
-            # Temperature Analysis (Day/Night)
-            temps = chart_data.get("temperature", [])
-            day_temps = [t for t, m in zip(temps, day_mask) if isinstance(t, (int, float)) and m == 1]
-            night_temps = [t for t, m in zip(temps, day_mask) if isinstance(t, (int, float)) and m == 0]
+            # 7. Temperature day/night DIF
+            self._apply_temperature_dif(chart_data, day_mask, summary)
 
-            day_avg = self._safe_mean(day_temps)
-            night_avg = self._safe_mean(night_temps)
-            photoperiod_summary["day_temperature_avg_c"] = day_avg
-            photoperiod_summary["night_temperature_avg_c"] = night_avg
-            if day_avg is not None and night_avg is not None:
-                photoperiod_summary["dif_c"] = round(day_avg - night_avg, 3)
+        summary["_schedule_mask"] = schedule_mask
+        summary["_sensor_mask"] = sensor_mask
+        summary["_day_mask"] = day_mask
+        return summary
 
-        # Add masks to chart data
-        chart_data["is_day_schedule"] = schedule_mask
-        chart_data["is_day_sensor"] = sensor_mask
-        chart_data["is_day"] = day_mask
+    def _apply_temperature_dif(
+        self,
+        chart_data: Dict[str, Any],
+        day_mask: List[Optional[int]],
+        summary: Dict[str, Any],
+    ) -> None:
+        """Compute day/night temperature averages and DIF, updating *summary* in-place."""
+        temps = chart_data.get("temperature", [])
+        day_temps = [t for t, m in zip(temps, day_mask) if isinstance(t, (int, float)) and m == 1]
+        night_temps = [t for t, m in zip(temps, day_mask) if isinstance(t, (int, float)) and m == 0]
 
-        return {
-            "start": start_datetime.isoformat(),
-            "end": end_datetime.isoformat(),
-            "unit_id": unit_id,
-            "sensor_id": sensor_id,
-            "interval": interval,
-            "count": len(readings),
-            "data": chart_data,
-            "photoperiod": photoperiod_summary,
-            "timestamp": utc_now().isoformat()
-        }
+        day_avg = self._safe_mean(day_temps)
+        night_avg = self._safe_mean(night_temps)
+        summary["day_temperature_avg_c"] = day_avg
+        summary["night_temperature_avg_c"] = night_avg
+        if day_avg is not None and night_avg is not None:
+            summary["dif_c"] = round(day_avg - night_avg, 3)

@@ -18,7 +18,7 @@ import logging
 from typing import Optional, Dict, Any, Callable, TYPE_CHECKING
 from app.utils.plant_json_handler import PlantJsonHandler
 from app.domain.environmental_thresholds import EnvironmentalThresholds
-from app.constants import THRESHOLD_UPDATE_TOLERANCE
+from app.constants import THRESHOLD_UPDATE_TOLERANCE, NIGHT_THRESHOLD_ADJUSTMENTS
 from app.enums.common import ConditionProfileTarget, ConditionProfileMode
 from app.enums.events import RuntimeEvent
 from app.schemas.events import ThresholdsPersistPayload
@@ -281,6 +281,79 @@ class ThresholdService:
                 logger.debug("Skipping invalid threshold %s=%s", key, value)
         return payload
 
+    def _coerce_threshold(
+        self,
+        data: Dict[str, Any],
+        keys: tuple[str, ...],
+        *,
+        default: float,
+        min_value: float,
+        max_value: float,
+    ) -> float:
+        value = None
+        for key in keys:
+            if key in data and data[key] is not None:
+                try:
+                    value = float(data[key])
+                    break
+                except (TypeError, ValueError):
+                    value = None
+                    break
+        if value is None:
+            value = default
+        if value < min_value:
+            return min_value
+        if value > max_value:
+            return max_value
+        return value
+
+    def _sanitize_unit_thresholds(self, data: Dict[str, Any]) -> Dict[str, float]:
+        """Clamp persisted thresholds to valid ranges for safe domain construction."""
+        return {
+            "temperature_threshold": self._coerce_threshold(
+                data,
+                ("temperature_threshold", "temperature"),
+                default=24.0,
+                min_value=-50.0,
+                max_value=100.0,
+            ),
+            "humidity_threshold": self._coerce_threshold(
+                data,
+                ("humidity_threshold", "humidity"),
+                default=50.0,
+                min_value=0.0,
+                max_value=100.0,
+            ),
+            "co2_threshold": self._coerce_threshold(
+                data,
+                ("co2_threshold", "co2"),
+                default=1000.0,
+                min_value=0.0,
+                max_value=5000.0,
+            ),
+            "voc_threshold": self._coerce_threshold(
+                data,
+                ("voc_threshold", "voc"),
+                default=1000.0,
+                min_value=0.0,
+                max_value=10000.0,
+            ),
+            "lux_threshold": self._coerce_threshold(
+                data,
+                ("lux_threshold", "light_threshold", "lux"),
+                default=1000.0,
+                min_value=0.0,
+                max_value=100000.0,
+            ),
+            "air_quality_threshold": self._coerce_threshold(
+                data,
+                ("air_quality_threshold", "air_quality", "aqi_threshold", "aqi"),
+                default=100.0,
+                min_value=0.0,
+                max_value=500.0,
+            ),
+        }
+
     def get_unit_thresholds(self, unit_id: int) -> Optional[EnvironmentalThresholds]:
         """Fetch unit thresholds from persistence."""
         if not self.growth_repo:
@@ -293,7 +366,26 @@ class ThresholdService:
             if not row:
                 return None
             data = row if isinstance(row, dict) else {k: row[k] for k in row.keys()}
-            thresholds = EnvironmentalThresholds.from_dict(data)
+            try:
+                thresholds = EnvironmentalThresholds.from_dict(data)
+            except ValueError as exc:
+                sanitized = self._sanitize_unit_thresholds(data)
+                thresholds = EnvironmentalThresholds.from_dict(sanitized)
+                self._unit_threshold_cache[unit_id] = thresholds
+                try:
+                    self.growth_repo.update_unit(unit_id, **sanitized)
+                except Exception:
+                    logger.debug(
+                        "Failed to persist sanitized thresholds for unit %s",
+                        unit_id,
+                        exc_info=True,
+                    )
+                logger.warning(
+                    "Clamped invalid thresholds for unit %s: %s",
+                    unit_id,
+                    exc,
+                )
+                return thresholds
             self._unit_threshold_cache[unit_id] = thresholds
             return thresholds
         except Exception as exc:
@@ -495,7 +587,97 @@ class ThresholdService:
         except Exception as e:
             logger.error(f"Error loading thresholds for {plant_type}: {e}")
             return self.generic_thresholds
-    
+
+    def get_thresholds_for_period(
+        self,
+        plant_type: str,
+        growth_stage: Optional[str] = None,
+        *,
+        is_daytime: bool = True,
+        user_id: Optional[int] = None,
+        profile_id: Optional[str] = None,
+        preferred_mode: Optional["ConditionProfileMode"] = None,
+        plant_variety: Optional[str] = None,
+        strain_variety: Optional[str] = None,
+        pot_size_liters: Optional[float] = None,
+    ) -> EnvironmentalThresholds:
+        """
+        Get environmental thresholds adjusted for the current photoperiod.
+
+        During the day the base thresholds are returned as-is.
+        At night, default adjustments from ``NIGHT_THRESHOLD_ADJUSTMENTS``
+        are applied (temperature drops, humidity rises, lux goes to 0)
+        unless the user's condition profile already provides explicit
+        ``night_environment_thresholds``.
+
+        Args:
+            plant_type: Common name of the plant (e.g. 'Tomatoes')
+            growth_stage: Current growth stage (e.g. 'Vegetative')
+            is_daytime: ``True`` for light-on period, ``False`` for dark period
+            user_id / profile_id / preferred_mode / plant_variety /
+            strain_variety / pot_size_liters: Forwarded to ``get_thresholds``.
+
+        Returns:
+            EnvironmentalThresholds adjusted for the requested period.
+        """
+        base = self.get_thresholds(
+            plant_type,
+            growth_stage,
+            user_id=user_id,
+            profile_id=profile_id,
+            preferred_mode=preferred_mode,
+            plant_variety=plant_variety,
+            strain_variety=strain_variety,
+            pot_size_liters=pot_size_liters,
+        )
+
+        if is_daytime:
+            return base
+
+        # --- Night adjustment -------------------------------------------------
+        # 1) Check if the user's condition profile has explicit night thresholds.
+        profile = self.get_condition_profile(
+            user_id=user_id,
+            plant_type=plant_type,
+            growth_stage=growth_stage or "",
+            profile_id=profile_id,
+            preferred_mode=preferred_mode,
+            plant_variety=plant_variety,
+            strain_variety=strain_variety,
+            pot_size_liters=pot_size_liters,
+        )
+
+        if profile and profile.get("night_environment_thresholds"):
+            night_env = profile["night_environment_thresholds"]
+            merged = base.to_settings_dict()
+            merged.update(night_env)
+            try:
+                return EnvironmentalThresholds.from_dict(merged)
+            except ValueError:
+                logger.warning(
+                    "Invalid night thresholds in profile for %s/%s; using default adjustments",
+                    plant_type,
+                    growth_stage,
+                )
+
+        # 2) Apply default night adjustments from constants.
+        night_temp = base.temperature + NIGHT_THRESHOLD_ADJUSTMENTS.get("temperature", -3.0)
+        night_humidity = min(
+            100.0,
+            base.humidity + NIGHT_THRESHOLD_ADJUSTMENTS.get("humidity", 5.0),
+        )
+        night_lux = NIGHT_THRESHOLD_ADJUSTMENTS.get("lux", 0.0)
+
+        return EnvironmentalThresholds(
+            temperature=night_temp,
+            humidity=night_humidity,
+            soil_moisture=base.soil_moisture,
+            co2=base.co2,
+            voc=base.voc,
+            lux=night_lux,
+            air_quality=base.air_quality,
+        )
+
     def _extract_optimal_thresholds(
         self,
         plant: Dict,

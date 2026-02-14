@@ -47,7 +47,7 @@ class GrowthRepository:
         co2_threshold: float = 1000.0,
         voc_threshold: float = 1000.0,
         lux_threshold: float = 1000.0,
-        aqi_threshold: float = 1000.0,
+        aqi_threshold: float = 100.0,
         device_schedules: Optional[str] = None,
         camera_enabled: bool = False,
     ) -> Optional[int]:
@@ -72,7 +72,7 @@ class GrowthRepository:
             co2_threshold=co2_threshold,
             voc_threshold=voc_threshold,
             lux_threshold=lux_threshold,
-            aqi_threshold=aqi_threshold,
+            air_quality_threshold=aqi_threshold,
             device_schedules=device_schedules,
             camera_enabled=camera_enabled,
         )

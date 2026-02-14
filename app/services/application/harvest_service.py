@@ -11,6 +11,7 @@ import logging
 
 if TYPE_CHECKING:
     from infrastructure.database.repositories.analytics import AnalyticsRepository
+    from infrastructure.database.repositories.plants import PlantRepository
 
 logger = logging.getLogger(__name__)
 
@@ -28,14 +29,20 @@ class PlantHarvestService:
     - Yield and efficiency metrics
     """
     
-    def __init__(self, analytics_repo: 'AnalyticsRepository'):
+    def __init__(
+        self,
+        analytics_repo: 'AnalyticsRepository',
+        plant_repo: Optional['PlantRepository'] = None,
+    ):
         """
         Initialize harvest service.
         
         Args:
             analytics_repo: AnalyticsRepository for database access
+            plant_repo: PlantRepository for plant cleanup operations
         """
         self.analytics_repo = analytics_repo
+        self._plant_repo = plant_repo
     
     def generate_harvest_report(
         self, 
@@ -151,47 +158,7 @@ class PlantHarvestService:
     def _get_energy_summary(self, plant_id: int, planted_date: datetime, harvested_date: datetime) -> Dict:
         """Get energy consumption summary"""
         try:
-            # Get total energy for plant
-            with self.analytics_repo._backend.connection() as conn:
-                result = conn.execute("""
-                    SELECT 
-                        SUM(er.energy_kwh) as total_kwh,
-                        AVG(er.power_watts) as avg_power
-                    FROM EnergyReadings er
-                    JOIN Plants p ON p.unit_id = er.unit_id
-                    WHERE p.plant_id = ?
-                """, (plant_id,)).fetchone()
-                
-                total_kwh = result['total_kwh'] or 0.0
-                avg_power = result['avg_power'] or 0.0
-                
-                # Get by stage
-                by_stage_results = conn.execute("""
-                    SELECT 
-                        er.growth_stage as growth_stage,
-                        SUM(er.energy_kwh) as stage_kwh,
-                        AVG(er.power_watts) as stage_power
-                    FROM EnergyReadings er
-                    JOIN Plants p ON p.unit_id = er.unit_id
-                    WHERE p.plant_id = ?
-                    GROUP BY er.growth_stage
-                """, (plant_id,)).fetchall()
-                
-                by_stage = {row['growth_stage']: row['stage_kwh'] for row in by_stage_results if row['growth_stage']}
-                
-                # Estimate cost (assume $0.20/kWh as default)
-                cost_per_kwh = 0.20
-                total_cost = total_kwh * cost_per_kwh
-                cost_by_stage = {stage: kwh * cost_per_kwh for stage, kwh in by_stage.items()}
-            
-            return {
-                'total_kwh': round(total_kwh, 2),
-                'total_cost': round(total_cost, 2),
-                'avg_daily_power_watts': round(avg_power, 2),
-                'by_stage': by_stage,
-                'cost_by_stage': cost_by_stage,
-                'by_device': {}  # TODO: Implement device breakdown
-            }
+            return self.analytics_repo.get_plant_energy_summary(plant_id)
         except Exception as e:
             logger.error(f"Failed to get energy summary: {e}")
             return {'total_kwh': 0.0, 'total_cost': 0.0, 'avg_daily_power_watts': 0.0, 'by_stage': {}, 'cost_by_stage': {}, 'by_device': {}}
@@ -459,13 +426,41 @@ class PlantHarvestService:
             return deleted_counts
         
         try:
+            if self._plant_repo is not None:
+                result = self._plant_repo.cleanup_plant_data(plant_id)
+                # Map repository keys back to the legacy dict shape
+                deleted_counts['plant_health_logs'] = result.get('plant_health_logs', 0)
+                deleted_counts['plant_sensors'] = result.get('plant_sensors', 0)
+                deleted_counts['plant_unit_associations'] = result.get('plant_unit_associations', 0)
+                deleted_counts['plant_record'] = result.get('plant_record', 0)
+            else:
+                logger.warning(
+                    "PlantRepository not available — falling back to raw SQL for plant %s cleanup",
+                    plant_id,
+                )
+                deleted_counts = self._cleanup_plant_data_raw_sql(plant_id)
+            return deleted_counts
+        except Exception as e:
+            logger.error(f"Failed to cleanup plant {plant_id}: {e}")
+            raise
+
+    def _cleanup_plant_data_raw_sql(self, plant_id: int) -> Dict[str, int]:
+        """Legacy fallback: cleanup via raw SQL when no PlantRepository is available."""
+        deleted_counts: Dict[str, int] = {
+            'plant_health_logs': 0,
+            'plant_sensors': 0,
+            'plant_unit_associations': 0,
+            'ai_decision_logs': 0,
+            'plant_record': 0,
+        }
+        try:
             with self.analytics_repo._backend.connection() as conn:
                 # 1. Delete plant health logs (plant-specific)
                 deleted_counts['plant_health_logs'] = 0
                 for table_name in ("PlantHealthLogs", "PlantHealth"):
                     try:
                         cursor = conn.execute(
-                            f"DELETE FROM {table_name} WHERE plant_id = ?",
+                            f"DELETE FROM {table_name} WHERE plant_id = ?",  # nosec B608 — table_name is a compile-time constant
                             (plant_id,),
                         )
                         deleted_counts['plant_health_logs'] += cursor.rowcount
@@ -524,7 +519,7 @@ class PlantHarvestService:
             return deleted_counts
             
         except Exception as e:
-            logger.error(f"Failed to cleanup plant {plant_id}: {e}")
+            logger.error(f"Failed to cleanup plant {plant_id} (raw SQL fallback): {e}")
             raise
     
     def harvest_and_cleanup(

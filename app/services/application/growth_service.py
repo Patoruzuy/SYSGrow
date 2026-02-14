@@ -35,6 +35,7 @@ from app.enums import NotificationSeverity, NotificationType
 from app.enums.events import PlantEvent, RuntimeEvent
 from app.schemas.events import (
     PlantLifecyclePayload,
+    PlantStageUpdatePayload,
     ThresholdsProposedPayload,
     ActivePlantSetPayload,
 )
@@ -63,6 +64,7 @@ if TYPE_CHECKING:
     from app.services.application.notifications_service import NotificationsService
     from app.services.application.irrigation_workflow_service import IrrigationWorkflowService
     from app.services.hardware import SensorManagementService, ActuatorManagementService
+    from app.services.protocols import PlantStateReader
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +104,7 @@ class GrowthService:
     This is the central service that the Flask app interacts with.
 
     Bidirectional Dependencies:
-        - plant_service: PlantViewService, set by ContainerBuilder after construction for cross-service delegation
+        - plant_service: PlantStateReader protocol, set by ContainerBuilder after construction for cross-service delegation
         - device_health_service: Set by ContainerBuilder for health monitoring
     """
 
@@ -122,7 +124,7 @@ class GrowthService:
         device_health_service: Optional[Any] = None,
         sensor_management_service: Optional['SensorManagementService'] = None,
         actuator_management_service: Optional['ActuatorManagementService'] = None,
-        plant_service: Optional[Any] = None,
+        plant_service: Optional['PlantStateReader'] = None,
         sensor_processor: Optional[IDataProcessor] = None,
         ai_health_repo: Optional[Any] = None,
         cache_enabled: bool = True,
@@ -147,7 +149,7 @@ class GrowthService:
             device_health_service: Optional singleton DeviceHealthService from container
             sensor_management_service: Optional singleton SensorManagementService (NEW)
             actuator_management_service: Optional singleton ActuatorManagementService (NEW)
-            plant_service: Optional PlantViewService for cross-service delegation (circular dependency)
+            plant_service: Optional PlantStateReader for cross-service delegation (circular dependency)
             sensor_processor: Optional sensor processor pipeline (CompositeProcessor) for priority filtering
             ai_health_repo: Optional AIHealthDataRepository for control log storage
         """
@@ -177,7 +179,6 @@ class GrowthService:
         # PlantService is passed to delegate PlantProfile creation
         self.factory = UnitRuntimeFactory(
             plant_handler=PlantJsonHandler(),
-            threshold_service=threshold_service,
             plant_service=plant_service,
         )
 
@@ -219,13 +220,15 @@ class GrowthService:
         self._setup_threshold_service_integration()
 
     def _subscribe_to_runtime_events(self) -> None:
-        """Subscribe to RuntimeEvent.* events for persistence."""
+        """Subscribe to RuntimeEvent.* and PlantEvent.* events for AI proposals and persistence."""
         if self.event_bus:
             # Note: THRESHOLDS_PERSIST is handled by ThresholdService directly
             self.event_bus.subscribe(RuntimeEvent.THRESHOLDS_PROPOSED, self._handle_thresholds_proposed)
             self.event_bus.subscribe(RuntimeEvent.ACTIVE_PLANT_SET, self._handle_active_plant_set)
+            # AI threshold proposals on stage changes (moved from UnitRuntime)
+            self.event_bus.subscribe(PlantEvent.PLANT_STAGE_UPDATE, self._handle_plant_stage_update)
             logger.debug(
-                "GrowthService subscribed to RuntimeEvent.THRESHOLDS_PROPOSED and ACTIVE_PLANT_SET"
+                "GrowthService subscribed to THRESHOLDS_PROPOSED, ACTIVE_PLANT_SET, PLANT_STAGE_UPDATE"
             )
 
     def _subscribe_to_plant_events(self) -> None:
@@ -329,7 +332,7 @@ class GrowthService:
 
             self.notifications_service.send_notification(
                 user_id=user_id,
-                notification_type=NotificationType.SYSTEM_ALERT,
+                notification_type=NotificationType.THRESHOLD_PROPOSAL,
                 title=title,
                 message=message,
                 severity=NotificationSeverity.INFO,
@@ -337,7 +340,7 @@ class GrowthService:
                 source_id=unit_id,
                 unit_id=unit_id,
                 requires_action=True,
-                action_type="threshold_update",
+                action_type="threshold_proposal",
                 action_data=action_data,
             )
 
@@ -373,7 +376,7 @@ class GrowthService:
                     plant = self._plant_service.get_plant(plant_id, unit_id)
                 if plant:
                     self._apply_active_plant_overrides(runtime, plant)
-                    runtime.apply_ai_conditions()
+                    self.propose_ai_conditions(unit_id)
                     self.event_bus.publish(
                         PlantEvent.ACTIVE_PLANT_CHANGED,
                         PlantLifecyclePayload(unit_id=unit_id, plant_id=plant_id),
@@ -394,6 +397,132 @@ class GrowthService:
 
         except Exception as e:
             logger.error(f"Error handling ACTIVE_PLANT_SET event: {e}", exc_info=True)
+
+    def _handle_plant_stage_update(self, payload: PlantStageUpdatePayload) -> None:
+        """
+        Handle PlantEvent.PLANT_STAGE_UPDATE — propose AI conditions for the unit.
+
+        Moved from UnitRuntime.apply_ai_conditions() to keep the domain model pure.
+        Note: PlantStageManager._propose_stage_thresholds() already sends a detailed
+        THRESHOLD_PROPOSAL notification on stage *changes*. This handler covers the
+        case where propose_ai_conditions should run on every stage update event
+        (e.g. days_in_stage tick), not just stage transitions.
+        """
+        try:
+            if isinstance(payload, dict):
+                plant_id = payload.get("plant_id")
+            else:
+                plant_id = payload.plant_id
+
+            if plant_id is None:
+                return
+
+            # Find the unit that owns this plant
+            unit_id = self._find_unit_for_plant(plant_id)
+            if unit_id is not None:
+                self.propose_ai_conditions(unit_id)
+        except Exception as e:
+            logger.error("Error handling PLANT_STAGE_UPDATE: %s", e, exc_info=True)
+
+    def _find_unit_for_plant(self, plant_id: int) -> Optional[int]:
+        """Resolve the unit_id that owns a given plant_id."""
+        # Check active runtimes first (fast path)
+        with self._runtime_lock:
+            for uid, runtime in self._unit_runtimes.items():
+                if runtime.active_plant and runtime.active_plant.plant_id == plant_id:
+                    return uid
+        # Fallback: ask PlantService
+        if self._plant_service:
+            plant = self._plant_service.get_plant(plant_id)
+            if plant:
+                return getattr(plant, "unit_id", None)
+        return None
+
+    def propose_ai_conditions(self, unit_id: int) -> None:
+        """
+        Propose AI-enhanced environmental conditions for a unit's active plant.
+
+        Mirrors the irrigation approval pattern:
+        1. Compute optimal thresholds via ThresholdService
+        2. Filter insignificant changes
+        3. Send THRESHOLD_PROPOSAL notification for user approval
+
+        The user can accept, dismiss, or customize via the existing
+        ``threshold_proposal`` action handler.
+
+        This method replaces the former ``UnitRuntime.apply_ai_conditions()``,
+        keeping the domain model free of service-layer orchestration.
+        """
+        try:
+            runtime = self.get_unit_runtime(unit_id)
+            if not runtime or not runtime.active_plant:
+                logger.debug("No runtime/active plant for unit %s; skipping AI proposal", unit_id)
+                return
+
+            if not self.threshold_service:
+                logger.warning(
+                    "ThresholdService not available; skipping AI conditions for unit %s",
+                    unit_id,
+                )
+                return
+
+            plant = runtime.active_plant
+
+            # Get optimal conditions (plant-specific + AI blend)
+            optimal = self.threshold_service.get_optimal_conditions(
+                plant_type=plant.plant_type,
+                growth_stage=plant.current_stage,
+                use_ai=True,
+                user_id=runtime.user_id,
+                profile_id=getattr(plant, "condition_profile_id", None),
+                preferred_mode=getattr(plant, "condition_profile_mode", None),
+                plant_variety=getattr(plant, "plant_variety", None),
+                strain_variety=getattr(plant, "strain_variety", None),
+                pot_size_liters=getattr(plant, "pot_size_liters", None),
+            )
+
+            proposed = optimal.to_settings_dict()
+            current_thresholds = {
+                key: getattr(runtime.settings, key)
+                for key in THRESHOLD_KEYS
+                if hasattr(runtime.settings, key)
+            }
+
+            # Filter insignificant changes
+            filtered_current, filtered_proposed = self.threshold_service.filter_threshold_changes(
+                current_thresholds,
+                proposed,
+            )
+
+            if not filtered_proposed:
+                logger.debug(
+                    "No significant threshold changes for unit %s (%s/%s)",
+                    unit_id, plant.plant_type, plant.current_stage,
+                )
+                return
+
+            # Publish THRESHOLDS_PROPOSED event (consumed by _handle_thresholds_proposed → notification)
+            self.event_bus.publish(
+                RuntimeEvent.THRESHOLDS_PROPOSED,
+                ThresholdsProposedPayload(
+                    unit_id=unit_id,
+                    user_id=runtime.user_id,
+                    plant_id=plant.plant_id,
+                    plant_type=plant.plant_type,
+                    growth_stage=plant.current_stage,
+                    current_thresholds=current_thresholds,
+                    proposed_thresholds=proposed,
+                    source="threshold_service_ai",
+                ),
+            )
+
+            logger.info(
+                "Proposed AI conditions for unit %s: %s (%s)",
+                unit_id, plant.plant_type, plant.current_stage,
+            )
+
+        except Exception as e:
+            logger.error("Error proposing AI conditions for unit %s: %s", unit_id, e, exc_info=True)
 
     def _handle_active_plant_changed(self, payload: PlantLifecyclePayload) -> None:
         """Auto-apply plant stage schedules when active plant changes."""
@@ -438,6 +567,11 @@ class GrowthService:
             self.update_unit_thresholds(runtime.unit_id, changes)
 
     def _get_scheduling_service(self):
+        if not self.actuator_service:
+            return None
+        direct = getattr(self.actuator_service, "scheduling_service", None)
+        if direct:
+            return direct
         manager = getattr(self.actuator_service, "actuator_manager", None)
         return getattr(manager, "scheduling_service", None)
 
@@ -865,11 +999,7 @@ class GrowthService:
                     
                     # 5. Load schedules into memory (memory-first pattern)
                     # Schedules are owned by SchedulingService via ActuatorManager
-                    scheduling_service = getattr(
-                        getattr(self.actuator_service, 'actuator_manager', None),
-                        'scheduling_service',
-                        None
-                    )
+                    scheduling_service = self._get_scheduling_service()
                     if scheduling_service:
                         schedule_count = scheduling_service.load_schedules_for_unit(unit_id)
                         logger.debug(f"   Loaded {schedule_count} schedules for unit {unit_id}")
@@ -933,11 +1063,7 @@ class GrowthService:
                 logger.debug(f"   Stopped plant sensor controller for unit {unit_id}")
 
             # 3. Clear schedules from memory (memory-first cleanup)
-            scheduling_service = getattr(
-                getattr(self.actuator_service, 'actuator_manager', None),
-                'scheduling_service',
-                None
-            )
+            scheduling_service = self._get_scheduling_service()
             if scheduling_service:
                 scheduling_service.clear_unit_schedules(unit_id)
                 logger.debug(f"   Cleared schedules from memory for unit {unit_id}")
@@ -1085,7 +1211,7 @@ class GrowthService:
                     plant = self._plant_service.get_plant(plant_id, unit_id)
                     if plant:
                         self._apply_active_plant_overrides(runtime, plant)
-                        runtime.apply_ai_conditions()
+                        self.propose_ai_conditions(unit_id)
             
             return success
             

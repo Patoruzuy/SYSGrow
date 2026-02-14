@@ -1000,6 +1000,8 @@ class DeviceHealthService:
         - Sensors that haven't reported in a while (offline)
         - Actuators with high error rates
         
+        Uses batch queries to avoid N+1 DB lookups.
+        
         Args:
             unit_id: Optional unit ID to check specific unit, or None for all units
             
@@ -1022,15 +1024,47 @@ class DeviceHealthService:
             else:
                 sensors = self.repository.list_sensors()
             
+            if not sensors:
+                return {
+                    "success": True,
+                    "sensors_checked": 0,
+                    "alerts_created": 0,
+                    "critical_sensors": [],
+                    "offline_sensors": [],
+                }
+
+            # --- Batch-fetch health data ---------------------------------
+            all_sensor_ids = [
+                s.get('sensor_id') for s in sensors if s.get('sensor_id')
+            ]
+
+            # 1. Collect live health from in-memory system_health_service
+            live_health_map: Dict[int, Any] = {}
+            if self.system_health_service:
+                for sid in all_sensor_ids:
+                    raw = self.system_health_service.get_sensor_health(sid)
+                    if raw:
+                        live_health_map[sid] = raw
+
+            # 2. For sensors without live data, batch-fetch latest DB snapshot
+            missing_ids = [sid for sid in all_sensor_ids if sid not in live_health_map]
+            history_map: Dict[int, Dict[str, Any]] = {}
+            if missing_ids:
+                history_map = self.repository.get_latest_health_batch(missing_ids)
+            # -----------------------------------------------------------------
+
             for sensor in sensors:
                 sensor_id = sensor.get('sensor_id')
                 sensor_name = sensor.get('name', f'Sensor {sensor_id}')
+                # Use unit_id from the sensor record directly (avoids per-sensor DB lookup)
                 sensor_unit_id = sensor.get('unit_id')
                 
                 sensors_checked += 1
-                
-                # Check sensor health
-                health = self.get_sensor_health(sensor_id)
+
+                # Resolve health from pre-fetched data
+                health = self._resolve_health_for_check(
+                    sensor_id, live_health_map, history_map,
+                )
                 
                 if not health.get('success'):
                     continue
@@ -1042,38 +1076,9 @@ class DeviceHealthService:
                 last_reading = health.get('last_reading')
                 
                 # Check if sensor is offline (no reading in last N minutes)
-                is_offline = False
-                if last_reading:
-                    try:
-                        from datetime import datetime, timedelta, timezone
-
-                        # Parse ISO timestamps robustly: prefer dateutil if available
-                        last_read_time = None
-                        if isinstance(last_reading, str):
-                            try:
-                                from dateutil import parser as dateutil_parser
-                                last_read_time = dateutil_parser.isoparse(last_reading)
-                            except Exception:
-                                try:
-                                    last_read_time = datetime.fromisoformat(last_reading.replace('Z', '+00:00'))
-                                except Exception as iso_parse_error:
-                                    logger.debug(f"Could not parse last_reading time with fallback: {iso_parse_error}")
-                                    last_read_time = None
-                        elif hasattr(last_reading, 'tzinfo') or hasattr(last_reading, 'year'):
-                            # Already a datetime-like object
-                            last_read_time = last_reading
-
-                        if last_read_time is not None:
-                            # Normalize to timezone-aware UTC for safe comparisons
-                            if last_read_time.tzinfo is None:
-                                last_read_time = last_read_time.replace(tzinfo=timezone.utc)
-                            now = datetime.now(tz=timezone.utc)
-                            time_since_reading = now - last_read_time.astimezone(timezone.utc)
-                            if time_since_reading > timedelta(minutes=self.offline_threshold_minutes):
-                                is_offline = True
-                                offline_sensors.append(sensor_name)
-                    except Exception as parse_error:
-                        logger.debug(f"Could not parse last_reading time: {parse_error}")
+                is_offline = self._check_sensor_offline(last_reading)
+                if is_offline:
+                    offline_sensors.append(sensor_name)
                 
                 # Create alert for offline sensor
                 if is_offline:
@@ -1157,6 +1162,163 @@ class DeviceHealthService:
         except Exception as e:
             logger.error(f"Error checking device health: {e}", exc_info=True)
             return {"success": False, "error": str(e)}
+
+    # -------------------- batch-check helpers --------------------------------
+
+    def _resolve_health_for_check(
+        self,
+        sensor_id: int,
+        live_health_map: Dict[int, Any],
+        history_map: Dict[int, Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        """Build a health dict for *check_all_devices_health_and_alert* from
+        pre-fetched live data or DB history, avoiding per-sensor queries."""
+
+        raw_health = live_health_map.get(sensor_id)
+        if raw_health:
+            # Normalize live data exactly like get_sensor_health does
+            return self._normalize_raw_health(sensor_id, raw_health)
+
+        latest = history_map.get(sensor_id)
+        if latest:
+            total_readings = int(latest.get("total_readings", 0) or 0)
+            if total_readings > 0:
+                return {
+                    "success": True,
+                    "sensor_id": sensor_id,
+                    "health_score": float(latest.get("health_score", 0)),
+                    "status": latest.get("status", "unknown"),
+                    "last_reading": latest.get("recorded_at"),
+                    "error_rate": float(latest.get("error_rate", 0.0) or 0.0),
+                    "total_readings": total_readings,
+                    "failed_readings": int(latest.get("failed_readings", 0) or 0),
+                    "source": "history_cache",
+                }
+
+        # No data at all
+        return {
+            "success": True,
+            "sensor_id": sensor_id,
+            "health_score": None,
+            "status": "unknown",
+            "last_reading": None,
+            "error_rate": None,
+            "total_readings": 0,
+            "failed_readings": 0,
+            "source": "empty",
+        }
+
+    def _normalize_raw_health(
+        self, sensor_id: int, raw_health: Any
+    ) -> Dict[str, Any]:
+        """Normalize a live health payload (dict or dataclass) into the
+        standard health dict used by *check_all_devices_health_and_alert*.
+
+        This mirrors the normalization logic in ``get_sensor_health`` so that
+        the batch path produces identical output."""
+
+        if isinstance(raw_health, dict):
+            health_dict = raw_health
+        else:
+            health_dict = {
+                "status": getattr(raw_health, "status", None),
+                "health_score": getattr(raw_health, "health_score", None),
+                "last_reading": getattr(raw_health, "last_reading_time", None),
+                "error_rate": getattr(raw_health, "error_rate", None),
+                "total_reads": getattr(raw_health, "total_reads", None),
+                "failed_reads": getattr(raw_health, "failed_reads", None),
+                "success_rate": getattr(raw_health, "success_rate", None),
+            }
+
+        status_value = health_dict.get("level") or health_dict.get("status") or "unknown"
+        if hasattr(status_value, "value"):
+            status_value = status_value.value
+
+        last_reading = (
+            health_dict.get("last_reading")
+            or health_dict.get("last_reading_time")
+            or health_dict.get("last_check")
+        )
+        if hasattr(last_reading, "isoformat"):
+            last_reading = last_reading.isoformat()
+
+        total_reads = health_dict.get("total_reads")
+        if total_reads is None:
+            total_reads = health_dict.get("total_readings")
+        total_reads = int(total_reads or 0)
+
+        failed_reads = health_dict.get("failed_reads")
+        if failed_reads is None:
+            failed_reads = health_dict.get("failed_readings")
+        failed_reads = int(failed_reads or 0)
+
+        success_reads = health_dict.get("successful_reads", None)
+        success_rate = health_dict.get("success_rate")
+        if success_rate is None and success_reads is not None and total_reads:
+            success_rate = (float(success_reads) / float(total_reads)) * 100.0
+
+        health_score = health_dict.get("health_score", success_rate)
+        if isinstance(health_score, (int, float)) and 0 < health_score <= 1:
+            health_score = health_score * 100.0
+        health_score = float(health_score or 0.0)
+        health_score = max(0.0, min(health_score, 100.0))
+
+        error_rate = health_dict.get("error_rate")
+        if error_rate is None and total_reads:
+            if success_reads is not None:
+                error_rate = max(0.0, 1.0 - (float(success_reads) / float(total_reads)))
+            else:
+                error_rate = float(failed_reads) / float(total_reads)
+        error_rate = float(error_rate or 0.0)
+        error_rate = max(0.0, min(error_rate, 1.0))
+
+        return {
+            "success": True,
+            "sensor_id": sensor_id,
+            "health_score": health_score,
+            "status": str(status_value),
+            "last_reading": last_reading,
+            "error_rate": error_rate,
+            "total_readings": total_reads,
+            "failed_readings": failed_reads,
+            "source": "live",
+        }
+
+    def _check_sensor_offline(self, last_reading: Any) -> bool:
+        """Return True if ``last_reading`` is older than the offline threshold.
+
+        Extracted from the inline logic previously duplicated in the alert
+        loop."""
+        if not last_reading:
+            return False
+        try:
+            from datetime import datetime, timedelta, timezone
+
+            last_read_time = None
+            if isinstance(last_reading, str):
+                try:
+                    from dateutil import parser as dateutil_parser
+                    last_read_time = dateutil_parser.isoparse(last_reading)
+                except Exception:
+                    try:
+                        last_read_time = datetime.fromisoformat(
+                            last_reading.replace('Z', '+00:00')
+                        )
+                    except Exception:
+                        return False
+            elif hasattr(last_reading, 'tzinfo') or hasattr(last_reading, 'year'):
+                last_read_time = last_reading
+
+            if last_read_time is None:
+                return False
+
+            if last_read_time.tzinfo is None:
+                last_read_time = last_read_time.replace(tzinfo=timezone.utc)
+            now = datetime.now(tz=timezone.utc)
+            time_since_reading = now - last_read_time.astimezone(timezone.utc)
+            return time_since_reading > timedelta(minutes=self.offline_threshold_minutes)
+        except Exception:
+            return False
 
     # ==================== Health Score Interpretation ====================
 

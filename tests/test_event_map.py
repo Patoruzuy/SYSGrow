@@ -93,7 +93,8 @@ def _prime_event_bus_subscribers() -> None:
         plant_type="test",
     )
 
-    # UnitRuntime subscribes to PLANT_ADDED / PLANT_REMOVED / PLANT_STAGE_UPDATE.
+    # UnitRuntime is a pure domain model — no longer subscribes to events.
+    # AI threshold proposals are handled by GrowthService at the service layer.
     from app.domain.unit_runtime import UnitRuntime, UnitSettings
 
     UnitRuntime(
@@ -103,7 +104,6 @@ def _prime_event_bus_subscribers() -> None:
         user_id=1,
         settings=UnitSettings(),
         custom_image=None,
-        threshold_service=None,
     )
 
 

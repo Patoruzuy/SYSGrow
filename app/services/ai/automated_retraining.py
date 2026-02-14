@@ -217,6 +217,24 @@ class AutomatedRetrainingService:
         
         logger.info("Irrigation ML retraining jobs configured")
 
+    def setup_climate_retraining_jobs(self) -> None:
+        """Set up retraining jobs for climate optimisation models.
+
+        Creates a weekly job that retrains the climate prediction model
+        using recent sensor readings and user adjustments.
+        """
+        self.add_job(
+            model_type="climate_optimizer",
+            schedule_type="weekly",
+            job_id="climate_optimizer_weekly",
+            schedule_day=2,  # Wednesday
+            schedule_time="03:00",
+            min_samples=20,
+            drift_threshold=0.20,
+        )
+
+        logger.info("Climate optimizer retraining job configured")
+
     def cancel_training(
         self,
         *,

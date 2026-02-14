@@ -30,7 +30,7 @@ class EnvironmentalThresholds:
         co2: CO2 threshold in ppm (default: 1000.0)
         voc: VOC threshold in ppb (default: 1000.0)
         lux: Light intensity threshold in lux (default: 1000.0)
-        air_quality: Air Quality Index threshold (default: 1000.0)
+        air_quality: Air Quality Index threshold (default: 100.0)
     """
     
     temperature: float = 24.0
@@ -39,7 +39,7 @@ class EnvironmentalThresholds:
     co2: float = 1000.0
     voc: float = 1000.0
     lux: float = 1000.0
-    air_quality: float = 1000.0
+    air_quality: float = 100.0
     
     def __post_init__(self):
         """Validate threshold values after initialization."""

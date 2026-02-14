@@ -25,7 +25,7 @@ import json
 import logging
 import math
 from dataclasses import dataclass, asdict
-from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import Any, Callable, Dict, List, Optional, Tuple, TYPE_CHECKING
 
 from app.utils.time import iso_now, utc_now
 from app.constants import (
@@ -180,6 +180,8 @@ class BayesianThresholdAdjuster:
         default_prior_variance: Optional[float] = None,
         min_variance: Optional[float] = None,
         base_observation_variance: Optional[float] = None,
+        notification_callback: Optional[Callable[..., None]] = None,
+        notification_tolerance: float = 3.0,
     ):
         """
         Initialize Bayesian adjuster.
@@ -191,6 +193,11 @@ class BayesianThresholdAdjuster:
             default_prior_variance: Initial variance (uncertainty) for prior
             min_variance: Minimum variance to prevent overconfidence
             base_observation_variance: Base variance for observations
+            notification_callback: Optional callback(unit_id, user_id, result)
+                invoked when a Bayesian update shifts the threshold
+                by more than *notification_tolerance* percentage points.
+            notification_tolerance: Minimum absolute shift (pp) to trigger
+                the notification callback (default 3.0).
         """
         self._ml_repo = irrigation_ml_repo
         self._workflow_repo = workflow_repo
@@ -198,6 +205,8 @@ class BayesianThresholdAdjuster:
         self._default_prior_variance = default_prior_variance or BAYESIAN_DEFAULTS["prior_variance"]
         self._min_variance = min_variance or BAYESIAN_DEFAULTS["min_variance"]
         self._base_observation_variance = base_observation_variance or BAYESIAN_DEFAULTS["observation_variance"]
+        self._notification_callback = notification_callback
+        self._notification_tolerance = notification_tolerance
         
         # In-memory belief cache: (unit_id, user_id, belief_key) -> ThresholdBelief
         self._beliefs: Dict[Tuple[int, int, str], ThresholdBelief] = {}
@@ -509,7 +518,7 @@ class BayesianThresholdAdjuster:
             f"(feedback: {feedback}, samples: {new_belief.sample_count})"
         )
         
-        return AdjustmentResult(
+        result = AdjustmentResult(
             recommended_threshold=posterior_mean,
             adjustment_amount=abs(adjustment_amount),
             direction=direction if abs(adjustment_amount) >= 1.0 else "maintain",
@@ -518,6 +527,18 @@ class BayesianThresholdAdjuster:
             reasoning=reasoning,
             belief=new_belief,
         )
+
+        # A11 — notify when the shift is significant
+        if (
+            self._notification_callback
+            and abs(adjustment_amount) >= self._notification_tolerance
+        ):
+            try:
+                self._notification_callback(unit_id, user_id, result)
+            except Exception as exc:
+                logger.warning("Bayesian notification callback failed: %s", exc)
+
+        return result
     
     def get_recommended_threshold(
         self,

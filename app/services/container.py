@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from app.config import AppConfig
 from app.services.ai.environmental_health_scorer import EnvironmentalLeafHealthScorer
@@ -57,6 +57,11 @@ from app.services.ai import (
     ABTestingService,
     AutomatedRetrainingService,
 )
+
+if TYPE_CHECKING:
+    from app.services.ai.continuous_monitor import ContinuousMonitoringService
+    from app.services.ai.personalized_learning import PersonalizedLearningService
+    from app.services.ai.training_data_collector import TrainingDataCollector
 
 
 logger = logging.getLogger(__name__)
@@ -118,11 +123,11 @@ class ServiceContainer:
     # Phase 2 AI Services
     ml_trainer: MLTrainerService
     drift_detector: ModelDriftDetectorService
-    continuous_monitor: Optional[object]  # ContinuousMonitoringService - avoiding import cycle
+    continuous_monitor: Optional[ContinuousMonitoringService]
     ab_testing: ABTestingService
     automated_retraining: Optional[AutomatedRetrainingService]
-    personalized_learning: Optional[object]  # PersonalizedLearningService - avoiding import cycle
-    training_data_collector: Optional[object]  # TrainingDataCollector - avoiding import cycle
+    personalized_learning: Optional[PersonalizedLearningService]
+    training_data_collector: Optional[TrainingDataCollector]
 
     @classmethod
     def build(cls, config: AppConfig, *, start_coordinator: bool = False) -> "ServiceContainer":

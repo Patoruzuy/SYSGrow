@@ -387,3 +387,32 @@ class IrrigationMLRepository:
             growth_stage=plant_info.get("growth_stage") if plant_info else None,
             soil_moisture=current_readings.get("soil_moisture"),
         )
+
+    def get_moisture_history(
+        self, plant_id: int, cutoff_iso: str,
+    ) -> List[Dict[str, Any]]:
+        """Return moisture readings for *plant_id* since *cutoff_iso*.
+
+        Each element is ``{"soil_moisture": float, "timestamp": str}``.
+        Results are ordered oldest-first.
+        """
+        try:
+            db = self._db.get_db()
+            cursor = db.execute(
+                """
+                SELECT soil_moisture, timestamp
+                FROM PlantReadings
+                WHERE plant_id = ?
+                  AND timestamp >= ?
+                  AND soil_moisture IS NOT NULL
+                ORDER BY timestamp ASC
+                """,
+                (plant_id, cutoff_iso),
+            )
+            return [
+                {"soil_moisture": row[0], "timestamp": row[1]}
+                for row in cursor.fetchall()
+            ]
+        except Exception as exc:
+            logger.error("get_moisture_history failed for plant %s: %s", plant_id, exc)
+            return []

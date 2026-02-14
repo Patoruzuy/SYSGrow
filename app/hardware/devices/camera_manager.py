@@ -340,8 +340,12 @@ class ESP32CameraController:
             True if the request was successful, False otherwise.
         """
         url = f'{self.base_url}?var={var}&val={val}'
-        response = requests.get(url)
-        return response.status_code == 200
+        try:
+            response = requests.get(url, timeout=5)
+            return response.status_code == 200
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Error sending camera control request to {self.base_url}: {e}")
+            return False
 
 class CameraManager:
     """

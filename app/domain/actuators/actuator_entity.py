@@ -131,66 +131,6 @@ class ActuatorReading:
     metadata: Dict[str, Any] = field(default_factory=dict)
 
 
-@dataclass
-class Schedule:
-    """Schedule for actuator"""
-    schedule_id: Optional[int] = None
-    actuator_id: int = 0
-    name: str = ""
-    enabled: bool = True
-    
-    # Time-based schedule
-    start_time: Optional[str] = None  # HH:MM format
-    end_time: Optional[str] = None    # HH:MM format
-    days_of_week: List[int] = field(default_factory=lambda: [0, 1, 2, 3, 4, 5, 6])  # 0=Monday
-    
-    # Control parameters
-    state: ActuatorState = ActuatorState.ON
-    value: Any = None  # For dimmers, etc.
-    metadata: Dict[str, Any] = field(default_factory=dict)
-
-    def is_active_now(self, now: Optional[datetime] = None) -> bool:
-        """
-        Check if the schedule is currently active.
-
-        Supports schedules that span midnight.
-        """
-        if not self.enabled:
-            return False
-        if not self.start_time or not self.end_time:
-            return False
-
-        now_dt = now or datetime.now()
-        weekday = now_dt.weekday()  # 0=Monday
-
-        try:
-            start_parts = self.start_time.split(":")
-            end_parts = self.end_time.split(":")
-            start_minutes = int(start_parts[0]) * 60 + int(start_parts[1])
-            end_minutes = int(end_parts[0]) * 60 + int(end_parts[1])
-        except Exception:
-            return False
-
-        now_minutes = now_dt.hour * 60 + now_dt.minute
-
-        if start_minutes == end_minutes:
-            return weekday in self.days_of_week
-
-        if start_minutes < end_minutes:
-            if weekday not in self.days_of_week:
-                return False
-            return start_minutes <= now_minutes < end_minutes
-
-        # Cross-midnight schedule:
-        # - from start_time to 23:59 on start day
-        # - from 00:00 to end_time on the next day
-        if now_minutes >= start_minutes:
-            return weekday in self.days_of_week
-
-        prev_day = (weekday - 1) % 7
-        return prev_day in self.days_of_week and now_minutes < end_minutes
-
-
 class ActuatorAdapter(TypingProtocol):
     """Protocol for actuator adapters"""
     
@@ -237,8 +177,7 @@ class ActuatorEntity:
     last_command: Optional[ActuatorCommand] = None
     control_mode: ControlMode = ControlMode.MANUAL
 
-    # Scheduling and safety
-    schedule: Optional[Schedule] = None
+    # Safety configuration
     interlocks: List[int] = field(default_factory=list)
     
     # Statistics
@@ -435,12 +374,6 @@ class ActuatorEntity:
             return on_reading
         time.sleep(max(0.0, float(duration_seconds)))
         return self.turn_off()
-
-    def set_schedule(self, schedule: Schedule) -> None:
-        self.schedule = schedule
-
-    def clear_schedule(self) -> None:
-        self.schedule = None
 
     def add_interlock(self, other_actuator_id: int) -> None:
         if other_actuator_id not in self.interlocks:

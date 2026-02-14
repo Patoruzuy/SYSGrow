@@ -904,8 +904,8 @@ class EnvironmentalFeatureExtractor:
 
             from app.domain.sensors.fields import SensorField
             lux_series = None
-            # Prioritize standard 'lux' field,
-            for candidate in (SensorField.LUX.value):
+            # Prioritize standard 'lux' field, then common aliases
+            for candidate in (SensorField.LUX.value, "light_lux", "illuminance", "light"):
                 if candidate in sensor_df.columns:
                     lux_series = sensor_df[candidate]
                     break

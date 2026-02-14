@@ -543,89 +543,6 @@ class IrrigationPredictor:
                 ),
             )
 
-            # Get training data for threshold optimization
-            training_data = self._repo.get_training_data_for_model(
-                "threshold_optimizer",
-                unit_id=unit_id,
-                limit=100,
-            )
-            
-            # Start with plant type default
-            base_threshold = IRRIGATION_THRESHOLDS.get(
-                plant_type.lower(),
-                IRRIGATION_THRESHOLDS["default"],
-            )
-            
-            # Apply growth stage adjustment from shared constants
-            stage_adj = GROWTH_STAGE_MOISTURE_ADJUSTMENTS.get(growth_stage, 0.0)
-            
-            if not training_data:
-                # No training data - use defaults
-                optimal = base_threshold + stage_adj
-                return ThresholdPrediction(
-                    optimal_threshold=optimal,
-                    current_threshold=current_threshold,
-                    adjustment_direction=self._get_direction(current_threshold, optimal),
-                    adjustment_amount=abs(optimal - current_threshold),
-                    confidence=0.3,  # Low confidence without data
-                    reasoning="Using plant type defaults (no feedback data yet)",
-                )
-            
-            # Bayesian update from timing feedback
-            # Count timing feedback types
-            triggered_early = sum(
-                1 for d in training_data if d.get("feedback_response") == "triggered_too_early"
-            )
-            triggered_late = sum(
-                1 for d in training_data if d.get("feedback_response") == "triggered_too_late"
-            )
-            total = triggered_early + triggered_late
-            
-            if total == 0:
-                optimal = base_threshold + stage_adj
-                return ThresholdPrediction(
-                    optimal_threshold=optimal,
-                    current_threshold=current_threshold,
-                    adjustment_direction=self._get_direction(current_threshold, optimal),
-                    adjustment_amount=abs(optimal - current_threshold),
-                    confidence=0.3,
-                    reasoning="Using plant type defaults (no timing feedback)",
-                )
-            
-            # Calculate weighted adjustment
-            # triggered_too_late -> increase threshold (trigger earlier)
-            # triggered_too_early -> decrease threshold (trigger later)
-            adjustment_weight = (triggered_late - triggered_early) / total
-            max_adjustment = 10.0  # Maximum adjustment per cycle
-            
-            feedback_adjustment = adjustment_weight * max_adjustment
-            
-            optimal = current_threshold + feedback_adjustment + (stage_adj * 0.3)
-            
-            # Clamp to reasonable range
-            optimal = max(20.0, min(80.0, optimal))
-            
-            # Calculate confidence based on data quantity and consistency
-            data_confidence = min(1.0, total / 30)  # Max confidence at 30 samples
-            confidence = data_confidence
-            
-            # Determine reasoning
-            if abs(feedback_adjustment) < 1.0:
-                reasoning = f"Current threshold is well-calibrated ({total} timing feedback)"
-            elif feedback_adjustment > 0:
-                reasoning = f"Increasing threshold based on {triggered_late} late trigger feedbacks"
-            else:
-                reasoning = f"Decreasing threshold based on {triggered_early} early trigger feedbacks"
-            
-            return ThresholdPrediction(
-                optimal_threshold=round(optimal, 1),
-                current_threshold=current_threshold,
-                adjustment_direction=self._get_direction(current_threshold, optimal),
-                adjustment_amount=round(abs(optimal - current_threshold), 1),
-                confidence=confidence,
-                reasoning=reasoning,
-            )
-            
         except Exception as e:
             logger.error(f"Threshold prediction failed: {e}", exc_info=True)
             return ThresholdPrediction(
@@ -739,84 +656,6 @@ class IrrigationPredictor:
                 confidence=0.0,
             )
 
-            # Get response history
-            training_data = self._repo.get_training_data_for_model(
-                "response_predictor",
-                unit_id=unit_id,
-                limit=100,
-            )
-            
-            if not training_data:
-                # Default: assume user approves most of the time
-                return UserResponsePrediction(
-                    approve_probability=0.7,
-                    delay_probability=0.2,
-                    cancel_probability=0.1,
-                    most_likely="approve",
-                    confidence=0.3,
-                )
-            
-            # Count responses
-            approve_count = sum(1 for d in training_data if d.get("user_response") == "approve")
-            delay_count = sum(1 for d in training_data if d.get("user_response") == "delay")
-            cancel_count = sum(1 for d in training_data if d.get("user_response") == "cancel")
-            total = approve_count + delay_count + cancel_count
-            
-            if total == 0:
-                return UserResponsePrediction(
-                    approve_probability=0.7,
-                    delay_probability=0.2,
-                    cancel_probability=0.1,
-                    most_likely="approve",
-                    confidence=0.3,
-                )
-            
-            # Base probabilities from history
-            base_approve = approve_count / total
-            base_delay = delay_count / total
-            base_cancel = cancel_count / total
-            
-            # Time-of-day adjustments
-            # Users often delay during work hours, cancel late at night
-            is_work_hours = 9 <= hour_of_day <= 17
-            is_late_night = hour_of_day >= 22 or hour_of_day <= 6
-            is_weekend = day_of_week >= 5
-            
-            time_adjust_delay = 0.1 if is_work_hours and not is_weekend else 0.0
-            time_adjust_cancel = 0.1 if is_late_night else 0.0
-            
-            # Moisture urgency adjustment
-            # Lower moisture = more urgent = higher approve rate
-            moisture_ratio = current_moisture / threshold if threshold > 0 else 1.0
-            urgency_adjust = max(0, (0.8 - moisture_ratio) * 0.2)  # Up to 0.2 boost
-            
-            # Apply adjustments
-            approve_prob = base_approve + urgency_adjust - time_adjust_delay - time_adjust_cancel
-            delay_prob = base_delay + time_adjust_delay
-            cancel_prob = base_cancel + time_adjust_cancel
-            
-            # Normalize
-            total_prob = approve_prob + delay_prob + cancel_prob
-            if total_prob > 0:
-                approve_prob /= total_prob
-                delay_prob /= total_prob
-                cancel_prob /= total_prob
-            
-            # Determine most likely
-            probs = {"approve": approve_prob, "delay": delay_prob, "cancel": cancel_prob}
-            most_likely = max(probs, key=probs.get)
-            
-            # Confidence based on data quantity
-            confidence = min(1.0, total / 20) * max(probs.values())
-            
-            return UserResponsePrediction(
-                approve_probability=approve_prob,
-                delay_probability=delay_prob,
-                cancel_probability=cancel_prob,
-                most_likely=most_likely,
-                confidence=confidence,
-            )
-            
         except Exception as e:
             logger.error(f"Response prediction failed: {e}", exc_info=True)
             return UserResponsePrediction(
@@ -911,92 +750,6 @@ class IrrigationPredictor:
                 reasoning="ML duration model unavailable or below accuracy thresholds",
             )
 
-            # Get duration history
-            training_data = self._repo.get_training_data_for_model(
-                "duration_optimizer",
-                unit_id=unit_id,
-                limit=50,
-            )
-            
-            # Start with soil type default
-            base_duration = IRRIGATION_DURATIONS.get(
-                (soil_type or "").lower(),
-                IRRIGATION_DURATIONS["default"],
-            )
-            
-            if not training_data:
-                return DurationPrediction(
-                    recommended_seconds=base_duration,
-                    current_default_seconds=current_default_seconds,
-                    expected_moisture_increase=15.0,  # Estimate
-                    confidence=0.3,
-                    reasoning="Using soil type defaults (no historical data)",
-                )
-            
-            # Calculate moisture increase per second from history
-            moisture_per_second_samples = []
-            
-            for record in training_data:
-                before = record.get("soil_moisture_detected")
-                after = record.get("soil_moisture_after")
-                duration = record.get("execution_duration_seconds")
-                
-                if all(v is not None for v in [before, after, duration]) and duration > 0:
-                    increase = after - before
-                    if increase > 0:
-                        rate = increase / duration
-                        moisture_per_second_samples.append(rate)
-            
-            if not moisture_per_second_samples:
-                return DurationPrediction(
-                    recommended_seconds=base_duration,
-                    current_default_seconds=current_default_seconds,
-                    expected_moisture_increase=15.0,
-                    confidence=0.3,
-                    reasoning="Using defaults (insufficient data for rate calculation)",
-                )
-            
-            # Calculate average moisture increase rate
-            avg_rate = sum(moisture_per_second_samples) / len(moisture_per_second_samples)
-            
-            # Calculate required duration
-            moisture_deficit = target_moisture - current_moisture
-            if moisture_deficit <= 0:
-                return DurationPrediction(
-                    recommended_seconds=0,
-                    current_default_seconds=current_default_seconds,
-                    expected_moisture_increase=0.0,
-                    confidence=0.8,
-                    reasoning="No irrigation needed - current moisture above target",
-                )
-            
-            recommended_seconds = int(moisture_deficit / avg_rate) if avg_rate > 0 else base_duration
-            
-            # Clamp to reasonable range
-            recommended_seconds = max(30, min(600, recommended_seconds))
-            
-            # Calculate expected increase with recommended duration
-            expected_increase = recommended_seconds * avg_rate
-            
-            # Confidence based on data consistency
-            if len(moisture_per_second_samples) >= 10:
-                import statistics
-                std_dev = statistics.stdev(moisture_per_second_samples)
-                mean = statistics.mean(moisture_per_second_samples)
-                cv = std_dev / mean if mean > 0 else 1.0  # Coefficient of variation
-                confidence = min(1.0, max(0.3, 1.0 - cv))
-            else:
-                confidence = 0.4 + (len(moisture_per_second_samples) * 0.05)
-            
-            return DurationPrediction(
-                recommended_seconds=recommended_seconds,
-                current_default_seconds=current_default_seconds,
-                expected_moisture_increase=round(expected_increase, 1),
-                confidence=min(1.0, confidence),
-                reasoning=f"Based on {len(moisture_per_second_samples)} historical irrigations "
-                         f"(avg {avg_rate:.3f}% per second)",
-            )
-            
         except Exception as e:
             logger.error(f"Duration prediction failed: {e}", exc_info=True)
             return DurationPrediction(
@@ -1721,21 +1474,9 @@ class IrrigationPredictor:
                         samples_used=int(model.get("sample_count") or 0),
                     )
 
-            # Get moisture history from database
-            db = self._repo._db.get_db()
-            cutoff = (datetime.now() - timedelta(hours=hours_lookback)).isoformat()
-            
-            query = """
-                SELECT soil_moisture, timestamp
-                FROM PlantReadings
-                WHERE plant_id = ?
-                  AND timestamp >= ?
-                  AND soil_moisture IS NOT NULL
-                ORDER BY timestamp ASC
-            """
-            
-            cursor = db.execute(query, (plant_id, cutoff))
-            history = cursor.fetchall()
+            # Get moisture history from repository
+            cutoff = (utc_now() - timedelta(hours=hours_lookback)).isoformat()
+            history = self._repo.get_moisture_history(plant_id, cutoff)
             
             if len(history) < 5:
                 logger.debug(f"Insufficient moisture history for plant {plant_id} ({len(history)} samples)")
@@ -1746,8 +1487,8 @@ class IrrigationPredictor:
             moistures = []
             
             for row in history:
-                moisture = row[0]
-                timestamp_str = row[1]
+                moisture = row["soil_moisture"]
+                timestamp_str = row["timestamp"]
                 
                 try:
                     ts = datetime.fromisoformat(timestamp_str)
@@ -1802,7 +1543,7 @@ class IrrigationPredictor:
                     threshold=threshold,
                     decline_rate_per_hour=decline_rate,
                     hours_until_threshold=0,
-                    predicted_time=datetime.now().isoformat(),
+                    predicted_time=utc_now().isoformat(),
                     confidence=confidence,
                     reasoning="Moisture already at or below threshold",
                     samples_used=len(history),
@@ -1810,7 +1551,7 @@ class IrrigationPredictor:
             
             # Time = deficit / decline_rate (decline_rate is negative, so negate it)
             hours_until = moisture_deficit / abs(decline_rate)
-            predicted_time = datetime.now() + timedelta(hours=hours_until)
+            predicted_time = utc_now() + timedelta(hours=hours_until)
             
             reasoning = (
                 f"Based on {len(history)} samples over {hours_lookback}h, "

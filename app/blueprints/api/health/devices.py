@@ -99,7 +99,7 @@ def register_device_routes(health_api: Blueprint):
                                 else:
                                     unit_offline += 1
                                     offline_sensors += 1
-                            except:
+                            except Exception:
                                 unit_offline += 1
                                 offline_sensors += 1
                         else:

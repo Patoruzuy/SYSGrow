@@ -119,9 +119,15 @@
       `;
 
       const actionsEl = this.modalEl ? this.modalEl.querySelector(`#${window.escapeHtmlAttr(this.modalId)}-actions`) : null;
-      if (actionsEl) actionsEl.innerHTML = actionsHtml;
+      if (actionsEl) {
+        actionsEl.innerHTML = actionsHtml;
+      }
+
+      // Include actions in content if not in header (fallback)
+      const actionsInContent = !actionsEl ? actionsHtml : '';
 
       this.contentEl.innerHTML = `
+        ${actionsInContent}
         <div class="plant-details-grid">
           ${detailsHtml}
         </div>
@@ -677,8 +683,11 @@
       const currentList = document.getElementById('current-sensors-list');
       const select = document.getElementById('sensor-select');
       
+      console.log('[PlantDetailsModal] Loading sensor link data for plant:', plantId, 'unit:', unitId);
+      
       try {
         const linkedResp = await window.API.Plant.getPlantSensors(plantId);
+        console.log('[PlantDetailsModal] Linked sensors response:', linkedResp);
         const linkedSensors = linkedResp?.data?.sensors || linkedResp?.sensors || [];
         const linkedIds = new Set(linkedSensors.map(s => Number(s.sensor_id)));
         
@@ -708,8 +717,11 @@
         }
         
         const availableResp = await window.API.Plant.getAvailableSensors(unitId);
+        console.log('[PlantDetailsModal] Available sensors response:', availableResp);
         const allSensors = availableResp?.data?.sensors || availableResp?.sensors || [];
+        console.log('[PlantDetailsModal] All sensors:', allSensors, 'Linked IDs:', Array.from(linkedIds));
         const availableSensors = allSensors.filter(s => !linkedIds.has(Number(s.sensor_id)));
+        console.log('[PlantDetailsModal] Available sensors after filtering:', availableSensors);
         
         if (select) {
           if (availableSensors.length === 0) {
@@ -722,7 +734,7 @@
           }
         }
       } catch (error) {
-        console.error('Failed to load sensor data:', error);
+        console.error('[PlantDetailsModal] Failed to load sensor data:', error);
         if (currentList) currentList.innerHTML = '<div class="error-state">Failed to load sensors</div>';
         if (select) select.innerHTML = '<option value="">Error loading sensors</option>';
       }
@@ -865,6 +877,7 @@
               <i class="fas fa-seedling"></i>
               Plant Details
             </h2>
+            <div id="${window.escapeHtmlAttr(this.modalId)}-actions" class="modal-header-actions"></div>
             <button type="button" class="modal-close" aria-label="Close">
               <i class="fas fa-times"></i>
             </button>

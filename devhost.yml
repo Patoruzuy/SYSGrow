@@ -1,0 +1,5 @@
+name: sysgrow
+port: 8000
+domain: flask
+auto_register: true
+auto_caddy: true

@@ -140,6 +140,17 @@ THRESHOLD_UPDATE_TOLERANCE: dict[str, float] = {
 }
 
 
+# Default night-time adjustments applied when plants_info.json has no explicit
+# night values.  Keys match EnvironmentalThresholds field names.
+# Temperature drops during the dark period (plant respiration, DIF strategy).
+# Humidity rises as transpiration slows.  Lux drops to 0 (lights off).
+NIGHT_THRESHOLD_ADJUSTMENTS: dict[str, float] = {
+    "temperature": -3.0,    # °C — drop 3°C at night
+    "humidity":    +5.0,    # %  — humidity rises when transpiration slows
+    "lux":         0.0,     # absolute value — lights off at night
+}
+
+
 class VPDThresholds:
     """Vapor Pressure Deficit thresholds by growth stage."""
     # Seedling/Clone (kPa)

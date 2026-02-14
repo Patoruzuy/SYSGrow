@@ -313,7 +313,7 @@ def get_plant_catalog():
                 try:
                     parts = ph_range_str.split("-")
                     ph_range = [float(parts[0]), float(parts[1])]
-                except:
+                except (ValueError, IndexError):
                     ph_range = None
 
             gdd_base_temp_c = plant.get("gdd_base_temp_c")

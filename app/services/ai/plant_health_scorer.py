@@ -919,19 +919,50 @@ class PlantHealthScorer:
         if ec is None and ph is None:
             return 'unknown'
 
+        t = self.RECOMMENDATION_THRESHOLDS
+
         # EC-based assessment
         if ec is not None:
-            if ec < 0.8:
+            if ec < t["ec_low"]:
                 return 'deficient'
-            elif ec > 2.5:
+            elif ec > t["ec_urgent_high"]:
                 return 'excess'
 
         # pH affects nutrient availability
         if ph is not None:
-            if ph < 5.5 or ph > 7.5:
+            if ph < t["ph_urgent_low"] or ph > t["ph_urgent_high"]:
                 return 'locked_out'  # Nutrients unavailable at extreme pH
 
         return 'optimal'
+
+    # ==================== Recommendation Thresholds (audit item #17) ====================
+    # Extracted from _generate_recommendations so they can be overridden or configured.
+    # All thresholds are documented with units and rationale.
+    RECOMMENDATION_THRESHOLDS: Dict[str, Any] = {
+        # Soil moisture (%)
+        "moisture_critical":       30,    # Below this → urgent "water immediately"
+        "moisture_low_offset":     15,    # optimal − offset → "consider watering"
+        "moisture_high_offset":    20,    # optimal + offset → "reduce watering"
+        # pH (dimensionless, 0-14)
+        "ph_urgent_low":           5.5,   # Below → "too acidic"
+        "ph_urgent_high":          7.5,   # Above → "too alkaline"
+        "ph_monitor_low":          6.0,   # Below → "monitor pH"
+        "ph_monitor_high":         7.0,   # Above → "monitor pH"
+        # Temperature (°C)
+        "temp_urgent_low":         15,    # Below → "too cold"
+        "temp_urgent_high":        32,    # Above → "too hot"
+        "temp_deviation":          5,     # abs(temp − optimal) > this → recommendation
+        # Humidity (%)
+        "humidity_urgent_high":    85,    # Above → fungal risk
+        "humidity_low":            35,    # Below → "increase humidity"
+        "humidity_slightly_high":  75,    # Above → "monitor humidity"
+        # VPD (kPa)
+        "vpd_low":                 0.4,   # Below → "increase VPD"
+        "vpd_high":                1.6,   # Above → "decrease VPD"
+        # EC (mS/cm)
+        "ec_low":                  0.8,   # Below → "increase nutrients"
+        "ec_urgent_high":          2.5,   # Above → "flush – toxicity risk"
+    }
 
     def _generate_recommendations(
         self,
@@ -943,28 +974,29 @@ class PlantHealthScorer:
         """Generate recommendations and urgent actions."""
         recommendations = []
         urgent_actions = []
+        t = self.RECOMMENDATION_THRESHOLDS
 
         # Soil moisture
         moisture = raw_values.get('soil_moisture')
         moisture_score = scores.get('soil_moisture', 50)
         if moisture is not None:
             optimal = thresholds.get('soil_moisture', {}).get('optimal', 60)
-            if moisture < optimal - 15:
-                if moisture < 30:
+            if moisture < optimal - t["moisture_low_offset"]:
+                if moisture < t["moisture_critical"]:
                     urgent_actions.append(f"Water immediately - soil moisture critically low ({moisture:.0f}%)")
                 else:
                     recommendations.append(f"Consider watering - soil moisture low ({moisture:.0f}%)")
-            elif moisture > optimal + 20:
+            elif moisture > optimal + t["moisture_high_offset"]:
                 recommendations.append(f"Reduce watering - soil too wet ({moisture:.0f}%)")
 
         # pH
         ph = raw_values.get('ph')
         if ph is not None:
-            if ph < 5.5:
+            if ph < t["ph_urgent_low"]:
                 urgent_actions.append(f"Raise pH - too acidic ({ph:.1f})")
-            elif ph > 7.5:
+            elif ph > t["ph_urgent_high"]:
                 urgent_actions.append(f"Lower pH - too alkaline ({ph:.1f})")
-            elif ph < 6.0 or ph > 7.0:
+            elif ph < t["ph_monitor_low"] or ph > t["ph_monitor_high"]:
                 recommendations.append(f"Monitor pH levels ({ph:.1f})")
 
         # Temperature
@@ -972,38 +1004,38 @@ class PlantHealthScorer:
         temp_score = scores.get('temperature', 50)
         if temp is not None:
             optimal = thresholds.get('temperature', {}).get('optimal', 24)
-            if temp < 15:
+            if temp < t["temp_urgent_low"]:
                 urgent_actions.append(f"Increase temperature - too cold ({temp:.1f}C)")
-            elif temp > 32:
+            elif temp > t["temp_urgent_high"]:
                 urgent_actions.append(f"Decrease temperature - too hot ({temp:.1f}C)")
-            elif abs(temp - optimal) > 5:
+            elif abs(temp - optimal) > t["temp_deviation"]:
                 direction = "increase" if temp < optimal else "decrease"
                 recommendations.append(f"Consider {direction}ing temperature to {optimal}C")
 
         # Humidity
         humidity = raw_values.get('humidity')
         if humidity is not None:
-            if humidity > 85:
+            if humidity > t["humidity_urgent_high"]:
                 urgent_actions.append(f"Reduce humidity - fungal risk high ({humidity:.0f}%)")
-            elif humidity < 35:
+            elif humidity < t["humidity_low"]:
                 recommendations.append(f"Increase humidity ({humidity:.0f}%)")
-            elif humidity > 75:
+            elif humidity > t["humidity_slightly_high"]:
                 recommendations.append(f"Monitor humidity - slightly high ({humidity:.0f}%)")
 
         # VPD
         vpd = raw_values.get('vpd')
         if vpd is not None:
-            if vpd < 0.4:
+            if vpd < t["vpd_low"]:
                 recommendations.append("Increase VPD - improve air circulation")
-            elif vpd > 1.6:
+            elif vpd > t["vpd_high"]:
                 recommendations.append("Decrease VPD - increase humidity or lower temperature")
 
         # EC
         ec = raw_values.get('ec')
         if ec is not None:
-            if ec < 0.8:
+            if ec < t["ec_low"]:
                 recommendations.append(f"Increase nutrient concentration (EC: {ec:.2f})")
-            elif ec > 2.5:
+            elif ec > t["ec_urgent_high"]:
                 urgent_actions.append(f"Flush with clean water - nutrient toxicity risk (EC: {ec:.2f})")
 
         # General status-based recommendations

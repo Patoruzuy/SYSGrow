@@ -11,10 +11,11 @@ import bcrypt
 import hashlib
 import logging
 import secrets
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, List
 
+from infrastructure.database.repositories.auth import AuthRepository
 from infrastructure.logging.audit import AuditLogger
 
 # Password reset token settings
@@ -37,6 +38,17 @@ class UserAuthManager:
     database_handler: any
     audit_logger: Optional[AuditLogger] = None
     max_failed_attempts: int = 5
+    # Optional injection for tests/composition; lazily initialized from database_handler.
+    auth_repo: Optional[AuthRepository] = field(default=None, repr=False)
+
+    def __post_init__(self) -> None:
+        if self.auth_repo is None and self.database_handler is not None:
+            self.auth_repo = AuthRepository(self.database_handler)
+
+    def _repo(self) -> AuthRepository:
+        if self.auth_repo is None:
+            raise RuntimeError("AuthRepository is not configured")
+        return self.auth_repo
 
     def hash_password(self, password: str) -> str:
         """Hash the provided password using bcrypt."""
@@ -51,7 +63,18 @@ class UserAuthManager:
     def register_user(self, username: str, password: str) -> bool:
         password_hash = self.hash_password(password)
         try:
-            self.database_handler.insert_user(username, password_hash)
+            created = self._repo().create_user(username, password_hash)
+            if not created:
+                logging.error("Error registering user '%s': repository rejected create", username)
+                if self.audit_logger:
+                    self.audit_logger.log_event(
+                        actor=username,
+                        action="register",
+                        resource="user",
+                        outcome="error",
+                        error="create_failed",
+                    )
+                return False
             logging.info("User '%s' registered successfully.", username)
             if self.audit_logger:
                 self.audit_logger.log_event(actor=username, action="register", resource="user", outcome="success")
@@ -69,7 +92,7 @@ class UserAuthManager:
             return False
 
     def authenticate_user(self, username: str, password: str) -> bool:
-        user = self.database_handler.get_user_by_username(username)
+        user = self._repo().get_user_auth_by_username(username)
         if not user:
             logging.warning("Authentication failed for user '%s': user not found.", username)
             if self.audit_logger:
@@ -108,15 +131,7 @@ class UserAuthManager:
     def get_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
         """Get user by email address."""
         try:
-            with self.database_handler.connection() as db:
-                cursor = db.execute(
-                    "SELECT id, username, email FROM Users WHERE email = ?",
-                    (email.lower().strip(),)
-                )
-                row = cursor.fetchone()
-                if row:
-                    return {"id": row[0], "username": row[1], "email": row[2]}
-                return None
+            return self._repo().get_user_by_email(email)
         except Exception as e:
             logging.error(f"Error fetching user by email: {e}")
             return None
@@ -124,15 +139,7 @@ class UserAuthManager:
     def get_user_by_username_with_email(self, username: str) -> Optional[Dict[str, Any]]:
         """Get user with email by username."""
         try:
-            with self.database_handler.connection() as db:
-                cursor = db.execute(
-                    "SELECT id, username, email FROM Users WHERE username = ?",
-                    (username.strip(),)
-                )
-                row = cursor.fetchone()
-                if row:
-                    return {"id": row[0], "username": row[1], "email": row[2]}
-                return None
+            return self._repo().get_user_by_username_with_email(username)
         except Exception as e:
             logging.error(f"Error fetching user by username: {e}")
             return None
@@ -140,14 +147,10 @@ class UserAuthManager:
     def update_user_email(self, user_id: int, email: str) -> bool:
         """Update user's email address."""
         try:
-            with self.database_handler.connection() as db:
-                db.execute(
-                    "UPDATE Users SET email = ? WHERE id = ?",
-                    (email.lower().strip(), user_id)
-                )
-                db.commit()
+            result = self._repo().update_email(user_id, email)
+            if result:
                 logging.info(f"Updated email for user ID {user_id}")
-                return True
+            return result
         except Exception as e:
             logging.error(f"Error updating user email: {e}")
             return False
@@ -159,29 +162,13 @@ class UserAuthManager:
         Returns the plain token (to be sent to user) - only the hash is stored.
         """
         try:
-            # Generate a cryptographically secure token
             token = secrets.token_hex(RESET_TOKEN_LENGTH)
             token_hash = hashlib.sha256(token.encode()).hexdigest()
-
-            # Calculate expiration time
             expires_at = datetime.utcnow() + timedelta(hours=RESET_TOKEN_EXPIRY_HOURS)
 
-            with self.database_handler.connection() as db:
-                # Invalidate any existing tokens for this user
-                db.execute(
-                    "DELETE FROM PasswordResetTokens WHERE user_id = ?",
-                    (user_id,)
-                )
-
-                # Insert new token
-                db.execute(
-                    """
-                    INSERT INTO PasswordResetTokens (user_id, token_hash, expires_at)
-                    VALUES (?, ?, ?)
-                    """,
-                    (user_id, token_hash, expires_at.isoformat())
-                )
-                db.commit()
+            ok = self._repo().create_reset_token(user_id, token_hash, expires_at.isoformat())
+            if not ok:
+                return None
 
             logging.info(f"Generated password reset token for user ID {user_id}")
             if self.audit_logger:
@@ -206,43 +193,33 @@ class UserAuthManager:
         """
         try:
             token_hash = hashlib.sha256(token.encode()).hexdigest()
+            row = self._repo().find_reset_token(token_hash)
 
-            with self.database_handler.connection() as db:
-                cursor = db.execute(
-                    """
-                    SELECT prt.id, prt.user_id, prt.expires_at, prt.used_at,
-                           u.username, u.email
-                    FROM PasswordResetTokens prt
-                    JOIN Users u ON u.id = prt.user_id
-                    WHERE prt.token_hash = ?
-                    """,
-                    (token_hash,)
-                )
-                row = cursor.fetchone()
+            if not row:
+                logging.warning("Invalid password reset token attempted")
+                return None
 
-                if not row:
-                    logging.warning("Invalid password reset token attempted")
-                    return None
+            used_at = row.get("used_at")
+            username = row.get("username")
+            expires_at_str = row.get("expires_at")
 
-                token_id, user_id, expires_at_str, used_at, username, email = row
+            # Check if token was already used
+            if used_at:
+                logging.warning(f"Attempted to use already-used reset token for user {username}")
+                return None
 
-                # Check if token was already used
-                if used_at:
-                    logging.warning(f"Attempted to use already-used reset token for user {username}")
-                    return None
+            # Check if token is expired
+            expires_at = datetime.fromisoformat(expires_at_str)
+            if datetime.utcnow() > expires_at:
+                logging.warning(f"Expired reset token attempted for user {username}")
+                return None
 
-                # Check if token is expired
-                expires_at = datetime.fromisoformat(expires_at_str)
-                if datetime.utcnow() > expires_at:
-                    logging.warning(f"Expired reset token attempted for user {username}")
-                    return None
-
-                return {
-                    "token_id": token_id,
-                    "user_id": user_id,
-                    "username": username,
-                    "email": email,
-                }
+            return {
+                "token_id": row.get("token_id"),
+                "user_id": row.get("user_id"),
+                "username": username,
+                "email": row.get("email"),
+            }
 
         except Exception as e:
             logging.error(f"Error validating reset token: {e}")
@@ -266,21 +243,26 @@ class UserAuthManager:
 
             # Hash the new password
             password_hash = self.hash_password(new_password)
+            used_at = datetime.utcnow().isoformat()
 
-            with self.database_handler.connection() as db:
-                # Update password
-                db.execute(
-                    "UPDATE Users SET password_hash = ? WHERE id = ?",
-                    (password_hash, user_id)
-                )
+            persisted = self._repo().use_reset_token_and_update_password(
+                user_id,
+                token_id,
+                password_hash,
+                used_at,
+            )
 
-                # Mark token as used
-                db.execute(
-                    "UPDATE PasswordResetTokens SET used_at = ? WHERE id = ?",
-                    (datetime.utcnow().isoformat(), token_id)
-                )
-
-                db.commit()
+            if not persisted:
+                logging.error(f"Password reset failed for user '{username}': database write failed")
+                if self.audit_logger:
+                    self.audit_logger.log_event(
+                        actor=username,
+                        action="password_reset",
+                        resource="user",
+                        outcome="error",
+                        error="write_failed",
+                    )
+                return False
 
             logging.info(f"Password reset successful for user '{username}'")
             if self.audit_logger:
@@ -312,18 +294,13 @@ class UserAuthManager:
         Returns the number of tokens removed.
         """
         try:
-            with self.database_handler.connection() as db:
-                cursor = db.execute(
-                    "DELETE FROM PasswordResetTokens WHERE expires_at < ?",
-                    (datetime.utcnow().isoformat(),)
-                )
-                deleted = cursor.rowcount
-                db.commit()
+            cutoff = datetime.utcnow().isoformat()
+            deleted = self._repo().cleanup_expired_tokens(cutoff)
 
-                if deleted > 0:
-                    logging.info(f"Cleaned up {deleted} expired password reset tokens")
+            if deleted > 0:
+                logging.info(f"Cleaned up {deleted} expired password reset tokens")
 
-                return deleted
+            return deleted
 
         except Exception as e:
             logging.error(f"Error cleaning up expired tokens: {e}")
@@ -356,23 +333,20 @@ class UserAuthManager:
                 codes.append(code)
                 code_hashes.append(code_hash)
 
-            with self.database_handler.connection() as db:
-                # Delete existing codes for this user
-                db.execute(
-                    "DELETE FROM RecoveryCodes WHERE user_id = ?",
-                    (user_id,)
-                )
+            created_at = datetime.utcnow().isoformat()
 
-                # Insert new codes
-                for code_hash in code_hashes:
-                    db.execute(
-                        """
-                        INSERT INTO RecoveryCodes (user_id, code_hash, created_at)
-                        VALUES (?, ?, ?)
-                        """,
-                        (user_id, code_hash, datetime.utcnow().isoformat())
+            persisted = self._repo().replace_recovery_codes(user_id, code_hashes, created_at)
+            if not persisted:
+                logging.error(f"Failed to persist recovery codes for user ID {user_id}")
+                if self.audit_logger:
+                    self.audit_logger.log_event(
+                        actor=str(user_id),
+                        action="recovery_codes_generated",
+                        resource="user",
+                        outcome="error",
+                        error="write_failed",
                     )
-                db.commit()
+                return None
 
             logging.info(f"Generated {RECOVERY_CODE_COUNT} recovery codes for user ID {user_id}")
             if self.audit_logger:
@@ -403,16 +377,7 @@ class UserAuthManager:
                 normalized_code = f"{normalized_code[:4]}-{normalized_code[4:]}"
 
             code_hash = hashlib.sha256(normalized_code.encode()).hexdigest()
-
-            with self.database_handler.connection() as db:
-                cursor = db.execute(
-                    """
-                    SELECT code_id FROM RecoveryCodes
-                    WHERE user_id = ? AND code_hash = ? AND used_at IS NULL
-                    """,
-                    (user_id, code_hash)
-                )
-                return cursor.fetchone() is not None
+            return self._repo().find_unused_recovery_code(user_id, code_hash) is not None
 
         except Exception as e:
             logging.error(f"Error validating recovery code: {e}")
@@ -434,40 +399,17 @@ class UserAuthManager:
                 normalized_code = f"{normalized_code[:4]}-{normalized_code[4:]}"
 
             code_hash = hashlib.sha256(normalized_code.encode()).hexdigest()
+            password_hash = self.hash_password(new_password)
 
-            with self.database_handler.connection() as db:
-                # Find the unused code
-                cursor = db.execute(
-                    """
-                    SELECT code_id FROM RecoveryCodes
-                    WHERE user_id = ? AND code_hash = ? AND used_at IS NULL
-                    """,
-                    (user_id, code_hash)
-                )
-                row = cursor.fetchone()
-
-                if not row:
-                    logging.warning(f"Invalid or used recovery code attempted for user ID {user_id}")
-                    return False
-
-                code_id = row[0]
-
-                # Hash the new password
-                password_hash = self.hash_password(new_password)
-
-                # Update password
-                db.execute(
-                    "UPDATE Users SET password_hash = ? WHERE id = ?",
-                    (password_hash, user_id)
-                )
-
-                # Mark code as used
-                db.execute(
-                    "UPDATE RecoveryCodes SET used_at = ? WHERE code_id = ?",
-                    (datetime.utcnow().isoformat(), code_id)
-                )
-
-                db.commit()
+            ok = self._repo().use_recovery_code_and_reset_password(
+                user_id=user_id,
+                code_hash=code_hash,
+                password_hash=password_hash,
+                used_at_iso=datetime.utcnow().isoformat(),
+            )
+            if not ok:
+                logging.warning(f"Invalid or used recovery code attempted for user ID {user_id}")
+                return False
 
             logging.info(f"Password reset successful via recovery code for user ID {user_id}")
             if self.audit_logger:
@@ -497,16 +439,7 @@ class UserAuthManager:
         Get the count of remaining (unused) recovery codes for a user.
         """
         try:
-            with self.database_handler.connection() as db:
-                cursor = db.execute(
-                    """
-                    SELECT COUNT(*) FROM RecoveryCodes
-                    WHERE user_id = ? AND used_at IS NULL
-                    """,
-                    (user_id,)
-                )
-                row = cursor.fetchone()
-                return row[0] if row else 0
+            return self._repo().count_unused_recovery_codes(user_id)
 
         except Exception as e:
             logging.error(f"Error getting recovery code count: {e}")
@@ -515,15 +448,7 @@ class UserAuthManager:
     def get_user_by_id(self, user_id: int) -> Optional[Dict[str, Any]]:
         """Get user by ID."""
         try:
-            with self.database_handler.connection() as db:
-                cursor = db.execute(
-                    "SELECT id, username, email FROM Users WHERE id = ?",
-                    (user_id,)
-                )
-                row = cursor.fetchone()
-                if row:
-                    return {"id": row[0], "username": row[1], "email": row[2]}
-                return None
+            return self._repo().get_user_by_id(user_id)
         except Exception as e:
             logging.error(f"Error fetching user by ID: {e}")
             return None

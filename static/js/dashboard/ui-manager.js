@@ -288,13 +288,8 @@
         this._plantGrid = new window.PlantHealthGrid('plants-container', {
           compact: true,
           onClick: (plantId, plantSummary) => {
-            if (this._plantDetailsModal) {
-              const unitId = plantSummary?.unit_id || this.dataService.getSelectedUnitId();
-              this._plantDetailsModal.open({ plantId, unitId, plantSummary });
-              return;
-            }
-
-            window.location.href = `/plants/${plantId}`;
+            // Navigate to full detail page
+            window.location.href = `/plants/${plantId}/my-detail`;
           },
         });
       }

@@ -155,11 +155,9 @@ def test_generate_recovery_codes_requires_api_auth_session(client):
     response = client.post("/api/settings/security/recovery-codes/generate", json={})
     payload = response.get_json() or {}
 
-    # api_login_required returns a non-standard envelope and response validation
-    # middleware currently upgrades this to 500 in strict mode.
-    assert response.status_code == 500
+    assert response.status_code == 401
     assert payload.get("ok") is False
-    assert "Invalid response format" in (payload.get("message") or "")
+    assert payload.get("error", {}).get("code") == "UNAUTHORIZED"
 
 
 def test_generate_recovery_codes_requires_user_id_even_with_api_auth(client):

@@ -61,7 +61,7 @@ class PlantJournalService:
     # ========================================================================
     # Observations
     # ========================================================================
-    #TODO: I need to add more record to the journal, such as watering, pruning, stage change etc.
+
     def record_observation(
         self,
         plant_id: int,
@@ -113,60 +113,96 @@ class PlantJournalService:
             logger.error(f"Failed to record observation: {e}")
             return None
 
-    def record_watering_event(
+    def record_watering(
         self,
         plant_id: int,
-        unit_id: Optional[int],
+        unit_id: Optional[int] = None,
         *,
+        amount_ml: Optional[float] = None,
         amount: Optional[float] = None,
         unit: str = "ml",
+        method: str = "manual",
+        source: str = "user",
+        ph_level: Optional[float] = None,
+        ec_level: Optional[float] = None,
+        duration_seconds: Optional[int] = None,
         notes: str = "",
         user_id: Optional[int] = None,
         watered_at_utc: Optional[str] = None,
     ) -> Optional[int]:
         """
-        Record a watering entry and optionally forward to irrigation logging.
+        Record a watering event (unified method).
+
+        Supports both simple watering (amount + unit) and advanced watering
+        (method, source, pH, EC, duration). Optionally forwards to
+        ManualIrrigationService for irrigation logging.
+
+        Args:
+            plant_id: Plant ID
+            unit_id: Unit ID for context
+            amount_ml: Amount of water in milliliters (preferred)
+            amount: Amount in arbitrary units (fallback)
+            unit: Unit of measurement for amount ('ml', 'l', etc.)
+            method: Watering method (manual, automatic, drip)
+            source: Event source (user, sensor_triggered, schedule)
+            ph_level: pH level of water (optional)
+            ec_level: EC level of water (optional)
+            duration_seconds: Duration of watering in seconds
+            notes: Additional notes
+            user_id: User who performed watering
+            watered_at_utc: ISO timestamp of watering event
+
+        Returns:
+            entry_id if successful
         """
         try:
             entry_id = self.repo.create_watering_entry(
                 plant_id=plant_id,
-                unit_id=unit_id,
+                amount_ml=amount_ml,
                 amount=amount,
                 unit=unit,
+                method=method,
+                source=source,
+                ph_level=ph_level,
+                ec_level=ec_level,
                 notes=notes,
                 user_id=user_id,
+                unit_id=unit_id,
                 observation_date=watered_at_utc,
             )
 
             if entry_id:
-                logger.info("Recorded watering entry for plant %s: %s", plant_id, entry_id)
+                logger.info("Recorded watering for plant %s: entry %s", plant_id, entry_id)
 
+            # Forward to irrigation service if available
             if (
                 entry_id
                 and self.manual_irrigation_service
                 and unit_id is not None
                 and user_id is not None
             ):
-                amount_ml = None
-                if amount is not None:
+                resolved_ml = None
+                if amount_ml is not None:
+                    resolved_ml = float(amount_ml)
+                elif amount is not None:
                     normalized_unit = (unit or "").strip().lower()
-                    if normalized_unit in ("ml", "milliliter", "milliliters"):
-                        amount_ml = float(amount)
-                    elif normalized_unit in ("l", "liter", "liters"):
-                        amount_ml = float(amount) * 1000.0
+                    if normalized_unit in ("l", "liter", "liters"):
+                        resolved_ml = float(amount) * 1000.0
+                    else:
+                        resolved_ml = float(amount)
 
                 self.manual_irrigation_service.log_watering_event(
                     user_id=int(user_id),
                     unit_id=int(unit_id),
                     plant_id=int(plant_id),
                     watered_at_utc=watered_at_utc,
-                    amount_ml=amount_ml,
+                    amount_ml=resolved_ml,
                     notes=notes,
                 )
 
             return entry_id
         except Exception as e:
-            logger.error("Failed to record watering entry: %s", e)
+            logger.error("Failed to record watering: %s", e)
             return None
 
     def record_health_observation(
@@ -680,54 +716,6 @@ class PlantJournalService:
     # Extended Entry Types (Phase 7)
     # ========================================================================
 
-    def record_watering(
-        self,
-        plant_id: int,
-        amount_ml: float,
-        method: str = "manual",
-        source: str = "user",
-        ph_level: Optional[float] = None,
-        ec_level: Optional[float] = None,
-        notes: str = "",
-        user_id: Optional[int] = None
-    ) -> Optional[int]:
-        """
-        Record a watering event.
-
-        Args:
-            plant_id: Plant ID
-            amount_ml: Amount of water in milliliters
-            method: Watering method (manual, automatic, drip)
-            source: Event source (user, sensor_triggered, schedule)
-            ph_level: pH level of water (optional)
-            ec_level: EC level of water (optional)
-            notes: Additional notes
-            user_id: User who performed watering
-
-        Returns:
-            entry_id if successful
-        """
-        try:
-            entry_id = self.repo.create_watering_entry(
-                plant_id=plant_id,
-                amount_ml=amount_ml,
-                method=method,
-                source=source,
-                ph_level=ph_level,
-                ec_level=ec_level,
-                notes=notes,
-                user_id=user_id
-            )
-
-            if entry_id:
-                logger.info(f"Recorded watering for plant {plant_id}: {amount_ml}ml ({method})")
-
-            return entry_id
-
-        except Exception as e:
-            logger.error(f"Failed to record watering: {e}")
-            return None
-
     def record_pruning(
         self,
         plant_id: int,
@@ -949,3 +937,99 @@ class PlantJournalService:
         except Exception as e:
             logger.error(f"Failed to record transplant: {e}")
             return None
+
+    # ========================================================================
+    # Auto-Journaling Event Handlers
+    # ========================================================================
+
+    def handle_stage_update_event(self, payload) -> None:
+        """
+        Auto-record a journal entry when a plant stage changes.
+
+        Subscribes to PlantEvent.PLANT_STAGE_UPDATE.
+        """
+        try:
+            plant_id = getattr(payload, "plant_id", None) or (payload.get("plant_id") if isinstance(payload, dict) else None)
+            new_stage = getattr(payload, "new_stage", None) or (payload.get("new_stage") if isinstance(payload, dict) else None)
+            days_in_stage = getattr(payload, "days_in_stage", 0) or (payload.get("days_in_stage", 0) if isinstance(payload, dict) else 0)
+
+            if not plant_id or not new_stage:
+                return
+
+            self.record_stage_change(
+                plant_id=plant_id,
+                from_stage="",
+                to_stage=new_stage,
+                trigger="automatic",
+                notes=f"Auto-recorded stage update to '{new_stage}' (day {days_in_stage})",
+            )
+            logger.debug(f"Auto-journaled stage update for plant {plant_id} → {new_stage}")
+
+        except Exception as e:
+            logger.error(f"Auto-journal stage update failed: {e}", exc_info=True)
+
+    def handle_plant_added_event(self, payload) -> None:
+        """
+        Auto-record a journal entry when a plant is added.
+
+        Subscribes to PlantEvent.PLANT_ADDED.
+        """
+        try:
+            plant_id = getattr(payload, "plant_id", None) or (payload.get("plant_id") if isinstance(payload, dict) else None)
+            unit_id = getattr(payload, "unit_id", None) or (payload.get("unit_id") if isinstance(payload, dict) else None)
+
+            if not plant_id:
+                return
+
+            self.repo.create_note(
+                plant_id=plant_id,
+                notes=f"Plant added to unit {unit_id or 'unknown'}",
+            )
+            logger.debug(f"Auto-journaled plant added: {plant_id}")
+
+        except Exception as e:
+            logger.error(f"Auto-journal plant added failed: {e}", exc_info=True)
+
+    def handle_plant_removed_event(self, payload) -> None:
+        """
+        Auto-record a journal entry when a plant is removed.
+
+        Subscribes to PlantEvent.PLANT_REMOVED.
+        """
+        try:
+            plant_id = getattr(payload, "plant_id", None) or (payload.get("plant_id") if isinstance(payload, dict) else None)
+            unit_id = getattr(payload, "unit_id", None) or (payload.get("unit_id") if isinstance(payload, dict) else None)
+
+            if not plant_id:
+                return
+
+            self.repo.create_note(
+                plant_id=plant_id,
+                notes=f"Plant removed from unit {unit_id or 'unknown'}",
+            )
+            logger.debug(f"Auto-journaled plant removed: {plant_id}")
+
+        except Exception as e:
+            logger.error(f"Auto-journal plant removed failed: {e}", exc_info=True)
+
+    def handle_active_plant_changed_event(self, payload) -> None:
+        """
+        Auto-record a journal entry when a plant becomes active.
+
+        Subscribes to PlantEvent.ACTIVE_PLANT_CHANGED.
+        """
+        try:
+            plant_id = getattr(payload, "plant_id", None) or (payload.get("plant_id") if isinstance(payload, dict) else None)
+            unit_id = getattr(payload, "unit_id", None) or (payload.get("unit_id") if isinstance(payload, dict) else None)
+
+            if not plant_id:
+                return
+
+            self.repo.create_note(
+                plant_id=plant_id,
+                notes=f"Plant set as active in unit {unit_id or 'unknown'}",
+            )
+            logger.debug(f"Auto-journaled active plant changed: {plant_id}")
+
+        except Exception as e:
+            logger.error(f"Auto-journal active plant changed failed: {e}", exc_info=True)

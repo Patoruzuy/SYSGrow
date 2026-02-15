@@ -1,7 +1,8 @@
 from functools import wraps
 from typing import Callable, TypeVar, cast
 
-from flask import flash, jsonify, redirect, session, url_for
+from flask import flash, redirect, session, url_for
+from app.utils.http import error_response
 
 F = TypeVar("F", bound=Callable[..., object])
 
@@ -25,10 +26,11 @@ def api_login_required(view_func: F) -> F:
     @wraps(view_func)
     def wrapped(*args, **kwargs):
         if "user" not in session:
-            return jsonify({
-                "ok": False,
-                "error": {"message": "Authentication required", "code": "UNAUTHORIZED"}
-            }), 401
+            return error_response(
+                "Authentication required",
+                status=401,
+                details={"code": "UNAUTHORIZED"},
+            )
         return view_func(*args, **kwargs)
 
     return cast(F, wrapped)

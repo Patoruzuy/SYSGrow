@@ -8,7 +8,6 @@ and recommendations. Includes integration with AI health monitoring.
 from __future__ import annotations
 
 from flask import request, current_app
-from app.services.ai.plant_health_monitor import PlantHealthMonitor
 from app.utils.time import iso_now
 import logging
 
@@ -200,9 +199,8 @@ def record_plant_health(plant_id: int):
             user_id=payload.get("user_id")
         )
         
-        # Record observation
-        analytics_repo = get_container().analytics_repo
-        health_monitor = PlantHealthMonitor(analytics_repo)
+        # Record observation via the DI-wired health monitor
+        health_monitor = get_container().plant_health_monitor
         health_id = health_monitor.record_health_observation(observation)
         
         # Get correlations

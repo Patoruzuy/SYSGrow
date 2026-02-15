@@ -781,6 +781,31 @@ def plant_detail(plant_id):
     )
 
 
+@ui_bp.route("/plants/<int:plant_id>/my-detail")
+@login_required
+def my_plant_detail(plant_id):
+    """My Plant Detail Page - Comprehensive view of a user's plant.
+
+    Tabbed interface with:
+    - Overview: plant info, health status, linked devices, stage info
+    - Journal: paginated entries with filters, add entry forms
+    - Analytics: watering frequency chart, health trend, stage timeline
+    - Stage Management: extend stage, view transition history
+
+    All data loaded dynamically via /api/plants/<id>/detail and journal endpoints.
+
+    Args:
+        plant_id: The ID of the user's plant
+    """
+    selected_unit_id, units = _ensure_selected_unit()
+    return render_template(
+        "my_plant_detail.html",
+        plant_id=plant_id,
+        selected_unit_id=selected_unit_id,
+        units=units
+    )
+
+
 @ui_bp.route("/ml-dashboard")
 @login_required
 def ml_dashboard():

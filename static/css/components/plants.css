@@ -526,3 +526,21 @@
   overflow: auto;
   margin: var(--space-2) 0 0;
 }
+
+/* Plant card link wrapper — clicking card navigates to detail page */
+.plant-card-link {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+
+.plant-card-link:hover .plant-card,
+.plant-card-link:focus .plant-card {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-color: var(--brand-400, #60a5fa);
+}
+
+.plant-card-link .plant-card-actions {
+  position: relative;
+  z-index: 2;
+}

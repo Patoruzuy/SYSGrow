@@ -661,7 +661,7 @@ def create_watering_record():
             if plant is not None:
                 unit_id = getattr(plant, "unit_id", None) or getattr(plant, "unit", None)
 
-        entry_id = _journal_service().record_watering_event(
+        entry_id = _journal_service().record_watering(
             plant_id=plant_id,
             unit_id=unit_id,
             amount=amount,

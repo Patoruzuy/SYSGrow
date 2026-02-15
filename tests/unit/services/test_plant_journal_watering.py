@@ -12,7 +12,7 @@ def test_record_watering_event_forwards_to_manual_irrigation():
     manual_service = Mock()
     service = PlantJournalService(journal_repo=repo, manual_irrigation_service=manual_service)
 
-    entry_id = service.record_watering_event(
+    entry_id = service.record_watering(
         plant_id=10,
         unit_id=5,
         amount=2.0,
@@ -37,7 +37,7 @@ def test_record_watering_event_skips_forward_if_missing_unit_or_user():
     manual_service = Mock()
     service = PlantJournalService(journal_repo=repo, manual_irrigation_service=manual_service)
 
-    entry_id = service.record_watering_event(
+    entry_id = service.record_watering(
         plant_id=10,
         unit_id=None,
         amount=250,

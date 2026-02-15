@@ -82,11 +82,12 @@ function renderPlantDetail() {
     if (!plantData) return;
 
     // Hide loading, show content
-    document.getElementById('loading-state').classList.add('hidden');
-    document.getElementById('plant-content').classList.remove('hidden');
+    document.getElementById('loading-state')?.classList.add('hidden');
+    document.getElementById('plant-content')?.classList.remove('hidden');
 
     // Breadcrumb
-    document.getElementById('breadcrumb-plant-name').textContent = plantData.common_name || 'Plant';
+    const breadcrumb = document.getElementById('breadcrumb-plant-name');
+    if (breadcrumb) breadcrumb.textContent = plantData.common_name || 'Plant';
 
     // Hero section
     renderHeroSection();
@@ -130,10 +131,13 @@ function renderHeroSection() {
     const type = getPlantType(plantData);
     const difficulty = plantData.yield_data?.difficulty_level || 'intermediate';
 
+    const safeType = type.replace(/[^a-z0-9-]/g, '');
+    const safeDifficulty = String(difficulty).replace(/[^a-z0-9-]/g, '');
+
     // Badges
     document.getElementById('plant-badges').innerHTML = `
-        <span class="badge badge-${type}">${type}</span>
-        <span class="badge badge-${difficulty}">${difficulty}</span>
+        <span class="badge badge-${safeType}">${escapeHtml(type)}</span>
+        <span class="badge badge-${safeDifficulty}">${escapeHtml(difficulty)}</span>
     `;
 
     // Title and species
@@ -758,7 +762,8 @@ function bindEvents() {
     const addToGardenBtn = document.getElementById('add-to-garden-btn');
     if (addToGardenBtn) {
         addToGardenBtn.addEventListener('click', () => {
-            alert(`Add "${plantData.common_name}" to your garden feature coming soon!`);
+            const notify = window.showNotification || ((msg) => alert(msg));
+            notify(`Add "${plantData.common_name}" to your garden — coming soon!`, 'info');
         });
     }
 
@@ -766,7 +771,8 @@ function bindEvents() {
     const downloadBtn = document.getElementById('download-guide-btn');
     if (downloadBtn) {
         downloadBtn.addEventListener('click', () => {
-            alert(`Download growing guide for "${plantData.common_name}" feature coming soon!`);
+            const notify = window.showNotification || ((msg) => alert(msg));
+            notify(`Download guide for "${plantData.common_name}" — coming soon!`, 'info');
         });
     }
 }
@@ -829,11 +835,11 @@ function calculateTotalDays(stages) {
 }
 
 /**
- * Escape HTML
+ * Escape HTML – prefer shared utility from html-utils.js (loaded in base.html)
  */
-function escapeHtml(text) {
+const escapeHtml = window.escapeHtml || function (text) {
     if (!text) return '';
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
-}
+};

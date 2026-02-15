@@ -47,3 +47,15 @@ nginx/certbot/www/
 devices_system.log
 devices_system.log
 devices_system.log
+bandit_app_only.json
+bandit_app_summary.txt
+bandit_report_app.json
+bandit_report.json
+bandit_services.json
+radon_cc_summary.txt
+radon_dashboard.json
+radon_top_f.txt
+service_documentation_overview_20260214_161851.ipynb
+data/user_profiles/condition_profiles/user_1_condition_profiles.json
+data/user_profiles/condition_profiles/links/user_1_condition_profile_links.json
+data/user_profiles/condition_profiles/shared/FS426oJnFoo_uZ8L2WmYNw.json

@@ -27,7 +27,7 @@ from typing import Dict, List, Optional, Any
 
 from typing import Protocol, runtime_checkable
 
-from app.domain.plant import PlantProfile
+from app.domain.plant_profile import PlantProfile
 
 
 @runtime_checkable

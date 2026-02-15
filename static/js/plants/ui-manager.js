@@ -486,6 +486,7 @@ class PlantsUIManager extends BaseManager {
         }[statusClass] || 'fa-question-circle';
 
         return `
+            <a href="/plants/${plant.plant_id}/my-detail" class="plant-card-link" title="View plant details">
             <div class="plant-card" data-status="${statusClass}" data-name="${plant.name}" data-type="${plant.plant_type}">
                 <div class="plant-card-header">
                     <h4>${plant.name}</h4>
@@ -500,8 +501,8 @@ class PlantsUIManager extends BaseManager {
                     <p><strong>Days in stage:</strong> ${plant.days_in_stage}</p>
                     <p><strong>Unit:</strong> ${plant.unit_name || `Unit ${plant.unit_id}`}</p>
                 </div>
-                <div class="plant-card-actions">
-                    <button class="btn btn-sm" data-action="view-details" data-plant-id="${plant.plant_id}" data-unit-id="${plant.unit_id}" title="View details">
+                <div class="plant-card-actions" onclick="event.preventDefault(); event.stopPropagation();">
+                    <button class="btn btn-sm" data-action="view-details" data-plant-id="${plant.plant_id}" data-unit-id="${plant.unit_id}" title="Quick view">
                         <i class="fas fa-eye"></i>
                     </button>
                     <button class="btn btn-sm" data-action="link-sensor" data-plant-id="${plant.plant_id}" data-unit-id="${plant.unit_id}" title="Link sensor">
@@ -512,6 +513,7 @@ class PlantsUIManager extends BaseManager {
                     </button>
                 </div>
             </div>
+            </a>
         `;
     }
 

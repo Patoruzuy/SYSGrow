@@ -562,3 +562,96 @@ class PlantStageManager:
         Set the unit repository (avoids circular dependency at init time).
         """
         self._unit_repo = unit_repo
+
+    # ==================== Journal Service ====================
+
+    @property
+    def journal_service(self):
+        """Journal service for recording stage-related entries."""
+        return getattr(self, '_journal_service', None)
+
+    @journal_service.setter
+    def journal_service(self, service) -> None:
+        self._journal_service = service
+
+    # ==================== Stage Extension ====================
+
+    def extend_stage(
+        self,
+        plant_id: int,
+        plant: Any,
+        extend_days: int,
+        reason: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Extend the current growth stage by a number of days (max 5).
+
+        Args:
+            plant_id: Plant ID
+            plant: Plant dict or PlantProfile
+            extend_days: Days to extend (1-5)
+            reason: Reason for extension
+
+        Returns:
+            Dict with extension details
+
+        Raises:
+            ValueError: if days out of range or stage unknown
+        """
+        if extend_days < 1 or extend_days > 5:
+            raise ValueError("Extension must be between 1 and 5 days")
+
+        plant_dict = plant if isinstance(plant, dict) else (
+            plant.to_dict() if hasattr(plant, 'to_dict') else {}
+        )
+
+        current_stage = plant_dict.get("current_stage") or getattr(plant, "current_stage", None)
+        days_in_stage = plant_dict.get("days_in_stage", 0) or getattr(plant, "days_in_stage", 0)
+        unit_id = plant_dict.get("unit_id") or getattr(plant, "unit_id", None)
+
+        if not current_stage:
+            raise ValueError("Plant has no current stage to extend")
+
+        new_days = (days_in_stage or 0) + extend_days
+
+        # Update the stage with new days_in_stage (effectively same stage, more days)
+        try:
+            profile = plant if hasattr(plant, 'plant_id') else None
+            if profile:
+                self.update_plant_stage(
+                    plant=profile,
+                    new_stage=current_stage,
+                    days_in_stage=new_days,
+                    skip_threshold_proposal=True,
+                )
+        except Exception as e:
+            logger.error(f"Failed to persist stage extension: {e}", exc_info=True)
+
+        # Auto-journal the extension
+        if self.journal_service:
+            try:
+                self.journal_service.record_stage_change(
+                    plant_id=plant_id,
+                    from_stage=current_stage,
+                    to_stage=current_stage,
+                    trigger="extension",
+                    notes=f"Stage extended by {extend_days} day(s). Reason: {reason or 'not specified'}",
+                )
+            except Exception as e:
+                logger.error(f"Failed to journal stage extension: {e}", exc_info=True)
+
+        result = {
+            "plant_id": plant_id,
+            "stage": current_stage,
+            "previous_days": days_in_stage,
+            "extended_by": extend_days,
+            "new_days_in_stage": new_days,
+            "reason": reason,
+            "message": f"Stage '{current_stage}' extended by {extend_days} day(s)",
+        }
+
+        logger.info(
+            f"Extended stage '{current_stage}' for plant {plant_id} "
+            f"by {extend_days} days → {new_days} total days"
+        )
+        return result

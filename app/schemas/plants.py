@@ -6,8 +6,9 @@ Request/response schemas for plant-related endpoints.
 """
 
 from pydantic import BaseModel, Field, field_validator
-from typing import Optional, List, Any
+from typing import Optional, List, Any, Dict
 from enum import Enum
+from datetime import datetime, date
 
 from app.enums.common import ConditionProfileMode
 
@@ -176,3 +177,167 @@ class PlantDiagnosisRequest(BaseModel):
         if isinstance(v, str):
             return [s.strip() for s in v.split(",") if s.strip()]
         return v or []
+
+
+# ============================================================================
+# Journal Entry Schemas (Phase 7+)
+# ============================================================================
+
+
+class WateringMethod(str, Enum):
+    """Watering methods."""
+    MANUAL = "manual"
+    AUTOMATIC = "automatic"
+    DRIP = "drip"
+    SPRAY = "spray"
+    BOTTOM = "bottom"
+
+
+class WateringSource(str, Enum):
+    """Watering event sources."""
+    USER = "user"
+    SENSOR_TRIGGERED = "sensor_triggered"
+    SCHEDULE = "schedule"
+    SYSTEM = "system"
+
+
+class WateringEntryRequest(BaseModel):
+    """Request schema for recording a watering event."""
+    amount_ml: Optional[float] = Field(default=None, ge=0, description="Water amount in milliliters")
+    method: WateringMethod = Field(default=WateringMethod.MANUAL, description="Watering method")
+    source: WateringSource = Field(default=WateringSource.USER, description="Event source")
+    ph_level: Optional[float] = Field(default=None, ge=0, le=14, description="Water pH level")
+    ec_level: Optional[float] = Field(default=None, ge=0, description="Water EC level (mS/cm)")
+    duration_seconds: Optional[int] = Field(default=None, ge=0, description="Watering duration in seconds")
+    notes: str = Field(default="", description="Additional notes")
+
+
+class PruningEntryRequest(BaseModel):
+    """Request schema for recording a pruning event."""
+    pruning_type: str = Field(..., min_length=1, description="Type: topping, lollipopping, defoliation, lst, scrog, trim")
+    parts_pruned: List[str] = Field(default_factory=list, description="Parts pruned: leaves, branches, fan_leaves, etc.")
+    notes: str = Field(default="", description="Additional notes")
+
+    @field_validator("parts_pruned", mode="before")
+    @classmethod
+    def parse_parts(cls, v):
+        if isinstance(v, str):
+            return [s.strip() for s in v.split(",") if s.strip()]
+        return v or []
+
+
+class TransplantEntryRequest(BaseModel):
+    """Request schema for recording a transplant event."""
+    from_container: str = Field(..., min_length=1, description="Original container/pot")
+    to_container: str = Field(..., min_length=1, description="New container/pot")
+    new_soil_mix: Optional[str] = Field(default=None, description="New growing medium")
+    root_condition: Optional[str] = Field(default=None, description="Root condition observation")
+    notes: str = Field(default="", description="Additional notes")
+
+
+class EnvironmentalAdjustmentRequest(BaseModel):
+    """Request schema for recording an environmental adjustment."""
+    parameter: str = Field(..., min_length=1, description="Parameter adjusted: fan_speed, light_intensity, temperature_target, etc.")
+    old_value: str = Field(..., description="Previous setting value")
+    new_value: str = Field(..., description="New setting value")
+    reason: str = Field(default="", description="Reason for the adjustment")
+    notes: str = Field(default="", description="Additional notes")
+
+
+class StageExtensionRequest(BaseModel):
+    """Request schema for extending the current growth stage.
+    
+    Supports two input modes:
+    - extend_days: Number of days to extend (max 5)
+    - extend_until: Target date to extend to (max 5 days from now)
+    At least one must be provided.
+    """
+    extend_days: Optional[int] = Field(default=None, ge=1, le=5, description="Days to extend (max 5)")
+    extend_until: Optional[date] = Field(default=None, description="Extend until this date (max 5 days ahead)")
+    reason: str = Field(default="", description="Reason for extension")
+
+    @field_validator("extend_until", mode="before")
+    @classmethod
+    def parse_date(cls, v):
+        if isinstance(v, str):
+            return date.fromisoformat(v)
+        return v
+
+
+class UpdateJournalEntryRequest(BaseModel):
+    """Request schema for updating an existing journal entry."""
+    notes: Optional[str] = Field(default=None, description="Updated notes")
+    health_status: Optional[str] = Field(default=None, description="Updated health status")
+    severity_level: Optional[int] = Field(default=None, ge=1, le=5, description="Updated severity")
+
+
+class JournalEntryResponse(BaseModel):
+    """Response schema for a single journal entry."""
+    entry_id: int
+    plant_id: int
+    unit_id: Optional[int] = None
+    entry_type: str
+    observation_type: Optional[str] = None
+    health_status: Optional[str] = None
+    severity_level: Optional[int] = None
+    symptoms: Optional[List[str]] = None
+    disease_type: Optional[str] = None
+    affected_parts: Optional[List[str]] = None
+    growth_stage: Optional[str] = None
+    nutrient_type: Optional[str] = None
+    nutrient_name: Optional[str] = None
+    amount: Optional[float] = None
+    unit: Optional[str] = None
+    treatment_type: Optional[str] = None
+    treatment_name: Optional[str] = None
+    notes: Optional[str] = None
+    image_path: Optional[str] = None
+    user_id: Optional[int] = None
+    observation_date: Optional[str] = None
+    created_at: Optional[str] = None
+    extra_data: Optional[Dict[str, Any]] = None
+
+    @field_validator("symptoms", "affected_parts", mode="before")
+    @classmethod
+    def parse_json_lists(cls, v):
+        if isinstance(v, str):
+            import json
+            try:
+                return json.loads(v)
+            except (json.JSONDecodeError, ValueError):
+                return [s.strip() for s in v.split(",") if s.strip()]
+        return v
+
+    @field_validator("extra_data", mode="before")
+    @classmethod
+    def parse_extra_data(cls, v):
+        if isinstance(v, str):
+            import json
+            try:
+                return json.loads(v)
+            except (json.JSONDecodeError, ValueError):
+                return None
+        return v
+
+
+class JournalSummaryResponse(BaseModel):
+    """Response schema for a journal summary."""
+    plant_id: int
+    total_entries: int = 0
+    entries_by_type: Dict[str, int] = Field(default_factory=dict)
+    last_watering: Optional[str] = None
+    last_observation: Optional[str] = None
+    last_nutrient: Optional[str] = None
+    health_trend: Optional[str] = None
+    watering_count_30d: int = 0
+    observation_count_30d: int = 0
+    stage_changes: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+class PaginatedJournalResponse(BaseModel):
+    """Response schema for paginated journal entries."""
+    items: List[JournalEntryResponse]
+    page: int = 1
+    per_page: int = 20
+    total_pages: int = 0
+    total_count: int = 0

@@ -71,10 +71,19 @@ class PlantJournalRepository:
                     user_id INTEGER,
                     observation_date TIMESTAMP,  -- Custom observation date
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    extra_data TEXT,  -- JSON blob for type-specific fields (Phase 7+)
                     
                     FOREIGN KEY (plant_id) REFERENCES Plant(plant_id) ON DELETE CASCADE
                 )
             """)
+
+            # Migrate: add extra_data column if missing (existing databases)
+            try:
+                conn.execute("ALTER TABLE plant_journal ADD COLUMN extra_data TEXT")
+                conn.commit()
+                logger.info("Added extra_data column to plant_journal table")
+            except Exception:
+                pass  # Column already exists
             
             # Create indexes for common queries
             conn.execute("""
@@ -85,6 +94,16 @@ class PlantJournalRepository:
             conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_journal_type 
                 ON plant_journal(entry_type, created_at DESC)
+            """)
+
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_journal_plant_type
+                ON plant_journal(plant_id, entry_type)
+            """)
+
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_journal_health
+                ON plant_journal(plant_id, health_status)
             """)
             
             conn.commit()
@@ -269,47 +288,6 @@ class PlantJournalRepository:
         except Exception as e:
             logger.error(f"Failed to create note: {e}")
         return None
-
-    def create_watering_entry(
-        self,
-        plant_id: int,
-        unit_id: Optional[int] = None,
-        amount: Optional[float] = None,
-        unit: str = "ml",
-        notes: str = "",
-        user_id: Optional[int] = None,
-        observation_date: Optional[str] = None,
-    ) -> Optional[int]:
-        """
-        Create a watering entry.
-
-        Stores a watering record in the journal with entry_type 'watering'.
-        """
-        try:
-            with self.db.connection() as conn:
-                cursor = conn.execute(
-                    """
-                    INSERT INTO plant_journal (
-                        plant_id, unit_id, entry_type, observation_type,
-                        amount, unit, notes, user_id, observation_date
-                    )
-                    VALUES (?, ?, 'watering', 'watering', ?, ?, ?, ?, ?)
-                    """,
-                    (
-                        plant_id,
-                        unit_id,
-                        amount,
-                        unit,
-                        notes,
-                        user_id,
-                        observation_date,
-                    ),
-                )
-                conn.commit()
-                return cursor.lastrowid
-        except Exception as e:
-            logger.error(f"Failed to create watering entry: {e}")
-            return None
 
     # ========================================================================
     # READ Operations
@@ -648,6 +626,312 @@ class PlantJournalRepository:
         return combined
 
     # ========================================================================
+    # Extended Retrieval Methods
+    # ========================================================================
+
+    def get_watering_history(
+        self,
+        plant_id: int,
+        days: int = 90,
+    ) -> List[Dict[str, Any]]:
+        """
+        Get watering history for a plant.
+
+        Args:
+            plant_id: Plant ID
+            days: Look back period
+
+        Returns:
+            List of watering entries with parsed extra_data
+        """
+        try:
+            query = """
+                SELECT *
+                FROM plant_journal
+                WHERE plant_id = ?
+                  AND entry_type = 'watering'
+                  AND created_at >= datetime('now', ?)
+                ORDER BY created_at DESC
+            """
+            with self.db.connection() as conn:
+                cursor = conn.execute(query, [plant_id, f'-{days} days'])
+                rows = [dict(row) for row in cursor.fetchall()]
+
+            # Parse extra_data JSON for each row
+            import json
+            for row in rows:
+                if row.get('extra_data'):
+                    try:
+                        row['extra_data'] = json.loads(row['extra_data'])
+                    except (json.JSONDecodeError, TypeError):
+                        pass
+            return rows
+        except Exception as e:
+            logger.error(f"Failed to get watering history: {e}")
+            return []
+
+    def get_stage_timeline(self, plant_id: int) -> List[Dict[str, Any]]:
+        """
+        Get the stage change timeline for a plant, ordered chronologically.
+
+        Returns:
+            List of stage_change entries (oldest first)
+        """
+        try:
+            query = """
+                SELECT entry_id, plant_id, observation_type AS from_stage,
+                       growth_stage AS to_stage, treatment_type AS trigger,
+                       notes, created_at
+                FROM plant_journal
+                WHERE plant_id = ?
+                  AND entry_type = 'stage_change'
+                ORDER BY created_at ASC
+            """
+            with self.db.connection() as conn:
+                cursor = conn.execute(query, [plant_id])
+                return [dict(row) for row in cursor.fetchall()]
+        except Exception as e:
+            logger.error(f"Failed to get stage timeline: {e}")
+            return []
+
+    def get_journal_summary(self, plant_id: int) -> Dict[str, Any]:
+        """
+        Get aggregate journal summary for a plant.
+
+        Returns:
+            Dict with counts per entry type, last entry dates, etc.
+        """
+        try:
+            with self.db.connection() as conn:
+                # Total and per-type counts
+                cursor = conn.execute("""
+                    SELECT entry_type, COUNT(*) as cnt
+                    FROM plant_journal
+                    WHERE plant_id = ?
+                    GROUP BY entry_type
+                """, [plant_id])
+                entries_by_type = {}
+                total = 0
+                for row in cursor.fetchall():
+                    entries_by_type[row['entry_type']] = row['cnt']
+                    total += row['cnt']
+
+                # Last watering
+                cursor = conn.execute("""
+                    SELECT created_at FROM plant_journal
+                    WHERE plant_id = ? AND entry_type = 'watering'
+                    ORDER BY created_at DESC LIMIT 1
+                """, [plant_id])
+                row = cursor.fetchone()
+                last_watering = dict(row)['created_at'] if row else None
+
+                # Last observation
+                cursor = conn.execute("""
+                    SELECT created_at FROM plant_journal
+                    WHERE plant_id = ? AND entry_type = 'observation'
+                    ORDER BY created_at DESC LIMIT 1
+                """, [plant_id])
+                row = cursor.fetchone()
+                last_observation = dict(row)['created_at'] if row else None
+
+                # Last nutrient
+                cursor = conn.execute("""
+                    SELECT created_at FROM plant_journal
+                    WHERE plant_id = ? AND entry_type = 'nutrient'
+                    ORDER BY created_at DESC LIMIT 1
+                """, [plant_id])
+                row = cursor.fetchone()
+                last_nutrient = dict(row)['created_at'] if row else None
+
+                # 30-day counts
+                cursor = conn.execute("""
+                    SELECT
+                        SUM(CASE WHEN entry_type = 'watering' THEN 1 ELSE 0 END) as watering_30d,
+                        SUM(CASE WHEN entry_type = 'observation' THEN 1 ELSE 0 END) as observation_30d
+                    FROM plant_journal
+                    WHERE plant_id = ?
+                      AND created_at >= datetime('now', '-30 days')
+                """, [plant_id])
+                counts = cursor.fetchone()
+                watering_30d = (dict(counts)['watering_30d'] or 0) if counts else 0
+                observation_30d = (dict(counts)['observation_30d'] or 0) if counts else 0
+
+                # Health trend: last 5 health observations
+                cursor = conn.execute("""
+                    SELECT health_status FROM plant_journal
+                    WHERE plant_id = ? AND entry_type = 'observation'
+                      AND observation_type = 'health' AND health_status IS NOT NULL
+                    ORDER BY created_at DESC LIMIT 5
+                """, [plant_id])
+                recent_health = [dict(r)['health_status'] for r in cursor.fetchall()]
+                health_trend = self._compute_health_trend(recent_health)
+
+                return {
+                    "plant_id": plant_id,
+                    "total_entries": total,
+                    "entries_by_type": entries_by_type,
+                    "last_watering": last_watering,
+                    "last_observation": last_observation,
+                    "last_nutrient": last_nutrient,
+                    "watering_count_30d": watering_30d,
+                    "observation_count_30d": observation_30d,
+                    "health_trend": health_trend,
+                }
+        except Exception as e:
+            logger.error(f"Failed to get journal summary: {e}")
+            return {"plant_id": plant_id, "total_entries": 0, "entries_by_type": {}}
+
+    def get_watering_frequency(self, plant_id: int, days: int = 30) -> Dict[str, Any]:
+        """
+        Calculate average watering frequency for a plant.
+
+        Returns:
+            Dict with avg_interval_days, total_waterings, period_days
+        """
+        try:
+            query = """
+                SELECT created_at
+                FROM plant_journal
+                WHERE plant_id = ?
+                  AND entry_type = 'watering'
+                  AND created_at >= datetime('now', ?)
+                ORDER BY created_at ASC
+            """
+            with self.db.connection() as conn:
+                cursor = conn.execute(query, [plant_id, f'-{days} days'])
+                rows = [dict(r)['created_at'] for r in cursor.fetchall()]
+
+            if len(rows) < 2:
+                return {
+                    "avg_interval_days": None,
+                    "total_waterings": len(rows),
+                    "period_days": days,
+                }
+
+            from datetime import datetime as dt
+            dates = []
+            for ts in rows:
+                try:
+                    dates.append(dt.fromisoformat(ts.replace('Z', '+00:00')))
+                except Exception:
+                    pass
+
+            if len(dates) < 2:
+                return {
+                    "avg_interval_days": None,
+                    "total_waterings": len(rows),
+                    "period_days": days,
+                }
+
+            intervals = [(dates[i+1] - dates[i]).total_seconds() / 86400 for i in range(len(dates)-1)]
+            avg_interval = sum(intervals) / len(intervals)
+
+            return {
+                "avg_interval_days": round(avg_interval, 1),
+                "total_waterings": len(rows),
+                "period_days": days,
+            }
+        except Exception as e:
+            logger.error(f"Failed to get watering frequency: {e}")
+            return {"avg_interval_days": None, "total_waterings": 0, "period_days": days}
+
+    def get_entries_paginated(
+        self,
+        plant_id: int,
+        page: int = 1,
+        per_page: int = 20,
+        entry_type: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Get paginated journal entries.
+
+        Args:
+            plant_id: Plant ID
+            page: Page number (1-based)
+            per_page: Items per page (default 20)
+            entry_type: Optional filter by entry_type
+
+        Returns:
+            Dict with items, page, per_page, total_pages, total_count
+        """
+        try:
+            count_query = """
+                SELECT COUNT(*) as cnt
+                FROM plant_journal
+                WHERE plant_id = ?
+            """
+            data_query = """
+                SELECT *
+                FROM plant_journal
+                WHERE plant_id = ?
+            """
+            params: list = [plant_id]
+
+            if entry_type:
+                count_query += " AND entry_type = ?"
+                data_query += " AND entry_type = ?"
+                params.append(entry_type)
+
+            data_query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+            offset = (max(1, page) - 1) * per_page
+
+            with self.db.connection() as conn:
+                cursor = conn.execute(count_query, params)
+                total_count = dict(cursor.fetchone())['cnt']
+
+                cursor = conn.execute(data_query, params + [per_page, offset])
+                items = [dict(row) for row in cursor.fetchall()]
+
+            # Parse extra_data and JSON fields
+            import json
+            for item in items:
+                for field in ('extra_data', 'symptoms', 'affected_parts', 'environmental_factors'):
+                    if item.get(field) and isinstance(item[field], str):
+                        try:
+                            item[field] = json.loads(item[field])
+                        except (json.JSONDecodeError, TypeError):
+                            pass
+
+            import math
+            total_pages = math.ceil(total_count / per_page) if per_page > 0 else 0
+
+            return {
+                "items": items,
+                "page": page,
+                "per_page": per_page,
+                "total_pages": total_pages,
+                "total_count": total_count,
+            }
+        except Exception as e:
+            logger.error(f"Failed to get paginated entries: {e}")
+            return {
+                "items": [],
+                "page": page,
+                "per_page": per_page,
+                "total_pages": 0,
+                "total_count": 0,
+            }
+
+    @staticmethod
+    def _compute_health_trend(recent_statuses: List[str]) -> Optional[str]:
+        """Compute health trend from recent health statuses."""
+        if not recent_statuses:
+            return None
+        score_map = {"healthy": 3, "stressed": 2, "diseased": 1}
+        scores = [score_map.get(s, 2) for s in recent_statuses]
+        if len(scores) < 2:
+            return "stable"
+        # Compare average of first half vs second half
+        mid = len(scores) // 2
+        recent_avg = sum(scores[:mid]) / mid if mid > 0 else 0
+        older_avg = sum(scores[mid:]) / (len(scores) - mid) if (len(scores) - mid) > 0 else 0
+        if recent_avg > older_avg + 0.3:
+            return "improving"
+        elif recent_avg < older_avg - 0.3:
+            return "declining"
+        return "stable"
+
+    # ========================================================================
     # Extended Entry Types (Phase 7)
     # ========================================================================
 
@@ -699,27 +983,26 @@ class PlantJournalRepository:
 
             stored_unit = normalized_unit if amount is not None else "ml"
 
-            # Store advanced fields as JSON in notes while keeping flat columns populated
             import json
-            extra_data = {
+            extra_data = json.dumps({
                 "amount_ml": normalized_amount_ml,
                 "method": method,
                 "source": source,
                 "ph_level": ph_level,
                 "ec_level": ec_level,
-            }
+            })
 
             with self.db.connection() as conn:
                 cursor = conn.execute("""
                     INSERT INTO plant_journal (
                         plant_id, unit_id, entry_type, observation_type,
-                        treatment_type, treatment_name, amount, unit, notes, user_id, observation_date
+                        treatment_type, treatment_name, amount, unit,
+                        notes, user_id, observation_date, extra_data
                     )
-                    VALUES (?, ?, 'watering', 'watering', ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, 'watering', 'watering', ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     plant_id, unit_id, method, source, normalized_amount_ml, stored_unit,
-                    f"{notes}\n---\n{json.dumps(extra_data)}" if notes else json.dumps(extra_data),
-                    user_id, observation_date
+                    notes, user_id, observation_date, extra_data
                 ))
                 conn.commit()
                 return cursor.lastrowid
@@ -838,23 +1121,22 @@ class PlantJournalRepository:
         """
         try:
             import json
-            extra_data = {
+            extra_data = json.dumps({
                 "harvest_type": harvest_type,
                 "weight_grams": weight_grams,
                 "quality_rating": quality_rating,
-            }
+            })
 
             with self.db.connection() as conn:
                 cursor = conn.execute("""
                     INSERT INTO plant_journal (
                         plant_id, entry_type, treatment_type, amount,
-                        severity_level, notes, image_path, user_id
+                        severity_level, notes, image_path, user_id, extra_data
                     )
-                    VALUES (?, 'harvest', ?, ?, ?, ?, ?, ?)
+                    VALUES (?, 'harvest', ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     plant_id, harvest_type, weight_grams, quality_rating,
-                    f"{notes}\n---\n{json.dumps(extra_data)}" if notes else json.dumps(extra_data),
-                    image_path, user_id
+                    notes, image_path, user_id, extra_data
                 ))
                 conn.commit()
                 return cursor.lastrowid
@@ -887,22 +1169,22 @@ class PlantJournalRepository:
         """
         try:
             import json
-            extra_data = {
+            extra_data = json.dumps({
                 "adjustment_type": adjustment_type,
                 "old_value": old_value,
                 "new_value": new_value,
-            }
+            })
 
             with self.db.connection() as conn:
                 cursor = conn.execute("""
                     INSERT INTO plant_journal (
                         plant_id, entry_type, treatment_type,
-                        environmental_factors, notes, user_id
+                        notes, user_id, extra_data
                     )
                     VALUES (?, 'environmental_adjustment', ?, ?, ?, ?)
                 """, (
-                    plant_id, adjustment_type, json.dumps(extra_data),
-                    reason, user_id
+                    plant_id, adjustment_type,
+                    reason, user_id, extra_data
                 ))
                 conn.commit()
                 return cursor.lastrowid
@@ -935,24 +1217,23 @@ class PlantJournalRepository:
         """
         try:
             import json
-            extra_data = {
+            extra_data = json.dumps({
                 "from_container": from_container,
                 "to_container": to_container,
                 "new_medium": new_medium,
-            }
+            })
 
             with self.db.connection() as conn:
                 cursor = conn.execute("""
                     INSERT INTO plant_journal (
                         plant_id, entry_type, treatment_type, treatment_name,
-                        notes, user_id
+                        notes, user_id, extra_data
                     )
-                    VALUES (?, 'transplant', 'transplant', ?, ?, ?)
+                    VALUES (?, 'transplant', 'transplant', ?, ?, ?, ?)
                 """, (
                     plant_id,
                     f"{from_container} -> {to_container}",
-                    f"{notes}\n---\n{json.dumps(extra_data)}" if notes else json.dumps(extra_data),
-                    user_id
+                    notes, user_id, extra_data
                 ))
                 conn.commit()
                 return cursor.lastrowid

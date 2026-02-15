@@ -365,62 +365,55 @@
       }
     }
 
-    _renderLinkedSensors(sensors, plantId) {
-      const container = document.getElementById('plant-sensors-list');
-      if (!container) return;
-      
-      if (!sensors || sensors.length === 0) {
-        container.innerHTML = '<div class="empty-state">No sensors linked</div>';
-        return;
+    /**
+     * Shared helper to render a list of linked device items.
+     */
+    _renderDeviceItems(devices, plantId, { icon, idField, unlinkAction, idAttr, singularLabel }) {
+      if (!devices || devices.length === 0) {
+        return `<div class="empty-state">No ${singularLabel.toLowerCase()}s linked</div>`;
       }
-      
-      container.innerHTML = sensors.map(sensor => `
+      return devices.map(device => `
         <div class="device-item">
           <div class="device-info">
-            <i class="fas fa-thermometer-half"></i>
+            <i class="fas ${icon}"></i>
             <div>
-              <strong>${window.escapeHtml(sensor.name || `Sensor ${sensor.sensor_id}`)}</strong>
-              <small>${window.escapeHtml(sensor.type || 'Unknown')}</small>
+              <strong>${window.escapeHtml(device.name || `${singularLabel} ${device[idField]}`)}</strong>
+              <small>${window.escapeHtml(device.type || 'Unknown')}</small>
             </div>
           </div>
           <button class="btn-icon btn-unlink" 
-                  data-action="unlink-sensor"
+                  data-action="${unlinkAction}"
                   data-plant-id="${window.escapeHtmlAttr(plantId)}"
-                  data-sensor-id="${window.escapeHtmlAttr(sensor.sensor_id)}"
-                  title="Unlink sensor">
+                  data-${idAttr}="${window.escapeHtmlAttr(device[idField])}"
+                  title="Unlink ${singularLabel.toLowerCase()}">
             <i class="fas fa-unlink"></i>
           </button>
         </div>
       `).join('');
     }
 
+    _renderLinkedSensors(sensors, plantId) {
+      const container = document.getElementById('plant-sensors-list');
+      if (!container) return;
+      container.innerHTML = this._renderDeviceItems(sensors, plantId, {
+        icon: 'fa-thermometer-half',
+        idField: 'sensor_id',
+        unlinkAction: 'unlink-sensor',
+        idAttr: 'sensor-id',
+        singularLabel: 'Sensor',
+      });
+    }
+
     _renderLinkedActuators(actuators, plantId) {
       const container = document.getElementById('plant-actuators-list');
       if (!container) return;
-      
-      if (!actuators || actuators.length === 0) {
-        container.innerHTML = '<div class="empty-state">No actuators linked</div>';
-        return;
-      }
-      
-      container.innerHTML = actuators.map(actuator => `
-        <div class="device-item">
-          <div class="device-info">
-            <i class="fas fa-tint"></i>
-            <div>
-              <strong>${window.escapeHtml(actuator.name || `Actuator ${actuator.actuator_id}`)}</strong>
-              <small>${window.escapeHtml(actuator.type || 'Unknown')}</small>
-            </div>
-          </div>
-          <button class="btn-icon btn-unlink"
-                  data-action="unlink-actuator"
-                  data-plant-id="${window.escapeHtmlAttr(plantId)}"
-                  data-actuator-id="${window.escapeHtmlAttr(actuator.actuator_id)}"
-                  title="Unlink actuator">
-            <i class="fas fa-unlink"></i>
-          </button>
-        </div>
-      `).join('');
+      container.innerHTML = this._renderDeviceItems(actuators, plantId, {
+        icon: 'fa-tint',
+        idField: 'actuator_id',
+        unlinkAction: 'unlink-actuator',
+        idAttr: 'actuator-id',
+        singularLabel: 'Actuator',
+      });
     }
 
     async _handleUnlinkSensor(plantId, sensorId) {
@@ -480,6 +473,11 @@
     }
 
     _showToast(message, type = 'info') {
+      if (window.showNotification) {
+        window.showNotification(message, type);
+        return;
+      }
+      // Fallback if notification-utils not loaded
       const toast = document.createElement('div');
       toast.className = `toast toast-${type}`;
       toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i> ${window.escapeHtml(message)}`;
@@ -504,9 +502,12 @@
       }
     }
 
-    _createSensorLinkModal() {
+    /**
+     * Generic device link modal factory — DRYs the sensor/actuator link modals.
+     */
+    _createDeviceLinkModal({ modalId, icon, label, singularLabel, currentListId, formId, plantInputId, selectId, selectName, selectLabel, onSubmit }) {
       const modal = document.createElement('div');
-      modal.id = 'plant-sensor-link-modal';
+      modal.id = modalId;
       modal.className = 'modal';
       modal.hidden = true;
       modal.setAttribute('aria-hidden', 'true');
@@ -515,7 +516,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <h2 class="modal-title">
-              <i class="fas fa-link"></i> Manage Sensors
+              <i class="fas ${icon}"></i> Manage ${label}
             </h2>
             <button type="button" class="modal-close" aria-label="Close">
               <i class="fas fa-times"></i>
@@ -523,25 +524,25 @@
           </div>
           <div class="modal-body">
             <div class="device-management-section">
-              <h3>Currently Linked Sensors</h3>
-              <div id="current-sensors-list" class="devices-list">
+              <h3>Currently Linked ${label}</h3>
+              <div id="${currentListId}" class="devices-list">
                 <div class="loading">Loading...</div>
               </div>
             </div>
             
             <div class="device-management-section">
-              <h3>Link New Sensor</h3>
-              <form id="sensor-link-form">
-                <input type="hidden" name="plant_id" id="sensor-plant-id">
+              <h3>Link New ${singularLabel}</h3>
+              <form id="${formId}">
+                <input type="hidden" name="plant_id" id="${plantInputId}">
                 <div class="form-field">
-                  <label for="sensor-select">Available Sensors</label>
-                  <select id="sensor-select" name="sensor_id" required>
+                  <label for="${selectId}">${selectLabel}</label>
+                  <select id="${selectId}" name="${selectName}" required>
                     <option value="">Loading...</option>
                   </select>
                 </div>
                 <div class="form-actions">
                   <button type="button" class="btn btn-secondary modal-close">Cancel</button>
-                  <button type="submit" class="btn btn-primary">Link Sensor</button>
+                  <button type="submit" class="btn btn-primary">Link ${singularLabel}</button>
                 </div>
               </form>
             </div>
@@ -550,15 +551,12 @@
       `;
       document.body.appendChild(modal);
       
-      const form = modal.querySelector('#sensor-link-form');
-      form.addEventListener('submit', (e) => this._handleSensorLinkSubmit(e));
+      modal.querySelector(`#${formId}`).addEventListener('submit', onSubmit);
 
-      // Backdrop click: close when clicking the modal container itself
       modal.addEventListener('click', (e) => {
         if (e.target === modal) this._closeLinkModal(modal);
       });
 
-      // Stop propagation inside the dialog
       const content = modal.querySelector('.modal-content');
       if (content) {
         content.addEventListener('click', (e) => e.stopPropagation());
@@ -566,71 +564,43 @@
 
       modal.querySelectorAll('.modal-close').forEach(btn => {
         btn.addEventListener('click', () => this._closeLinkModal(modal));
+      });
+
+      // Close on Escape key
+      modal.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') this._closeLinkModal(modal);
+      });
+    }
+
+    _createSensorLinkModal() {
+      this._createDeviceLinkModal({
+        modalId: 'plant-sensor-link-modal',
+        icon: 'fa-link',
+        label: 'Sensors',
+        singularLabel: 'Sensor',
+        currentListId: 'current-sensors-list',
+        formId: 'sensor-link-form',
+        plantInputId: 'sensor-plant-id',
+        selectId: 'sensor-select',
+        selectName: 'sensor_id',
+        selectLabel: 'Available Sensors',
+        onSubmit: (e) => this._handleSensorLinkSubmit(e),
       });
     }
 
     _createActuatorLinkModal() {
-      const modal = document.createElement('div');
-      modal.id = 'plant-actuator-link-modal';
-      modal.className = 'modal';
-      modal.hidden = true;
-      modal.setAttribute('aria-hidden', 'true');
-      modal.innerHTML = `
-        <div class="modal-overlay"></div>
-        <div class="modal-content">
-          <div class="modal-header">
-            <h2 class="modal-title">
-              <i class="fas fa-water"></i> Manage Actuators
-            </h2>
-            <button type="button" class="modal-close" aria-label="Close">
-              <i class="fas fa-times"></i>
-            </button>
-          </div>
-          <div class="modal-body">
-            <div class="device-management-section">
-              <h3>Currently Linked Actuators</h3>
-              <div id="current-actuators-list" class="devices-list">
-                <div class="loading">Loading...</div>
-              </div>
-            </div>
-            
-            <div class="device-management-section">
-              <h3>Link New Actuator</h3>
-              <form id="actuator-link-form">
-                <input type="hidden" name="plant_id" id="actuator-plant-id">
-                <div class="form-field">
-                  <label for="actuator-select">Available Actuators (Pumps/Valves)</label>
-                  <select id="actuator-select" name="actuator_id" required>
-                    <option value="">Loading...</option>
-                  </select>
-                </div>
-                <div class="form-actions">
-                  <button type="button" class="btn btn-secondary modal-close">Cancel</button>
-                  <button type="submit" class="btn btn-primary">Link Actuator</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      `;
-      document.body.appendChild(modal);
-      
-      const form = modal.querySelector('#actuator-link-form');
-      form.addEventListener('submit', (e) => this._handleActuatorLinkSubmit(e));
-
-      // Backdrop click: close when clicking the modal container itself
-      modal.addEventListener('click', (e) => {
-        if (e.target === modal) this._closeLinkModal(modal);
-      });
-
-      // Stop propagation inside the dialog
-      const content = modal.querySelector('.modal-content');
-      if (content) {
-        content.addEventListener('click', (e) => e.stopPropagation());
-      }
-
-      modal.querySelectorAll('.modal-close').forEach(btn => {
-        btn.addEventListener('click', () => this._closeLinkModal(modal));
+      this._createDeviceLinkModal({
+        modalId: 'plant-actuator-link-modal',
+        icon: 'fa-water',
+        label: 'Actuators',
+        singularLabel: 'Actuator',
+        currentListId: 'current-actuators-list',
+        formId: 'actuator-link-form',
+        plantInputId: 'actuator-plant-id',
+        selectId: 'actuator-select',
+        selectName: 'actuator_id',
+        selectLabel: 'Available Actuators (Pumps/Valves)',
+        onSubmit: (e) => this._handleActuatorLinkSubmit(e),
       });
     }
 
@@ -683,45 +653,24 @@
       const currentList = document.getElementById('current-sensors-list');
       const select = document.getElementById('sensor-select');
       
-      console.log('[PlantDetailsModal] Loading sensor link data for plant:', plantId, 'unit:', unitId);
-      
       try {
         const linkedResp = await window.API.Plant.getPlantSensors(plantId);
-        console.log('[PlantDetailsModal] Linked sensors response:', linkedResp);
         const linkedSensors = linkedResp?.data?.sensors || linkedResp?.sensors || [];
         const linkedIds = new Set(linkedSensors.map(s => Number(s.sensor_id)));
         
         if (currentList) {
-          if (linkedSensors.length === 0) {
-            currentList.innerHTML = '<div class="empty-state">No sensors linked</div>';
-          } else {
-            currentList.innerHTML = linkedSensors.map(sensor => `
-              <div class="device-item">
-                <div class="device-info">
-                  <i class="fas fa-thermometer-half"></i>
-                  <div>
-                    <strong>${window.escapeHtml(sensor.name || `Sensor ${sensor.sensor_id}`)}</strong>
-                    <small>${window.escapeHtml(sensor.type || 'Unknown')}</small>
-                  </div>
-                </div>
-                <button class="btn-icon btn-unlink" 
-                        data-action="unlink-sensor"
-                        data-plant-id="${window.escapeHtmlAttr(plantId)}"
-                        data-sensor-id="${window.escapeHtmlAttr(sensor.sensor_id)}"
-                        title="Unlink sensor">
-                  <i class="fas fa-unlink"></i>
-                </button>
-              </div>
-            `).join('');
-          }
+          currentList.innerHTML = this._renderDeviceItems(linkedSensors, plantId, {
+            icon: 'fa-thermometer-half',
+            idField: 'sensor_id',
+            unlinkAction: 'unlink-sensor',
+            idAttr: 'sensor-id',
+            singularLabel: 'Sensor',
+          });
         }
         
         const availableResp = await window.API.Plant.getAvailableSensors(unitId);
-        console.log('[PlantDetailsModal] Available sensors response:', availableResp);
         const allSensors = availableResp?.data?.sensors || availableResp?.sensors || [];
-        console.log('[PlantDetailsModal] All sensors:', allSensors, 'Linked IDs:', Array.from(linkedIds));
         const availableSensors = allSensors.filter(s => !linkedIds.has(Number(s.sensor_id)));
-        console.log('[PlantDetailsModal] Available sensors after filtering:', availableSensors);
         
         if (select) {
           if (availableSensors.length === 0) {
@@ -750,28 +699,13 @@
         const linkedIds = new Set(linkedActuators.map(a => Number(a.actuator_id)));
         
         if (currentList) {
-          if (linkedActuators.length === 0) {
-            currentList.innerHTML = '<div class="empty-state">No actuators linked</div>';
-          } else {
-            currentList.innerHTML = linkedActuators.map(actuator => `
-              <div class="device-item">
-                <div class="device-info">
-                  <i class="fas fa-tint"></i>
-                  <div>
-                    <strong>${window.escapeHtml(actuator.name || `Actuator ${actuator.actuator_id}`)}</strong>
-                    <small>${window.escapeHtml(actuator.type || 'Unknown')}</small>
-                  </div>
-                </div>
-                <button class="btn-icon btn-unlink"
-                        data-action="unlink-actuator"
-                        data-plant-id="${window.escapeHtmlAttr(plantId)}"
-                        data-actuator-id="${window.escapeHtmlAttr(actuator.actuator_id)}"
-                        title="Unlink actuator">
-                  <i class="fas fa-unlink"></i>
-                </button>
-              </div>
-            `).join('');
-          }
+          currentList.innerHTML = this._renderDeviceItems(linkedActuators, plantId, {
+            icon: 'fa-tint',
+            idField: 'actuator_id',
+            unlinkAction: 'unlink-actuator',
+            idAttr: 'actuator-id',
+            singularLabel: 'Actuator',
+          });
         }
         
         const availableResp = await window.API.Plant.getAvailableActuators(unitId, 'pump');
@@ -923,6 +857,15 @@
           this.close();
         });
       }
+
+      // Close on Escape key
+      this._escapeHandler = (e) => {
+        if (e.key === 'Escape' && this.modalEl && !this.modalEl.hidden) {
+          e.stopPropagation();
+          this.close();
+        }
+      };
+      document.addEventListener('keydown', this._escapeHandler);
     }
 
     _show() {

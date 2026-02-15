@@ -46,6 +46,7 @@ from app.services.application.alert_service import AlertService
 from app.hardware.mqtt.mqtt_broker_wrapper import MQTTClientWrapper
 from app.services.hardware.camera_service import CameraService
 from app.utils.event_bus import EventBus
+from app.enums.events import PlantEvent
 from app.workers.unified_scheduler import UnifiedScheduler, get_scheduler
 from app.utils.plant_json_handler import PlantJsonHandler
 from app.services.application.auth_service import UserAuthManager
@@ -941,6 +942,28 @@ class ContainerBuilder:
 
         # PlantJournalService → ManualIrrigationService (optional watering logging)
         plant_journal_service.set_manual_irrigation_service(manual_irrigation_service)
+
+        # PlantJournalService → Event Bus (auto-journaling)
+        utils.event_bus.subscribe(
+            PlantEvent.PLANT_STAGE_UPDATE,
+            plant_journal_service.handle_stage_update_event,
+        )
+        utils.event_bus.subscribe(
+            PlantEvent.PLANT_ADDED,
+            plant_journal_service.handle_plant_added_event,
+        )
+        utils.event_bus.subscribe(
+            PlantEvent.PLANT_REMOVED,
+            plant_journal_service.handle_plant_removed_event,
+        )
+        utils.event_bus.subscribe(
+            PlantEvent.ACTIVE_PLANT_CHANGED,
+            plant_journal_service.handle_active_plant_changed_event,
+        )
+        logger.info("✓ PlantJournalService auto-journaling wired to event bus")
+
+        # PlantStageManager → JournalService (for stage extension recording)
+        plant_service._stage_manager.journal_service = plant_journal_service
 
         # ActuatorManagementService ↔ DeviceHealthService (for actuator health)
         hardware.actuator_management_service.device_health_service = device_health_service

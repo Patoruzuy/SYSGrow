@@ -34,6 +34,6 @@ def internal_error(error):
     return error_response("Internal server error", 500)
 
 # Import submodules to register routes (must be after blueprint creation)
-from . import actuators, crud, health, intelligence, journal, lifecycle, sensors
+from . import actuators, crud, health, intelligence, journal, journal_extended, lifecycle, sensors
 
 __all__ = ['plants_api']

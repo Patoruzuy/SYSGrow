@@ -30,6 +30,7 @@ from typing import Any, Dict, List, Optional, TYPE_CHECKING
 import logging
 
 from app.domain.plant_profile import PlantProfile
+from app.enums.device import ActuatorType
 from app.services.application.plant_device_linker import PlantDeviceLinker
 from app.services.application.plant_stage_manager import PlantStageManager
 

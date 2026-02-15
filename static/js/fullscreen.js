@@ -194,7 +194,10 @@ async function capturePhoto() {
   const endpoint = `/api/growth/units/${unitId}/camera/capture`;
 
   try {
-    const res = await fetch(endpoint, { method: 'POST' });
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    const headers = {};
+    if (csrfToken) headers['X-CSRFToken'] = csrfToken;
+    const res = await fetch(endpoint, { method: 'POST', headers });
     let ok = false, message = '📸 Photo captured';
     if (res.headers.get('content-type')?.includes('application/json')) {
       const j = await res.json().catch(() => ({}));

@@ -5,6 +5,10 @@
 {% block body_class %}dashboard-page{% endblock %}
 
 {% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/sensors.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/components/kpi-cards.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/components/alerts.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/components/anomaly-panel.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/system-efficiency-score.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/sensor-analytics/intelligent-alert-timeline.css') }}">
 {% endblock %}

@@ -184,10 +184,11 @@
    */
   function showError(message) {
     if (!listContainer) return;
+    const esc = window.escapeHtml || (t => { if (!t) return ''; const d = document.createElement('div'); d.textContent = t; return d.innerHTML; });
     listContainer.innerHTML = `
       <div class="notification-empty">
         <i class="fas fa-exclamation-circle" aria-hidden="true"></i>
-        <p>${message}</p>
+        <p>${esc(message)}</p>
       </div>
     `;
   }

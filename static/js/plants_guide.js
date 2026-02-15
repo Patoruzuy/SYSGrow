@@ -86,17 +86,29 @@ async function loadPlantsData() {
     `;
 
     try {
-        const response = await fetch('/api/plants/guide/full');
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const result = await response.json();
-        if (result.ok && result.data && result.data.plants) {
-            plantsData = result.data.plants;
-            filteredPlants = [...plantsData];
+        let result;
+        if (window.API && window.API.PlantAPI && window.API.PlantAPI.getGuide) {
+            result = await window.API.PlantAPI.getGuide();
+            // window.API unwraps data.data, so result IS the guide payload
+            if (result && result.plants) {
+                plantsData = result.plants;
+            } else {
+                throw new Error('Invalid response format');
+            }
         } else {
-            throw new Error(result.error?.message || 'Invalid response format');
+            // Fallback to direct fetch
+            const response = await fetch('/api/plants/guide/full');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            result = await response.json();
+            if (result.ok && result.data && result.data.plants) {
+                plantsData = result.data.plants;
+            } else {
+                throw new Error(result.error?.message || 'Invalid response format');
+            }
         }
+        filteredPlants = [...plantsData];
     } catch (error) {
         console.error('Error loading plants data:', error);
         throw error;
@@ -999,9 +1011,10 @@ function showError(message) {
 }
 
 /**
- * Utility: Escape HTML
+ * Utility: Escape HTML — delegate to shared utility
  */
 function escapeHtml(text) {
+    if (window.escapeHtml) return window.escapeHtml(text);
     if (!text) return '';
     const div = document.createElement('div');
     div.textContent = text;

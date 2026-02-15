@@ -5,10 +5,14 @@
 {% block body_class %}dashboard-page{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/components/kpi-cards.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/components/timeline.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/components/energy.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/components/alerts.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/system-efficiency-score.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/ai_insights.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/sensor-analytics/intelligent-alert-timeline.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/components/kpi-cards.css') }}">
 {% endblock %}
 
 {% block content %}

@@ -312,15 +312,18 @@ class SystemEfficiencyScore {
       return;
     }
     
+    const esc = window.escapeHtml || function(t) { if (!t) return ''; const d = document.createElement('div'); d.textContent = t; return d.innerHTML; };
+    const escAttr = window.escapeHtmlAttr || function(t) { return String(t ?? '').replace(/[&"'<>]/g, c => ({'&':'&amp;','"':'&quot;',"'":'&#39;','<':'&lt;','>':'&gt;'}[c])); };
+    
     listContainer.innerHTML = this.suggestions.map((suggestion, index) => `
       <div class="suggestion-item">
         <div class="suggestion-icon">
           <i class="fas ${this.getSuggestionIcon(suggestion.priority)}"></i>
         </div>
         <div class="suggestion-content">
-          <div class="suggestion-text">${suggestion.message}</div>
-          ${suggestion.action ? `<button class="suggestion-action btn btn-sm btn-link" data-action="${suggestion.action}">
-            ${suggestion.action_label || 'Fix Now'}
+          <div class="suggestion-text">${esc(suggestion.message)}</div>
+          ${suggestion.action ? `<button class="suggestion-action btn btn-sm btn-link" data-action="${escAttr(suggestion.action)}">
+            ${esc(suggestion.action_label || 'Fix Now')}
           </button>` : ''}
         </div>
       </div>

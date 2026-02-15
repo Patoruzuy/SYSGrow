@@ -2899,6 +2899,81 @@ const MLAPI = {
     getConfidenceBands(params) {
         const query = new URLSearchParams(params).toString();
         return get(`/api/ml/predictions/confidence-bands?${query}`);
+    },
+
+    // ---------- Disease Trends ----------
+    /**
+     * Get disease occurrence trends over time
+     * @param {number} [days=30] - Number of days to analyse
+     * @param {number} [unitId] - Optional unit filter
+     * @returns {Promise<Object>} Daily counts and disease totals
+     */
+    getDiseaseTrends(days = 30, unitId = null) {
+        const params = new URLSearchParams({ days: String(days) });
+        if (unitId) params.append('unit_id', String(unitId));
+        return get(`/api/ml/analytics/disease/trends?${params}`);
+    },
+
+    // ---------- Model Comparison ----------
+    /**
+     * Compare performance metrics of multiple models
+     * @param {string[]} modelNames - Array of model names (min 2)
+     * @returns {Promise<Object>} Comparison results
+     */
+    compareModels(modelNames) {
+        return post('/api/ml/models/compare', { models: modelNames });
+    }
+};
+
+// ============================================================================
+// ML READINESS API
+// ============================================================================
+
+const MLReadinessAPI = {
+    /**
+     * Get irrigation ML readiness status for a unit
+     * @param {number} unitId - Growth unit ID
+     * @returns {Promise<Object>} Readiness data with model progress
+     */
+    getIrrigationReadiness(unitId) {
+        return get(`/api/ml/readiness/irrigation/${unitId}`);
+    },
+
+    /**
+     * Activate an ML model for a unit
+     * @param {number} unitId - Growth unit ID
+     * @param {string} modelName - Model name to activate
+     * @returns {Promise<Object>} Activation result
+     */
+    activateModel(unitId, modelName) {
+        return post(`/api/ml/readiness/irrigation/${unitId}/activate/${modelName}`);
+    },
+
+    /**
+     * Deactivate an ML model for a unit
+     * @param {number} unitId - Growth unit ID
+     * @param {string} modelName - Model name to deactivate
+     * @returns {Promise<Object>} Deactivation result
+     */
+    deactivateModel(unitId, modelName) {
+        return post(`/api/ml/readiness/irrigation/${unitId}/deactivate/${modelName}`);
+    },
+
+    /**
+     * Get activation status of all ML models for a unit
+     * @param {number} unitId - Growth unit ID
+     * @returns {Promise<Object>} Model activation statuses (model_name -> bool)
+     */
+    getActivationStatus(unitId) {
+        return get(`/api/ml/readiness/irrigation/${unitId}/status`);
+    },
+
+    /**
+     * Trigger readiness check for all units
+     * @returns {Promise<Object>} Check results with notifications sent
+     */
+    checkAll() {
+        return post('/api/ml/readiness/check-all');
     }
 };
 
@@ -3295,6 +3370,20 @@ const TrainingDataAPI = {
      */
     getQualityMetrics(datasetType) {
         return get(`/api/ml/training-data/quality/${datasetType}`);
+    },
+
+    /**
+     * Get quality metrics for all dataset types
+     * @returns {Promise<Object>} Aggregated quality metrics
+     */
+    async getQuality() {
+        const types = ['disease', 'climate', 'growth'];
+        const results = await Promise.allSettled(types.map(t => this.getQualityMetrics(t)));
+        const quality = {};
+        types.forEach((t, i) => {
+            quality[t] = results[i].status === 'fulfilled' ? results[i].value : null;
+        });
+        return quality;
     }
 };
 
@@ -3773,11 +3862,11 @@ const AIAPI = {
 
 const StatusAPI = {
     /**
-     * Get status page data
+     * Get system status
      * @returns {Promise<Object>} Status data
      */
     getStatus() {
-        return get('/status/');
+        return get('/api/health/system');
     },
 
     /**
@@ -4279,7 +4368,9 @@ const API = {
     GrowthStages: GrowthStagesAPI,
     Retraining: RetrainingAPI,
     ABTesting: ABTestingAPI,
+    MLReadiness: MLReadinessAPI,
     ContinuousMonitoring: ContinuousMonitoringAPI,
+    Continuous: ContinuousMonitoringAPI,
     PersonalizedLearning: PersonalizedLearningAPI,
     TrainingData: TrainingDataAPI,
     Session: SessionAPI,

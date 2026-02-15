@@ -88,32 +88,6 @@
       return p;
     }
 
-    /**
-     * Helper: Fetch JSON with strong error handling.
-     */
-    async _fetchJson(url, options = {}) {
-      let res;
-      try {
-        res = await fetch(url, {
-          ...options,
-          headers: { Accept: 'application/json', ...(options.headers || {}) },
-        });
-      } catch (networkErr) {
-        throw new Error(`Network error calling ${url}: ${networkErr?.message || networkErr}`);
-      }
-
-      if (!res.ok) {
-        const body = await res.text().catch(() => '');
-        throw new Error(`HTTP ${res.status} calling ${url}${body ? `: ${body.slice(0, 200)}` : ''}`);
-      }
-
-      try {
-        return await res.json();
-      } catch (parseErr) {
-        throw new Error(`Invalid JSON from ${url}: ${parseErr?.message || parseErr}`);
-      }
-    }
-
     // --------------------------------------------------------------------------
     // Data Methods
     // --------------------------------------------------------------------------

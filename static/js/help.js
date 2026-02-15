@@ -4,7 +4,7 @@
  */
 
 // API endpoints
-const API = {
+const HELP_ENDPOINTS = {
     categories: '/api/help/categories',
     articles: '/api/help/articles',
     article: (category, id) => `/api/help/article/${category}/${id}`,
@@ -25,6 +25,10 @@ let state = {
 async function fetchAPI(url) {
     try {
         const response = await fetch(url);
+        if (!response.ok) {
+            console.error('API HTTP error:', response.status, response.statusText);
+            return null;
+        }
         const data = await response.json();
         if (data.ok) {
             return data.data;
@@ -124,7 +128,7 @@ async function loadArticles(categoryId = null) {
     `;
 
     // Build URL with optional category filter
-    let url = API.articles;
+    let url = HELP_ENDPOINTS.articles;
     if (categoryId) {
         url += `?category=${encodeURIComponent(categoryId)}`;
     }
@@ -223,7 +227,7 @@ async function handleSearch(query) {
         resultsList.innerHTML = '<div class="search-result-item"><p>Searching...</p></div>';
     }
 
-    const data = await fetchAPI(`${API.search}?q=${encodeURIComponent(query)}&limit=10`);
+    const data = await fetchAPI(`${HELP_ENDPOINTS.search}?q=${encodeURIComponent(query)}&limit=10`);
 
     if (!data || !data.results) {
         if (resultsList) {
@@ -306,7 +310,7 @@ function setupSearch() {
  */
 export async function initHelpPage() {
     // Load categories
-    const categories = await fetchAPI(API.categories);
+    const categories = await fetchAPI(HELP_ENDPOINTS.categories);
     if (categories) {
         state.categories = categories;
 
@@ -350,7 +354,7 @@ export async function initHelpArticle() {
     }
 
     // Load article
-    const article = await fetchAPI(API.article(category, articleId));
+    const article = await fetchAPI(HELP_ENDPOINTS.article(category, articleId));
 
     if (!article) {
         document.getElementById('article-content').innerHTML = `
@@ -409,7 +413,7 @@ async function loadRelatedArticles(category, currentId) {
     const container = document.getElementById('related-articles');
     if (!container) return;
 
-    const data = await fetchAPI(`${API.articles}?category=${encodeURIComponent(category)}&limit=5`);
+    const data = await fetchAPI(`${HELP_ENDPOINTS.articles}?category=${encodeURIComponent(category)}&limit=5`);
 
     if (!data || !data.articles) {
         container.innerHTML = '<li>No related articles</li>';
@@ -434,9 +438,10 @@ async function loadRelatedArticles(category, currentId) {
 }
 
 /**
- * Escape HTML to prevent XSS
+ * Escape HTML to prevent XSS — delegate to shared utility
  */
 function escapeHtml(text) {
+    if (window.escapeHtml) return window.escapeHtml(text);
     if (!text) return '';
     const div = document.createElement('div');
     div.textContent = text;

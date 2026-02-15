@@ -5,7 +5,11 @@
 {% block body_class %}sensor-analytics-page{% endblock %}
 
 {% block styles %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/analytics.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/sensors.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/components/alerts.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/components/vpd-zones.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/components/correlation-matrix.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/components/anomaly-panel.css') }}">
 {% endblock %}
 
 {% block content %}

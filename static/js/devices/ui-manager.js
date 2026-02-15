@@ -266,8 +266,8 @@ class DevicesUIManager extends BaseManager {
 
     setupPolling() {
         // Refresh device health every 30 seconds
-        setInterval(() => this.loadDeviceHealthMetrics(), 30000);
-        setInterval(() => this.loadZigbeeSensors(), 30000);
+        this._healthPollInterval = setInterval(() => this.loadDeviceHealthMetrics(), 30000);
+        this._zigbeePollInterval = setInterval(() => this.loadZigbeeSensors(), 30000);
     }
 
     // ============================================================================
@@ -2252,5 +2252,24 @@ class DevicesUIManager extends BaseManager {
             notification.style.animation = 'slideOut 0.3s ease-in';
             setTimeout(() => notification.remove(), 300);
         }, 5000);
+    }
+
+    /**
+     * Clean up polling intervals and delegate to BaseManager
+     */
+    destroy() {
+        if (this._healthPollInterval) {
+            clearInterval(this._healthPollInterval);
+            this._healthPollInterval = null;
+        }
+        if (this._zigbeePollInterval) {
+            clearInterval(this._zigbeePollInterval);
+            this._zigbeePollInterval = null;
+        }
+        if (this._permitJoinTimer) {
+            clearInterval(this._permitJoinTimer);
+            this._permitJoinTimer = null;
+        }
+        super.destroy();
     }
 }

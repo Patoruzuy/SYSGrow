@@ -785,10 +785,10 @@ def record_health_observation():
     }
     """
     try:
-        from app.models.plant_journal import PlantHealthObservationModel
-        from app.services.ai import HealthStatus, DiseaseType
+        from app.domain.plant_journal_entity import PlantHealthObservationEntity
+        from app.enums.common import PlantHealthStatus, DiseaseType
         
-        data = request.get_json()
+        data = request.get_json() or {}
         user_id = session.get("user_id")
         
         # Validate required fields
@@ -797,11 +797,11 @@ def record_health_observation():
         if missing:
             return _fail(f"Missing required fields: {', '.join(missing)}", 400)
         
-        # Create observation model
-        observation = PlantHealthObservationModel(
+        # Create observation entity
+        observation = PlantHealthObservationEntity(
             unit_id=data["unit_id"],
             plant_id=data.get("plant_id"),
-            health_status=HealthStatus(data["health_status"]),
+            health_status=PlantHealthStatus(data["health_status"]),
             symptoms=data["symptoms"],
             disease_type=DiseaseType(data["disease_type"]) if data.get("disease_type") else None,
             severity_level=data["severity_level"],
@@ -818,7 +818,7 @@ def record_health_observation():
         # Record via journal service
         container = _container()
         journal_service = container.plant_journal_service
-        observation_id = journal_service.record_health_observation(observation)
+        observation_id = journal_service.record_health_observation(**observation.to_service_kwargs())
         
         if observation_id:
             return _success({

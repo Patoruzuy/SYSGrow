@@ -175,72 +175,6 @@ def test_plant_profile_enhancement():
         return False
 
 
-def test_plant_timer_observer():
-    """Test PlantTimerObserver - SKIPPED (functionality moved to PlantService)"""
-    logger.info("=" * 60)
-    logger.info("TEST 4: PlantTimerObserver - SKIPPED (moved to PlantService)")
-    logger.info("=" * 60)
-    logger.info("   ℹ️  Plant growth is now handled by PlantService")
-    return True
-
-
-def test_unit_runtime_manager_structure():
-    """DEPRECATED: UnitRuntimeManager has been removed - this test is obsolete"""
-    logger.info("TEST 5: UnitRuntimeManager Structure - SKIPPED (no longer exists)")
-    return True
-
-def _test_unit_runtime_manager_structure_OLD():
-    """OLD TEST - UnitRuntimeManager structure (DEPRECATED)"""
-    logger.info("=" * 60)
-    logger.info("TEST 5: UnitRuntimeManager Structure")
-    logger.info("=" * 60)
-    
-    try:
-        from app.models.unit_runtime_manager import UnitRuntimeManager
-        
-        # Just verify the class exists and has the right methods
-        logger.info("✅ UnitRuntimeManager class imported")
-        
-        # Check methods exist
-        methods = [
-            'attach_unit_runtime',
-            '_setup_plant_observers',
-            '_schedule_plant_growth',
-            'add_plant_observer',
-            'remove_plant_observer',
-            'reload_plant_observers',
-            'start',
-            'stop'
-        ]
-        
-        logger.info("\n📋 Checking plant management methods:")
-        for method in methods:
-            if hasattr(UnitRuntimeManager, method):
-                logger.info(f"   ✅ {method}")
-            else:
-                logger.error(f"   ❌ {method} MISSING!")
-                return False
-        
-        logger.info("\n✅ UNITRUNTIMEMANAGER STRUCTURE SUCCESSFUL\n")
-        return True
-        
-    except Exception as e:
-        logger.error(f"❌ UnitRuntimeManager test failed: {e}", exc_info=True)
-        return False
-
-
-def test_bidirectional_attachment():
-    """DEPRECATED: UnitRuntimeManager has been removed - this test is obsolete"""
-    logger.info("TEST 6: Bidirectional Attachment - SKIPPED (no longer exists)")
-    return True
-
-def _test_bidirectional_attachment_OLD():
-    """OLD TEST - Bidirectional attachment (DEPRECATED - UnitRuntimeManager no longer exists)"""
-    logger.info("This test is obsolete - UnitRuntimeManager was removed in hardware refactoring")
-    return True
-
-
-
 def main():
     """Run all tests"""
     logger.info("\n" + "=" * 60)
@@ -251,9 +185,6 @@ def main():
         "Imports": test_imports(),
         "UnitRuntime Creation": test_unit_runtime_creation(),
         "PlantProfile Enhancements": test_plant_profile_enhancement(),
-        "PlantTimerObserver": test_plant_timer_observer(),
-        "UnitRuntimeManager Structure": test_unit_runtime_manager_structure(),
-        "Bidirectional Attachment": test_bidirectional_attachment()
     }
     
     # Summary

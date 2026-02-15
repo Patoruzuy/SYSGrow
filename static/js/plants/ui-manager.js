@@ -751,7 +751,9 @@ class PlantsUIManager extends BaseManager {
             
         } catch (error) {
             this.error('Failed to save observation:', error);
-            alert(`Failed to save observation: ${error.message}`);
+            if (window.showNotification) {
+                window.showNotification(`Failed to save observation: ${error.message}`, 'error');
+            }
         }
     }
 
@@ -912,7 +914,9 @@ class PlantsUIManager extends BaseManager {
         
         // Validate required fields
         if (!data.name || !data.unit_id || !data.plant_type) {
-            alert('Please fill in all required fields');
+            if (window.showNotification) {
+                window.showNotification('Please fill in all required fields', 'warning');
+            }
             return;
         }
         
@@ -930,7 +934,9 @@ class PlantsUIManager extends BaseManager {
             await this.refresh();
         } catch (error) {
             this.error('Error adding plant:', error);
-            alert(`Error: ${error.message}`);
+            if (window.showNotification) {
+                window.showNotification(`Error: ${error.message}`, 'error');
+            }
         }
     }
 
@@ -960,7 +966,9 @@ class PlantsUIManager extends BaseManager {
 
     openHarvestModal() {
         this.log('Harvest modal not yet implemented');
-        alert('Harvest recording will be available soon!');
+        if (window.showNotification) {
+            window.showNotification('Harvest recording will be available soon!', 'info');
+        }
     }
 
     async openPlantDetails(plantId, unitId) {
@@ -1058,20 +1066,26 @@ class PlantsUIManager extends BaseManager {
         const plantId = form.plant_id?.value || document.getElementById('link-plant-id')?.value;
         const sensorId = form.sensor_id?.value || document.getElementById('available-sensors')?.value;
         if (!plantId || !sensorId) {
-            alert('Select a sensor to link');
+            if (window.showNotification) {
+                window.showNotification('Select a sensor to link', 'warning');
+            }
             return;
         }
 
         try {
             await window.API.Plant.linkPlantToSensor(Number(plantId), Number(sensorId));
-            alert('Sensor linked');
+            if (window.showNotification) {
+                window.showNotification('Sensor linked successfully', 'success');
+            }
             const modal = document.getElementById('link-sensor-modal');
             if (modal) modal.hidden = true;
             // Refresh data
             await this.loadAndRender();
         } catch (err) {
             console.error('Failed to link sensor', err);
-            alert('Failed to link sensor');
+            if (window.showNotification) {
+                window.showNotification('Failed to link sensor', 'error');
+            }
         }
     }
 
@@ -1088,7 +1102,9 @@ class PlantsUIManager extends BaseManager {
             await this.loadAndRender();
         } catch (err) {
             console.error('Failed to delete plant', err);
-            alert('Failed to delete plant');
+            if (window.showNotification) {
+                window.showNotification('Failed to delete plant', 'error');
+            }
         }
     }
 
@@ -1423,7 +1439,9 @@ class PlantsUIManager extends BaseManager {
         if (!tokenInput) return;
         const token = tokenInput.value.trim();
         if (!token) {
-            alert('Paste a share token first');
+            if (window.showNotification) {
+                window.showNotification('Paste a share token first', 'warning');
+            }
             return;
         }
         try {
@@ -1444,13 +1462,17 @@ class PlantsUIManager extends BaseManager {
             }
         } catch (error) {
             this.error('Failed to import profile:', error);
-            alert('Failed to import profile');
+            if (window.showNotification) {
+                window.showNotification('Failed to import profile', 'error');
+            }
         }
     }
 
     exportJournal() {
         this.log('Export journal functionality');
-        alert('Journal export feature coming soon!\n\nThis will allow you to export your plant observations and nutrient records to CSV or PDF.');
+        if (window.showNotification) {
+            window.showNotification('Journal export feature coming soon! This will allow you to export your plant observations and nutrient records to CSV or PDF.', 'info');
+        }
     }
 
     scrollToGuide() {

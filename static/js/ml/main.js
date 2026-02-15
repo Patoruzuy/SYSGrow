@@ -48,6 +48,7 @@ class MLDashboard {
                 console.log('WebSocket disconnected, using polling fallback');
                 this.checkHealth();
                 this.uiManager.loadDriftMetrics();
+                this.loadSchedulerStatus();
             }
         }, 30000);
 
@@ -59,14 +60,42 @@ class MLDashboard {
      */
     async loadInitialData() {
         try {
-            await Promise.all([
+            const [, models, jobsData] = await Promise.all([
                 this.checkHealth(),
                 this.loadModels(),
                 this.loadRetrainingJobs(),
-                this.loadTrainingHistory()
+                this.loadTrainingHistory(),
+                this.loadSchedulerStatus()
             ]);
+
+            // Update KPI row from collected data
+            this.updateKPIs(models, jobsData);
         } catch (error) {
             console.error('Error loading initial data:', error);
+        }
+    }
+
+    /**
+     * Update KPI cards with aggregated data
+     */
+    updateKPIs(models, jobsData) {
+        try {
+            const modelList = models || [];
+            const activeModels = modelList.filter(m => m.active).length;
+            const bestAccuracy = modelList.reduce((best, m) => {
+                const acc = m.accuracy || 0;
+                return acc > best ? acc : best;
+            }, 0) || null;
+            const jobCount = (jobsData?.jobs || []).length;
+
+            this.uiManager.renderKPIs({
+                activeModels,
+                bestAccuracy,
+                jobCount,
+                healthStatus: true // updated by checkHealth separately
+            });
+        } catch {
+            // KPIs are non-critical
         }
     }
 
@@ -80,6 +109,32 @@ class MLDashboard {
         window.addEventListener('ml:cancel-training', () => this.cancelTraining());
         window.addEventListener('ml:run-job', (e) => this.runJob(e.detail.jobId));
         window.addEventListener('ml:toggle-job', (e) => this.toggleJob(e.detail.jobId, e.detail.enable));
+
+        // Scheduler controls
+        window.addEventListener('ml:start-scheduler', () => this.startScheduler());
+        window.addEventListener('ml:stop-scheduler', () => this.stopScheduler());
+
+        // Continuous monitoring controls
+        window.addEventListener('ml:start-monitoring', () => this.startMonitoring());
+        window.addEventListener('ml:stop-monitoring', () => this.stopMonitoring());
+        window.addEventListener('ml:refresh-insights', () => this.loadContinuousSection());
+
+        // Training data controls
+        window.addEventListener('ml:validate-data', () => this.validateTrainingData());
+        window.addEventListener('ml:refresh-training-data', () => this.loadTrainingDataSection());
+
+        // ML Readiness controls (Phase C)
+        window.addEventListener('ml:check-all-readiness', () => this.checkAllReadiness());
+        window.addEventListener('ml:activate-readiness-model', (e) => this.activateReadinessModel(e.detail.modelName));
+        window.addEventListener('ml:deactivate-readiness-model', (e) => this.deactivateReadinessModel(e.detail.modelName));
+
+        // A/B Testing controls (Phase C)
+        window.addEventListener('ml:analyze-ab-test', (e) => this.analyzeABTest(e.detail.testId));
+        window.addEventListener('ml:complete-ab-test', (e) => this.completeABTest(e.detail.testId));
+        window.addEventListener('ml:cancel-ab-test', (e) => this.cancelABTest(e.detail.testId));
+
+        // Lazy section expansion
+        window.addEventListener('ml:section-expand', (e) => this.onSectionExpand(e.detail.section));
     }
 
     // =========================================================================
@@ -121,12 +176,10 @@ class MLDashboard {
 
             // ML event handlers
             this.socket.on('ml_status', (data) => {
-                console.log('ML Status:', data);
                 this.uiManager.updateConnectionStatus(data.connected);
             });
 
             this.socket.on('training_started', (data) => {
-                console.log('Training started:', data);
                 this.activeTrainingModelName = data.model_name || this.activeTrainingModelName;
                 this.activeTrainingVersion = data.version || this.activeTrainingVersion;
                 const versionLabel = data.version ? ` v${data.version}` : '';
@@ -136,14 +189,12 @@ class MLDashboard {
             });
 
             this.socket.on('training_progress', (data) => {
-                console.log('Training progress:', data);
                 this.activeTrainingModelName = data.model_name || this.activeTrainingModelName;
                 this.activeTrainingVersion = data.version || this.activeTrainingVersion;
                 this.uiManager.updateTrainingProgress(data);
             });
 
             this.socket.on('training_complete', (data) => {
-                console.log('Training complete:', data);
                 const versionLabel = data.version ? ` v${data.version}` : '';
                 this.uiManager.showAlert('success', `Training completed: ${data.model_name}${versionLabel}`);
                 this.activeTrainingModelName = null;
@@ -154,7 +205,6 @@ class MLDashboard {
             });
 
             this.socket.on('training_cancelled', (data) => {
-                console.log('Training cancelled:', data);
                 this.uiManager.hideTrainingProgress();
                 this.activeTrainingModelName = null;
                 this.activeTrainingVersion = null;
@@ -165,7 +215,6 @@ class MLDashboard {
             });
 
             this.socket.on('training_failed', (data) => {
-                console.log('Training failed:', data);
                 this.activeTrainingModelName = null;
                 this.activeTrainingVersion = null;
                 this.uiManager.hideTrainingProgress();
@@ -174,7 +223,6 @@ class MLDashboard {
             });
 
             this.socket.on('drift_detected', (data) => {
-                console.log('Drift detected:', data);
                 this.uiManager.showAlert('warning', `Drift detected in ${data.model_name}!`);
                 this.dataService.onDriftDetected(data);
                 this.uiManager.loadDriftMetrics();
@@ -182,7 +230,6 @@ class MLDashboard {
             });
 
             this.socket.on('drift_update', (data) => {
-                console.log('Drift update:', data);
                 if (data.model_name === this.uiManager.currentDriftModel) {
                     this.dataService.onDriftDetected(data);
                     this.uiManager.loadDriftMetrics();
@@ -191,16 +238,25 @@ class MLDashboard {
             });
 
             this.socket.on('retraining_scheduled', (data) => {
-                console.log('Retraining scheduled:', data);
                 this.uiManager.showAlert('info', `Retraining scheduled for ${data.model_name}`);
                 this.loadRetrainingJobs();
             });
 
             this.socket.on('model_activated', (data) => {
-                console.log('Model activated:', data);
                 this.uiManager.showAlert('success', `Model activated: ${data.model_name} v${data.version}`);
                 this.dataService.onModelActivated(data);
                 this.loadModels();
+            });
+
+            this.socket.on('continuous_insight', (data) => {
+                // If the continuous section is already loaded, refresh it
+                if (this.uiManager.loadedSections.has('continuous')) {
+                    this.loadContinuousSection();
+                }
+            });
+
+            this.socket.on('scheduler_status', (data) => {
+                this.uiManager.renderSchedulerStatus(data);
             });
 
             this.socket.on('error', (data) => {
@@ -246,9 +302,11 @@ class MLDashboard {
                 this.uiManager.loadDriftMetrics();
                 this.uiManager.updateDriftChart();
             }
+            return models;
         } catch (error) {
             console.error('Failed to load models:', error);
             this.uiManager.showAlert('danger', 'Failed to load models. Please try again.');
+            return [];
         }
     }
 
@@ -256,8 +314,10 @@ class MLDashboard {
         try {
             const data = await this.dataService.getRetrainingJobs();
             this.uiManager.renderJobs(data);
+            return data;
         } catch (error) {
             console.error('Failed to load retraining jobs:', error);
+            return { jobs: [] };
         }
     }
 
@@ -401,6 +461,191 @@ class MLDashboard {
         } catch (error) {
             console.error('Failed to toggle job:', error);
             this.uiManager.showAlert('danger', 'Failed to update job status.');
+        }
+    }
+
+    // =========================================================================
+    // Scheduler Controls
+    // =========================================================================
+
+    async loadSchedulerStatus() {
+        try {
+            const data = await this.dataService.getRetrainingStatus();
+            this.uiManager.renderSchedulerStatus(data);
+        } catch (error) {
+            console.error('Failed to load scheduler status:', error);
+        }
+    }
+
+    async startScheduler() {
+        try {
+            const data = await this.dataService.startScheduler();
+            if (data.success || data.status === 'started') {
+                this.uiManager.showAlert('success', 'Retraining scheduler started.');
+            } else {
+                this.uiManager.showAlert('warning', data.message || 'Could not start scheduler.');
+            }
+            this.loadSchedulerStatus();
+        } catch (error) {
+            console.error('Failed to start scheduler:', error);
+            this.uiManager.showAlert('danger', 'Failed to start scheduler.');
+        }
+    }
+
+    async stopScheduler() {
+        try {
+            const data = await this.dataService.stopScheduler();
+            if (data.success || data.status === 'stopped') {
+                this.uiManager.showAlert('info', 'Retraining scheduler stopped.');
+            } else {
+                this.uiManager.showAlert('warning', data.message || 'Could not stop scheduler.');
+            }
+            this.loadSchedulerStatus();
+        } catch (error) {
+            console.error('Failed to stop scheduler:', error);
+            this.uiManager.showAlert('danger', 'Failed to stop scheduler.');
+        }
+    }
+
+    // =========================================================================
+    // Continuous Monitoring Controls
+    // =========================================================================
+
+    async startMonitoring() {
+        try {
+            const data = await this.dataService.startContinuousMonitoring();
+            if (data.success || data.status === 'started') {
+                this.uiManager.showAlert('success', 'Continuous monitoring started.');
+                this.loadContinuousSection();
+            } else {
+                this.uiManager.showAlert('warning', data.message || 'Could not start monitoring.');
+            }
+        } catch (error) {
+            console.error('Failed to start monitoring:', error);
+            this.uiManager.showAlert('danger', 'Failed to start continuous monitoring.');
+        }
+    }
+
+    async stopMonitoring() {
+        try {
+            const data = await this.dataService.stopContinuousMonitoring();
+            if (data.success || data.status === 'stopped') {
+                this.uiManager.showAlert('info', 'Continuous monitoring stopped.');
+                this.loadContinuousSection();
+            } else {
+                this.uiManager.showAlert('warning', data.message || 'Could not stop monitoring.');
+            }
+        } catch (error) {
+            console.error('Failed to stop monitoring:', error);
+            this.uiManager.showAlert('danger', 'Failed to stop continuous monitoring.');
+        }
+    }
+
+    // =========================================================================
+    // Training Data Actions
+    // =========================================================================
+
+    async validateTrainingData() {
+        this.uiManager.showAlert('info', 'Validating training data...');
+        try {
+            const types = ['disease', 'climate', 'growth'];
+            const results = await Promise.allSettled(
+                types.map(t => this.dataService.validateTrainingData(t))
+            );
+            const failed = results.filter(r => r.status === 'rejected' || r.value?.success === false);
+            if (failed.length === 0) {
+                this.uiManager.showAlert('success', 'Training data validation complete.');
+            } else {
+                this.uiManager.showAlert('warning', `Validation complete with ${failed.length} issue(s).`);
+            }
+            this.loadTrainingDataSection();
+        } catch (error) {
+            console.error('Validation failed:', error);
+            this.uiManager.showAlert('danger', 'Training data validation failed.');
+        }
+    }
+
+    // =========================================================================
+    // Lazy Section Loading
+    // =========================================================================
+
+    /**
+     * Handle section expand — load data for the section
+     * @param {string} section - Section key
+     */
+    onSectionExpand(section) {
+        switch (section) {
+            case 'continuous':
+                this.loadContinuousSection();
+                break;
+            case 'training-data':
+                this.loadTrainingDataSection();
+                break;
+            case 'disease-trends':
+                this.loadDiseaseTrendsSection();
+                break;
+            case 'model-comparison':
+                this.loadModelComparisonSection();
+                break;
+            case 'ml-readiness':
+                this.loadMLReadinessSection();
+                break;
+            case 'irrigation-ml':
+                this.loadIrrigationMLSection();
+                break;
+            case 'ab-testing':
+                this.loadABTestingSection();
+                break;
+            default:
+                console.warn('Unknown lazy section:', section);
+        }
+    }
+
+    async loadContinuousSection() {
+        try {
+            const [status, insights] = await Promise.all([
+                this.dataService.getContinuousStatus(),
+                this.dataService.getCriticalInsights()
+            ]);
+            this.uiManager.renderContinuousInsights(status, insights);
+        } catch (error) {
+            console.error('Failed to load continuous monitoring:', error);
+        }
+    }
+
+    async loadTrainingDataSection() {
+        try {
+            const [summary, quality] = await Promise.all([
+                this.dataService.getTrainingDataSummary(),
+                this.dataService.getDataQuality()
+            ]);
+            this.uiManager.renderTrainingDataQuality(summary, quality);
+        } catch (error) {
+            console.error('Failed to load training data quality:', error);
+        }
+    }
+
+    async loadDiseaseTrendsSection() {
+        try {
+            const data = await this.dataService.getDiseaseTrends(30);
+            this.uiManager.renderDiseaseTrends(data);
+        } catch (error) {
+            console.error('Failed to load disease trends:', error);
+        }
+    }
+
+    async loadModelComparisonSection() {
+        try {
+            const models = await this.dataService.getModels();
+            const modelNames = models.map(m => m.name).filter(Boolean);
+            if (modelNames.length < 2) {
+                this.uiManager.renderModelComparisonInline({ comparison: [] });
+                return;
+            }
+            const data = await this.dataService.compareModels(modelNames);
+            this.uiManager.renderModelComparisonInline(data);
+        } catch (error) {
+            console.error('Failed to load model comparison:', error);
         }
     }
 

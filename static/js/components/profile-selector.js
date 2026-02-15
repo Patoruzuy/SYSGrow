@@ -77,8 +77,9 @@
 
         const header = document.createElement('div');
         header.className = 'profile-section-header';
+        const esc = window.escapeHtml || ((t) => { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; });
         header.innerHTML = `
-          <span>${section.label}</span>
+          <span>${esc(section.label)}</span>
           <span>${section.profiles.length} profiles</span>
         `;
         wrapper.appendChild(header);
@@ -126,26 +127,32 @@
       const ratingAvg = parseFloat(profile.rating_avg || 0);
       const ratingCount = parseInt(profile.rating_count || 0, 10);
 
+      const esc = window.escapeHtml || ((t) => { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; });
+      const escAttr = window.escapeHtmlAttr || ((t) => String(t ?? '').replace(/[&"'<>]/g, c => ({'&':'&amp;','"':'&quot;',"'":'&#39;','<':'&lt;','>':'&gt;'}[c])));
+      const safeImgSrc = profile.image_url ? escAttr(profile.image_url) : DEFAULT_IMAGE;
+      const safeName = esc(profile.name || `${profile.plant_type} (${profile.growth_stage})`);
+      const safeMode = esc(profile.mode || 'Template');
+
       card.innerHTML = `
         <div class="profile-card-media">
-          <img class="profile-card-image" src="${profile.image_url || DEFAULT_IMAGE}" alt="${profile.name || profile.plant_type}">
+          <img class="profile-card-image" src="${safeImgSrc}" alt="${escAttr(profile.name || profile.plant_type)}">
           <span class="profile-card-badge ${sectionType === 'public' ? 'shared' : (profile.mode === 'active' ? 'active' : '')}">
-            ${sectionType === 'public' ? 'Shared' : (profile.mode || 'Template')}
+            ${sectionType === 'public' ? 'Shared' : safeMode}
           </span>
         </div>
         <div class="profile-card-body">
-          <h4 class="profile-card-title">${profile.name || `${profile.plant_type} (${profile.growth_stage})`}</h4>
-          <p class="profile-card-summary">${profile.plant_type} • ${profile.growth_stage}</p>
+          <h4 class="profile-card-title">${safeName}</h4>
+          <p class="profile-card-summary">${esc(profile.plant_type)} • ${esc(profile.growth_stage)}</p>
           <div class="profile-card-rating">
             <span class="profile-card-stars">${buildStars(ratingAvg)}</span>
             <span>${formatRating(ratingAvg, ratingCount)}</span>
           </div>
           <div class="profile-card-meta">
-            ${profile.pot_size_liters ? `<span>Pot: ${profile.pot_size_liters} L</span>` : ''}
-            ${profile.plant_variety ? `<span>${profile.plant_variety}</span>` : ''}
+            ${profile.pot_size_liters ? `<span>Pot: ${esc(String(profile.pot_size_liters))} L</span>` : ''}
+            ${profile.plant_variety ? `<span>${esc(profile.plant_variety)}</span>` : ''}
           </div>
           <div class="profile-card-tags">
-            ${(profile.tags || []).slice(0, 3).map(tag => `<span class="profile-tag">${tag}</span>`).join('')}
+            ${(profile.tags || []).slice(0, 3).map(tag => `<span class="profile-tag">${esc(tag)}</span>`).join('')}
           </div>
         </div>
       `;

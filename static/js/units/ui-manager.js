@@ -390,7 +390,7 @@
           <div class="unit-card-header">
             <div class="unit-info">
               <h3 class="unit-name">${this._escapeHtml(unit.name)}</h3>
-              <span class="unit-status ${statusClass}">${unit.status || 'active'}</span>
+              <span class="unit-status ${statusClass}">${this._escapeHtml(unit.status || 'active')}</span>
             </div>
             <div class="unit-actions">
               <button class="btn btn-icon btn-toggle-details" data-action="toggle-details" title="Toggle details">
@@ -2986,6 +2986,7 @@
     // --------------------------------------------------------------------------
 
     _escapeHtml(text) {
+      if (window.escapeHtml) return window.escapeHtml(text);
       if (!text) return '';
       const div = document.createElement('div');
       div.textContent = text;

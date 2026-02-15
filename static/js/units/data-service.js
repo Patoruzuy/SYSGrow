@@ -821,19 +821,12 @@
     // --------------------------------------------------------------------------
 
     /**
-     * Start camera for unit
+     * Start camera for unit — uses centralized API for CSRF/error handling
      */
     async startCamera(unitId) {
       try {
-        const response = await fetch(`/api/growth/units/${unitId}/camera/start`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
-        });
-        if (!response.ok) {
-          return { ok: false, error: `HTTP ${response.status}: ${response.statusText}` };
-        }
-        const data = await response.json();
-        return data.ok !== false ? { ok: true, data } : { ok: false, error: data.error || 'Failed to start camera' };
+        const data = await this.api.post(`/api/growth/units/${unitId}/camera/start`);
+        return { ok: true, data };
       } catch (error) {
         console.error(`[UnitsDataService] startCamera(${unitId}) failed:`, error);
         return { ok: false, error: error.message || 'Failed to start camera' };
@@ -841,19 +834,12 @@
     }
 
     /**
-     * Stop camera for unit
+     * Stop camera for unit — uses centralized API for CSRF/error handling
      */
     async stopCamera(unitId) {
       try {
-        const response = await fetch(`/api/growth/units/${unitId}/camera/stop`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
-        });
-        if (!response.ok) {
-          return { ok: false, error: `HTTP ${response.status}: ${response.statusText}` };
-        }
-        const data = await response.json();
-        return data.ok !== false ? { ok: true, data } : { ok: false, error: data.error || 'Failed to stop camera' };
+        const data = await this.api.post(`/api/growth/units/${unitId}/camera/stop`);
+        return { ok: true, data };
       } catch (error) {
         console.error(`[UnitsDataService] stopCamera(${unitId}) failed:`, error);
         return { ok: false, error: error.message || 'Failed to stop camera' };
@@ -861,16 +847,12 @@
     }
 
     /**
-     * Get camera status for unit
+     * Get camera status for unit — uses centralized API for error handling
      */
     async getCameraStatus(unitId) {
       try {
-        const response = await fetch(`/api/growth/units/${unitId}/camera/status`);
-        if (!response.ok) {
-          return { ok: false, error: `HTTP ${response.status}: ${response.statusText}` };
-        }
-        const data = await response.json();
-        return data.ok !== false ? { ok: true, data } : { ok: false, error: data.error || 'Failed to get camera status' };
+        const data = await this.api.get(`/api/growth/units/${unitId}/camera/status`);
+        return { ok: true, data };
       } catch (error) {
         console.error(`[UnitsDataService] getCameraStatus(${unitId}) failed:`, error);
         return { ok: false, error: error.message || 'Failed to get camera status' };

@@ -6,41 +6,15 @@
 {% block body_class %}ml-dashboard-page{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/components/kpi-cards.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/components/alerts.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/ml_dashboard.css') }}">
-<style>
-    /* Design system overrides for ML Dashboard */
-    .health-dot, .ws-status-dot {
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        display: inline-block;
-    }
-    .health-dot.healthy { background-color: var(--bs-success); box-shadow: 0 0 5px var(--bs-success); }
-    .ws-status-dot.connected { background-color: var(--bs-primary); box-shadow: 0 0 5px var(--bs-primary); }
-    
-    .metric-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0.75rem 0;
-        border-bottom: 1px solid var(--bs-gray-100);
-    }
-    .metric-row:last-child { border-bottom: none; }
-    .metric-label { font-weight: 500; color: var(--bs-gray-600); }
-    .metric-value { font-weight: 700; color: var(--bs-dark); }
-    
-    .chart-container-ml {
-        position: relative;
-        height: 350px;
-        width: 100%;
-    }
-</style>
 {% endblock %}
 
 {% block content %}
 <div id="ml-dashboard-page" aria-labelledby="ml-dashboard-heading">
     
-    {# Using standardized page header #}
+    {# ── Page Header ── #}
     {{ ui.page_header(
       title="ML Infrastructure Dashboard",
       icon="fas fa-robot",
@@ -59,10 +33,18 @@
       '
     ) }}
 
-    <!-- Alert Container -->
+    {# ── Alert Container ── #}
     <div id="alert-container" class="mb-4"></div>
 
-    <!-- Training Progress Card -->
+    {# ── KPI Summary Row (loaded eagerly) ── #}
+    <div class="kpi-grid mb-4" id="kpi-row">
+        {{ ui.kpi_card(id="kpi-models-active", label="Active Models", value="--", icon="fas fa-cube", variant="primary", value_id="kpi-models-value") }}
+        {{ ui.kpi_card(id="kpi-overall-accuracy", label="Best Accuracy", value="--", icon="fas fa-bullseye", variant="success", value_id="kpi-accuracy-value") }}
+        {{ ui.kpi_card(id="kpi-active-jobs", label="Retraining Jobs", value="--", icon="fas fa-cog", variant="info", value_id="kpi-jobs-value") }}
+        {{ ui.kpi_card(id="kpi-system-health", label="System Health", value="--", icon="fas fa-heartbeat", variant="success", value_id="kpi-health-value") }}
+    </div>
+
+    {# ── Training Progress Card (shown dynamically) ── #}
     <div class="mb-4" id="training-progress-card" style="display:none;" role="status" aria-live="polite">
         {% call ui.content_card(title="Training in Progress", icon="fas fa-graduation-cap", variant="info") %}
             <div class="d-flex justify-content-between align-items-center mb-3">
@@ -72,14 +54,10 @@
                 </div>
                 {{ ui.ui_button("Cancel Training", id="btn-cancel-training", icon="fas fa-times", variant="outline-danger", size="sm") }}
             </div>
-            
             <div class="progress mb-3" style="height: 1.5rem;">
                 <div class="progress-bar progress-bar-striped progress-bar-animated bg-info" 
-                     id="training-progress-bar" 
-                     role="progressbar"
-                     style="width: 0%">0%</div>
+                     id="training-progress-bar" role="progressbar" style="width: 0%">0%</div>
             </div>
-            
             <div class="d-flex justify-content-between align-items-end">
                 <p class="mb-0 text-muted small" id="training-status">Initializing training environment...</p>
                 <div class="text-end">
@@ -92,9 +70,12 @@
         {% endcall %}
     </div>
 
-    <!-- Main Dashboard Grid -->
+    {# ══════════════════════════════════════════════════════════════════════
+       CORE PANELS (loaded eagerly — essential model management)
+       ══════════════════════════════════════════════════════════════════════ #}
     <div class="row g-4 mb-4">
-        <!-- Models Overview Card -->
+
+        {# ── Models Overview ── #}
         <div class="col-lg-6">
             {% call ui.content_card(
                 title="Models Overview", 
@@ -109,14 +90,12 @@
                         <button type="button" class="btn btn-outline-secondary" data-filter="yield">Yield</button>
                     </div>
                 </div>
-                
                 <div id="models-list-container" class="min-vh-25 overflow-auto mb-4" style="max-height: 400px;">
                     <div class="text-center py-5 text-muted">
                         <i class="fas fa-box-open fa-3x mb-3 opacity-25"></i>
                         <p>No models registered yet</p>
                     </div>
                 </div>
-                
                 <div class="d-flex flex-wrap gap-2 pt-3 border-top">
                     {{ ui.ui_button("Train New Model", id="btn-train-new-model", icon="fas fa-crosshairs", variant="primary", size="sm") }}
                     {{ ui.ui_button("Compare Models", id="btn-compare-models", icon="fas fa-chart-column", variant="outline-secondary", size="sm") }}
@@ -125,7 +104,7 @@
             {% endcall %}
         </div>
 
-        <!-- Drift Monitoring Card -->
+        {# ── Drift Monitoring ── #}
         <div class="col-lg-6">
             {% call ui.content_card(
                 title="Drift Monitoring", 
@@ -159,8 +138,6 @@
                         <span class="metric-label">System Recommendation</span>
                         <span class="metric-value text-primary fs-7" id="drift-recommendation">--</span>
                     </div>
-                    
-                    <!-- Drift Alert -->
                     <div class="alert alert-warning mt-3 mb-0 d-none" id="drift-alert" role="alert">
                         <div class="d-flex align-items-start gap-3">
                             <i class="fas fa-exclamation-triangle mt-1"></i>
@@ -172,20 +149,30 @@
                         </div>
                     </div>
                 </div>
-                
                 <div class="pt-3 border-top">
                     {{ ui.ui_button("View Accuracy History", id="btn-view-drift-history", icon="fas fa-history", variant="outline-primary", size="sm", class="w-100") }}
                 </div>
             {% endcall %}
         </div>
 
-        <!-- Retraining Jobs Card -->
+        {# ── Active Retraining Jobs (with embedded scheduler status) ── #}
         <div class="col-12">
             {% call ui.content_card(
-                title="Active Retraining Jobs", 
+                title="Retraining Jobs & Scheduler", 
                 icon="fas fa-cog",
-                header_extra='<span class="badge bg-info-subtle text-info border border-info rounded-pill" id="jobs-count">0 Jobs</span>'
+                header_extra='
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="scheduler-badge stopped" id="scheduler-status">
+                            <i class="fas fa-circle" style="font-size:0.5rem"></i> Checking...
+                        </span>
+                        <span class="badge bg-info-subtle text-info border border-info rounded-pill" id="jobs-count">0 Jobs</span>
+                    </div>
+                '
             ) %}
+                <div class="d-flex flex-wrap gap-2 mb-3" id="scheduler-controls">
+                    {{ ui.ui_button("Start Scheduler", id="btn-start-scheduler", icon="fas fa-play", variant="outline-success", size="sm") }}
+                    {{ ui.ui_button("Stop Scheduler", id="btn-stop-scheduler", icon="fas fa-stop", variant="outline-danger", size="sm") }}
+                </div>
                 <div id="jobs-list-container">
                     <div class="text-center py-4 text-muted border border-dashed rounded bg-light-subtle">
                         <i class="far fa-calendar-alt fa-2x mb-2 opacity-50"></i>
@@ -195,7 +182,7 @@
             {% endcall %}
         </div>
 
-        <!-- Drift Chart (Full Width) -->
+        {# ── Model Performance Chart ── #}
         <div class="col-12">
             {% call ui.content_card(
                 title="Model Performance Metrics Over Time", 
@@ -215,7 +202,7 @@
             {% endcall %}
         </div>
 
-        <!-- Training History (Full Width) -->
+        {# ── Training & Version History ── #}
         <div class="col-12">
             {% call ui.content_card(
                 title="Training & Version History", 
@@ -231,9 +218,222 @@
             {% endcall %}
         </div>
     </div>
+
+    {# ══════════════════════════════════════════════════════════════════════
+       LAZY-LOADED PANELS (data fetched on expand to save Pi resources)
+       ══════════════════════════════════════════════════════════════════════ #}
+    <div class="row g-4 mb-4">
+
+        {# ── Continuous Monitoring Insights ── #}
+        <div class="col-12">
+            <div class="card" id="section-continuous">
+                <div class="card-header">
+                    <button class="section-collapse-btn" 
+                            aria-expanded="false" 
+                            aria-controls="continuous-body"
+                            data-section="continuous">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="fas fa-satellite-dish"></i>
+                            <h3 class="mb-0">Continuous Monitoring</h3>
+                            <span class="badge bg-secondary-subtle text-secondary rounded-pill" id="continuous-status-badge">Not loaded</span>
+                        </div>
+                        <i class="fas fa-chevron-down collapse-icon"></i>
+                    </button>
+                </div>
+                <div class="section-body collapsed" id="continuous-body">
+                    <div class="card-body">
+                        <div class="d-flex flex-wrap gap-2 mb-3">
+                            {{ ui.ui_button("Start Monitoring", id="btn-start-monitoring", icon="fas fa-play", variant="outline-success", size="sm") }}
+                            {{ ui.ui_button("Stop Monitoring", id="btn-stop-monitoring", icon="fas fa-stop", variant="outline-danger", size="sm") }}
+                            {{ ui.ui_button("Refresh Insights", id="btn-refresh-insights", icon="fas fa-sync-alt", variant="outline-secondary", size="sm") }}
+                        </div>
+                        <div id="continuous-insights-container" class="insights-feed">
+                            <div class="text-center py-4 text-muted">
+                                <i class="fas fa-satellite-dish fa-2x mb-2 opacity-25"></i>
+                                <p class="mb-0 small">Expand to load monitoring insights</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {# ── Training Data Quality ── #}
+        <div class="col-12">
+            <div class="card" id="section-training-data">
+                <div class="card-header">
+                    <button class="section-collapse-btn" 
+                            aria-expanded="false" 
+                            aria-controls="training-data-body"
+                            data-section="training-data">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="fas fa-database"></i>
+                            <h3 class="mb-0">Training Data Quality</h3>
+                        </div>
+                        <i class="fas fa-chevron-down collapse-icon"></i>
+                    </button>
+                </div>
+                <div class="section-body collapsed" id="training-data-body">
+                    <div class="card-body">
+                        <div id="training-data-container" class="data-quality-grid">
+                            <div class="text-center py-4 text-muted" style="grid-column: 1/-1;">
+                                <i class="fas fa-database fa-2x mb-2 opacity-25"></i>
+                                <p class="mb-0 small">Expand to load training data quality metrics</p>
+                            </div>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2 mt-3 pt-3 border-top">
+                            {{ ui.ui_button("Validate Data", id="btn-validate-data", icon="fas fa-check-circle", variant="outline-primary", size="sm") }}
+                            {{ ui.ui_button("Refresh", id="btn-refresh-training-data", icon="fas fa-sync-alt", variant="outline-secondary", size="sm") }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {# ── Disease Trends ── #}
+        <div class="col-12">
+            <div class="card" id="section-disease-trends">
+                <div class="card-header">
+                    <button class="section-collapse-btn" 
+                            aria-expanded="false" 
+                            aria-controls="disease-trends-body"
+                            data-section="disease-trends">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="fas fa-virus"></i>
+                            <h3 class="mb-0">Disease Trends</h3>
+                        </div>
+                        <i class="fas fa-chevron-down collapse-icon"></i>
+                    </button>
+                </div>
+                <div class="section-body collapsed" id="disease-trends-body">
+                    <div class="card-body">
+                        <div class="chart-container-ml" id="disease-trends-chart-container">
+                            <canvas id="disease-trends-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {# ── Model Comparison (lazy via backend endpoint) ── #}
+        <div class="col-12">
+            <div class="card" id="section-model-comparison">
+                <div class="card-header">
+                    <button class="section-collapse-btn" 
+                            aria-expanded="false" 
+                            aria-controls="model-comparison-body"
+                            data-section="model-comparison">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="fas fa-chart-column"></i>
+                            <h3 class="mb-0">Model Comparison</h3>
+                        </div>
+                        <i class="fas fa-chevron-down collapse-icon"></i>
+                    </button>
+                </div>
+                <div class="section-body collapsed" id="model-comparison-body">
+                    <div class="card-body">
+                        <div class="chart-container-ml" style="height: 400px;">
+                            <canvas id="comparison-chart-canvas"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {# ── ML Readiness (irrigation model training progress) ── #}
+        <div class="col-12">
+            <div class="card" id="section-ml-readiness">
+                <div class="card-header">
+                    <button class="section-collapse-btn" 
+                            aria-expanded="false" 
+                            aria-controls="ml-readiness-body"
+                            data-section="ml-readiness">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="fas fa-tasks"></i>
+                            <h3 class="mb-0">ML Readiness</h3>
+                            <span class="badge bg-secondary-subtle text-secondary rounded-pill" id="readiness-status-badge">Not loaded</span>
+                        </div>
+                        <i class="fas fa-chevron-down collapse-icon"></i>
+                    </button>
+                </div>
+                <div class="section-body collapsed" id="ml-readiness-body">
+                    <div class="card-body">
+                        <div class="d-flex flex-wrap gap-2 mb-3">
+                            {{ ui.ui_button("Check All Units", id="btn-check-all-readiness", icon="fas fa-sync-alt", variant="outline-primary", size="sm") }}
+                        </div>
+                        <div id="readiness-models-container" class="readiness-grid">
+                            <div class="text-center py-4 text-muted" style="grid-column:1/-1">
+                                <i class="fas fa-tasks fa-2x mb-2 opacity-25"></i>
+                                <p class="mb-0 small">Expand to check irrigation ML model readiness</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {# ── Irrigation ML Overview (pending requests + recommendations) ── #}
+        <div class="col-12">
+            <div class="card" id="section-irrigation-ml">
+                <div class="card-header">
+                    <button class="section-collapse-btn" 
+                            aria-expanded="false" 
+                            aria-controls="irrigation-ml-body"
+                            data-section="irrigation-ml">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="fas fa-tint"></i>
+                            <h3 class="mb-0">Irrigation ML</h3>
+                            <span class="badge bg-secondary-subtle text-secondary rounded-pill" id="irrigation-pending-badge">Not loaded</span>
+                        </div>
+                        <i class="fas fa-chevron-down collapse-icon"></i>
+                    </button>
+                </div>
+                <div class="section-body collapsed" id="irrigation-ml-body">
+                    <div class="card-body">
+                        <div id="irrigation-requests-container" class="mb-3">
+                            <div class="text-center py-4 text-muted">
+                                <i class="fas fa-tint fa-2x mb-2 opacity-25"></i>
+                                <p class="mb-0 small">Expand to view pending irrigation requests and ML config</p>
+                            </div>
+                        </div>
+                        <div id="irrigation-config-container"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {# ── A/B Testing (active tests + analysis) ── #}
+        <div class="col-12">
+            <div class="card" id="section-ab-testing">
+                <div class="card-header">
+                    <button class="section-collapse-btn" 
+                            aria-expanded="false" 
+                            aria-controls="ab-testing-body"
+                            data-section="ab-testing">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="fas fa-flask"></i>
+                            <h3 class="mb-0">A/B Testing</h3>
+                            <span class="badge bg-secondary-subtle text-secondary rounded-pill" id="ab-tests-count-badge">Not loaded</span>
+                        </div>
+                        <i class="fas fa-chevron-down collapse-icon"></i>
+                    </button>
+                </div>
+                <div class="section-body collapsed" id="ab-testing-body">
+                    <div class="card-body">
+                        <div id="ab-tests-container">
+                            <div class="text-center py-4 text-muted">
+                                <i class="fas fa-flask fa-2x mb-2 opacity-25"></i>
+                                <p class="mb-0 small">Expand to view A/B tests and analysis</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
-<!-- Modal for Model Details -->
+{# ── Modal: Model Details ── #}
 <div class="modal fade" id="model-details-modal" tabindex="-1" aria-labelledby="model-details-title" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content shadow-lg border-0">
@@ -242,7 +442,6 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-4" id="model-details-content">
-                <!-- Content loaded dynamically -->
                 <div class="text-center py-5">
                     <div class="spinner-border text-primary" role="status">
                         <span class="visually-hidden">Loading...</span>
@@ -256,25 +455,7 @@
     </div>
 </div>
 
-<!-- Modal for Model Comparison -->
-<div class="modal fade" id="comparison-modal" tabindex="-1" aria-labelledby="comparison-title" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-centered p-md-5">
-        <div class="modal-content shadow-lg border-0 h-100">
-            <div class="modal-header bg-light">
-                <h5 class="modal-title fw-bold" id="comparison-title">Model Performance Benchmarks</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body p-4 overflow-auto">
-                <div id="model-comparison-chart" class="chart-container-ml" style="height: 600px;"></div>
-            </div>
-            <div class="modal-footer border-top-0">
-                <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Close</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Modal for Feature Importance -->
+{# ── Modal: Feature Importance ── #}
 <div class="modal fade" id="features-modal" tabindex="-1" aria-labelledby="features-title" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content shadow-lg border-0">
@@ -295,9 +476,8 @@
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-<script src="{{ url_for('static', filename='js/api.js') }}?v=20251214c"></script>
-<script src="{{ url_for('static', filename='js/ml/data-service.js') }}?v=20251214c"></script>
-<script src="{{ url_for('static', filename='js/ml/ui-manager.js') }}?v=20251214c"></script>
-<script src="{{ url_for('static', filename='js/ml/main.js') }}?v=20251214c"></script>
+<script src="{{ url_for('static', filename='js/api.js') }}?v=20260215b"></script>
+<script src="{{ url_for('static', filename='js/ml/data-service.js') }}?v=20260215b"></script>
+<script src="{{ url_for('static', filename='js/ml/ui-manager.js') }}?v=20260215b"></script>
+<script src="{{ url_for('static', filename='js/ml/main.js') }}?v=20260215b"></script>
 {% endblock %}

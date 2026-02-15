@@ -1,6 +1,7 @@
 # Python
 *.pyc
 __pycache__/
+*.egg-info/
 .pytest_cache
 .venv/
 .env
@@ -20,6 +21,7 @@ __pycache__/
 docs/
 .env.example
 *.md
+*.OBSOLETE
 
 # Local runtime artifacts
 devices_system.log

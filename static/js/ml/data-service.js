@@ -16,11 +16,6 @@ class MLDataService {
     // Cache Management
     // =========================================================================
 
-    /**
-     * Get cached data if not expired
-     * @param {string} key - Cache key
-     * @returns {*} Cached data or null
-     */
     getFromCache(key) {
         const cached = this.cache.get(key);
         if (cached && Date.now() - cached.timestamp < this.cacheTTL) {
@@ -30,59 +25,32 @@ class MLDataService {
         return null;
     }
 
-    /**
-     * Store data in cache
-     * @param {string} key - Cache key
-     * @param {*} data - Data to cache
-     * @param {number} [ttl] - Optional TTL override
-     */
     setCache(key, data, ttl = this.cacheTTL) {
-        this.cache.set(key, {
-            data,
-            timestamp: Date.now(),
-            ttl
-        });
+        this.cache.set(key, { data, timestamp: Date.now(), ttl });
     }
 
-    /**
-     * Invalidate cache entry
-     * @param {string} key - Cache key or pattern
-     */
     invalidateCache(key) {
         if (key.includes('*')) {
             const pattern = new RegExp(key.replace('*', '.*'));
             for (const k of this.cache.keys()) {
-                if (pattern.test(k)) {
-                    this.cache.delete(k);
-                }
+                if (pattern.test(k)) this.cache.delete(k);
             }
         } else {
             this.cache.delete(key);
         }
     }
 
-    /**
-     * Clear all cache
-     */
     clearCache() {
         this.cache.clear();
     }
 
-    /**
-     * Deduplicate concurrent requests
-     * @param {string} key - Request key
-     * @param {Function} requestFn - Request function
-     * @returns {Promise<*>} Request result
-     */
     async deduplicateRequest(key, requestFn) {
         if (this.pendingRequests.has(key)) {
             return this.pendingRequests.get(key);
         }
-
         const promise = requestFn().finally(() => {
             this.pendingRequests.delete(key);
         });
-
         this.pendingRequests.set(key, promise);
         return promise;
     }
@@ -91,27 +59,17 @@ class MLDataService {
     // Health & Status
     // =========================================================================
 
-    /**
-     * Check ML system health
-     * @returns {Promise<Object>} Health status
-     */
     async getHealth() {
         const cached = this.getFromCache('health');
         if (cached) return cached;
-
         const data = await API.ML.getHealth();
-        this.setCache('health', data, 30000); // 30s cache
+        this.setCache('health', data, 30000);
         return data;
     }
 
-    /**
-     * Get all models status summary
-     * @returns {Promise<Object>} Models status
-     */
     async getModelsStatus() {
         return this.deduplicateRequest('models-status', async () => {
-            const data = await API.ML.getModelsStatus();
-            return data;
+            return await API.ML.getModelsStatus();
         });
     }
 
@@ -119,61 +77,36 @@ class MLDataService {
     // Models Management
     // =========================================================================
 
-    /**
-     * Get all registered models
-     * @param {boolean} [forceRefresh=false] - Bypass cache
-     * @returns {Promise<Array>} List of models
-     */
     async getModels(forceRefresh = false) {
         const cacheKey = 'models';
-        
         if (!forceRefresh) {
             const cached = this.getFromCache(cacheKey);
             if (cached) return cached;
         }
-
         const result = await API.ML.getModels();
         const models = result.models || result || [];
-        this.setCache(cacheKey, models, 120000); // 2 min cache
+        this.setCache(cacheKey, models, 120000);
         return models;
     }
 
-    /**
-     * Get specific model details
-     * @param {string} modelName - Model name
-     * @returns {Promise<Object>} Model details
-     */
     async getModel(modelName) {
         const cacheKey = `model:${modelName}`;
         const cached = this.getFromCache(cacheKey);
         if (cached) return cached;
-
         const data = await API.ML.getModel(modelName);
         this.setCache(cacheKey, data);
         return data;
     }
 
-    /**
-     * Get model features/importance
-     * @param {string} modelName - Model name
-     * @returns {Promise<Object>} Model features
-     */
     async getModelFeatures(modelName) {
         const cacheKey = `model-features:${modelName}`;
         const cached = this.getFromCache(cacheKey);
         if (cached) return cached;
-
         const data = await API.ML.getModelFeatures(modelName);
-        this.setCache(cacheKey, data, 300000); // 5 min cache
+        this.setCache(cacheKey, data, 300000);
         return data;
     }
 
-    /**
-     * Activate a model version
-     * @param {string} modelName - Model name
-     * @param {string} version - Version to activate
-     * @returns {Promise<Object>} Activation result
-     */
     async activateModel(modelName, version) {
         const result = await API.ML.activateModel(modelName, version);
         this.invalidateCache('models');
@@ -181,54 +114,32 @@ class MLDataService {
         return result;
     }
 
-    /**
-     * Retrain a model
-     * @param {string} modelName - Model name
-     * @param {Object} [options] - Training options
-     * @returns {Promise<Object>} Training result
-     */
     async retrainModel(modelName, options = {}) {
-        const result = await API.ML.retrainModel(modelName, options);
-        // Don't invalidate cache immediately - wait for training complete event
-        return result;
+        return await API.ML.retrainModel(modelName, options);
     }
 
     // =========================================================================
     // Drift Monitoring
     // =========================================================================
 
-    /**
-     * Get drift metrics for a model
-     * @param {string} modelName - Model name
-     * @returns {Promise<Object>} Drift metrics
-     */
     async getDriftMetrics(modelName) {
         if (!modelName) return null;
-
         const cacheKey = `drift:${modelName}`;
         const cached = this.getFromCache(cacheKey);
         if (cached) return cached;
-
         const data = await API.ML.getDrift(modelName);
-        this.setCache(cacheKey, data, 60000); // 1 min cache
+        this.setCache(cacheKey, data, 60000);
         return data;
     }
 
-    /**
-     * Get drift history for a model
-     * @param {string} modelName - Model name
-     * @returns {Promise<Array>} Drift history
-     */
     async getDriftHistory(modelName) {
         if (!modelName) return [];
-
         const cacheKey = `drift-history:${modelName}`;
         const cached = this.getFromCache(cacheKey);
         if (cached) return cached;
-
         const result = await API.ML.getDriftHistory(modelName);
         const history = result.history || result || [];
-        this.setCache(cacheKey, history, 120000); // 2 min cache
+        this.setCache(cacheKey, history, 120000);
         return history;
     }
 
@@ -236,62 +147,36 @@ class MLDataService {
     // Training & Retraining Jobs
     // =========================================================================
 
-    /**
-     * Get training history
-     * @returns {Promise<Object>} Training history
-     */
     async getTrainingHistory() {
         const cacheKey = 'training-history';
         const cached = this.getFromCache(cacheKey);
         if (cached) return cached;
-
         const data = await API.ML.getTrainingHistory();
         this.setCache(cacheKey, data, 60000);
         return data;
     }
 
-    /**
-     * Get retraining jobs
-     * @returns {Promise<Object>} Retraining jobs
-     */
     async getRetrainingJobs() {
         const cacheKey = 'retraining-jobs';
         const cached = this.getFromCache(cacheKey);
         if (cached) return cached;
-
         const data = await API.Retraining.getJobs();
         this.setCache(cacheKey, data, 60000);
         return data;
     }
 
-    /**
-     * Cancel training
-     * @param {string} [modelType] - Optional model type
-     * @returns {Promise<Object>} Cancellation result
-     */
     async cancelTraining(modelType = null) {
         const result = await API.ML.cancelTraining(modelType);
         this.invalidateCache('training-history');
         return result;
     }
 
-    /**
-     * Run a retraining job immediately
-     * @param {string} jobId - Job ID
-     * @returns {Promise<Object>} Job result
-     */
     async runJob(jobId) {
         const result = await API.ML.runJob(jobId);
         this.invalidateCache('retraining-jobs');
         return result;
     }
 
-    /**
-     * Toggle job enabled/disabled
-     * @param {string} jobId - Job ID
-     * @param {boolean} enable - Enable or disable
-     * @returns {Promise<Object>} Update result
-     */
     async toggleJob(jobId, enable) {
         const action = enable ? 'enable' : 'disable';
         const result = await API.ML.updateJob(jobId, action);
@@ -299,11 +184,6 @@ class MLDataService {
         return result;
     }
 
-    /**
-     * Schedule a new retraining job
-     * @param {Object} scheduleData - Schedule configuration
-     * @returns {Promise<Object>} Schedule result
-     */
     async scheduleRetraining(scheduleData) {
         const result = await API.ML.scheduleRetraining(scheduleData);
         this.invalidateCache('retraining-jobs');
@@ -311,13 +191,228 @@ class MLDataService {
     }
 
     // =========================================================================
+    // Retraining Scheduler Status (NEW)
+    // =========================================================================
+
+    async getRetrainingStatus() {
+        const cacheKey = 'retraining-status';
+        const cached = this.getFromCache(cacheKey);
+        if (cached) return cached;
+        const data = await API.Retraining.getStatus();
+        this.setCache(cacheKey, data, 30000);
+        return data;
+    }
+
+    async startScheduler() {
+        const result = await API.Retraining.startScheduler();
+        this.invalidateCache('retraining-status');
+        return result;
+    }
+
+    async stopScheduler() {
+        const result = await API.Retraining.stopScheduler();
+        this.invalidateCache('retraining-status');
+        return result;
+    }
+
+    // =========================================================================
+    // Continuous Monitoring (NEW)
+    // =========================================================================
+
+    async getContinuousStatus() {
+        const cacheKey = 'continuous-status';
+        const cached = this.getFromCache(cacheKey);
+        if (cached) return cached;
+        const data = await API.Continuous.getStatus();
+        this.setCache(cacheKey, data, 30000);
+        return data;
+    }
+
+    async startContinuousMonitoring() {
+        const result = await API.Continuous.start();
+        this.invalidateCache('continuous-status');
+        return result;
+    }
+
+    async stopContinuousMonitoring() {
+        const result = await API.Continuous.stop();
+        this.invalidateCache('continuous-status');
+        return result;
+    }
+
+    async getCriticalInsights() {
+        const cacheKey = 'critical-insights';
+        const cached = this.getFromCache(cacheKey);
+        if (cached) return cached;
+        const data = await API.Continuous.getCriticalInsights();
+        this.setCache(cacheKey, data, 30000);
+        return data;
+    }
+
+    // =========================================================================
+    // Training Data Quality (NEW)
+    // =========================================================================
+
+    async getTrainingDataSummary() {
+        const cacheKey = 'training-data-summary';
+        const cached = this.getFromCache(cacheKey);
+        if (cached) return cached;
+        const data = await API.TrainingData.getSummary();
+        this.setCache(cacheKey, data, 120000);
+        return data;
+    }
+
+    async getDataQuality() {
+        const cacheKey = 'data-quality-metrics';
+        const cached = this.getFromCache(cacheKey);
+        if (cached) return cached;
+        const data = await API.TrainingData.getQuality();
+        this.setCache(cacheKey, data, 120000);
+        return data;
+    }
+
+    async validateTrainingData(datasetType = 'disease') {
+        const result = await API.TrainingData.validate({ dataset_type: datasetType });
+        this.invalidateCache('data-quality*');
+        this.invalidateCache('training-data*');
+        return result;
+    }
+
+    // =========================================================================
+    // Disease Trends (NEW)
+    // =========================================================================
+
+    async getDiseaseTrends(days = 30) {
+        const cacheKey = `disease-trends:${days}`;
+        const cached = this.getFromCache(cacheKey);
+        if (cached) return cached;
+        const data = await API.ML.getDiseaseTrends(days);
+        this.setCache(cacheKey, data, 300000);
+        return data;
+    }
+
+    // =========================================================================
+    // Model Comparison (NEW — uses backend endpoint)
+    // =========================================================================
+
+    async compareModels(modelNames) {
+        const result = await API.ML.compareModels(modelNames);
+        return result;
+    }
+
+    // =========================================================================
+    // ML Readiness (NEW — Phase C)
+    // =========================================================================
+
+    async getIrrigationReadiness(unitId) {
+        const cacheKey = `readiness:${unitId}`;
+        const cached = this.getFromCache(cacheKey);
+        if (cached) return cached;
+        const data = await API.MLReadiness.getIrrigationReadiness(unitId);
+        this.setCache(cacheKey, data, 60000);
+        return data;
+    }
+
+    async getActivationStatus(unitId) {
+        const cacheKey = `activation-status:${unitId}`;
+        const cached = this.getFromCache(cacheKey);
+        if (cached) return cached;
+        const data = await API.MLReadiness.getActivationStatus(unitId);
+        this.setCache(cacheKey, data, 60000);
+        return data;
+    }
+
+    async activateMLModel(unitId, modelName) {
+        const result = await API.MLReadiness.activateModel(unitId, modelName);
+        this.invalidateCache(`readiness:${unitId}`);
+        this.invalidateCache(`activation-status:${unitId}`);
+        return result;
+    }
+
+    async deactivateMLModel(unitId, modelName) {
+        const result = await API.MLReadiness.deactivateModel(unitId, modelName);
+        this.invalidateCache(`readiness:${unitId}`);
+        this.invalidateCache(`activation-status:${unitId}`);
+        return result;
+    }
+
+    async checkAllReadiness() {
+        const result = await API.MLReadiness.checkAll();
+        this.invalidateCache('readiness*');
+        this.invalidateCache('activation-status*');
+        return result;
+    }
+
+    // =========================================================================
+    // Irrigation Recommendations (NEW — Phase C)
+    // =========================================================================
+
+    async getIrrigationRecommendations(plantId) {
+        const cacheKey = `irrigation-recs:${plantId}`;
+        const cached = this.getFromCache(cacheKey);
+        if (cached) return cached;
+        const data = await API.Irrigation.getRecommendations(plantId);
+        this.setCache(cacheKey, data, 60000);
+        return data;
+    }
+
+    async getIrrigationRequests(limit = 20) {
+        const cacheKey = `irrigation-requests:${limit}`;
+        const cached = this.getFromCache(cacheKey);
+        if (cached) return cached;
+        const data = await API.Irrigation.getPendingRequests(limit);
+        this.setCache(cacheKey, data, 30000);
+        return data;
+    }
+
+    async getIrrigationConfig(unitId) {
+        const cacheKey = `irrigation-config:${unitId}`;
+        const cached = this.getFromCache(cacheKey);
+        if (cached) return cached;
+        const data = await API.Irrigation.getConfig(unitId);
+        this.setCache(cacheKey, data, 120000);
+        return data;
+    }
+
+    // =========================================================================
+    // A/B Testing (NEW — Phase C)
+    // =========================================================================
+
+    async getABTests(status = null) {
+        const cacheKey = `ab-tests:${status || 'all'}`;
+        const cached = this.getFromCache(cacheKey);
+        if (cached) return cached;
+        const data = await API.ABTesting.getTests(status);
+        this.setCache(cacheKey, data, 60000);
+        return data;
+    }
+
+    async getABTestAnalysis(testId) {
+        const cacheKey = `ab-analysis:${testId}`;
+        const cached = this.getFromCache(cacheKey);
+        if (cached) return cached;
+        const data = await API.ABTesting.getAnalysis(testId);
+        this.setCache(cacheKey, data, 60000);
+        return data;
+    }
+
+    async completeABTest(testId, deployWinner = false) {
+        const result = await API.ABTesting.completeTest(testId, deployWinner);
+        this.invalidateCache('ab-tests*');
+        this.invalidateCache(`ab-analysis:${testId}`);
+        return result;
+    }
+
+    async cancelABTest(testId) {
+        const result = await API.ABTesting.cancelTest(testId);
+        this.invalidateCache('ab-tests*');
+        return result;
+    }
+
+    // =========================================================================
     // Event Handlers for Cache Invalidation
     // =========================================================================
 
-    /**
-     * Handle training complete event - invalidate caches
-     * @param {Object} data - Event data
-     */
     onTrainingComplete(data) {
         this.invalidateCache('models');
         this.invalidateCache('training-history');
@@ -328,10 +423,6 @@ class MLDataService {
         }
     }
 
-    /**
-     * Handle model activated event
-     * @param {Object} data - Event data
-     */
     onModelActivated(data) {
         this.invalidateCache('models');
         if (data.model_name) {
@@ -339,10 +430,6 @@ class MLDataService {
         }
     }
 
-    /**
-     * Handle drift detected event
-     * @param {Object} data - Event data
-     */
     onDriftDetected(data) {
         if (data.model_name) {
             this.invalidateCache(`drift:${data.model_name}`);

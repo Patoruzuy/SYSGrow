@@ -14,6 +14,7 @@
   let environmentalChart;
   let efficiencyScore;
   let alertTimeline;
+  let alertRefreshInterval;
 
   const DEBUG = localStorage.getItem('dashboard:debug') === '1';
 
@@ -274,8 +275,8 @@
         // Load initial alerts
         loadAndRenderAlerts(unitId);
         
-        // Auto-refresh alerts
-        setInterval(() => loadAndRenderAlerts(unitId), 60000);
+        // Auto-refresh alerts (store ID for cleanup)
+        alertRefreshInterval = setInterval(() => loadAndRenderAlerts(unitId), 60000);
         
         console.log('[Dashboard] AlertTimeline initialized with actions');
       } else {
@@ -365,7 +366,9 @@
       loadAndRenderAlerts(unitId ? parseInt(unitId) : null);
     } catch (error) {
       console.error('[Dashboard] Failed to resolve alert:', error);
-      alert('Failed to resolve alert. Please try again.');
+      if (window.showNotification) {
+        window.showNotification('Failed to resolve alert. Please try again.', 'error');
+      }
     }
   }
 
@@ -409,11 +412,14 @@
       setTimeout(() => loadAndRenderAlerts(unitId ? parseInt(unitId) : null), 500);
     } catch (error) {
       console.error('[Dashboard] Failed to clear all alerts:', error);
-      alert('Failed to clear alerts. Please try again.');
+      if (window.showNotification) {
+        window.showNotification('Failed to clear alerts. Please try again.', 'error');
+      }
     }
   }
 
   window.addEventListener('beforeunload', () => {
+    if (alertRefreshInterval) clearInterval(alertRefreshInterval);
     try { uiManager?.destroy?.(); } catch {}
     try { environmentalChart?.destroy?.(); } catch {}
     try { efficiencyScore?.destroy?.(); } catch {}

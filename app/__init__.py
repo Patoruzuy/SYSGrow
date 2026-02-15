@@ -21,7 +21,6 @@ from app.blueprints.api.plants import plants_api
 from app.blueprints.api.plants.disease import disease_bp
 from app.blueprints.api.settings import settings_api
 from app.blueprints.api.growth import growth_api
-from app.blueprints.status.routes import status_bp
 from app.blueprints.api.harvest_routes import harvest_bp
 from app.blueprints.api.help import help_api
 from app.blueprints.api.blog import blog_api
@@ -135,7 +134,6 @@ def create_app(config_overrides: dict[str, Any] | None = None, *, bootstrap_runt
             "plants_api",
             "settings_api",
             "dashboard_api",
-            "status",
         },
     ).init_app(flask_app)
 
@@ -147,7 +145,6 @@ def create_app(config_overrides: dict[str, Any] | None = None, *, bootstrap_runt
     flask_app.register_blueprint(disease_bp)  # Already has /api/plants/disease prefix
     flask_app.register_blueprint(settings_api, url_prefix="/api/settings")
     flask_app.register_blueprint(growth_api, url_prefix="/api/growth")
-    flask_app.register_blueprint(status_bp, url_prefix="/status")
     flask_app.register_blueprint(devices_api, url_prefix="/api/devices")
     flask_app.register_blueprint(dashboard_api, url_prefix="/api/dashboard")
 

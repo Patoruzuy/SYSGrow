@@ -19,8 +19,6 @@ class PlantsDataService {
      */
     async loadAll() {
         try {
-            console.log('[PlantsDataService] Loading all plants data...');
-            
             // Use allSettled to handle failures gracefully
             const results = await Promise.allSettled([
                 this.loadPlantsHealth(),
@@ -29,8 +27,6 @@ class PlantsDataService {
                 this.loadHarvests(),
                 this.loadJournal()
             ]);
-            
-            console.log('[PlantsDataService] Load results:', results);
             
             const [plantsHealth, plantsGuide, diseaseRisk, harvests, journal] = results;
             
@@ -45,7 +41,6 @@ class PlantsDataService {
             // Use backend-computed summary (fallback to client-side calculation for compatibility)
             data.healthScore = data.plantsHealth?.summary || this.calculateHealthScore(data.plantsHealth);
             
-            console.log('[PlantsDataService] Final data:', data);
             return data;
         } catch (error) {
             console.error('[PlantsDataService] Failed to load data:', error);
@@ -189,19 +184,15 @@ class PlantsDataService {
         const cached = this.catalogCache.get(cacheKey);
         
         if (cached) {
-            console.log('[PlantsDataService] Using cached catalog');
             return cached;
         }
         
-        console.log('[PlantsDataService] Fetching plant catalog...');
         try {
             const result = await API.Plant.getCatalog();
-            console.log('[PlantsDataService] Raw API response:', result);
             
             // API unwraps the response, so result is the actual data
             const catalog = Array.isArray(result) ? result : [];
             this.catalogCache.set(cacheKey, catalog);
-            console.log(`[PlantsDataService] Loaded ${catalog.length} plants from catalog`);
             return catalog;
         } catch (error) {
             console.error('[PlantsDataService] Error loading catalog:', error);
@@ -221,12 +212,10 @@ class PlantsDataService {
      * Save custom plant to catalog
      */
     async saveCustomPlant(plantData) {
-        console.log('[PlantsDataService] Saving custom plant:', plantData);
         try {
             const result = await API.Plant.saveCustomPlant(plantData);
             // Invalidate catalog cache to force reload
             this.catalogCache.clear();
-            console.log('[PlantsDataService] Custom plant saved successfully');
             return result;
         } catch (error) {
             console.error('[PlantsDataService] Error saving custom plant:', error);

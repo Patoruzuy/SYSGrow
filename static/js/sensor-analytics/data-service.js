@@ -81,32 +81,6 @@
       return p;
     }
 
-    /**
-     * Helper: Fetch JSON with error handling
-     */
-    async _fetchJson(url, options = {}) {
-      let res;
-      try {
-        res = await fetch(url, {
-          ...options,
-          headers: { Accept: 'application/json', ...(options.headers || {}) },
-        });
-      } catch (networkErr) {
-        throw new Error(`Network error calling ${url}: ${networkErr?.message || networkErr}`);
-      }
-
-      if (!res.ok) {
-        const body = await res.text().catch(() => '');
-        throw new Error(`HTTP ${res.status} calling ${url}${body ? `: ${body.slice(0, 200)}` : ''}`);
-      }
-
-      try {
-        return await res.json();
-      } catch (parseErr) {
-        throw new Error(`Invalid JSON from ${url}: ${parseErr?.message || parseErr}`);
-      }
-    }
-
     // --------------------------------------------------------------------------
     // Data Methods
     // --------------------------------------------------------------------------
@@ -122,10 +96,8 @@
           cacheKey,
           async () => {
             const response = await this.api.Growth.listUnits();
-            console.log('[SensorAnalyticsDataService] loadUnits response:', response);
             // API already unwraps data.data, so response is the actual data
             const units = Array.isArray(response) ? response : (response?.units || response?.data || []);
-            console.log('[SensorAnalyticsDataService] loadUnits extracted units:', units);
             return units;
           },
           { force }
@@ -146,14 +118,11 @@
         return await this._cached(
           cacheKey,
           async () => {
-            console.log('[SensorAnalyticsDataService] loadSensors for unit:', this.selectedUnitId);
             const response = this.selectedUnitId
               ? await this.api.Device.getSensorsByUnit(this.selectedUnitId)
               : await this.api.Device.getAllSensors();
-            console.log('[SensorAnalyticsDataService] loadSensors response:', response);
             // API already unwraps data.data, so response is the actual data
             const sensors = Array.isArray(response) ? response : (response?.sensors || response?.data || []);
-            console.log('[SensorAnalyticsDataService] loadSensors extracted sensors:', sensors);
             return sensors;
           },
           { force }
@@ -219,7 +188,9 @@
         return await this._cached(
           cacheKey,
           async () => {
-            return await this._fetchJson('/api/analytics/sensors/history');
+            return await this.api.Analytics.getSensorsHistory(
+              this.selectedUnitId ? { unit_id: this.selectedUnitId } : {}
+            );
           },
           { force }
         );
@@ -286,21 +257,16 @@
         return await this._cached(
           cacheKey,
           async () => {
-            const queryParams = new URLSearchParams();
-            queryParams.append('hours', hours);
-            if (this.selectedUnitId) {
-              queryParams.append('unit_id', this.selectedUnitId);
-            }
-            if (params.sensor_id) {
-              queryParams.append('sensor_id', params.sensor_id);
-            }
+            const options = { hours };
+            if (this.selectedUnitId) options.unit_id = this.selectedUnitId;
+            if (params.sensor_id) options.sensor_id = params.sensor_id;
 
-            const response = await this._fetchJson(`/api/analytics/sensors/statistics?${queryParams}`);
+            const response = await this.api.Analytics.getSensorsStatistics(options);
 
             if (response.ok && response.data) {
               return response.data;
             }
-            return null;
+            return response || null;
           },
           { force }
         );

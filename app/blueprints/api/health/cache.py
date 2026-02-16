@@ -4,23 +4,24 @@ Cache Health Endpoints
 
 Health monitoring endpoints for cache metrics.
 """
+
 import logging
+
 from flask import Blueprint
 
+from app.blueprints.api._common import (
+    fail as _fail,
+    success as _success,
+)
 from app.utils.time import iso_now
 
-from app.blueprints.api._common import (
-    success as _success,
-    fail as _fail,
-)
-
-logger = logging.getLogger('health_api')
+logger = logging.getLogger("health_api")
 
 
 def register_cache_routes(health_api: Blueprint):
     """Register cache health routes on the blueprint."""
 
-    @health_api.get('/cache')
+    @health_api.get("/cache")
     def get_cache_metrics():
         """
         Get cache performance metrics for all registered caches.
@@ -39,6 +40,7 @@ def register_cache_routes(health_api: Blueprint):
         """
         try:
             from app.utils.cache import CacheRegistry
+
             registry = CacheRegistry.get_instance()
 
             all_stats = registry.get_all_stats()
@@ -48,17 +50,19 @@ def register_cache_routes(health_api: Blueprint):
             memory_estimate_bytes = summary["total_size"] * 128
             memory_estimate_kb = round(memory_estimate_bytes / 1024, 2)
 
-            return _success({
-                "caches": all_stats,
-                "summary": summary,
-                "memory_estimate_kb": memory_estimate_kb,
-                "timestamp": iso_now()
-            })
+            return _success(
+                {
+                    "caches": all_stats,
+                    "summary": summary,
+                    "memory_estimate_kb": memory_estimate_kb,
+                    "timestamp": iso_now(),
+                }
+            )
         except Exception as exc:
             logger.exception("Error getting cache metrics: %s", exc)
-            return _fail('Failed to get cache metrics', 500)
+            return _fail("Failed to get cache metrics", 500)
 
-    @health_api.get('/cache/repository')
+    @health_api.get("/cache/repository")
     def get_repository_cache_metrics():
         """
         Get cache performance metrics for repository-level LRU caches.
@@ -93,14 +97,10 @@ def register_cache_routes(health_api: Blueprint):
                 "total_misses": total_misses,
                 "overall_hit_rate": round(overall_hit_rate, 2),
                 "total_invalidations": total_invalidations,
-                "estimated_db_queries_saved": total_hits  # Each hit = 1 saved DB query
+                "estimated_db_queries_saved": total_hits,  # Each hit = 1 saved DB query
             }
 
-            return _success({
-                "caches": repo_stats,
-                "summary": summary,
-                "timestamp": iso_now()
-            })
+            return _success({"caches": repo_stats, "summary": summary, "timestamp": iso_now()})
         except Exception as exc:
             logger.exception("Error getting repository cache metrics: %s", exc)
-            return _fail('Failed to get repository cache metrics', 500)
+            return _fail("Failed to get repository cache metrics", 500)

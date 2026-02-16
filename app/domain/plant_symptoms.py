@@ -8,8 +8,6 @@ knowledge used by :class:`PlantHealthMonitor` and
 All symptom keys are ``snake_case`` (e.g. ``"yellowing_leaves"``).
 """
 
-from typing import Dict, List
-
 # ---------------------------------------------------------------------------
 # Symptom database
 # ---------------------------------------------------------------------------
@@ -17,7 +15,7 @@ from typing import Dict, List
 #     - likely_causes:  ranked list of probable root causes
 #     - environmental_factors:  sensor / environment axes to inspect
 #
-SYMPTOM_DATABASE: Dict[str, Dict[str, List[str]]] = {
+SYMPTOM_DATABASE: dict[str, dict[str, list[str]]] = {
     "yellowing_leaves": {
         "likely_causes": ["overwatering", "nitrogen_deficiency", "root_rot"],
         "environmental_factors": ["soil_moisture", "drainage", "nutrition"],
@@ -74,7 +72,7 @@ SYMPTOM_DATABASE: Dict[str, Dict[str, List[str]]] = {
 #   Maps a symptom key to an ordered list of treatment actions (most
 #   important first).
 #
-TREATMENT_MAP: Dict[str, List[str]] = {
+TREATMENT_MAP: dict[str, list[str]] = {
     "yellowing_leaves": [
         "Check drainage and reduce watering if overwatered",
         "Apply nitrogen fertilizer if deficiency suspected",

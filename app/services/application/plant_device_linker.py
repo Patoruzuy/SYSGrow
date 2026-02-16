@@ -6,10 +6,11 @@ Handles sensor and actuator linking/unlinking for plants.
 Extracted from PlantViewService to reduce its scope (audit item #8).
 PlantViewService delegates to this class for all device-linking operations.
 """
+
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from app.domain.actuators import ActuatorType
 from app.hardware.compat.enums import app_to_infra_actuator_type
@@ -34,7 +35,7 @@ class PlantDeviceLinker:
     def __init__(
         self,
         plant_repo: Any,
-        sensor_service: 'SensorManagementService',
+        sensor_service: "SensorManagementService",
         devices_repo: Any = None,
         audit_logger: Any = None,
     ):
@@ -63,12 +64,11 @@ class PlantDeviceLinker:
                 logger.error(f"Sensor {sensor_id} not found")
                 return False
 
-            sensor_type = str(sensor.get('sensor_type') or '').strip().lower()
-            allowed_types = {'soil_moisture', 'plant_sensor'}
+            sensor_type = str(sensor.get("sensor_type") or "").strip().lower()
+            allowed_types = {"soil_moisture", "plant_sensor"}
             if sensor_type not in allowed_types:
                 logger.error(
-                    f"Sensor type '{sensor_type}' cannot be linked to plants. "
-                    f"Allowed: {sorted(allowed_types)}"
+                    f"Sensor type '{sensor_type}' cannot be linked to plants. Allowed: {sorted(allowed_types)}"
                 )
                 return False
 
@@ -148,7 +148,7 @@ class PlantDeviceLinker:
             logger.debug(f"Failed to unlink all sensors from plant {plant_id}: {e}", exc_info=True)
             return False
 
-    def get_plant_sensor_ids(self, plant_id: int) -> List[int]:
+    def get_plant_sensor_ids(self, plant_id: int) -> list[int]:
         """
         Get sensor IDs linked to a plant.
 
@@ -164,7 +164,7 @@ class PlantDeviceLinker:
             logger.error(f"Error getting sensors for plant {plant_id}: {e}", exc_info=True)
             return []
 
-    def get_plant_sensors(self, plant_id: int) -> List[Dict[str, Any]]:
+    def get_plant_sensors(self, plant_id: int) -> list[dict[str, Any]]:
         """
         Get full sensor details for all sensors linked to a plant.
 
@@ -180,7 +180,7 @@ class PlantDeviceLinker:
             for sensor_id in sensor_ids:
                 sensor = self.sensor_service.get_sensor(sensor_id)
                 if sensor:
-                    sensor['friendly_name'] = self._generate_friendly_name(sensor)
+                    sensor["friendly_name"] = self._generate_friendly_name(sensor)
                     sensors.append(sensor)
             return sensors
 
@@ -264,7 +264,7 @@ class PlantDeviceLinker:
             logger.error("Error unlinking actuator %s from plant %s: %s", actuator_id, plant_id, e, exc_info=True)
             return False
 
-    def get_plant_actuator_ids(self, plant_id: int) -> List[int]:
+    def get_plant_actuator_ids(self, plant_id: int) -> list[int]:
         """Get actuator IDs linked to a plant."""
         try:
             return self.plant_repo.get_actuators_for_plant(plant_id)
@@ -272,11 +272,11 @@ class PlantDeviceLinker:
             logger.error("Error getting actuators for plant %s: %s", plant_id, e, exc_info=True)
             return []
 
-    def get_plant_actuators(self, plant_id: int) -> List[Dict[str, Any]]:
+    def get_plant_actuators(self, plant_id: int) -> list[dict[str, Any]]:
         """Get actuator details linked to a plant."""
         try:
             actuator_ids = self.get_plant_actuator_ids(plant_id)
-            actuators: List[Dict[str, Any]] = []
+            actuators: list[dict[str, Any]] = []
             if not self.devices_repo:
                 return actuators
             for actuator_id in actuator_ids:
@@ -292,7 +292,7 @@ class PlantDeviceLinker:
         self,
         unit_id: int,
         actuator_type: str = "pump",
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """List available actuators for linking to plants."""
         try:
             if not self.devices_repo:
@@ -302,7 +302,7 @@ class PlantDeviceLinker:
             if normalized_type == ActuatorType.UNKNOWN:
                 return actuators
 
-            filtered: List[Dict[str, Any]] = []
+            filtered: list[dict[str, Any]] = []
             for actuator in actuators:
                 candidate_type = self._normalize_actuator_type(actuator.get("actuator_type"))
                 if candidate_type == normalized_type:
@@ -317,8 +317,8 @@ class PlantDeviceLinker:
     def get_available_sensors_for_plant(
         self,
         unit_id: int,
-        sensor_type: str = 'soil_moisture',
-    ) -> List[Dict[str, Any]]:
+        sensor_type: str = "soil_moisture",
+    ) -> list[dict[str, Any]]:
         """
         Get all sensors available for plant linking with friendly names.
 
@@ -334,19 +334,21 @@ class PlantDeviceLinker:
 
             available = []
             for sensor in sensors:
-                if str(sensor.get('sensor_type') or '').strip().lower() == str(sensor_type).strip().lower():
+                if str(sensor.get("sensor_type") or "").strip().lower() == str(sensor_type).strip().lower():
                     friendly_name = self._generate_friendly_name(sensor)
-                    is_linked = self._is_sensor_linked(sensor.get('sensor_id'))
+                    is_linked = self._is_sensor_linked(sensor.get("sensor_id"))
 
-                    available.append({
-                        'sensor_id': sensor['sensor_id'],
-                        'name': friendly_name,
-                        'sensor_type': sensor.get('sensor_type'),
-                        'protocol': sensor.get('protocol', 'GPIO'),
-                        'model': sensor.get('model', 'Unknown'),
-                        'is_linked': is_linked,
-                        'enabled': sensor.get('is_active', True),
-                    })
+                    available.append(
+                        {
+                            "sensor_id": sensor["sensor_id"],
+                            "name": friendly_name,
+                            "sensor_type": sensor.get("sensor_type"),
+                            "protocol": sensor.get("protocol", "GPIO"),
+                            "model": sensor.get("model", "Unknown"),
+                            "is_linked": is_linked,
+                            "enabled": sensor.get("is_active", True),
+                        }
+                    )
 
             logger.debug(f"Found {len(available)} available {sensor_type} sensors for unit {unit_id}")
             return available
@@ -389,7 +391,7 @@ class PlantDeviceLinker:
 
         return actuator_id, True
 
-    def resolve_unit_pump_actuator(self, unit_id: int) -> Optional[int]:
+    def resolve_unit_pump_actuator(self, unit_id: int) -> int | None:
         """Resolve a unit-level pump actuator if no plant-specific pump is set."""
         if not self.devices_repo:
             return None
@@ -407,7 +409,7 @@ class PlantDeviceLinker:
                     return int(actuator_id)
         return None
 
-    def get_plant_valve_actuator_id(self, plant_id: int) -> Optional[int]:
+    def get_plant_valve_actuator_id(self, plant_id: int) -> int | None:
         """Resolve a valve actuator linked to a plant, if any."""
         try:
             actuator_ids = self.plant_repo.get_actuators_for_plant(plant_id)
@@ -430,7 +432,7 @@ class PlantDeviceLinker:
     # ==================== Private Helpers ====================
 
     @staticmethod
-    def _generate_friendly_name(sensor: Dict[str, Any]) -> str:
+    def _generate_friendly_name(sensor: dict[str, Any]) -> str:
         """
         Generate a user-friendly sensor name.
 
@@ -440,38 +442,38 @@ class PlantDeviceLinker:
         - "Soil Moisture (ESP32-C6: grow-sensor-01)"
         """
         try:
-            sensor_type = sensor.get('sensor_type', 'UNKNOWN')
-            base_name = sensor_type.replace('_', ' ').title()
+            sensor_type = sensor.get("sensor_type", "UNKNOWN")
+            base_name = sensor_type.replace("_", " ").title()
 
-            protocol = str(sensor.get('protocol', 'GPIO') or 'GPIO')
-            config_data = sensor.get('config', {}) or {}
+            protocol = str(sensor.get("protocol", "GPIO") or "GPIO")
+            config_data = sensor.get("config", {}) or {}
 
-            if protocol.upper() == 'GPIO':
-                gpio = config_data.get('gpio_pin')
+            if protocol.upper() == "GPIO":
+                gpio = config_data.get("gpio_pin")
                 if gpio is None:
-                    gpio = config_data.get('gpio')
+                    gpio = config_data.get("gpio")
                 if gpio is not None:
                     return f"{base_name} (GPIO Pin {gpio})"
                 else:
                     return f"{base_name} (GPIO)"
 
-            elif protocol.lower() in ('mqtt', 'zigbee2mqtt', 'zigbee'):
-                mqtt_topic = config_data.get('mqtt_topic', 'unknown')
-                device_id = config_data.get('esp32_device_id') or config_data.get('device_id')
+            elif protocol.lower() in ("mqtt", "zigbee2mqtt", "zigbee"):
+                mqtt_topic = config_data.get("mqtt_topic", "unknown")
+                device_id = config_data.get("esp32_device_id") or config_data.get("device_id")
 
                 if device_id:
                     return f"{base_name} (ESP32-C6: {device_id})"
                 else:
-                    topic_parts = mqtt_topic.split('/')
-                    short_topic = '/'.join(topic_parts[-2:]) if len(topic_parts) > 2 else mqtt_topic
+                    topic_parts = mqtt_topic.split("/")
+                    short_topic = "/".join(topic_parts[-2:]) if len(topic_parts) > 2 else mqtt_topic
                     return f"{base_name} (MQTT: {short_topic})"
 
-            elif protocol == 'WIRELESS':
-                address = config_data.get('address', 'unknown')
+            elif protocol == "WIRELESS":
+                address = config_data.get("address", "unknown")
                 return f"{base_name} (Wireless: {address})"
 
             else:
-                sensor_id = sensor.get('sensor_id')
+                sensor_id = sensor.get("sensor_id")
                 return f"{base_name} (ID: {sensor_id})"
 
         except Exception as e:

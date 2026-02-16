@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Dict, Any, List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from app.domain.unit_runtime import UnitDimensions
@@ -42,6 +42,7 @@ logger = logging.getLogger(__name__)
 # Data classes
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class ClimateConditions:
     """Predicted / recommended climate conditions for a unit."""
@@ -55,7 +56,7 @@ class ClimateConditions:
     source: str = "threshold_service"  # "ml", "threshold_service", "generic"
     is_daytime: bool = True
 
-    def to_dict(self) -> Dict[str, float]:
+    def to_dict(self) -> dict[str, float]:
         return {
             "temperature": round(self.temperature, 2),
             "humidity": round(self.humidity, 2),
@@ -74,11 +75,11 @@ class LightingRecommendation:
 
     hours_per_day: float
     intensity_percent: float  # 0–100
-    light_start: Optional[str] = None  # HH:MM
-    light_end: Optional[str] = None    # HH:MM
+    light_start: str | None = None  # HH:MM
+    light_end: str | None = None  # HH:MM
     source: str = "plants_info"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "hours_per_day": self.hours_per_day,
             "intensity_percent": self.intensity_percent,
@@ -94,12 +95,12 @@ class ClimateRecommendation:
 
     action: str
     priority: str  # "urgent", "high", "medium", "low"
-    metric: str    # "temperature", "humidity", "lux", etc.
-    current_value: Optional[float] = None
-    target_value: Optional[float] = None
-    rationale: Optional[str] = None
+    metric: str  # "temperature", "humidity", "lux", etc.
+    current_value: float | None = None
+    target_value: float | None = None
+    rationale: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "action": self.action,
             "priority": self.priority,
@@ -116,11 +117,11 @@ class ClimateAnalysis:
 
     unit_id: int
     conditions: ClimateConditions
-    lighting: Optional[LightingRecommendation] = None
-    recommendations: List[ClimateRecommendation] = field(default_factory=list)
-    dimension_notes: List[str] = field(default_factory=list)
+    lighting: LightingRecommendation | None = None
+    recommendations: list[ClimateRecommendation] = field(default_factory=list)
+    dimension_notes: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "unit_id": self.unit_id,
             "conditions": self.conditions.to_dict(),
@@ -133,6 +134,7 @@ class ClimateAnalysis:
 # ---------------------------------------------------------------------------
 # Service
 # ---------------------------------------------------------------------------
+
 
 class ClimateOptimizer:
     """
@@ -149,13 +151,13 @@ class ClimateOptimizer:
 
     def __init__(
         self,
-        threshold_service: Optional["ThresholdService"] = None,
-        plant_handler: Optional["PlantJsonHandler"] = None,
-        model_registry: Optional["ModelRegistry"] = None,
-        sun_times_service: Optional["SunTimesService"] = None,
-        personalized_learning: Optional["PersonalizedLearningService"] = None,
+        threshold_service: "ThresholdService" | None = None,
+        plant_handler: "PlantJsonHandler" | None = None,
+        model_registry: "ModelRegistry" | None = None,
+        sun_times_service: "SunTimesService" | None = None,
+        personalized_learning: "PersonalizedLearningService" | None = None,
         # Legacy: analytics_repo kept for backward compat but no longer used
-        analytics_repo: Optional[Any] = None,
+        analytics_repo: Any | None = None,
     ):
         self.threshold_service = threshold_service
         self.plant_handler = plant_handler
@@ -164,9 +166,9 @@ class ClimateOptimizer:
         self.personalized_learning = personalized_learning
 
         # ML model (lazy-loaded)
-        self._model: Optional[Any] = None
+        self._model: Any | None = None
         self._model_loaded = False
-        self._model_error: Optional[str] = None
+        self._model_error: str | None = None
 
     # ------------------------------------------------------------------
     # ML model management
@@ -204,7 +206,7 @@ class ClimateOptimizer:
         """Return ``True`` if the ML model is ready for predictions."""
         return self._model_loaded or self.load_model()
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         return {
             "ml_available": self._model_loaded,
             "ml_error": self._model_error,
@@ -223,10 +225,10 @@ class ClimateOptimizer:
         growth_stage: str,
         *,
         is_daytime: bool = True,
-        unit_dimensions: Optional["UnitDimensions"] = None,
-        current_conditions: Optional[Dict[str, float]] = None,
-        user_id: Optional[int] = None,
-        profile_id: Optional[str] = None,
+        unit_dimensions: "UnitDimensions" | None = None,
+        current_conditions: dict[str, float] | None = None,
+        user_id: int | None = None,
+        profile_id: str | None = None,
     ) -> ClimateConditions:
         """
         Return the best-available optimal conditions.
@@ -252,7 +254,8 @@ class ClimateOptimizer:
 
         # --- 1. Try ML model -----------------------------------------------
         ml_result = self._predict_with_ml(
-            plant_type, growth_stage,
+            plant_type,
+            growth_stage,
             is_daytime=is_daytime,
             unit_dimensions=unit_dimensions,
             current_conditions=current_conditions,
@@ -262,7 +265,8 @@ class ClimateOptimizer:
 
         # --- 2. ThresholdService (plants_info.json + profiles + day/night) --
         ts_result = self._predict_with_threshold_service(
-            plant_type, growth_stage,
+            plant_type,
+            growth_stage,
             is_daytime=is_daytime,
             user_id=user_id,
             profile_id=profile_id,
@@ -272,9 +276,10 @@ class ClimateOptimizer:
 
         # --- 3. Generic fallback --------------------------------------------
         logger.debug(
-            "No ML model or ThresholdService available; returning generic fallback "
-            "for %s/%s (daytime=%s)",
-            plant_type, growth_stage, is_daytime,
+            "No ML model or ThresholdService available; returning generic fallback for %s/%s (daytime=%s)",
+            plant_type,
+            growth_stage,
+            is_daytime,
         )
         return ClimateConditions(
             temperature=21.0 if not is_daytime else 24.0,
@@ -295,15 +300,15 @@ class ClimateOptimizer:
         growth_stage: str,
         *,
         is_daytime: bool,
-        unit_dimensions: Optional["UnitDimensions"],
-        current_conditions: Optional[Dict[str, float]],
-    ) -> Optional[ClimateConditions]:
+        unit_dimensions: "UnitDimensions" | None,
+        current_conditions: dict[str, float] | None,
+    ) -> ClimateConditions | None:
         """Attempt prediction via the ML model.  Returns ``None`` on failure."""
         if not self.is_available() or self._model is None:
             return None
         try:
             # Build feature vector — details depend on the trained model.
-            features: Dict[str, Any] = {
+            features: dict[str, Any] = {
                 "plant_type": plant_type,
                 "growth_stage": growth_stage,
                 "is_daytime": int(is_daytime),
@@ -338,9 +343,9 @@ class ClimateOptimizer:
         growth_stage: str,
         *,
         is_daytime: bool,
-        user_id: Optional[int],
-        profile_id: Optional[str],
-    ) -> Optional[ClimateConditions]:
+        user_id: int | None,
+        profile_id: str | None,
+    ) -> ClimateConditions | None:
         """Use ThresholdService (plants_info.json + profiles + day/night)."""
         if not self.threshold_service:
             return None
@@ -365,7 +370,9 @@ class ClimateOptimizer:
         except Exception as exc:
             logger.warning(
                 "ThresholdService lookup failed for %s/%s: %s",
-                plant_type, growth_stage, exc,
+                plant_type,
+                growth_stage,
+                exc,
             )
         return None
 
@@ -377,7 +384,7 @@ class ClimateOptimizer:
         self,
         plant_type: str,
         growth_stage: str,
-    ) -> Optional[LightingRecommendation]:
+    ) -> LightingRecommendation | None:
         """
         Look up the lighting schedule for *plant_type / growth_stage* from
         ``plants_info.json`` via ``PlantJsonHandler``.
@@ -389,7 +396,8 @@ class ClimateOptimizer:
             return None
         try:
             stage_lighting = self.plant_handler.get_lighting_for_stage(
-                plant_type, growth_stage,
+                plant_type,
+                growth_stage,
             )
             if not stage_lighting:
                 return None
@@ -398,8 +406,8 @@ class ClimateOptimizer:
             intensity = float(stage_lighting.get("intensity", 80))
 
             # Optionally compute start/end from SunTimesService
-            light_start: Optional[str] = None
-            light_end: Optional[str] = None
+            light_start: str | None = None
+            light_end: str | None = None
             if self.sun_times_service:
                 try:
                     start_t, end_t = self.sun_times_service.get_light_schedule_for_plant(
@@ -427,11 +435,11 @@ class ClimateOptimizer:
 
     def _dimension_recommendations(
         self,
-        unit_dimensions: Optional["UnitDimensions"],
+        unit_dimensions: "UnitDimensions" | None,
         conditions: ClimateConditions,
-    ) -> List[ClimateRecommendation]:
+    ) -> list[ClimateRecommendation]:
         """Generate recommendations that factor in unit physical size."""
-        recs: List[ClimateRecommendation] = []
+        recs: list[ClimateRecommendation] = []
         if not unit_dimensions:
             return recs
 
@@ -440,31 +448,37 @@ class ClimateOptimizer:
 
         # Small units (<0.5 m³) change temperature/humidity faster
         if vol < 0.5:
-            recs.append(ClimateRecommendation(
-                action="Small enclosure — use shorter ventilation bursts to avoid overshoot",
-                priority="medium",
-                metric="ventilation",
-                rationale=f"Unit volume is only {vol:.2f} m³; air parameters change rapidly",
-            ))
+            recs.append(
+                ClimateRecommendation(
+                    action="Small enclosure — use shorter ventilation bursts to avoid overshoot",
+                    priority="medium",
+                    metric="ventilation",
+                    rationale=f"Unit volume is only {vol:.2f} m³; air parameters change rapidly",
+                )
+            )
 
         # Large units (>2 m³) may need active air circulation
         if vol > 2.0:
-            recs.append(ClimateRecommendation(
-                action="Ensure circulation fans cover the full volume to avoid microclimates",
-                priority="medium",
-                metric="air_circulation",
-                rationale=f"Unit volume is {vol:.2f} m³; dead-air pockets are likely without fans",
-            ))
+            recs.append(
+                ClimateRecommendation(
+                    action="Ensure circulation fans cover the full volume to avoid microclimates",
+                    priority="medium",
+                    metric="air_circulation",
+                    rationale=f"Unit volume is {vol:.2f} m³; dead-air pockets are likely without fans",
+                )
+            )
 
         # Light coverage check — if area > 1 m² and lux target is high
         if area > 1.0 and conditions.lux > 5000:
-            recs.append(ClimateRecommendation(
-                action=f"Verify light coverage uniformity over {area:.2f} m² — consider a second fixture",
-                priority="low",
-                metric="lux",
-                target_value=conditions.lux,
-                rationale="Large floor area may have uneven light distribution",
-            ))
+            recs.append(
+                ClimateRecommendation(
+                    action=f"Verify light coverage uniformity over {area:.2f} m² — consider a second fixture",
+                    priority="low",
+                    metric="lux",
+                    target_value=conditions.lux,
+                    rationale="Large floor area may have uneven light distribution",
+                )
+            )
 
         return recs
 
@@ -474,11 +488,11 @@ class ClimateOptimizer:
 
     def _deviation_recommendations(
         self,
-        current_conditions: Optional[Dict[str, float]],
+        current_conditions: dict[str, float] | None,
         target: ClimateConditions,
-    ) -> List[ClimateRecommendation]:
+    ) -> list[ClimateRecommendation]:
         """Compare current sensor readings against targets and recommend actions."""
-        recs: List[ClimateRecommendation] = []
+        recs: list[ClimateRecommendation] = []
         if not current_conditions:
             return recs
 
@@ -488,14 +502,16 @@ class ClimateOptimizer:
             diff = temp - target.temperature
             if abs(diff) > 3.0:
                 direction = "Decrease" if diff > 0 else "Increase"
-                recs.append(ClimateRecommendation(
-                    action=f"{direction} temperature by {abs(diff):.1f}°C",
-                    priority="high" if abs(diff) > 5.0 else "medium",
-                    metric="temperature",
-                    current_value=temp,
-                    target_value=target.temperature,
-                    rationale=f"{'Night' if not target.is_daytime else 'Day'} target is {target.temperature:.1f}°C",
-                ))
+                recs.append(
+                    ClimateRecommendation(
+                        action=f"{direction} temperature by {abs(diff):.1f}°C",
+                        priority="high" if abs(diff) > 5.0 else "medium",
+                        metric="temperature",
+                        current_value=temp,
+                        target_value=target.temperature,
+                        rationale=f"{'Night' if not target.is_daytime else 'Day'} target is {target.temperature:.1f}°C",
+                    )
+                )
 
         # Humidity
         hum = current_conditions.get("humidity")
@@ -503,14 +519,16 @@ class ClimateOptimizer:
             diff = hum - target.humidity
             if abs(diff) > 10.0:
                 direction = "Reduce" if diff > 0 else "Increase"
-                recs.append(ClimateRecommendation(
-                    action=f"{direction} humidity by {abs(diff):.1f}%",
-                    priority="high" if abs(diff) > 20.0 else "medium",
-                    metric="humidity",
-                    current_value=hum,
-                    target_value=target.humidity,
-                    rationale=f"{'Night' if not target.is_daytime else 'Day'} target is {target.humidity:.1f}%",
-                ))
+                recs.append(
+                    ClimateRecommendation(
+                        action=f"{direction} humidity by {abs(diff):.1f}%",
+                        priority="high" if abs(diff) > 20.0 else "medium",
+                        metric="humidity",
+                        current_value=hum,
+                        target_value=target.humidity,
+                        rationale=f"{'Night' if not target.is_daytime else 'Day'} target is {target.humidity:.1f}%",
+                    )
+                )
 
         # CO2
         co2 = current_conditions.get("co2")
@@ -518,13 +536,15 @@ class ClimateOptimizer:
             diff = co2 - target.co2
             if abs(diff) > 200:
                 direction = "Reduce" if diff > 0 else "Increase"
-                recs.append(ClimateRecommendation(
-                    action=f"{direction} CO₂ by {abs(diff):.0f} ppm",
-                    priority="medium",
-                    metric="co2",
-                    current_value=co2,
-                    target_value=target.co2,
-                ))
+                recs.append(
+                    ClimateRecommendation(
+                        action=f"{direction} CO₂ by {abs(diff):.0f} ppm",
+                        priority="medium",
+                        metric="co2",
+                        current_value=co2,
+                        target_value=target.co2,
+                    )
+                )
 
         return recs
 
@@ -539,10 +559,10 @@ class ClimateOptimizer:
         growth_stage: str,
         *,
         is_daytime: bool = True,
-        unit_dimensions: Optional["UnitDimensions"] = None,
-        current_conditions: Optional[Dict[str, float]] = None,
-        user_id: Optional[int] = None,
-        profile_id: Optional[str] = None,
+        unit_dimensions: "UnitDimensions" | None = None,
+        current_conditions: dict[str, float] | None = None,
+        user_id: int | None = None,
+        profile_id: str | None = None,
     ) -> ClimateAnalysis:
         """
         One-call convenience that bundles:
@@ -566,10 +586,8 @@ class ClimateOptimizer:
 
         lighting = self.get_lighting_recommendation(plant_type, growth_stage)
 
-        recommendations: List[ClimateRecommendation] = []
-        recommendations.extend(
-            self._deviation_recommendations(current_conditions, conditions)
-        )
+        recommendations: list[ClimateRecommendation] = []
+        recommendations.extend(self._deviation_recommendations(current_conditions, conditions))
         dim_recs = self._dimension_recommendations(unit_dimensions, conditions)
         recommendations.extend(dim_recs)
 
@@ -588,9 +606,9 @@ class ClimateOptimizer:
     def predict_conditions(
         self,
         plant_stage: str,
-        plant_type: Optional[str] = None,
+        plant_type: str | None = None,
         use_fallback: bool = True,
-    ) -> Optional[ClimateConditions]:
+    ) -> ClimateConditions | None:
         """
         **Deprecated** — kept for callers that still use the old signature.
 
@@ -602,7 +620,7 @@ class ClimateOptimizer:
             is_daytime=True,
         )
 
-    def get_recommendations(self, unit_id: int) -> Dict[str, Any]:
+    def get_recommendations(self, unit_id: int) -> dict[str, Any]:
         """
         **Deprecated** — legacy shim used by ContinuousMonitor.
 
@@ -637,8 +655,4 @@ class ClimateOptimizer:
         if len(prediction) < 3:
             return False
         temp, humidity, moisture = prediction[0], prediction[1], prediction[2]
-        return (
-            10 <= temp <= 40
-            and 20 <= humidity <= 100
-            and 0 <= moisture <= 100
-        )
+        return 10 <= temp <= 40 and 20 <= humidity <= 100 and 0 <= moisture <= 100

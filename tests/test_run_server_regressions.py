@@ -4,7 +4,6 @@ import types
 from pathlib import Path
 from unittest.mock import Mock
 
-
 RUN_SERVER_PATH = Path(__file__).resolve().parents[1] / "run_server.py"
 
 

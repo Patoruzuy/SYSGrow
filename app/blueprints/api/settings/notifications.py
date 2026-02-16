@@ -11,15 +11,17 @@ Date: January 2026
 """
 
 import logging
+
 from flask import request, session
+
+from app.blueprints.api._common import fail, get_container, success
 from app.blueprints.api.settings import settings_api
-from app.blueprints.api._common import success, fail, get_container
-from app.domain.notification_settings import NotificationSettings
 from app.enums import (
-    NotificationType,
-    NotificationSeverity,
     IrrigationFeedback,
+    NotificationSeverity,
+    NotificationType,
 )
+
 # Backward compatibility alias - keep function names for minimal changes
 success_response = success
 error_response = fail
@@ -34,6 +36,7 @@ def _get_current_user_id() -> int:
 
 
 # --- Notification Settings Endpoints ---
+
 
 @settings_api.get("/notifications")
 def get_notification_settings():
@@ -88,7 +91,7 @@ def get_notification_settings():
 
     except Exception as e:
         logger.exception("Error getting notification settings")
-        return error_response(f"Failed to get notification settings: {str(e)}", 500)
+        return error_response(f"Failed to get notification settings: {e!s}", 500)
 
 
 @settings_api.put("/notifications")
@@ -158,12 +161,14 @@ def update_notification_settings():
         if quiet_hours_start:
             try:
                 from datetime import datetime
+
                 datetime.strptime(quiet_hours_start, "%H:%M")
             except ValueError:
                 return error_response("Invalid quiet_hours_start: use HH:MM format", 400)
         if quiet_hours_end:
             try:
                 from datetime import datetime
+
                 datetime.strptime(quiet_hours_end, "%H:%M")
             except ValueError:
                 return error_response("Invalid quiet_hours_end: use HH:MM format", 400)
@@ -181,14 +186,11 @@ def update_notification_settings():
 
         # Return updated settings
         updated_settings = notifications_service.get_user_settings(user_id)
-        return success_response(
-            updated_settings.to_dict(),
-            message="Notification settings updated successfully"
-        )
+        return success_response(updated_settings.to_dict(), message="Notification settings updated successfully")
 
     except Exception as e:
         logger.exception("Error updating notification settings")
-        return error_response(f"Failed to update notification settings: {str(e)}", 500)
+        return error_response(f"Failed to update notification settings: {e!s}", 500)
 
 
 @settings_api.post("/notifications/test-email")
@@ -234,18 +236,18 @@ def test_email_notification():
 
         if message_id:
             return success_response(
-                {"message_id": message_id},
-                message="Test notification sent successfully. Check your email."
+                {"message_id": message_id}, message="Test notification sent successfully. Check your email."
             )
         else:
             return error_response("Failed to send test notification", 500)
 
     except Exception as e:
         logger.exception("Error sending test email notification")
-        return error_response(f"Failed to send test notification: {str(e)}", 500)
+        return error_response(f"Failed to send test notification: {e!s}", 500)
 
 
 # --- Notification Messages Endpoints ---
+
 
 @settings_api.get("/notifications/messages")
 def get_notifications():
@@ -283,18 +285,20 @@ def get_notifications():
 
         unread_count = notifications_service.get_unread_count(user_id)
 
-        return success_response({
-            "notifications": notifications,
-            "unread_count": unread_count,
-            "pagination": {
-                "limit": limit,
-                "offset": offset,
+        return success_response(
+            {
+                "notifications": notifications,
+                "unread_count": unread_count,
+                "pagination": {
+                    "limit": limit,
+                    "offset": offset,
+                },
             }
-        })
+        )
 
     except Exception as e:
         logger.exception("Error getting notifications")
-        return error_response(f"Failed to get notifications: {str(e)}", 500)
+        return error_response(f"Failed to get notifications: {e!s}", 500)
 
 
 @settings_api.post("/notifications/messages/<int:message_id>/read")
@@ -317,7 +321,7 @@ def mark_notification_read(message_id: int):
 
     except Exception as e:
         logger.exception("Error marking notification as read")
-        return error_response(f"Failed to mark notification as read: {str(e)}", 500)
+        return error_response(f"Failed to mark notification as read: {e!s}", 500)
 
 
 @settings_api.post("/notifications/messages/read-all")
@@ -335,14 +339,11 @@ def mark_all_notifications_read():
         user_id = _get_current_user_id()
         count = notifications_service.mark_all_read(user_id)
 
-        return success_response(
-            {"marked_read": count},
-            message=f"Marked {count} notifications as read"
-        )
+        return success_response({"marked_read": count}, message=f"Marked {count} notifications as read")
 
     except Exception as e:
         logger.exception("Error marking all notifications as read")
-        return error_response(f"Failed to mark all notifications as read: {str(e)}", 500)
+        return error_response(f"Failed to mark all notifications as read: {e!s}", 500)
 
 
 @settings_api.delete("/notifications/messages/<int:message_id>")
@@ -365,7 +366,7 @@ def delete_notification(message_id: int):
 
     except Exception as e:
         logger.exception("Error deleting notification")
-        return error_response(f"Failed to delete notification: {str(e)}", 500)
+        return error_response(f"Failed to delete notification: {e!s}", 500)
 
 
 @settings_api.delete("/notifications/messages")
@@ -383,17 +384,15 @@ def clear_all_notifications():
         user_id = _get_current_user_id()
         count = notifications_service.clear_user_notifications(user_id)
 
-        return success_response(
-            {"deleted": count},
-            message=f"Deleted {count} notifications"
-        )
+        return success_response({"deleted": count}, message=f"Deleted {count} notifications")
 
     except Exception as e:
         logger.exception("Error clearing notifications")
-        return error_response(f"Failed to clear notifications: {str(e)}", 500)
+        return error_response(f"Failed to clear notifications: {e!s}", 500)
 
 
 # --- Action Notifications Endpoints ---
+
 
 @settings_api.get("/notifications/actions")
 def get_pending_actions():
@@ -424,7 +423,7 @@ def get_pending_actions():
 
     except Exception as e:
         logger.exception("Error getting pending actions")
-        return error_response(f"Failed to get pending actions: {str(e)}", 500)
+        return error_response(f"Failed to get pending actions: {e!s}", 500)
 
 
 @settings_api.post("/notifications/actions/<int:message_id>/respond")
@@ -458,18 +457,18 @@ def respond_to_action(message_id: int):
 
         if success:
             return success_response(
-                {"message_id": message_id, "response": response},
-                message="Action recorded successfully"
+                {"message_id": message_id, "response": response}, message="Action recorded successfully"
             )
         else:
             return error_response("Failed to record action response", 500)
 
     except Exception as e:
         logger.exception("Error responding to action")
-        return error_response(f"Failed to respond to action: {str(e)}", 500)
+        return error_response(f"Failed to respond to action: {e!s}", 500)
 
 
 # --- Irrigation Feedback Endpoints ---
+
 
 @settings_api.get("/notifications/irrigation-feedback")
 def get_irrigation_feedback():
@@ -495,7 +494,7 @@ def get_irrigation_feedback():
 
     except Exception as e:
         logger.exception("Error getting irrigation feedback")
-        return error_response(f"Failed to get irrigation feedback: {str(e)}", 500)
+        return error_response(f"Failed to get irrigation feedback: {e!s}", 500)
 
 
 @settings_api.post("/notifications/irrigation-feedback/<int:feedback_id>")
@@ -536,9 +535,7 @@ def submit_irrigation_feedback(feedback_id: int):
             IrrigationFeedbackResponse.SKIPPED,
         }
         if response not in valid_responses:
-            return error_response(
-                f"Invalid response. Must be one of: {', '.join(valid_responses)}", 400
-            )
+            return error_response(f"Invalid response. Must be one of: {', '.join(valid_responses)}", 400)
 
         notes = data.get("notes")
         success = notifications_service.submit_irrigation_feedback(
@@ -564,15 +561,14 @@ def submit_irrigation_feedback(feedback_id: int):
                         e,
                     )
             return success_response(
-                {"feedback_id": feedback_id, "response": response},
-                message="Feedback submitted successfully"
+                {"feedback_id": feedback_id, "response": response}, message="Feedback submitted successfully"
             )
         else:
             return error_response("Failed to submit feedback", 500)
 
     except Exception as e:
         logger.exception("Error submitting irrigation feedback")
-        return error_response(f"Failed to submit feedback: {str(e)}", 500)
+        return error_response(f"Failed to submit feedback: {e!s}", 500)
 
 
 @settings_api.get("/notifications/irrigation-feedback/history/<int:unit_id>")
@@ -602,4 +598,4 @@ def get_irrigation_feedback_history(unit_id: int):
 
     except Exception as e:
         logger.exception("Error getting irrigation feedback history")
-        return error_response(f"Failed to get feedback history: {str(e)}", 500)
+        return error_response(f"Failed to get feedback history: {e!s}", 500)

@@ -14,17 +14,18 @@ This service:
 Author: SYSGrow Team
 Date: January 2026
 """
+
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from app.utils.time import iso_now
 
 if TYPE_CHECKING:
-    from infrastructure.database.repositories.irrigation_ml import IrrigationMLRepository
     from app.services.application.notifications_service import NotificationsService
+    from infrastructure.database.repositories.irrigation_ml import IrrigationMLRepository
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +78,7 @@ MODEL_CONFIG = {
 @dataclass
 class ModelReadinessStatus:
     """Status of a specific ML model's data readiness."""
-    
+
     model_name: str
     display_name: str
     required_samples: int
@@ -86,24 +87,24 @@ class ModelReadinessStatus:
     is_activated: bool = False
     notification_sent: bool = False
     description: str = ""
-    benefits: List[str] = field(default_factory=list)
-    
+    benefits: list[str] = field(default_factory=list)
+
     def __post_init__(self) -> None:
         self.is_ready = self.current_samples >= self.required_samples
-    
+
     @property
     def progress_percent(self) -> float:
         """Calculate progress percentage toward readiness."""
         if self.required_samples <= 0:
             return 100.0
         return min(100.0, (self.current_samples / self.required_samples) * 100)
-    
+
     @property
     def samples_needed(self) -> int:
         """Calculate remaining samples needed."""
         return max(0, self.required_samples - self.current_samples)
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for API responses."""
         return {
             "model_name": self.model_name,
@@ -123,35 +124,27 @@ class ModelReadinessStatus:
 @dataclass
 class IrrigationMLReadiness:
     """Overall irrigation ML readiness status for a unit."""
-    
+
     unit_id: int
-    models: Dict[str, ModelReadinessStatus] = field(default_factory=dict)
-    last_checked: Optional[str] = None
-    
+    models: dict[str, ModelReadinessStatus] = field(default_factory=dict)
+    last_checked: str | None = None
+
     @property
     def any_ready_not_activated(self) -> bool:
         """Check if any model is ready but not yet activated."""
-        return any(
-            m.is_ready and not m.is_activated 
-            for m in self.models.values()
-        )
-    
+        return any(m.is_ready and not m.is_activated for m in self.models.values())
+
     @property
-    def ready_not_notified(self) -> List[ModelReadinessStatus]:
+    def ready_not_notified(self) -> list[ModelReadinessStatus]:
         """Get models that are ready but user hasn't been notified."""
-        return [
-            m for m in self.models.values()
-            if m.is_ready and not m.is_activated and not m.notification_sent
-        ]
-    
+        return [m for m in self.models.values() if m.is_ready and not m.is_activated and not m.notification_sent]
+
     @property
     def all_models_activated(self) -> bool:
         """Check if all ready models are activated."""
-        return all(
-            m.is_activated for m in self.models.values() if m.is_ready
-        )
-    
-    def to_dict(self) -> Dict[str, Any]:
+        return all(m.is_activated for m in self.models.values() if m.is_ready)
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for API responses."""
         return {
             "unit_id": self.unit_id,
@@ -166,56 +159,56 @@ class MLReadinessMonitorService:
     """
     Monitors ML training data collection and notifies users
     when models have enough data for activation.
-    
+
     This service runs periodically to:
     1. Check data collection progress for each unit
     2. Detect when models have enough training data
     3. Send notifications to users about ready models
     4. Track which models have been activated
     """
-    
+
     def __init__(
         self,
         irrigation_ml_repo: "IrrigationMLRepository",
-        notifications_service: Optional["NotificationsService"] = None,
+        notifications_service: "NotificationsService" | None = None,
     ):
         """
         Initialize ML readiness monitor.
-        
+
         Args:
             irrigation_ml_repo: Repository for irrigation ML data
             notifications_service: Service for sending notifications
         """
         self._ml_repo = irrigation_ml_repo
         self._notifications = notifications_service
-        
+
         logger.info("MLReadinessMonitorService initialized")
-    
+
     def set_notifications_service(self, service: "NotificationsService") -> None:
         """Set notifications service (for circular dependency resolution)."""
         self._notifications = service
-    
+
     def check_irrigation_readiness(
         self,
         unit_id: int,
     ) -> IrrigationMLReadiness:
         """
         Check readiness of all irrigation ML models for a unit.
-        
+
         Args:
             unit_id: Growth unit ID to check
-            
+
         Returns:
             IrrigationMLReadiness with status of all models
         """
         # Get sample counts from repository
         readiness_status = self._ml_repo.get_ml_readiness_status(unit_id)
-        
+
         # Build model status objects with config
         models = {}
         for model_name, config in MODEL_CONFIG.items():
             ml_status = readiness_status.get(model_name)
-            
+
             models[model_name] = ModelReadinessStatus(
                 model_name=model_name,
                 display_name=config["display_name"],
@@ -226,27 +219,27 @@ class MLReadinessMonitorService:
                 description=config["description"],
                 benefits=config["benefits"],
             )
-        
+
         return IrrigationMLReadiness(
             unit_id=unit_id,
             models=models,
             last_checked=iso_now(),
         )
-    
-    def check_and_notify(self, user_id: int, unit_id: int) -> List[str]:
+
+    def check_and_notify(self, user_id: int, unit_id: int) -> list[str]:
         """
         Check readiness and send notifications for newly ready models.
-        
+
         Args:
             user_id: User ID to notify
             unit_id: Growth unit ID to check
-            
+
         Returns:
             List of model names that triggered notifications
         """
         readiness = self.check_irrigation_readiness(unit_id)
         notified_models = []
-        
+
         for model in readiness.ready_not_notified:
             success = self._send_model_ready_notification(
                 user_id=user_id,
@@ -257,24 +250,21 @@ class MLReadinessMonitorService:
                 # Mark as notified
                 self._ml_repo.mark_ml_notification_sent(unit_id, model.model_name)
                 notified_models.append(model.model_name)
-                logger.info(
-                    f"Sent ML readiness notification for {model.display_name} "
-                    f"(unit={unit_id}, user={user_id})"
-                )
-        
+                logger.info(f"Sent ML readiness notification for {model.display_name} (unit={unit_id}, user={user_id})")
+
         return notified_models
-    
-    def check_all_units(self) -> Dict[int, List[str]]:
+
+    def check_all_units(self) -> dict[int, list[str]]:
         """
         Check all units for ML readiness and send notifications.
-        
+
         Called by scheduled task to periodically check all units.
-        
+
         Returns:
             Dict mapping unit_id to list of notified model names
         """
         results = {}
-        
+
         try:
             unit_ids = self._ml_repo.get_units_with_workflow_enabled()
 
@@ -284,17 +274,17 @@ class MLReadinessMonitorService:
 
                 notified = self.check_and_notify(user_id, unit_id)
                 results[unit_id] = notified
-            
+
             if results:
                 notified_units = [unit_id for unit_id, models in results.items() if models]
                 if notified_units:
                     logger.info(f"ML readiness check complete: {len(notified_units)} units notified")
-            
+
         except Exception as exc:
             logger.error(f"Error checking ML readiness for all units: {exc}")
-        
+
         return results
-    
+
     def _send_model_ready_notification(
         self,
         user_id: int,
@@ -303,25 +293,25 @@ class MLReadinessMonitorService:
     ) -> bool:
         """
         Send notification about model readiness.
-        
+
         Args:
             user_id: User ID to notify
             unit_id: Growth unit ID
             model_status: Status of the ready model
-            
+
         Returns:
             True if notification sent successfully
         """
         if not self._notifications:
             logger.warning("Notifications service not available")
             return False
-        
+
         try:
             from app.services.application.notifications_service import (
-                NotificationType,
                 NotificationSeverity,
+                NotificationType,
             )
-            
+
             title = f"ML Ready: {model_status.display_name}"
 
             benefits_text = "\n".join(f"- {b}" for b in model_status.benefits[:2])
@@ -331,7 +321,7 @@ class MLReadinessMonitorService:
                 f"What this means:\n{benefits_text}\n\n"
                 f"Would you like to activate this feature?"
             )
-            
+
             notification_id = self._notifications.send_notification(
                 user_id=user_id,
                 notification_type=NotificationType.ML_MODEL_READY,
@@ -349,13 +339,13 @@ class MLReadinessMonitorService:
                     "display_name": model_status.display_name,
                 },
             )
-            
+
             return notification_id is not None
-            
+
         except Exception as exc:
             logger.error(f"Failed to send ML readiness notification: {exc}")
             return False
-    
+
     def activate_model(
         self,
         user_id: int,
@@ -364,34 +354,31 @@ class MLReadinessMonitorService:
     ) -> bool:
         """
         Activate a specific ML model for a unit.
-        
+
         Called when user approves model activation from notification.
-        
+
         Args:
             user_id: User ID (for audit logging)
             unit_id: Growth unit ID
             model_name: Name of the model to activate
-            
+
         Returns:
             True if activation succeeded
         """
         if model_name not in MODEL_CONFIG:
             logger.warning(f"Unknown model name: {model_name}")
             return False
-        
+
         success = self._ml_repo.enable_ml_model(unit_id, model_name, enabled=True)
-        
+
         if success:
-            logger.info(
-                f"Activated ML model {model_name} for unit {unit_id} "
-                f"(user={user_id})"
-            )
-            
+            logger.info(f"Activated ML model {model_name} for unit {unit_id} (user={user_id})")
+
             # Send confirmation notification
             self._send_activation_confirmation(user_id, unit_id, model_name)
-        
+
         return success
-    
+
     def deactivate_model(
         self,
         user_id: int,
@@ -400,29 +387,26 @@ class MLReadinessMonitorService:
     ) -> bool:
         """
         Deactivate a specific ML model for a unit.
-        
+
         Args:
             user_id: User ID (for audit logging)
             unit_id: Growth unit ID
             model_name: Name of the model to deactivate
-            
+
         Returns:
             True if deactivation succeeded
         """
         if model_name not in MODEL_CONFIG:
             logger.warning(f"Unknown model name: {model_name}")
             return False
-        
+
         success = self._ml_repo.enable_ml_model(unit_id, model_name, enabled=False)
-        
+
         if success:
-            logger.info(
-                f"Deactivated ML model {model_name} for unit {unit_id} "
-                f"(user={user_id})"
-            )
-        
+            logger.info(f"Deactivated ML model {model_name} for unit {unit_id} (user={user_id})")
+
         return success
-    
+
     def _send_activation_confirmation(
         self,
         user_id: int,
@@ -432,16 +416,16 @@ class MLReadinessMonitorService:
         """Send confirmation notification after model activation."""
         if not self._notifications:
             return
-        
+
         try:
             from app.services.application.notifications_service import (
-                NotificationType,
                 NotificationSeverity,
+                NotificationType,
             )
-            
+
             config = MODEL_CONFIG.get(model_name, {})
             display_name = config.get("display_name", model_name)
-            
+
             self._notifications.send_notification(
                 user_id=user_id,
                 notification_type=NotificationType.ML_MODEL_ACTIVATED,
@@ -457,19 +441,16 @@ class MLReadinessMonitorService:
             )
         except Exception as exc:
             logger.debug(f"Failed to send activation confirmation: {exc}")
-    
-    def get_activation_status(self, unit_id: int) -> Dict[str, bool]:
+
+    def get_activation_status(self, unit_id: int) -> dict[str, bool]:
         """
         Get activation status of all ML models for a unit.
-        
+
         Args:
             unit_id: Growth unit ID
-            
+
         Returns:
             Dict mapping model_name to activation status
         """
         readiness = self.check_irrigation_readiness(unit_id)
-        return {
-            name: status.is_activated 
-            for name, status in readiness.models.items()
-        }
+        return {name: status.is_activated for name, status in readiness.models.items()}

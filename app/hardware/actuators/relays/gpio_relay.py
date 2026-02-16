@@ -1,8 +1,10 @@
 # Description: GPIO relay implementation for Raspberry Pi.
 #
 import logging
+
 from app.enums.events import DeviceEvent
 from app.schemas.events import RelayStatePayload
+
 from .relay_base import RelayBase
 
 logger = logging.getLogger(__name__)
@@ -15,7 +17,7 @@ class GPIORelay(RelayBase):
     Attributes:
         device (str): The name of the controlled device.
         pin (int): The GPIO pin used to control the relay.
-    
+
     Methods:
         turn_on(): Turns the relay on by setting the GPIO pin HIGH.
         turn_off(): Turns the relay off by setting the GPIO pin LOW.
@@ -43,7 +45,8 @@ class GPIORelay(RelayBase):
     def _setup_gpio(self):
         """Imports and sets up GPIO only if running on Raspberry Pi."""
         try:
-            import RPi.GPIO as GPIO # type: ignore
+            import RPi.GPIO as GPIO  # type: ignore
+
             return GPIO
         except (ImportError, RuntimeError):
             logger.error("GPIO not available. Running in non-Raspberry Pi environment.")
@@ -99,4 +102,3 @@ class GPIORelay(RelayBase):
     def __del__(self):
         """Destructor to ensure cleanup is called when the object is destroyed."""
         self.cleanup()
-

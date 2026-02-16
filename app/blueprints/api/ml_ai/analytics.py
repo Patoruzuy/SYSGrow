@@ -11,14 +11,13 @@ Consolidates functionality from:
 
 import logging
 from datetime import datetime, timedelta
-from typing import Optional
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, request
 
 from app.blueprints.api._common import (
+    fail as _fail,
     get_container as _container,
     success as _success,
-    fail as _fail,
 )
 
 logger = logging.getLogger(__name__)
@@ -48,7 +47,7 @@ def get_disease_statistics():
 
     except Exception as e:
         logger.error(f"Error getting disease statistics: {e}", exc_info=True)
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
 @analytics_bp.get("/disease/trends")
@@ -80,14 +79,11 @@ def get_disease_trends():
 
     except Exception as e:
         logger.error(f"Error getting disease trends: {e}", exc_info=True)
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
 def _calculate_disease_trends(
-    db_handler,
-    days: int,
-    unit_id: Optional[int] = None,
-    disease_type: Optional[str] = None
+    db_handler, days: int, unit_id: int | None = None, disease_type: str | None = None
 ) -> dict:
     """Calculate disease trends over time."""
     try:
@@ -123,43 +119,35 @@ def _calculate_disease_trends(
 
         for row in rows:
             row_dict = dict(row)
-            date = row_dict['date']
-            dtype = row_dict['disease_type']
-            count = row_dict['count']
+            date = row_dict["date"]
+            dtype = row_dict["disease_type"]
+            count = row_dict["count"]
 
             if date not in daily_data:
-                daily_data[date] = {'total': 0, 'by_type': {}}
+                daily_data[date] = {"total": 0, "by_type": {}}
 
-            daily_data[date]['total'] += count
-            daily_data[date]['by_type'][dtype] = count
+            daily_data[date]["total"] += count
+            daily_data[date]["by_type"][dtype] = count
 
             disease_totals[dtype] = disease_totals.get(dtype, 0) + count
 
         daily_counts = [
-            {
-                'date': date,
-                'total': data['total'],
-                'by_type': data['by_type']
-            }
+            {"date": date, "total": data["total"], "by_type": data["by_type"]}
             for date, data in sorted(daily_data.items())
         ]
 
-        return {
-            'daily_counts': daily_counts,
-            'disease_totals': disease_totals,
-            'period_days': days
-        }
+        return {"daily_counts": daily_counts, "disease_totals": disease_totals, "period_days": days}
 
     except Exception as e:
         logger.warning(f"Error calculating trends: {e}")
-        return {'daily_counts': [], 'disease_totals': {}, 'period_days': days}
+        return {"daily_counts": [], "disease_totals": {}, "period_days": days}
 
 
 @analytics_bp.get("/energy/actuator/<int:actuator_id>/dashboard")
 def get_actuator_energy_dashboard(actuator_id: int):
     """
     Get unified energy dashboard for an actuator.
-    
+
     Combines:
     - Cost trends (7 days)
     - Optimization recommendations
@@ -169,40 +157,34 @@ def get_actuator_energy_dashboard(actuator_id: int):
     try:
         container = _container()
         analytics = container.analytics_service
-        
+
         dashboard = analytics.get_actuator_energy_dashboard(actuator_id)
-        
-        return _success({
-            'actuator_id': actuator_id,
-            'dashboard': dashboard
-        })
-        
+
+        return _success({"actuator_id": actuator_id, "dashboard": dashboard})
+
     except Exception as e:
         logger.error(f"Error getting energy dashboard: {e}", exc_info=True)
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
 @analytics_bp.get("/energy/actuator/<int:actuator_id>/predict-failure")
 def predict_actuator_failure(actuator_id: int):
     """
     Predict device failure risk for an actuator.
-    
+
     Query params:
     - days_ahead: Number of days to predict (default: 7)
     """
     try:
-        days_ahead = request.args.get('days_ahead', 7, type=int)
-        
+        days_ahead = request.args.get("days_ahead", 7, type=int)
+
         container = _container()
         analytics = container.analytics_service
-        
+
         prediction = analytics.predict_device_failure(actuator_id, days_ahead)
-        
-        return _success({
-            'actuator_id': actuator_id,
-            'prediction': prediction
-        })
-        
+
+        return _success({"actuator_id": actuator_id, "prediction": prediction})
+
     except Exception as e:
         logger.error(f"Error predicting failure: {e}", exc_info=True)
-        return _fail(str(e), 500)
+        return safe_error(e, 500)

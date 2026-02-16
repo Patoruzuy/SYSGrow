@@ -22,23 +22,25 @@ Routes:
 - GET /api/health/cache - Cache performance metrics
 - GET /api/health/cache/repository - Repository cache metrics
 """
+
 from __future__ import annotations
 
 import logging
+
 from flask import Blueprint
 
-logger = logging.getLogger('health_api')
+logger = logging.getLogger("health_api")
 
 # Create the blueprint
-health_api = Blueprint('health_api', __name__, url_prefix='/api/health')
+health_api = Blueprint("health_api", __name__, url_prefix="/api/health")
 
 # Import and register routes from submodules
+from app.blueprints.api.health.cache import register_cache_routes
+from app.blueprints.api.health.devices import register_device_routes
+from app.blueprints.api.health.ml import register_ml_routes
+from app.blueprints.api.health.plants import register_plant_routes
 from app.blueprints.api.health.system import register_system_routes
 from app.blueprints.api.health.units import register_unit_routes
-from app.blueprints.api.health.devices import register_device_routes
-from app.blueprints.api.health.plants import register_plant_routes
-from app.blueprints.api.health.ml import register_ml_routes
-from app.blueprints.api.health.cache import register_cache_routes
 
 # Register all routes on the blueprint
 register_system_routes(health_api)
@@ -49,4 +51,4 @@ register_ml_routes(health_api)
 register_cache_routes(health_api)
 
 # Re-export for backwards compatibility
-__all__ = ['health_api']
+__all__ = ["health_api"]

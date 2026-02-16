@@ -1,18 +1,24 @@
 """Verify the new database schema"""
+import os
 import sqlite3
+from pathlib import Path
 
-db_path = 'database/sysgrow.db'
-conn = sqlite3.connect(db_path)
+REPO_ROOT = Path(__file__).resolve().parents[2]
+db_path = Path(
+    os.getenv("SYSGROW_DATABASE_PATH", str(REPO_ROOT / "database" / "sysgrow.db"))
+)
+conn = sqlite3.connect(str(db_path))
 cursor = conn.cursor()
 
 print("=" * 60)
 print("📊 ACTUATOR SCHEMA VERIFICATION")
 print("=" * 60)
+print(f"Database: {db_path}")
 
 # Get all Actuator-related tables
 cursor.execute("""
-    SELECT name FROM sqlite_master 
-    WHERE type='table' AND name LIKE 'Actuator%' 
+    SELECT name FROM sqlite_master
+    WHERE type='table' AND name LIKE 'Actuator%'
     ORDER BY name
 """)
 actuator_tables = [row[0] for row in cursor.fetchall()]
@@ -41,8 +47,8 @@ print("\n" + "=" * 60)
 print("🔍 ACTUATOR INDEXES")
 print("=" * 60)
 cursor.execute("""
-    SELECT name FROM sqlite_master 
-    WHERE type='index' AND name LIKE 'idx_actuator%' 
+    SELECT name FROM sqlite_master
+    WHERE type='index' AND name LIKE 'idx_actuator%'
     ORDER BY name
 """)
 indexes = [row[0] for row in cursor.fetchall()]

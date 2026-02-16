@@ -5,22 +5,23 @@ import threading
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Iterator, Optional
+from typing import Iterator
 
 from flask import Flask
 
+from infrastructure.database.ops.activity_log import ActivityOperations
+from infrastructure.database.ops.alerts import AlertOperations
 from infrastructure.database.ops.analytics import AnalyticsOperations
 from infrastructure.database.ops.camera import CameraOperations
 from infrastructure.database.ops.devices import DeviceOperations
 from infrastructure.database.ops.growth import GrowthOperations
-from infrastructure.database.ops.settings import SettingsOperations
-from infrastructure.database.ops.alerts import AlertOperations
-from infrastructure.database.ops.activity_log import ActivityOperations
-from infrastructure.database.ops.notifications import NotificationOperations
 from infrastructure.database.ops.irrigation_workflow import IrrigationWorkflowOperations
+from infrastructure.database.ops.notifications import NotificationOperations
 from infrastructure.database.ops.schedules import ScheduleOperations
+from infrastructure.database.ops.settings import SettingsOperations
 
 logger = logging.getLogger(__name__)
+
 
 class SQLiteDatabaseHandler(
     SettingsOperations,
@@ -36,10 +37,17 @@ class SQLiteDatabaseHandler(
 ):
     """Thread-safe SQLite handler decoupled from Flask globals."""
 
-    def __init__(self, database_path: str) -> None:
+    def __init__(
+        self,
+        database_path: str,
+        cache_size_kb: int = 8_000,
+        mmap_size_bytes: int = 33_554_432,
+    ) -> None:
         self._database_path = database_path
+        self._cache_size_kb = cache_size_kb
+        self._mmap_size_bytes = mmap_size_bytes
         self._local = threading.local()
-        
+
         # Ensure the directory for the database file exists
         db_path = Path(database_path)
         if not db_path.parent.exists():
@@ -56,7 +64,6 @@ class SQLiteDatabaseHandler(
     def run_migrations(self) -> None:
         """Run standard sequential migrations."""
         try:
-            import os
             import importlib.util
             from pathlib import Path
 
@@ -71,10 +78,10 @@ class SQLiteDatabaseHandler(
                 applied = {row[0] for row in cursor.fetchall()}
 
             # Find all .py migrations (e.g., 033_...)
-            migration_files = sorted([
-                f for f in migrations_dir.glob("*.py")
-                if f.name[0].isdigit() and "_" in f.name
-            ], key=lambda x: int(x.name.split("_")[0]))
+            migration_files = sorted(
+                [f for f in migrations_dir.glob("*.py") if f.name[0].isdigit() and "_" in f.name],
+                key=lambda x: int(x.name.split("_")[0]),
+            )
 
             for migration_file in migration_files:
                 try:
@@ -83,14 +90,14 @@ class SQLiteDatabaseHandler(
                         continue
 
                     logger.info("Running migration %s...", migration_file.name)
-                    
+
                     # Import and run migrate()
                     spec = importlib.util.spec_from_file_location("migration_mod", str(migration_file))
                     if not spec or not spec.loader:
                         continue
                     mod = importlib.util.module_from_spec(spec)
                     spec.loader.exec_module(mod)
-                    
+
                     if hasattr(mod, "migrate"):
                         if mod.migrate(self):
                             with self.connection() as db:
@@ -105,7 +112,7 @@ class SQLiteDatabaseHandler(
             logger.error("Migration runner failed: %s", e)
 
     def get_db(self) -> sqlite3.Connection:
-        connection: Optional[sqlite3.Connection] = getattr(self._local, "connection", None)
+        connection: sqlite3.Connection | None = getattr(self._local, "connection", None)
         if connection is None:
             try:
                 connection = self._open_connection()
@@ -138,7 +145,7 @@ class SQLiteDatabaseHandler(
             or "malformed" in message
         )
 
-    def _quarantine_corrupt_db(self) -> Optional[Path]:
+    def _quarantine_corrupt_db(self) -> Path | None:
         db_path = Path(self._database_path)
         if not db_path.exists():
             return None
@@ -163,23 +170,28 @@ class SQLiteDatabaseHandler(
             return None
 
     def _configure_connection(self, connection: sqlite3.Connection) -> None:
-        """Configure SQLite connection with Raspberry Pi-friendly optimizations.
+        """Configure SQLite connection with tunable memory settings.
 
         Optimizations:
         - WAL mode: Enables concurrent reads, 20-40% faster writes
         - NORMAL synchronous: Faster than FULL, still safe with WAL
-        - 64MB cache: Reduces disk I/O on Pi
+        - Configurable cache: Reduces disk I/O (default 8 MB, Pi-friendly)
         - Memory temp store: Avoids temp file creation
+        - Configurable mmap: Memory-mapped I/O (default 32 MB, Pi-friendly)
+
+        Values are controlled via SYSGROW_DB_CACHE_SIZE_KB and
+        SYSGROW_DB_MMAP_SIZE_BYTES environment variables, or by passing
+        cache_size_kb / mmap_size_bytes to the constructor.
         """
         connection.execute("PRAGMA journal_mode=WAL")
         connection.execute("PRAGMA synchronous=NORMAL")
-        connection.execute("PRAGMA cache_size=-64000")  # 64MB cache (negative = KB)
+        connection.execute(f"PRAGMA cache_size=-{self._cache_size_kb}")  # negative = KB
         connection.execute("PRAGMA temp_store=MEMORY")
-        connection.execute("PRAGMA mmap_size=268435456")  # 256MB memory-mapped I/O
+        connection.execute(f"PRAGMA mmap_size={self._mmap_size_bytes}")
         connection.commit()
 
-    def close_db(self, _e: Optional[BaseException] = None) -> None:
-        connection: Optional[sqlite3.Connection] = getattr(self._local, "connection", None)
+    def close_db(self, _e: BaseException | None = None) -> None:
+        connection: sqlite3.Connection | None = getattr(self._local, "connection", None)
         if connection is not None:
             connection.close()
             delattr(self._local, "connection")
@@ -220,9 +232,7 @@ class SQLiteDatabaseHandler(
                     )
                     """
                 )
-                db.execute(
-                    "CREATE INDEX IF NOT EXISTS idx_recovery_codes_user ON RecoveryCodes(user_id)"
-                )
+                db.execute("CREATE INDEX IF NOT EXISTS idx_recovery_codes_user ON RecoveryCodes(user_id)")
                 # ✅ Hotspot WiFi Settings
                 db.execute(
                     """
@@ -260,14 +270,10 @@ class SQLiteDatabaseHandler(
                     )
                     """
                 )
-                
+
                 # Create indexes for GrowthUnits
-                db.execute(
-                    "CREATE INDEX IF NOT EXISTS idx_growth_units_user_id ON GrowthUnits(user_id)"
-                )
-                db.execute(
-                    "CREATE INDEX IF NOT EXISTS idx_growth_units_created_at ON GrowthUnits(created_at DESC)"
-                )
+                db.execute("CREATE INDEX IF NOT EXISTS idx_growth_units_user_id ON GrowthUnits(user_id)")
+                db.execute("CREATE INDEX IF NOT EXISTS idx_growth_units_created_at ON GrowthUnits(created_at DESC)")
 
                 # =============================================================================
                 # Device Schedules Table (centralized scheduling for all device types)
@@ -299,17 +305,13 @@ class SQLiteDatabaseHandler(
                     )
                     """
                 )
-                
+
                 # Indexes for DeviceSchedules
-                db.execute(
-                    "CREATE INDEX IF NOT EXISTS idx_device_schedules_unit ON DeviceSchedules(unit_id)"
-                )
+                db.execute("CREATE INDEX IF NOT EXISTS idx_device_schedules_unit ON DeviceSchedules(unit_id)")
                 db.execute(
                     "CREATE INDEX IF NOT EXISTS idx_device_schedules_device_type ON DeviceSchedules(unit_id, device_type)"
                 )
-                db.execute(
-                    "CREATE INDEX IF NOT EXISTS idx_device_schedules_actuator ON DeviceSchedules(actuator_id)"
-                )
+                db.execute("CREATE INDEX IF NOT EXISTS idx_device_schedules_actuator ON DeviceSchedules(actuator_id)")
                 db.execute(
                     "CREATE INDEX IF NOT EXISTS idx_device_schedules_enabled ON DeviceSchedules(unit_id, enabled)"
                 )
@@ -332,7 +334,7 @@ class SQLiteDatabaseHandler(
                     )
                     """
                 )
-                
+
                 # Actuator Configuration Table (JSON-based flexible config)
                 db.execute(
                     """
@@ -346,7 +348,7 @@ class SQLiteDatabaseHandler(
                     )
                     """
                 )
-                
+
                 # Actuator Calibration Table (Power profiles, PWM curves, timing)
                 db.execute(
                     """
@@ -360,7 +362,7 @@ class SQLiteDatabaseHandler(
                     )
                     """
                 )
-                
+
                 # Actuator Health History Table (Device health tracking)
                 db.execute(
                     """
@@ -378,7 +380,7 @@ class SQLiteDatabaseHandler(
                     )
                     """
                 )
-                
+
                 # Actuator Anomaly Detection Table
                 db.execute(
                     """
@@ -445,7 +447,7 @@ class SQLiteDatabaseHandler(
                     )
                     """
                 )
-                
+
                 # Sensor Configuration Table (JSON-based flexible config)
                 db.execute(
                     """
@@ -459,7 +461,7 @@ class SQLiteDatabaseHandler(
                     )
                     """
                 )
-                
+
                 # Sensor Calibration Table
                 db.execute(
                     """
@@ -474,7 +476,7 @@ class SQLiteDatabaseHandler(
                     )
                     """
                 )
-                
+
                 # Sensor Health History Table
                 db.execute(
                     """
@@ -491,7 +493,7 @@ class SQLiteDatabaseHandler(
                     )
                     """
                 )
-                
+
                 # Sensor Anomaly Detection Table
                 db.execute(
                     """
@@ -552,7 +554,7 @@ class SQLiteDatabaseHandler(
                         voc_threshold_override REAL,
                         lux_threshold_override REAL,
                         air_quality_threshold_override REAL,
-                        
+
                         FOREIGN KEY (unit_id) REFERENCES GrowthUnits(unit_id) ON DELETE SET NULL
                     )
                     """
@@ -671,9 +673,7 @@ class SQLiteDatabaseHandler(
                     )
                     """
                 )
-                db.execute(
-                    "CREATE INDEX IF NOT EXISTS idx_camera_configs_unit_id ON camera_configs(unit_id)"
-                )
+                db.execute("CREATE INDEX IF NOT EXISTS idx_camera_configs_unit_id ON camera_configs(unit_id)")
 
                 # Plant-level readings (aggregated per plant/unit snapshot)
                 db.execute(
@@ -774,7 +774,7 @@ class SQLiteDatabaseHandler(
                     )
                     """
                 )
-                
+
                 # Unified Energy Monitoring Table (replaces ActuatorEnergyReadings & ActuatorPowerReading)
                 db.execute(
                     """
@@ -800,7 +800,7 @@ class SQLiteDatabaseHandler(
                     )
                     """
                 )
-                
+
                 # Plant Harvest Summary Table (comprehensive lifecycle report)
                 db.execute(
                     """
@@ -841,7 +841,7 @@ class SQLiteDatabaseHandler(
                     )
                     """
                 )
-                
+
                 # Environment Information Table
                 db.execute(
                     """
@@ -867,7 +867,7 @@ class SQLiteDatabaseHandler(
                     )
                     """
                 )
-                
+
                 # Plant Health and Disease Tracking
                 db.execute(
                     """
@@ -893,7 +893,7 @@ class SQLiteDatabaseHandler(
                     )
                     """
                 )
-                
+
                 # Energy Device Mapping (for consumption estimation)
                 db.execute(
                     """
@@ -909,7 +909,7 @@ class SQLiteDatabaseHandler(
                     )
                     """
                 )
-                
+
                 # ML Model Training History
                 db.execute(
                     """
@@ -932,7 +932,7 @@ class SQLiteDatabaseHandler(
                     )
                     """
                 )
-                
+
                 # Activity Logging System
                 db.execute(
                     """
@@ -959,7 +959,7 @@ class SQLiteDatabaseHandler(
                     )
                     """
                 )
-                
+
                 # Alert and Notification System
                 db.execute(
                     """
@@ -991,22 +991,26 @@ class SQLiteDatabaseHandler(
                     )
                     """
                 )
-                
+
                 # Create indexes for better performance
-                
+
                 # New unified energy table indexes
-                db.execute("CREATE INDEX IF NOT EXISTS idx_energy_device_time ON EnergyReadings(device_id, timestamp DESC)")
-                db.execute("CREATE INDEX IF NOT EXISTS idx_energy_plant ON EnergyReadings(plant_id) WHERE plant_id IS NOT NULL")
+                db.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_energy_device_time ON EnergyReadings(device_id, timestamp DESC)"
+                )
+                db.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_energy_plant ON EnergyReadings(plant_id) WHERE plant_id IS NOT NULL"
+                )
                 db.execute("CREATE INDEX IF NOT EXISTS idx_energy_unit_stage ON EnergyReadings(unit_id, growth_stage)")
                 db.execute("CREATE INDEX IF NOT EXISTS idx_energy_timestamp ON EnergyReadings(timestamp DESC)")
-                
+
                 # Harvest summary indexes
                 db.execute("CREATE INDEX IF NOT EXISTS idx_harvest_plant ON PlantHarvestSummary(plant_id)")
                 db.execute("CREATE INDEX IF NOT EXISTS idx_harvest_date ON PlantHarvestSummary(harvested_date DESC)")
                 db.execute("CREATE INDEX IF NOT EXISTS idx_harvest_unit ON PlantHarvestSummary(unit_id)")
-                
+
                 db.execute("CREATE INDEX IF NOT EXISTS idx_plant_health_date ON PlantHealthLogs(observation_date)")
-                
+
                 # A/B Testing Tables
                 db.execute(
                     """
@@ -1025,7 +1029,7 @@ class SQLiteDatabaseHandler(
                     )
                     """
                 )
-                
+
                 db.execute(
                     """
                     CREATE TABLE IF NOT EXISTS ABTestResults (
@@ -1040,7 +1044,7 @@ class SQLiteDatabaseHandler(
                     )
                     """
                 )
-                
+
                 # Drift Metrics Table
                 db.execute(
                     """
@@ -1055,21 +1059,25 @@ class SQLiteDatabaseHandler(
                     )
                     """
                 )
-                
+
                 # AB Test and Drift indexes
                 db.execute("CREATE INDEX IF NOT EXISTS idx_abtest_status ON ABTests(status)")
                 db.execute("CREATE INDEX IF NOT EXISTS idx_abtest_model ON ABTests(model_name)")
                 db.execute("CREATE INDEX IF NOT EXISTS idx_abtestresults_test ON ABTestResults(test_id)")
-                db.execute("CREATE INDEX IF NOT EXISTS idx_drift_model_time ON DriftMetrics(model_name, timestamp DESC)")
-                
+                db.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_drift_model_time ON DriftMetrics(model_name, timestamp DESC)"
+                )
+
                 # Activity log indexes
                 db.execute("CREATE INDEX IF NOT EXISTS idx_activity_timestamp ON ActivityLog(timestamp DESC)")
                 db.execute("CREATE INDEX IF NOT EXISTS idx_activity_type ON ActivityLog(activity_type)")
                 db.execute("CREATE INDEX IF NOT EXISTS idx_activity_user ON ActivityLog(user_id)")
                 db.execute("CREATE INDEX IF NOT EXISTS idx_activity_entity ON ActivityLog(entity_type, entity_id)")
-                
+
                 # Alert system indexes
-                db.execute("CREATE INDEX IF NOT EXISTS idx_alert_active ON Alert(resolved, acknowledged, severity, timestamp DESC)")
+                db.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_alert_active ON Alert(resolved, acknowledged, severity, timestamp DESC)"
+                )
                 db.execute("CREATE INDEX IF NOT EXISTS idx_alert_type ON Alert(alert_type)")
                 db.execute("CREATE INDEX IF NOT EXISTS idx_alert_unit ON Alert(unit_id)")
                 db.execute("CREATE INDEX IF NOT EXISTS idx_alert_source ON Alert(source_type, source_id)")
@@ -1194,10 +1202,18 @@ class SQLiteDatabaseHandler(
                 # Notification indexes
                 db.execute("CREATE INDEX IF NOT EXISTS idx_notification_settings_user ON NotificationSettings(user_id)")
                 db.execute("CREATE INDEX IF NOT EXISTS idx_notification_message_user ON NotificationMessage(user_id)")
-                db.execute("CREATE INDEX IF NOT EXISTS idx_notification_message_unread ON NotificationMessage(user_id, in_app_read, created_at DESC)")
-                db.execute("CREATE INDEX IF NOT EXISTS idx_notification_message_action ON NotificationMessage(requires_action, action_taken, user_id)")
-                db.execute("CREATE INDEX IF NOT EXISTS idx_notification_message_type ON NotificationMessage(notification_type, created_at DESC)")
-                db.execute("CREATE INDEX IF NOT EXISTS idx_irrigation_feedback_unit ON IrrigationFeedback(unit_id, created_at DESC)")
+                db.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_notification_message_unread ON NotificationMessage(user_id, in_app_read, created_at DESC)"
+                )
+                db.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_notification_message_action ON NotificationMessage(requires_action, action_taken, user_id)"
+                )
+                db.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_notification_message_type ON NotificationMessage(notification_type, created_at DESC)"
+                )
+                db.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_irrigation_feedback_unit ON IrrigationFeedback(unit_id, created_at DESC)"
+                )
 
                 # =============================================================================
                 # Irrigation Workflow Tables
@@ -1431,20 +1447,48 @@ class SQLiteDatabaseHandler(
                 )
 
                 # Irrigation workflow indexes
-                db.execute("CREATE INDEX IF NOT EXISTS idx_pending_irrigation_unit ON PendingIrrigationRequest(unit_id)")
-                db.execute("CREATE INDEX IF NOT EXISTS idx_pending_irrigation_user ON PendingIrrigationRequest(user_id)")
-                db.execute("CREATE INDEX IF NOT EXISTS idx_pending_irrigation_status ON PendingIrrigationRequest(status)")
-                db.execute("CREATE INDEX IF NOT EXISTS idx_pending_irrigation_scheduled ON PendingIrrigationRequest(scheduled_time)")
-                db.execute("CREATE INDEX IF NOT EXISTS idx_pending_irrigation_detected ON PendingIrrigationRequest(detected_at)")
-                db.execute("CREATE INDEX IF NOT EXISTS idx_irrigation_workflow_config_unit ON IrrigationWorkflowConfig(unit_id)")
-                db.execute("CREATE INDEX IF NOT EXISTS idx_irrigation_user_pref_user ON IrrigationUserPreference(user_id)")
-                db.execute("CREATE INDEX IF NOT EXISTS idx_irrigation_user_pref_unit ON IrrigationUserPreference(unit_id)")
-                db.execute("CREATE INDEX IF NOT EXISTS idx_irrigation_execution_unit_time ON IrrigationExecutionLog(unit_id, executed_at_utc)")
-                db.execute("CREATE INDEX IF NOT EXISTS idx_irrigation_execution_plant_time ON IrrigationExecutionLog(plant_id, executed_at_utc)")
-                db.execute("CREATE INDEX IF NOT EXISTS idx_irrigation_execution_request ON IrrigationExecutionLog(request_id)")
-                db.execute("CREATE INDEX IF NOT EXISTS idx_irrigation_eligibility_unit_time ON IrrigationEligibilityTrace(unit_id, evaluated_at_utc)")
-                db.execute("CREATE INDEX IF NOT EXISTS idx_irrigation_eligibility_plant_time ON IrrigationEligibilityTrace(plant_id, evaluated_at_utc)")
-                db.execute("CREATE INDEX IF NOT EXISTS idx_manual_irrigation_plant_time ON ManualIrrigationLog(plant_id, watered_at_utc)")
+                db.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_pending_irrigation_unit ON PendingIrrigationRequest(unit_id)"
+                )
+                db.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_pending_irrigation_user ON PendingIrrigationRequest(user_id)"
+                )
+                db.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_pending_irrigation_status ON PendingIrrigationRequest(status)"
+                )
+                db.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_pending_irrigation_scheduled ON PendingIrrigationRequest(scheduled_time)"
+                )
+                db.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_pending_irrigation_detected ON PendingIrrigationRequest(detected_at)"
+                )
+                db.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_irrigation_workflow_config_unit ON IrrigationWorkflowConfig(unit_id)"
+                )
+                db.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_irrigation_user_pref_user ON IrrigationUserPreference(user_id)"
+                )
+                db.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_irrigation_user_pref_unit ON IrrigationUserPreference(unit_id)"
+                )
+                db.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_irrigation_execution_unit_time ON IrrigationExecutionLog(unit_id, executed_at_utc)"
+                )
+                db.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_irrigation_execution_plant_time ON IrrigationExecutionLog(plant_id, executed_at_utc)"
+                )
+                db.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_irrigation_execution_request ON IrrigationExecutionLog(request_id)"
+                )
+                db.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_irrigation_eligibility_unit_time ON IrrigationEligibilityTrace(unit_id, evaluated_at_utc)"
+                )
+                db.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_irrigation_eligibility_plant_time ON IrrigationEligibilityTrace(plant_id, evaluated_at_utc)"
+                )
+                db.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_manual_irrigation_plant_time ON ManualIrrigationLog(plant_id, watered_at_utc)"
+                )
 
                 # Sensor table indexes (Enterprise Architecture)
                 db.execute("CREATE INDEX IF NOT EXISTS idx_sensor_unit_id ON Sensor(unit_id)")
@@ -1452,31 +1496,47 @@ class SQLiteDatabaseHandler(
                 db.execute("CREATE INDEX IF NOT EXISTS idx_sensor_protocol ON Sensor(protocol)")
                 db.execute("CREATE INDEX IF NOT EXISTS idx_sensor_health_sensor_id ON SensorHealthHistory(sensor_id)")
                 db.execute("CREATE INDEX IF NOT EXISTS idx_sensor_anomaly_sensor_id ON SensorAnomaly(sensor_id)")
-                db.execute("CREATE INDEX IF NOT EXISTS idx_sensor_calibration_sensor_id ON SensorCalibration(sensor_id)")
+                db.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_sensor_calibration_sensor_id ON SensorCalibration(sensor_id)"
+                )
                 db.execute("CREATE INDEX IF NOT EXISTS idx_sensor_reading_sensor_id ON SensorReading(sensor_id)")
                 db.execute("CREATE INDEX IF NOT EXISTS idx_sensor_reading_timestamp ON SensorReading(timestamp)")
                 db.execute("CREATE INDEX IF NOT EXISTS idx_plant_readings_time ON PlantReadings(timestamp DESC)")
                 db.execute("CREATE INDEX IF NOT EXISTS idx_plant_readings_plant ON PlantReadings(plant_id)")
-                
+
                 # Create indexes for actuators
                 db.execute("CREATE INDEX IF NOT EXISTS idx_actuator_unit_id ON Actuator(unit_id)")
                 db.execute("CREATE INDEX IF NOT EXISTS idx_actuator_type ON Actuator(actuator_type)")
                 db.execute("CREATE INDEX IF NOT EXISTS idx_actuator_protocol ON Actuator(protocol)")
                 db.execute("CREATE INDEX IF NOT EXISTS idx_actuator_ieee_address ON Actuator(ieee_address)")
-                db.execute("CREATE INDEX IF NOT EXISTS idx_actuator_health_actuator_id ON ActuatorHealthHistory(actuator_id)")
-                db.execute("CREATE INDEX IF NOT EXISTS idx_actuator_anomaly_actuator_id ON ActuatorAnomaly(actuator_id)")
-                db.execute("CREATE INDEX IF NOT EXISTS idx_actuator_calibration_actuator_id ON ActuatorCalibration(actuator_id)")
-                db.execute("CREATE INDEX IF NOT EXISTS idx_actuator_history_actuator_id ON ActuatorHistory(actuator_id)")
+                db.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_actuator_health_actuator_id ON ActuatorHealthHistory(actuator_id)"
+                )
+                db.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_actuator_anomaly_actuator_id ON ActuatorAnomaly(actuator_id)"
+                )
+                db.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_actuator_calibration_actuator_id ON ActuatorCalibration(actuator_id)"
+                )
+                db.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_actuator_history_actuator_id ON ActuatorHistory(actuator_id)"
+                )
                 db.execute("CREATE INDEX IF NOT EXISTS idx_actuator_history_unit_id ON ActuatorHistory(unit_id)")
                 db.execute("CREATE INDEX IF NOT EXISTS idx_actuator_history_timestamp ON ActuatorHistory(timestamp)")
 
                 # Actuator State History indexes
                 db.execute("CREATE INDEX IF NOT EXISTS idx_actuator_state_time ON ActuatorStateHistory(timestamp DESC)")
-                db.execute("CREATE INDEX IF NOT EXISTS idx_actuator_state_actuator_time ON ActuatorStateHistory(actuator_id, timestamp DESC)")
+                db.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_actuator_state_actuator_time ON ActuatorStateHistory(actuator_id, timestamp DESC)"
+                )
 
                 # Connectivity History indexes
-                db.execute("CREATE INDEX IF NOT EXISTS idx_connectivity_type_time ON DeviceConnectivityHistory(connection_type, timestamp DESC)")
-                db.execute("CREATE INDEX IF NOT EXISTS idx_connectivity_time ON DeviceConnectivityHistory(timestamp DESC)")
+                db.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_connectivity_type_time ON DeviceConnectivityHistory(connection_type, timestamp DESC)"
+                )
+                db.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_connectivity_time ON DeviceConnectivityHistory(timestamp DESC)"
+                )
 
                 self._ensure_settings_seeded()
                 self._seed_device_energy_profiles()
@@ -1518,7 +1578,7 @@ class SQLiteDatabaseHandler(
                 if not table_check:
                     logging.warning("Plants table does not exist yet, skipping seed")
                     return
-                
+
                 existing = conn.execute("SELECT COUNT(*) FROM Plants").fetchone()[0]
                 if existing:
                     return
@@ -1567,33 +1627,33 @@ class SQLiteDatabaseHandler(
             existing = conn.execute("SELECT COUNT(*) FROM DeviceEnergyProfiles").fetchone()[0]
             if existing:
                 return
-        
+
         # Default device energy profiles (watts)
         default_profiles = [
-            ('lights', 'LED Grow Light', 150, 0.9),
-            ('lights', 'HPS Grow Light', 400, 0.85),
-            ('lights', 'Fluorescent T5', 54, 0.8),
-            ('fan', 'Circulation Fan 6"', 25, 0.95),
-            ('fan', 'Circulation Fan 8"', 45, 0.95),
-            ('extractor', 'Exhaust Fan 4"', 35, 0.9),
-            ('extractor', 'Exhaust Fan 6"', 65, 0.9),
-            ('extractor', 'Exhaust Fan 8"', 120, 0.9),
-            ('heater', 'Space Heater Small', 500, 0.98),
-            ('heater', 'Ceramic Heater', 1000, 0.98),
-            ('humidifier', 'Ultrasonic Humidifier', 30, 0.85),
-            ('humidifier', 'Evaporative Humidifier', 50, 0.8),
-            ('water_pump', 'Submersible Pump Small', 15, 0.7),
-            ('water_pump', 'Submersible Pump Medium', 40, 0.75),
-            ('dehumidifier', 'Mini Dehumidifier', 300, 0.85),
-            ('dehumidifier', 'Standard Dehumidifier', 500, 0.9),
+            ("lights", "LED Grow Light", 150, 0.9),
+            ("lights", "HPS Grow Light", 400, 0.85),
+            ("lights", "Fluorescent T5", 54, 0.8),
+            ("fan", 'Circulation Fan 6"', 25, 0.95),
+            ("fan", 'Circulation Fan 8"', 45, 0.95),
+            ("extractor", 'Exhaust Fan 4"', 35, 0.9),
+            ("extractor", 'Exhaust Fan 6"', 65, 0.9),
+            ("extractor", 'Exhaust Fan 8"', 120, 0.9),
+            ("heater", "Space Heater Small", 500, 0.98),
+            ("heater", "Ceramic Heater", 1000, 0.98),
+            ("humidifier", "Ultrasonic Humidifier", 30, 0.85),
+            ("humidifier", "Evaporative Humidifier", 50, 0.8),
+            ("water_pump", "Submersible Pump Small", 15, 0.7),
+            ("water_pump", "Submersible Pump Medium", 40, 0.75),
+            ("dehumidifier", "Mini Dehumidifier", 300, 0.85),
+            ("dehumidifier", "Standard Dehumidifier", 500, 0.9),
         ]
-        
+
         with self.connection() as conn:
             conn.executemany(
                 """
                 INSERT INTO DeviceEnergyProfiles (device_type, device_model, rated_power_watts, efficiency_factor)
                 VALUES (?, ?, ?, ?)
                 """,
-                default_profiles
+                default_profiles,
             )
         logging.info("Seeded DeviceEnergyProfiles table with %d default profiles.", len(default_profiles))

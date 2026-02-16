@@ -3,12 +3,14 @@ from __future__ import annotations
 import json
 import logging
 import sqlite3
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import Any
+
 from infrastructure.database.pagination import validate_pagination
 from infrastructure.utils.time import iso_now
-from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
+
 
 class AnalyticsOperations:
     """Aggregate and history helpers for sensors and plants."""
@@ -21,10 +23,10 @@ class AnalyticsOperations:
         stored as naive ISO strings.
         """
         if dt.tzinfo is not None:
-            dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+            dt = dt.astimezone(UTC).replace(tzinfo=None)
         return dt.isoformat()
 
-    def _decode_reading_payload(self, row: Dict[str, Any]) -> Dict[str, Any]:
+    def _decode_reading_payload(self, row: dict[str, Any]) -> dict[str, Any]:
         """
         Decode a SensorReading row into a flat dict of metric keys.
 
@@ -40,23 +42,23 @@ class AnalyticsOperations:
         except (TypeError, ValueError):
             logging.warning("Failed to decode reading_data JSON payload")
             return {}
-            
+
         if not isinstance(decoded, dict):
             return {}
-            
+
         return decoded
 
     def insert_sensor_reading(
         self,
         *,
         sensor_id: int,
-        reading_data: Dict[str, Any],
+        reading_data: dict[str, Any],
         quality_score: float = 1.0,
-        timestamp: Optional[str] = None,
-    ) -> Optional[int]:
+        timestamp: str | None = None,
+    ) -> int | None:
         """
         Insert a sensor reading into the database.
-        
+
         Args:
             sensor_id: ID of the sensor
             reading_data: JSON payload of readings (e.g. {"temperature": 24.0, "humidity": 50.0})
@@ -75,15 +77,11 @@ class AnalyticsOperations:
                 )
                 return cursor.lastrowid
         except sqlite3.Error as exc:
-            logging.error(
-                "Error inserting sensor reading (sensor_id=%s): %s",
-                sensor_id,
-                exc
-            )
+            logging.error("Error inserting sensor reading (sensor_id=%s): %s", sensor_id, exc)
             return None
 
     # --- Sensor history -------------------------------------------------------
-    def get_sensor_data(self, limit: int = 20, offset: int = 0) -> List[Dict[str, Any]]:
+    def get_sensor_data(self, limit: int = 20, offset: int = 0) -> list[dict[str, Any]]:
         """
         Retrieve sensor readings ordered by newest first.
 
@@ -120,7 +118,7 @@ class AnalyticsOperations:
             logging.error("Error getting sensor data: %s", exc)
             return []
 
-    def get_latest_sensor_readings(self, unit_id: int) -> Dict[str, Optional[float]]:
+    def get_latest_sensor_readings(self, unit_id: int) -> dict[str, float | None]:
         """
         Retrieve the latest reading snapshot for a growth unit.
 
@@ -128,6 +126,7 @@ class AnalyticsOperations:
         each metric. Returns None for any metric with no observed data.
         """
         from app.domain.sensors.fields import SensorField
+
         db = self.get_db()
         keys = [f.value for f in SensorField]
         query = """
@@ -163,20 +162,20 @@ class AnalyticsOperations:
 
     def save_plant_reading(
         self,
-        plant_id: Optional[int] = None,
-        unit_id: Optional[int] = None,
-        temperature: Optional[float] = None,
-        humidity: Optional[float] = None,
-        soil_moisture: Optional[float] = None,
-        ph: Optional[float] = None,
-        ec: Optional[float] = None,
-        co2: Optional[float] = None,
-        voc: Optional[float] = None,
-        air_quality: Optional[int] = None,
-        pressure: Optional[float] = None,
-        lux: Optional[float] = None,
-        timestamp: Optional[str] = None,
-    ) -> Optional[int]:
+        plant_id: int | None = None,
+        unit_id: int | None = None,
+        temperature: float | None = None,
+        humidity: float | None = None,
+        soil_moisture: float | None = None,
+        ph: float | None = None,
+        ec: float | None = None,
+        co2: float | None = None,
+        voc: float | None = None,
+        air_quality: int | None = None,
+        pressure: float | None = None,
+        lux: float | None = None,
+        timestamp: str | None = None,
+    ) -> int | None:
         """
         Save plant sensor readings to PlantReadings table.
 
@@ -195,24 +194,19 @@ class AnalyticsOperations:
         air_quality = None
         pressure = None
         lux = None
-        
+
         try:
             target_plant_ids = []
             if plant_id is not None:
                 target_plant_ids.append(plant_id)
                 # Resolve unit_id if missing but plant_id is present
                 if unit_id is None:
-                    plant_info = db.execute(
-                        "SELECT unit_id FROM Plants WHERE plant_id = ?", (plant_id,)
-                    ).fetchone()
+                    plant_info = db.execute("SELECT unit_id FROM Plants WHERE plant_id = ?", (plant_id,)).fetchone()
                     if plant_info:
                         unit_id = plant_info["unit_id"]
             elif unit_id is not None:
                 # Find all plants in this unit to store readings for each
-                plants = db.execute(
-                    "SELECT plant_id FROM Plants WHERE unit_id = ?", 
-                    (unit_id,)
-                ).fetchall()
+                plants = db.execute("SELECT plant_id FROM Plants WHERE unit_id = ?", (unit_id,)).fetchall()
                 target_plant_ids = [p["plant_id"] for p in plants]
 
             if not target_plant_ids:
@@ -230,12 +224,23 @@ class AnalyticsOperations:
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
-                        p_id, unit_id, temperature, humidity, soil_moisture,
-                        ph, ec, co2, voc, air_quality, pressure, lux, ts
+                        p_id,
+                        unit_id,
+                        temperature,
+                        humidity,
+                        soil_moisture,
+                        ph,
+                        ec,
+                        co2,
+                        voc,
+                        air_quality,
+                        pressure,
+                        lux,
+                        ts,
                     ),
                 )
                 last_id = cursor.lastrowid
-            
+
             db.commit()
             return last_id
         except sqlite3.Error as e:
@@ -245,13 +250,13 @@ class AnalyticsOperations:
             logging.error(f"Failed to insert plant reading: {e}")
             return None
 
-    def get_plant_id_for_sensor(self, sensor_id: int) -> Optional[int]:
+    def get_plant_id_for_sensor(self, sensor_id: int) -> int | None:
         """
         Look up the plant_id associated with a sensor via PlantSensors table.
-        
+
         Args:
             sensor_id: The sensor ID
-            
+
         Returns:
             plant_id if a mapping exists, None otherwise
         """
@@ -264,13 +269,11 @@ class AnalyticsOperations:
         ).fetchone()
         return row["plant_id"] if row else None
 
-    def get_all_plant_readings(
-        self, limit: Optional[int] = None, offset: Optional[int] = None
-    ) -> List[Dict[str, Any]]:
+    def get_all_plant_readings(self, limit: int | None = None, offset: int | None = None) -> list[dict[str, Any]]:
         """Return plant readings ordered by newest first."""
         db = self.get_db()
         query = "SELECT * FROM PlantReadings ORDER BY timestamp DESC"
-        params: List[Any] = []
+        params: list[Any] = []
 
         if limit is not None:
             query += " LIMIT ?"
@@ -281,9 +284,7 @@ class AnalyticsOperations:
 
         return [dict(row) for row in db.execute(query, params).fetchall()]
 
-    def get_latest_plant_readings(
-        self, plant_id: int, limit: int = 1
-    ) -> List[Dict[str, Any]]:
+    def get_latest_plant_readings(self, plant_id: int, limit: int = 1) -> list[dict[str, Any]]:
         """
         Get most recent PlantReadings for a specific plant.
 
@@ -314,7 +315,7 @@ class AnalyticsOperations:
         plant_id: int,
         start: str,
         end: str,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Get PlantReadings in time window for a plant.
 
@@ -344,10 +345,10 @@ class AnalyticsOperations:
 
     def get_plants_needing_attention(
         self,
-        unit_id: Optional[int] = None,
+        unit_id: int | None = None,
         moisture_threshold: float = 30.0,
         hours_since_reading: int = 24,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Find plants with concerning readings (dry, overwatered, no recent data).
 
@@ -382,11 +383,11 @@ class AnalyticsOperations:
 
             for plant in plants:
                 plant_dict = dict(plant)
-                plant_id = plant_dict['plant_id']
+                plant_id = plant_dict["plant_id"]
                 reasons = []
 
                 # Check in-memory moisture level
-                moisture = plant_dict.get('moisture_level')
+                moisture = plant_dict.get("moisture_level")
                 if moisture is not None and moisture < moisture_threshold:
                     reasons.append(f"Low soil moisture: {moisture:.0f}%")
 
@@ -404,19 +405,20 @@ class AnalyticsOperations:
 
                 if latest:
                     latest_dict = dict(latest)
-                    soil = latest_dict.get('soil_moisture')
+                    soil = latest_dict.get("soil_moisture")
                     if soil is not None and soil < moisture_threshold:
                         reasons.append(f"Recent reading shows low moisture: {soil:.0f}%")
                     elif soil is not None and soil > 85:
                         reasons.append(f"Recent reading shows overwatering: {soil:.0f}%")
 
                     # Check for stale data
-                    ts = latest_dict.get('timestamp')
+                    ts = latest_dict.get("timestamp")
                     if ts:
                         try:
                             from datetime import datetime
-                            reading_dt = datetime.fromisoformat(ts.replace('Z', '+00:00'))
-                            now_dt = datetime.fromisoformat(now_ts.replace('Z', '+00:00'))
+
+                            reading_dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                            now_dt = datetime.fromisoformat(now_ts.replace("Z", "+00:00"))
                             hours_diff = (now_dt - reading_dt).total_seconds() / 3600
                             if hours_diff > hours_since_reading:
                                 reasons.append(f"No data for {int(hours_diff)} hours")
@@ -426,13 +428,15 @@ class AnalyticsOperations:
                     reasons.append("No sensor data available")
 
                 if reasons:
-                    results.append({
-                        'plant_id': plant_id,
-                        'plant_name': plant_dict.get('name'),
-                        'plant_type': plant_dict.get('plant_type'),
-                        'unit_id': plant_dict.get('unit_id'),
-                        'reasons': reasons,
-                    })
+                    results.append(
+                        {
+                            "plant_id": plant_id,
+                            "plant_name": plant_dict.get("name"),
+                            "plant_type": plant_dict.get("plant_type"),
+                            "unit_id": plant_dict.get("unit_id"),
+                            "reasons": reasons,
+                        }
+                    )
 
             return results
 
@@ -446,7 +450,7 @@ class AnalyticsOperations:
         *,
         start_ts: str,
         end_ts: str,
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """Fetch the latest plant moisture reading within a time window."""
         db = self.get_db()
         row = db.execute(
@@ -470,8 +474,8 @@ class AnalyticsOperations:
         *,
         start_ts: str,
         end_ts: str,
-        limit: Optional[int] = None,
-    ) -> List[Dict[str, Any]]:
+        limit: int | None = None,
+    ) -> list[dict[str, Any]]:
         """Fetch plant moisture readings within a time window."""
         db = self.get_db()
         query = """
@@ -483,7 +487,7 @@ class AnalyticsOperations:
               AND timestamp <= ?
             ORDER BY timestamp ASC
         """
-        params: List[Any] = [plant_id, start_ts, end_ts]
+        params: list[Any] = [plant_id, start_ts, end_ts]
         if limit is not None:
             query += " LIMIT ?"
             params.append(limit)
@@ -593,7 +597,7 @@ class AnalyticsOperations:
             if not start_time or not end_time:
                 return 0.0
 
-            def _parse_time(value: str) -> Optional[datetime]:
+            def _parse_time(value: str) -> datetime | None:
                 for fmt in ("%H:%M", "%H:%M:%S", "%H:%M:%S.%f"):
                     try:
                         return datetime.strptime(value, fmt)
@@ -617,7 +621,7 @@ class AnalyticsOperations:
             logging.warning("Invalid light schedule for active plant %s", plant_id)
             return 0.0
 
-    def get_latest_ai_log(self, unit_id: int) -> Optional[Dict[str, Any]]:
+    def get_latest_ai_log(self, unit_id: int) -> dict[str, Any] | None:
         """Retrieve the latest AI log entry for a specific growth unit."""
         try:
             db = self.get_db()
@@ -634,10 +638,10 @@ class AnalyticsOperations:
             logging.error("Error retrieving latest AI log for unit %s: %s", unit_id, exc)
             return None
 
-    def get_latest_sensor_reading(self, unit_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
+    def get_latest_sensor_reading(self, unit_id: int | None = None) -> dict[str, Any] | None:
         """
         Get the most recent sensor reading across all sensors, optionally filtered by unit.
-        
+
         Args:
             unit_id: Optional unit ID to filter by.
 
@@ -679,7 +683,7 @@ class AnalyticsOperations:
             logging.error("Error getting latest sensor reading: %s", exc)
             return None
 
-    def get_latest_energy_reading(self) -> Optional[Dict[str, Any]]:
+    def get_latest_energy_reading(self) -> dict[str, Any] | None:
         """
         Get the most recent energy reading.
         Note: Redirected to unified EnergyReadings table (zigbee source).
@@ -704,14 +708,14 @@ class AnalyticsOperations:
         *,
         monitor_id: int,
         power_watts: float,
-        timestamp: Optional[str] = None,
-        voltage: Optional[float] = None,
-        current: Optional[float] = None,
-        energy_kwh: Optional[float] = None,
-        frequency: Optional[float] = None,
-        power_factor: Optional[float] = None,
-        temperature: Optional[float] = None,
-    ) -> Optional[int]:
+        timestamp: str | None = None,
+        voltage: float | None = None,
+        current: float | None = None,
+        energy_kwh: float | None = None,
+        frequency: float | None = None,
+        power_factor: float | None = None,
+        temperature: float | None = None,
+    ) -> int | None:
         """
         Insert an energy consumption reading from a Zigbee monitor.
         Note: Redirected to unified EnergyReadings table.
@@ -719,7 +723,7 @@ class AnalyticsOperations:
         stamp = timestamp or iso_now()
         try:
             db = self.get_db()
-            
+
             # Lookup context: unit, plant and current growth stage
             monitor = db.execute(
                 """
@@ -727,10 +731,10 @@ class AnalyticsOperations:
                 FROM ZigBeeEnergyMonitors zm
                 LEFT JOIN Plants p ON p.unit_id = zm.unit_id AND p.is_active = 1
                 WHERE zm.monitor_id = ?
-                """, 
-                (monitor_id,)
+                """,
+                (monitor_id,),
             ).fetchone()
-            
+
             unit_id = monitor["unit_id"] if monitor else None
             plant_id = monitor["plant_id"] if monitor else None
             growth_stage = monitor["current_stage"] if monitor else None
@@ -757,7 +761,7 @@ class AnalyticsOperations:
                     frequency,
                     power_factor,
                     temperature,
-                    'zigbee'
+                    "zigbee",
                 ),
             )
             db.commit()
@@ -776,18 +780,18 @@ class AnalyticsOperations:
         device_id: int,
         unit_id: int,
         power_watts: float,
-        timestamp: Optional[str] = None,
-        plant_id: Optional[int] = None,
-        growth_stage: Optional[str] = None,
-        voltage: Optional[float] = None,
-        current: Optional[float] = None,
-        energy_kwh: Optional[float] = None,
-        power_factor: Optional[float] = None,
-        frequency: Optional[float] = None,
-        temperature: Optional[float] = None,
+        timestamp: str | None = None,
+        plant_id: int | None = None,
+        growth_stage: str | None = None,
+        voltage: float | None = None,
+        current: float | None = None,
+        energy_kwh: float | None = None,
+        power_factor: float | None = None,
+        frequency: float | None = None,
+        temperature: float | None = None,
         source_type: str = "unknown",
         is_estimated: bool = False,
-    ) -> Optional[int]:
+    ) -> int | None:
         """
         Insert an energy reading into EnergyReadings.
 
@@ -852,11 +856,11 @@ class AnalyticsOperations:
 
     def get_all_harvest_reports(
         self,
-        unit_id: Optional[int] = None,
+        unit_id: int | None = None,
         *,
-        limit: Optional[int] = None,
-        offset: Optional[int] = None,
-    ) -> List[Dict[str, Any]]:
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> list[dict[str, Any]]:
         """Fetch all harvest summaries with pagination, optionally filtered by unit."""
         try:
             validated_limit, validated_offset = validate_pagination(limit, offset)
@@ -880,8 +884,14 @@ class AnalyticsOperations:
                 """,
                 params,
             )
-            reports: List[Dict[str, Any]] = []
-            json_fields = {"energy_by_stage", "cost_by_stage", "device_usage", "health_incidents", "light_hours_by_stage"}
+            reports: list[dict[str, Any]] = []
+            json_fields = {
+                "energy_by_stage",
+                "cost_by_stage",
+                "device_usage",
+                "health_incidents",
+                "light_hours_by_stage",
+            }
             for row in cursor.fetchall():
                 as_dict = dict(row)
                 for field in json_fields:
@@ -901,13 +911,13 @@ class AnalyticsOperations:
         self,
         start_dt: datetime,
         end_dt: datetime,
-        unit_id: Optional[int] = None,
-        sensor_id: Optional[int] = None,
-        limit: Optional[int] = None,
-    ) -> List[Dict[str, Any]]:
+        unit_id: int | None = None,
+        sensor_id: int | None = None,
+        limit: int | None = None,
+    ) -> list[dict[str, Any]]:
         """
         Fetch sensor readings between start and end datetime, optionally filtered.
-        
+
         Args:
             start_dt: Start datetime for the range
             end_dt: End datetime for the range
@@ -919,19 +929,17 @@ class AnalyticsOperations:
         """
         try:
             db = self.get_db()
-            params: List[Any] = [
+            params: list[Any] = [
                 self._timestamp_query_param(start_dt),
                 self._timestamp_query_param(end_dt),
             ]
-            filters: List[str] = ["sr.timestamp BETWEEN ? AND ?"]
+            filters: list[str] = ["sr.timestamp BETWEEN ? AND ?"]
 
             if sensor_id is not None:
                 filters.append("sr.sensor_id = ?")
                 params.append(sensor_id)
             if unit_id is not None:
-                filters.append(
-                    "sr.sensor_id IN (SELECT sensor_id FROM Sensor WHERE unit_id = ?)"
-                )
+                filters.append("sr.sensor_id IN (SELECT sensor_id FROM Sensor WHERE unit_id = ?)")
                 params.append(unit_id)
 
             limit_clause = ""
@@ -953,7 +961,7 @@ class AnalyticsOperations:
                 ORDER BY sr.timestamp ASC{limit_clause}
             """
             cursor = db.execute(query, params)
-            rows: List[Dict[str, Any]] = []
+            rows: list[dict[str, Any]] = []
             for row in cursor.fetchall():
                 as_dict = dict(row)
                 payload = self._decode_reading_payload(as_dict)
@@ -971,8 +979,8 @@ class AnalyticsOperations:
         except sqlite3.Error as exc:
             logging.error("Error fetching sensor history: %s", exc)
             return []
-        
-    def get_plant_info(self, plant_id: int) -> Optional[Dict[str, object]]:
+
+    def get_plant_info(self, plant_id: int) -> dict[str, object] | None:
         """Get plant information by plant ID."""
         try:
             db = self.get_db()
@@ -997,32 +1005,32 @@ class AnalyticsOperations:
         except sqlite3.Error as exc:
             logging.error("Error retrieving plant info for plant %s: %s", plant_id, exc)
             return None
-        
-    def save_harvest_summary(self, plant_id: int, summary: Dict[str, object]) -> int:
+
+    def save_harvest_summary(self, plant_id: int, summary: dict[str, object]) -> int:
         """
         Save a comprehensive harvest summary report to the database.
-        
+
         Args:
             plant_id: ID of the harvested plant
             summary: Complete harvest report dictionary with all metrics
-            
+
         Returns:
             harvest_id: ID of the newly created harvest record
         """
         import json
-        
+
         try:
-            lifecycle = summary.get('lifecycle', {})
-            stages = lifecycle.get('stages', {})
-            energy = summary.get('energy_consumption', {})
-            efficiency = summary.get('efficiency_metrics', {})
-            env_conditions = summary.get('environmental_conditions', {})
-            
+            lifecycle = summary.get("lifecycle", {})
+            stages = lifecycle.get("stages", {})
+            energy = summary.get("energy_consumption", {})
+            efficiency = summary.get("efficiency_metrics", {})
+            env_conditions = summary.get("environmental_conditions", {})
+
             # Ensure we have required dates
-            planted_date = lifecycle.get('planted_date') or iso_now()
-            harvested_date = lifecycle.get('harvested_date') or iso_now()
-            total_days = lifecycle.get('total_days', 0)
-            
+            planted_date = lifecycle.get("planted_date") or iso_now()
+            harvested_date = lifecycle.get("harvested_date") or iso_now()
+            total_days = lifecycle.get("total_days", 0)
+
             with self.connection() as db:
                 cursor = db.execute(
                     """
@@ -1054,28 +1062,28 @@ class AnalyticsOperations:
                     """,
                     (
                         plant_id,
-                        summary.get('unit_id'),
+                        summary.get("unit_id"),
                         planted_date,
                         harvested_date,
                         total_days,
-                        stages.get('seedling', {}).get('days', 0),
-                        stages.get('vegetative', {}).get('days', 0),
-                        stages.get('flowering', {}).get('days', 0),
-                        energy.get('total_kwh', 0.0),
-                        json.dumps(energy.get('by_stage', {})),
-                        energy.get('total_cost', 0.0),
-                        json.dumps(energy.get('cost_by_stage', {})),
-                        json.dumps(summary.get('device_usage', {})),
-                        json.dumps(summary.get('health_incidents', {})),
-                        env_conditions.get('temperature', {}).get('avg'),
-                        env_conditions.get('humidity', {}).get('avg'),
-                        env_conditions.get('co2', {}).get('avg'),
-                        summary.get('yield', {}).get('weight_grams'),
-                        summary.get('yield', {}).get('quality_rating'),
-                        summary.get('yield', {}).get('notes', ''),
-                        efficiency.get('grams_per_kwh', 0.0),
-                        efficiency.get('cost_per_gram', 0.0)
-                    )
+                        stages.get("seedling", {}).get("days", 0),
+                        stages.get("vegetative", {}).get("days", 0),
+                        stages.get("flowering", {}).get("days", 0),
+                        energy.get("total_kwh", 0.0),
+                        json.dumps(energy.get("by_stage", {})),
+                        energy.get("total_cost", 0.0),
+                        json.dumps(energy.get("cost_by_stage", {})),
+                        json.dumps(summary.get("device_usage", {})),
+                        json.dumps(summary.get("health_incidents", {})),
+                        env_conditions.get("temperature", {}).get("avg"),
+                        env_conditions.get("humidity", {}).get("avg"),
+                        env_conditions.get("co2", {}).get("avg"),
+                        summary.get("yield", {}).get("weight_grams"),
+                        summary.get("yield", {}).get("quality_rating"),
+                        summary.get("yield", {}).get("notes", ""),
+                        efficiency.get("grams_per_kwh", 0.0),
+                        efficiency.get("cost_per_gram", 0.0),
+                    ),
                 )
                 harvest_id = cursor.lastrowid
                 logging.info(f"Saved harvest summary for plant {plant_id}, harvest_id={harvest_id}")
@@ -1090,7 +1098,7 @@ class AnalyticsOperations:
         self,
         unit_id: int,
         limit: int = 10,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Compare multiple growth cycles (harvests) for a unit.
 
@@ -1204,8 +1212,8 @@ class AnalyticsOperations:
 
     def get_cycle_environmental_comparison(
         self,
-        harvest_ids: List[int],
-    ) -> Dict[str, Any]:
+        harvest_ids: list[int],
+    ) -> dict[str, Any]:
         """
         Compare environmental conditions between specific cycles.
 
@@ -1254,7 +1262,7 @@ class AnalyticsOperations:
         self,
         plant_type: str,
         limit: int = 20,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Get performance statistics for a specific plant type across all units.
 
@@ -1343,7 +1351,7 @@ class AnalyticsOperations:
             logging.error(f"Error getting plant type performance for {plant_type}: {exc}")
             return {"error": str(exc)}
 
-    def get_plant_energy_summary(self, plant_id: int) -> Dict[str, Any]:
+    def get_plant_energy_summary(self, plant_id: int) -> dict[str, Any]:
         """Get comprehensive energy summary for a plant.
 
         Returns dict with total_kwh, total_cost, avg_daily_power_watts,
@@ -1391,11 +1399,7 @@ class AnalyticsOperations:
                 (plant_id,),
             ).fetchall()
 
-            by_stage = {
-                row["growth_stage"]: row["stage_kwh"]
-                for row in by_stage_rows
-                if row["growth_stage"]
-            }
+            by_stage = {row["growth_stage"]: row["stage_kwh"] for row in by_stage_rows if row["growth_stage"]}
 
             cost_per_kwh = 0.20
             total_cost = total_kwh * cost_per_kwh

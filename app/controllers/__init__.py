@@ -33,19 +33,19 @@ Persistence Targets:
 - PlantSensorController → PlantReadings table (plant-specific data)
 """
 
-from app.controllers.throttle_config import ThrottleConfig, DEFAULT_THROTTLE_CONFIG
-from app.controllers.throttled_analytics_writer import ThrottledAnalyticsWriter
+from app.controllers.climate_controller import ClimateController
 from app.controllers.control_algorithms import PIDController
 from app.controllers.control_logic import ControlLogic
-from app.controllers.climate_controller import ClimateController
 from app.controllers.plant_sensor_controller import PlantSensorController
+from app.controllers.throttle_config import DEFAULT_THROTTLE_CONFIG, ThrottleConfig
+from app.controllers.throttled_analytics_writer import ThrottledAnalyticsWriter
 
 __all__ = [
-    "ThrottleConfig",
     "DEFAULT_THROTTLE_CONFIG",
-    "ThrottledAnalyticsWriter",
-    "PIDController",
-    "ControlLogic",
     "ClimateController",
+    "ControlLogic",
+    "PIDController",
     "PlantSensorController",
+    "ThrottleConfig",
+    "ThrottledAnalyticsWriter",
 ]

@@ -13,44 +13,42 @@ Provides domain-driven actuator management with:
 Note: ActuatorManager has been merged into ActuatorManagementService.
 Use app.services.hardware.actuator_management_service for actuator operations.
 """
+
 from app.domain.actuators import (
-    ActuatorEntity,
-    ActuatorType,
-    ActuatorState,
-    Protocol,
-    ActuatorConfig,
-    ControlMode,
     ActuatorCommand,
+    ActuatorConfig,
+    ActuatorEntity,
     ActuatorReading,
+    ActuatorState,
+    ActuatorType,
+    ControlMode,
+    Protocol,
 )
+from app.domain.energy import ConsumptionStats, EnergyReading, PowerProfile
 from app.hardware.actuators.factory import ActuatorFactory
-from app.domain.energy import EnergyReading, PowerProfile, ConsumptionStats
-from app.services.hardware.energy_monitoring import (
-    EnergyMonitoringService,
-    DEFAULT_POWER_PROFILES
-)
 from app.services.application.zigbee_management_service import (
-    ZigbeeManagementService,
+    DeviceCapability,
     DiscoveredDevice,
-    DeviceCapability
+    ZigbeeManagementService,
 )
+from app.services.hardware.energy_monitoring import DEFAULT_POWER_PROFILES, EnergyMonitoringService
 
 __all__ = [
-    'ActuatorEntity',
-    'ActuatorType',
-    'ActuatorState',
-    'Protocol',
-    'ActuatorConfig',
-    'ControlMode',
-    'ActuatorCommand',
-    'ActuatorReading',
-    'ActuatorFactory',
-    'EnergyMonitoringService',
-    'EnergyReading',
-    'PowerProfile',
-    'ConsumptionStats',
-    'DEFAULT_POWER_PROFILES',
-    'ZigbeeManagementService',
-    'DiscoveredDevice',
-    'DeviceCapability',
+    "DEFAULT_POWER_PROFILES",
+    "ActuatorCommand",
+    "ActuatorConfig",
+    "ActuatorEntity",
+    "ActuatorFactory",
+    "ActuatorReading",
+    "ActuatorState",
+    "ActuatorType",
+    "ConsumptionStats",
+    "ControlMode",
+    "DeviceCapability",
+    "DiscoveredDevice",
+    "EnergyMonitoringService",
+    "EnergyReading",
+    "PowerProfile",
+    "Protocol",
+    "ZigbeeManagementService",
 ]

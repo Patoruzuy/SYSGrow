@@ -13,81 +13,87 @@ Services:
 - ABTesting: A/B testing for model deployment
 """
 
-from app.services.ai.model_registry import ModelRegistry, ModelMetadata, ModelStatus
-from app.services.ai.disease_predictor import DiseasePredictor, DiseaseRisk, DiseaseType, RiskLevel
-from app.services.ai.plant_health_monitor import (
-    PlantHealthMonitor,
-    PlantHealthObservation,
-    HealthStatus,
-    EnvironmentalCorrelation,
+from app.services.ai.ab_testing import ABTest, ABTestingService, TestStatus
+from app.services.ai.automated_retraining import (
+    AutomatedRetrainingService,
+    RetrainingEvent,
+    RetrainingJob,
+    RetrainingStatus,
+    RetrainingTrigger,
+)
+from app.services.ai.bayesian_threshold import (
+    AdjustmentResult,
+    BayesianThresholdAdjuster,
+    ThresholdBelief,
 )
 from app.services.ai.climate_optimizer import (
-    ClimateOptimizer,
-    ClimateConditions,
     ClimateAnalysis,
+    ClimateConditions,
+    ClimateOptimizer,
     ClimateRecommendation,
     LightingRecommendation,
 )
-from app.services.ai.ml_trainer import MLTrainerService, TrainingMetrics
-from app.services.ai.drift_detector import ModelDriftDetectorService, DriftMetrics
-from app.services.ai.ab_testing import ABTestingService, ABTest, TestStatus
-from app.services.ai.feature_engineering import (
-    FeatureEngineer,
-    FeatureSet,
-    EnvironmentalFeatureExtractor,
-    PlantHealthFeatureExtractor,
-    PLANT_HEALTH_FEATURES_V1,
-)
-from app.services.ai.plant_growth_predictor import PlantGrowthPredictor, GrowthStage, GrowthConditions, StageTransition
-from app.services.ai.automated_retraining import AutomatedRetrainingService, RetrainingJob, RetrainingEvent, RetrainingTrigger, RetrainingStatus
 from app.services.ai.continuous_monitor import ContinuousMonitoringService
-from app.services.ai.personalized_learning import PersonalizedLearningService
-from app.services.ai.ml_readiness_monitor import (
-    MLReadinessMonitorService,
-    ModelReadinessStatus,
-    IrrigationMLReadiness,
-)
-from app.services.ai.irrigation_predictor import (
-    IrrigationPredictor,
-    IrrigationPrediction,
-    ThresholdPrediction,
-    DurationPrediction,
-    TimingPrediction,
-    UserResponsePrediction,
-    PredictionConfidence,
-)
-from app.services.ai.bayesian_threshold import (
-    BayesianThresholdAdjuster,
-    ThresholdBelief,
-    AdjustmentResult,
-)
+from app.services.ai.disease_predictor import DiseasePredictor, DiseaseRisk, DiseaseType, RiskLevel
+from app.services.ai.drift_detector import DriftMetrics, ModelDriftDetectorService
 from app.services.ai.environmental_health_scorer import (
     EnvironmentalLeafHealthScorer,
     LeafHealthScore,
 )
-from app.services.ai.plant_health_scorer import (
-    PlantHealthScorer,
-    PlantHealthScore,
+from app.services.ai.feature_engineering import (
+    PLANT_HEALTH_FEATURES_V1,
+    EnvironmentalFeatureExtractor,
+    FeatureEngineer,
+    FeatureSet,
+    PlantHealthFeatureExtractor,
 )
-from app.services.ai.recommendation_provider import (
-    RecommendationProvider,
-    RuleBasedRecommendationProvider,
-    LLMRecommendationProvider,
-    RecommendationContext,
-    Recommendation,
-)
-from app.services.ai.llm_backends import (
-    LLMBackend,
-    LLMResponse,
-    OpenAIBackend,
-    AnthropicBackend,
-    LocalTransformersBackend,
-    create_backend,
+from app.services.ai.irrigation_predictor import (
+    DurationPrediction,
+    IrrigationPrediction,
+    IrrigationPredictor,
+    PredictionConfidence,
+    ThresholdPrediction,
+    TimingPrediction,
+    UserResponsePrediction,
 )
 from app.services.ai.llm_advisor import (
-    LLMAdvisorService,
     DecisionQuery,
     DecisionResponse,
+    LLMAdvisorService,
+)
+from app.services.ai.llm_backends import (
+    AnthropicBackend,
+    LLMBackend,
+    LLMResponse,
+    LocalTransformersBackend,
+    OpenAIBackend,
+    create_backend,
+)
+from app.services.ai.ml_readiness_monitor import (
+    IrrigationMLReadiness,
+    MLReadinessMonitorService,
+    ModelReadinessStatus,
+)
+from app.services.ai.ml_trainer import MLTrainerService, TrainingMetrics
+from app.services.ai.model_registry import ModelMetadata, ModelRegistry, ModelStatus
+from app.services.ai.personalized_learning import PersonalizedLearningService
+from app.services.ai.plant_growth_predictor import GrowthConditions, GrowthStage, PlantGrowthPredictor, StageTransition
+from app.services.ai.plant_health_monitor import (
+    EnvironmentalCorrelation,
+    HealthStatus,
+    PlantHealthMonitor,
+    PlantHealthObservation,
+)
+from app.services.ai.plant_health_scorer import (
+    PlantHealthScore,
+    PlantHealthScorer,
+)
+from app.services.ai.recommendation_provider import (
+    LLMRecommendationProvider,
+    Recommendation,
+    RecommendationContext,
+    RecommendationProvider,
+    RuleBasedRecommendationProvider,
 )
 
 __all__ = [

@@ -3,12 +3,13 @@
 This repository provides high-level methods for ML-related irrigation
 data access, following the repository pattern used elsewhere in the project.
 """
+
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from datetime import datetime
+from typing import TYPE_CHECKING, Any
 
 from app.utils.time import iso_now
 
@@ -21,38 +22,37 @@ logger = logging.getLogger(__name__)
 @dataclass
 class MLReadinessStatus:
     """Status of ML readiness for irrigation models."""
-    
+
     model_name: str
     required_samples: int
     current_samples: int
     is_ready: bool = field(init=False)
     percentage_ready: float = field(init=False)
     is_enabled: bool = False
-    notification_sent_at: Optional[str] = None
-    
+    notification_sent_at: str | None = None
+
     def __post_init__(self) -> None:
         self.is_ready = self.current_samples >= self.required_samples
         self.percentage_ready = min(
-            100.0,
-            (self.current_samples / self.required_samples * 100) if self.required_samples > 0 else 0
+            100.0, (self.current_samples / self.required_samples * 100) if self.required_samples > 0 else 0
         )
 
 
 @dataclass
 class IrrigationMLContext:
     """Environmental context at irrigation detection time."""
-    
-    temperature: Optional[float] = None
-    humidity: Optional[float] = None
-    vpd: Optional[float] = None
-    lux: Optional[float] = None
-    hours_since_last_irrigation: Optional[float] = None
-    plant_type: Optional[str] = None
-    growth_stage: Optional[str] = None
-    soil_moisture: Optional[float] = None
-    soil_moisture_threshold: Optional[float] = None
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    temperature: float | None = None
+    humidity: float | None = None
+    vpd: float | None = None
+    lux: float | None = None
+    hours_since_last_irrigation: float | None = None
+    plant_type: str | None = None
+    growth_stage: str | None = None
+    soil_moisture: float | None = None
+    soil_moisture_threshold: float | None = None
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for database storage."""
         return {
             "temperature_at_detection": self.temperature,
@@ -67,7 +67,7 @@ class IrrigationMLContext:
 
 class IrrigationMLRepository:
     """Repository for irrigation ML data access."""
-    
+
     # Minimum samples required for each model
     MODEL_THRESHOLDS = {
         "response_predictor": 20,
@@ -75,34 +75,34 @@ class IrrigationMLRepository:
         "duration_optimizer": 15,
         "timing_predictor": 25,
     }
-    
+
     def __init__(self, db_handler: "SQLiteDatabaseHandler") -> None:
         """Initialize with database handler."""
         self._db = db_handler
-    
+
     def get_ml_readiness_status(
         self,
-        unit_id: Optional[int] = None,
-    ) -> Dict[str, MLReadinessStatus]:
+        unit_id: int | None = None,
+    ) -> dict[str, MLReadinessStatus]:
         """
         Get ML readiness status for all irrigation models.
-        
+
         Returns a dict with status for each model type.
         """
         # Get sample counts
         counts = self._db.count_ml_training_samples(unit_id)
-        
+
         # Get current ML settings
         config = None
         if unit_id:
             config = self._db.get_workflow_config(unit_id)
-        
+
         results = {}
         for model_name, threshold in self.MODEL_THRESHOLDS.items():
             current = counts.get(model_name, 0)
             enabled_key = f"ml_{model_name}_enabled"
             notified_key = f"ml_{model_name}_notified_at"
-            
+
             results[model_name] = MLReadinessStatus(
                 model_name=model_name,
                 required_samples=threshold,
@@ -110,52 +110,50 @@ class IrrigationMLRepository:
                 is_enabled=bool(config.get(enabled_key)) if config else False,
                 notification_sent_at=config.get(notified_key) if config else None,
             )
-        
+
         return results
-    
-    def get_units_ready_for_ml_activation(self) -> List[Dict[str, Any]]:
+
+    def get_units_ready_for_ml_activation(self) -> list[dict[str, Any]]:
         """
         Find units that have enough data for ML activation but haven't been notified.
-        
+
         Returns list of units with their ready models.
         """
         try:
             db = self._db.get_db()
-            
+
             # Get all units with workflow configs
             cur = db.execute("""
                 SELECT DISTINCT unit_id FROM IrrigationWorkflowConfig
                 WHERE workflow_enabled = 1
             """)
             unit_ids = [row[0] for row in cur.fetchall()]
-            
+
             ready_units = []
             for unit_id in unit_ids:
                 status = self.get_ml_readiness_status(unit_id)
                 ready_models = []
-                
+
                 for model_name, model_status in status.items():
-                    if (
-                        model_status.is_ready 
-                        and not model_status.is_enabled
-                        and not model_status.notification_sent_at
-                    ):
+                    if model_status.is_ready and not model_status.is_enabled and not model_status.notification_sent_at:
                         ready_models.append(model_name)
-                
+
                 if ready_models:
-                    ready_units.append({
-                        "unit_id": unit_id,
-                        "ready_models": ready_models,
-                        "status": status,
-                    })
-            
+                    ready_units.append(
+                        {
+                            "unit_id": unit_id,
+                            "ready_models": ready_models,
+                            "status": status,
+                        }
+                    )
+
             return ready_units
-            
+
         except Exception as exc:
             logger.error(f"Failed to get units ready for ML activation: {exc}")
             return []
 
-    def get_units_with_workflow_enabled(self) -> List[int]:
+    def get_units_with_workflow_enabled(self) -> list[int]:
         """
         Get all unit IDs with workflow enabled.
 
@@ -174,7 +172,7 @@ class IrrigationMLRepository:
         except Exception as exc:
             logger.error(f"Failed to get units with workflow enabled: {exc}")
             return []
-    
+
     def mark_ml_notification_sent(
         self,
         unit_id: int,
@@ -184,7 +182,7 @@ class IrrigationMLRepository:
         try:
             db = self._db.get_db()
             col_name = f"ml_{model_name}_notified_at"
-            
+
             db.execute(
                 f"""
                 UPDATE IrrigationWorkflowConfig
@@ -198,7 +196,7 @@ class IrrigationMLRepository:
         except Exception as exc:
             logger.error(f"Failed to mark ML notification sent: {exc}")
             return False
-    
+
     def enable_ml_model(
         self,
         unit_id: int,
@@ -209,7 +207,7 @@ class IrrigationMLRepository:
         try:
             db = self._db.get_db()
             col_name = f"ml_{model_name}_enabled"
-            
+
             db.execute(
                 f"""
                 UPDATE IrrigationWorkflowConfig
@@ -224,16 +222,16 @@ class IrrigationMLRepository:
         except Exception as exc:
             logger.error(f"Failed to enable ML model: {exc}")
             return False
-    
+
     def get_training_data_for_model(
         self,
         model_name: str,
-        unit_id: Optional[int] = None,
+        unit_id: int | None = None,
         limit: int = 1000,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Get training data for a specific ML model.
-        
+
         Each model type requires different data:
         - response_predictor: Environmental context + user response
         - threshold_optimizer: Context + timing feedback
@@ -245,15 +243,15 @@ class IrrigationMLRepository:
             db = self._db.get_db()
             base_where = "WHERE temperature_at_detection IS NOT NULL"
             unit_clause = f" AND p.unit_id = {unit_id}" if unit_id else ""
-            
+
             if model_name == "response_predictor":
                 query = f"""
-                    SELECT 
+                    SELECT
                         p.*,
                         pref.time_of_day_preference,
                         pref.weekday_preference
                     FROM PendingIrrigationRequest p
-                    LEFT JOIN IrrigationUserPreference pref 
+                    LEFT JOIN IrrigationUserPreference pref
                         ON p.unit_id = pref.unit_id
                     {base_where} {unit_clause}
                     AND p.user_response IN ('approve', 'delay', 'cancel')
@@ -262,7 +260,7 @@ class IrrigationMLRepository:
                 """
             elif model_name == "threshold_optimizer":
                 query = f"""
-                    SELECT 
+                    SELECT
                         p.*,
                         f.feedback_response
                     FROM PendingIrrigationRequest p
@@ -320,15 +318,15 @@ class IrrigationMLRepository:
             else:
                 logger.warning(f"Unknown model name: {model_name}")
                 return []
-            
+
             cur = db.execute(query)
             return [dict(row) for row in cur.fetchall()]
-            
+
         except Exception as exc:
             logger.error(f"Failed to get training data for {model_name}: {exc}")
             return []
 
-    def get_plant_irrigation_model(self, plant_id: int) -> Optional[Dict[str, Any]]:
+    def get_plant_irrigation_model(self, plant_id: int) -> dict[str, Any] | None:
         """Fetch dry-down model for a plant (if available)."""
         try:
             db = self._db.get_db()
@@ -341,17 +339,17 @@ class IrrigationMLRepository:
         except Exception as exc:
             logger.error(f"Failed to fetch plant irrigation model for {plant_id}: {exc}")
             return None
-    
+
     def calculate_hours_since_last_irrigation(
         self,
         unit_id: int,
-    ) -> Optional[float]:
+    ) -> float | None:
         """Calculate hours since the last successful irrigation."""
         last_irrigation = self._db.get_last_completed_irrigation(unit_id)
-        
+
         if not last_irrigation or not last_irrigation.get("executed_at"):
             return None
-        
+
         try:
             last_time = datetime.fromisoformat(last_irrigation["executed_at"])
             now = datetime.now(last_time.tzinfo) if last_time.tzinfo else datetime.now()
@@ -360,23 +358,23 @@ class IrrigationMLRepository:
         except Exception as exc:
             logger.error(f"Failed to calculate hours since irrigation: {exc}")
             return None
-    
+
     def build_ml_context(
         self,
         unit_id: int,
-        current_readings: Dict[str, float],
-        plant_info: Optional[Dict[str, Any]] = None,
+        current_readings: dict[str, float],
+        plant_info: dict[str, Any] | None = None,
     ) -> IrrigationMLContext:
         """
         Build ML context from current readings and historical data.
-        
+
         Args:
             unit_id: The grow unit ID
             current_readings: Dict with temperature, humidity, vpd, lux, soil_moisture
             plant_info: Optional dict with plant_type, growth_stage
         """
         hours_since = self.calculate_hours_since_last_irrigation(unit_id)
-        
+
         return IrrigationMLContext(
             temperature=current_readings.get("temperature"),
             humidity=current_readings.get("humidity"),
@@ -389,8 +387,10 @@ class IrrigationMLRepository:
         )
 
     def get_moisture_history(
-        self, plant_id: int, cutoff_iso: str,
-    ) -> List[Dict[str, Any]]:
+        self,
+        plant_id: int,
+        cutoff_iso: str,
+    ) -> list[dict[str, Any]]:
         """Return moisture readings for *plant_id* since *cutoff_iso*.
 
         Each element is ``{"soil_moisture": float, "timestamp": str}``.
@@ -409,10 +409,7 @@ class IrrigationMLRepository:
                 """,
                 (plant_id, cutoff_iso),
             )
-            return [
-                {"soil_moisture": row[0], "timestamp": row[1]}
-                for row in cursor.fetchall()
-            ]
+            return [{"soil_moisture": row[0], "timestamp": row[1]} for row in cursor.fetchall()]
         except Exception as exc:
             logger.error("get_moisture_history failed for plant %s: %s", plant_id, exc)
             return []

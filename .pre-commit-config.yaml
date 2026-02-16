@@ -1,0 +1,42 @@
+# Pre-commit hooks for SYSGrow backend
+# Install:  pre-commit install
+# Run all:  pre-commit run --all-files
+# Update:   pre-commit autoupdate
+
+repos:
+  # ── Ruff (lint + format) ──────────────────────────────────────────
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.6
+    hooks:
+      - id: ruff
+        name: ruff lint
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+        name: ruff format
+
+  # ── Basic file hygiene ────────────────────────────────────────────
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: ^(static/|templates/|docs/|data/|models/|releases/)
+      - id: end-of-file-fixer
+        exclude: ^(static/|templates/|docs/|data/|models/|releases/)
+      - id: check-yaml
+      - id: check-json
+        exclude: ^(plants_info\.json|data/)
+      - id: check-merge-conflict
+      - id: debug-statements
+      - id: check-added-large-files
+        args: [--maxkb=500]
+
+  # ── Security (bandit) ────────────────────────────────────────────
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.8.3
+    hooks:
+      - id: bandit
+        name: bandit security check
+        args: [-c, pyproject.toml, --severity-level, high]
+        additional_dependencies: ["bandit[toml]"]
+        # Only check changed files, not entire repo
+        pass_filenames: true

@@ -18,30 +18,30 @@ import logging
 import threading
 import time
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any
 
+from app.domain.sensors.reading import SensorReading
+from app.enums import SensorState
 from app.hardware.sensors.processors.base_processor import IDataProcessor, ProcessorError
 from app.utils.emitters import EmitterService
-from app.domain.sensors.reading import SensorReading
 from app.utils.event_bus import EventBus
-from app.utils.time import iso_now, utc_now
-from app.enums.events import SensorEvent
-from app.enums import SensorState
+from app.utils.time import utc_now
 
 logger = logging.getLogger(__name__)
 
 
 class SensorHealth:
     """Tracks the operational state of a hardware sensor."""
+
     def __init__(self, sensor_id: int):
         self.sensor_id = sensor_id
         self.status = SensorState.UNKNOWN
-        self.last_seen: Optional[datetime] = None
+        self.last_seen: datetime | None = None
         self.failure_count = 0
-        self.last_error: Optional[str] = None
-        self.backoff_until: Optional[float] = None
+        self.last_error: str | None = None
+        self.backoff_until: float | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "sensor_id": self.sensor_id,
             "status": self.status.value,
@@ -54,7 +54,7 @@ class SensorHealth:
 class SensorPollingService:
     """
     Service for periodic sampling of locally-connected hardware sensors.
-    
+
     This service manages the lifecycle of polling threads and orchestrates
     the flow from raw hardware voltage/data to processed engineering units.
     """
@@ -65,7 +65,7 @@ class SensorPollingService:
         emitter: EmitterService,
         processor: IDataProcessor,
         poll_interval_s: int = 10,
-        event_bus: Optional[EventBus] = None,
+        event_bus: EventBus | None = None,
     ):
         self.sensor_manager = sensor_manager
         self.emitter = emitter
@@ -74,22 +74,19 @@ class SensorPollingService:
         self.event_bus = event_bus or EventBus()
 
         # State tracking
-        self._health: Dict[int, SensorHealth] = {}
-        self._last_readings: Dict[int, SensorReading] = {}
-        
+        self._health: dict[int, SensorHealth] = {}
+        self._last_readings: dict[int, SensorReading] = {}
+
         # Concurrency control
         self._stop_event = threading.Event()
-        self._worker_thread: Optional[threading.Thread] = None
+        self._worker_thread: threading.Thread | None = None
         self._is_running = False
 
         # Configuration for stability
         self.base_backoff_s = 5.0
         self.max_backoff_s = 600.0  # 10 minutes max retry interval
 
-        logger.info(
-            "SensorPollingService initialized "
-            f"(interval={self.poll_interval_s}s)"
-        )
+        logger.info(f"SensorPollingService initialized (interval={self.poll_interval_s}s)")
 
     # -------------------------------------------------------------------------
     # Lifecycle Management
@@ -107,14 +104,10 @@ class SensorPollingService:
             return False
 
         self._stop_event.clear()
-        self._worker_thread = threading.Thread(
-            target=self._polling_loop, 
-            name="HwSensorPoller",
-            daemon=True
-        )
+        self._worker_thread = threading.Thread(target=self._polling_loop, name="HwSensorPoller", daemon=True)
         self._worker_thread.start()
         self._is_running = True
-        
+
         logger.info(f"🚀 Started hardware polling for {len(local_sensor_ids)} sensors")
         return True
 
@@ -127,7 +120,7 @@ class SensorPollingService:
         self._stop_event.set()
         if self._worker_thread:
             self._worker_thread.join(timeout=5.0)
-        
+
         self._is_running = False
         logger.info("Hardware sensor polling stopped")
 
@@ -139,13 +132,13 @@ class SensorPollingService:
         """Periodic loop that sweeps all registered local sensors."""
         while not self._stop_event.is_set():
             t_start = time.perf_counter()
-            
+
             try:
                 sensor_ids = self._get_local_sensors()
                 for sid in sensor_ids:
                     if self._stop_event.is_set():
                         break
-                    
+
                     self._process_single_sensor(sid)
             except Exception as exc:
                 logger.exception("Hardware polling loop encountered critical error: %s", exc)
@@ -158,7 +151,7 @@ class SensorPollingService:
     def _process_single_sensor(self, sensor_id: int) -> None:
         """Reads, processes, and dispatches data for one sensor."""
         health = self._get_health(sensor_id)
-        
+
         # Check if sensor is in backoff period after failures
         if health.backoff_until and time.time() < health.backoff_until:
             return
@@ -178,7 +171,7 @@ class SensorPollingService:
             reading = self.processor.process(sensor, raw_reading.data)
 
             # Preserve hardware-layer timestamp for accuracy
-            if hasattr(raw_reading, 'timestamp'):
+            if hasattr(raw_reading, "timestamp"):
                 reading.timestamp = raw_reading.timestamp
 
             # 3. Payload Construction & Dispatch
@@ -206,7 +199,7 @@ class SensorPollingService:
         # WebSocket broadcasting
         if prepared.device_payload:
             self.emitter.emit_device_sensor_reading(prepared.device_payload)
-        
+
         if prepared.dashboard_payload:
             self.emitter.emit_dashboard_snapshot(prepared.dashboard_payload)
 
@@ -219,12 +212,13 @@ class SensorPollingService:
     # Helpers
     # -------------------------------------------------------------------------
 
-    def _get_local_sensors(self) -> List[int]:
+    def _get_local_sensors(self) -> list[int]:
         """Returns IDs of sensors requiring local polling."""
         local_protocols = {"GPIO", "I2C", "ADC", "SPI", "ONEWIRE"}
         try:
             return [
-                s.id for s in self.sensor_manager.get_all_sensors()
+                s.id
+                for s in self.sensor_manager.get_all_sensors()
                 if str(getattr(s.protocol, "value", s.protocol)).upper() in local_protocols
             ]
         except Exception:
@@ -241,28 +235,30 @@ class SensorPollingService:
         health.status = SensorState.UNHEALTHY
         health.failure_count += 1
         health.last_error = error_msg
-        
+
         # Exponential backoff: 5s, 10s, 20s, 40s... up to max
         backoff = min(self.max_backoff_s, self.base_backoff_s * (2 ** (health.failure_count - 1)))
         health.backoff_until = time.time() + backoff
-        
+
         if health.failure_count == 1 or health.failure_count % 10 == 0:
             logger.warning(
-                "Sensor %s failing consistently (%d failures). Backoff: %.0fs", 
-                health.sensor_id, health.failure_count, backoff
+                "Sensor %s failing consistently (%d failures). Backoff: %.0fs",
+                health.sensor_id,
+                health.failure_count,
+                backoff,
             )
 
-    def get_service_status(self) -> Dict[str, Any]:
+    def get_service_status(self) -> dict[str, Any]:
         """Returns comprehensive status for API/Dashboards."""
         return {
             "is_running": self._is_running,
             "poll_interval": self.poll_interval_s,
             "sensor_count": len(self._health),
             "healthy_count": sum(1 for h in self._health.values() if h.status == SensorState.HEALTHY),
-            "sensors": {sid: h.to_dict() for sid, h in self._health.items()}
+            "sensors": {sid: h.to_dict() for sid, h in self._health.items()},
         }
 
-    def get_health_status(self, sensor_id: int) -> Optional[Dict[str, Any]]:
+    def get_health_status(self, sensor_id: int) -> dict[str, Any] | None:
         """Get health status for a specific sensor."""
         health = self._health.get(sensor_id)
         return health.to_dict() if health else None

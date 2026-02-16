@@ -362,6 +362,52 @@
 }
 
 /* =========================================================================
+   Phase C — ML Readiness
+   ========================================================================= */
+.ml-dashboard-page .readiness-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+}
+
+.ml-dashboard-page .readiness-card {
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    transition: box-shadow 0.2s ease;
+}
+.ml-dashboard-page .readiness-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.ml-dashboard-page .readiness-card .progress {
+    height: 0.5rem;
+    border-radius: 0.25rem;
+}
+
+/* =========================================================================
+   Phase C — A/B Testing
+   ========================================================================= */
+.ml-dashboard-page .ab-test-card {
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    transition: box-shadow 0.2s ease;
+}
+.ml-dashboard-page .ab-test-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.ml-dashboard-page .ab-analysis-card {
+    border-left: 3px solid var(--bs-primary, #0d6efd);
+    background-color: rgba(13, 110, 253, 0.04);
+    border-radius: 0 0.5rem 0.5rem 0;
+    padding: 1rem;
+    margin-top: 0.5rem;
+}
+
+/* =========================================================================
    Responsive
    ========================================================================= */
 @media (max-width: 768px) {
@@ -382,6 +428,10 @@
     }
 
     .ml-dashboard-page .data-quality-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .ml-dashboard-page .readiness-grid {
         grid-template-columns: 1fr;
     }
 }

@@ -1,6 +1,9 @@
 import json
+from pathlib import Path
 
-with open('plants_info.json', 'r') as f:
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+with (REPO_ROOT / 'plants_info.json').open('r', encoding='utf-8') as f:
     data = json.load(f)
 
 print(f'Total plants: {len(data["plants_info"])}')

@@ -16,15 +16,13 @@ Responsibilities:
 Author: SYSGrow Team
 Date: January 2026
 """
+
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
+from infrastructure.database.decorators import invalidates_caches, repository_cache
 from infrastructure.database.ops.growth import GrowthOperations
-from infrastructure.database.decorators import (
-    repository_cache,
-    invalidates_caches
-)
 
 
 class PlantRepository:
@@ -38,28 +36,28 @@ class PlantRepository:
     def create_plant(
         self,
         *,
-        unit_id: Optional[int] = None,
+        unit_id: int | None = None,
         plant_name: str,
         plant_type: str,
-        plant_species: Optional[str] = None,
-        plant_variety: Optional[str] = None,
+        plant_species: str | None = None,
+        plant_variety: str | None = None,
         current_stage: str,
         days_in_stage: int = 0,
         moisture_level: float = 0.0,
-        planted_date: Optional[str] = None,
-        created_at: Optional[str] = None,
+        planted_date: str | None = None,
+        created_at: str | None = None,
         pot_size_liters: float = 0.0,
         pot_material: str = "plastic",
         growing_medium: str = "soil",
         medium_ph: float = 7.0,
-        strain_variety: Optional[str] = None,
+        strain_variety: str | None = None,
         expected_yield_grams: float = 0.0,
         light_distance_cm: float = 0.0,
-        soil_moisture_threshold_override: Optional[float] = None,
-    ) -> Optional[int]:
+        soil_moisture_threshold_override: float | None = None,
+    ) -> int | None:
         """
         Create a new plant.
-        
+
         Args:
             unit_id: Optional unit ID to assign plant to
             plant_name: Name of the plant
@@ -77,7 +75,7 @@ class PlantRepository:
             expected_yield_grams: Target harvest amount
             light_distance_cm: Light distance in cm
             soil_moisture_threshold_override: Optional per-plant soil moisture trigger
-            
+
         Returns:
             Plant ID if successful, None otherwise
         """
@@ -105,14 +103,14 @@ class PlantRepository:
     @repository_cache(
         maxsize=256,
         invalidate_on=[
-            'create_plant',
-            'remove_plant',
-            'update_plant',
-            'assign_plant_to_unit',
-            'remove_plant_from_unit',
-            'update_plant_progress',
-            'update_plant_days',
-            'update_plant_moisture',
+            "create_plant",
+            "remove_plant",
+            "update_plant",
+            "assign_plant_to_unit",
+            "remove_plant_from_unit",
+            "update_plant_progress",
+            "update_plant_days",
+            "update_plant_moisture",
         ],
     )
     def get_plant(self, plant_id: int):
@@ -122,9 +120,9 @@ class PlantRepository:
     def list_plants(
         self,
         *,
-        limit: Optional[int] = None,
-        offset: Optional[int] = None,
-    ) -> List[Any]:
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> list[Any]:
         """
         List all plants with pagination.
 
@@ -141,9 +139,9 @@ class PlantRepository:
         self,
         unit_id: int,
         *,
-        limit: Optional[int] = None,
-        offset: Optional[int] = None,
-    ) -> List[Any]:
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> list[Any]:
         """
         List plants for a specific unit with pagination.
 
@@ -160,17 +158,17 @@ class PlantRepository:
     @repository_cache(
         maxsize=128,
         invalidate_on=[
-            'create_plant',
-            'remove_plant',
-            'update_plant',
-            'assign_plant_to_unit',
-            'remove_plant_from_unit',
-            'update_plant_progress',
-            'update_plant_days',
-            'update_plant_moisture',
+            "create_plant",
+            "remove_plant",
+            "update_plant",
+            "assign_plant_to_unit",
+            "remove_plant_from_unit",
+            "update_plant_progress",
+            "update_plant_days",
+            "update_plant_moisture",
         ],
     )
-    def get_plants_in_unit(self, unit_id: int) -> List[Dict[str, Any]]:
+    def get_plants_in_unit(self, unit_id: int) -> list[dict[str, Any]]:
         """Get all plants in a unit with full details."""
         return self._backend.get_plants_in_unit(unit_id)
 
@@ -178,7 +176,7 @@ class PlantRepository:
     def update_plant(self, plant_id: int, **fields: Any) -> None:
         """
         Update plant fields.
-        
+
         Args:
             plant_id: Plant ID
             **fields: Fields to update
@@ -214,11 +212,11 @@ class PlantRepository:
         """Unlink all sensors from a plant."""
         self._backend.unlink_all_sensors_from_plant(plant_id)
 
-    def get_sensors_for_plant(self, plant_id: int) -> List[Any]:
+    def get_sensors_for_plant(self, plant_id: int) -> list[Any]:
         """Get all sensors linked to a plant."""
         return self._backend.get_sensors_for_plant(plant_id)
 
-    def get_plants_for_sensor(self, sensor_id: int) -> List[int]:
+    def get_plants_for_sensor(self, sensor_id: int) -> list[int]:
         """Get all plant IDs linked to a sensor."""
         return self._backend.get_plants_for_sensor(sensor_id)
 
@@ -231,7 +229,7 @@ class PlantRepository:
         """Unlink an actuator from a plant."""
         self._backend.unlink_actuator_from_plant(plant_id, actuator_id)
 
-    def get_actuators_for_plant(self, plant_id: int) -> List[int]:
+    def get_actuators_for_plant(self, plant_id: int) -> list[int]:
         """Get all actuator IDs linked to a plant."""
         return self._backend.get_actuators_for_plant(plant_id)
 
@@ -240,16 +238,16 @@ class PlantRepository:
         """Set a plant as active for climate control."""
         self._backend.set_active_plant(plant_id)
 
-    def get_active_plant(self) -> Optional[int]:
+    def get_active_plant(self) -> int | None:
         """Get the currently active plant ID."""
         return self._backend.get_active_plant()
 
     def get_all_active_plants(
         self,
         *,
-        limit: Optional[int] = None,
-        offset: Optional[int] = None,
-    ) -> List[Dict[str, Any]]:
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> list[dict[str, Any]]:
         """
         Get all active plants across growth units with pagination.
 
@@ -280,19 +278,10 @@ class PlantRepository:
 
     @invalidates_caches
     def update_plant_progress(
-        self,
-        plant_id: int,
-        current_stage: str,
-        moisture_level: float,
-        days_in_stage: int
+        self, plant_id: int, current_stage: str, moisture_level: float, days_in_stage: int
     ) -> None:
         """Update plant growth progress."""
-        self._backend.update_plant_progress(
-            plant_id,
-            current_stage,
-            moisture_level,
-            days_in_stage
-        )
+        self._backend.update_plant_progress(plant_id, current_stage, moisture_level, days_in_stage)
 
     # Plant History & Analytics ------------------------------------------------
     def insert_plant_history(self, *args, **kwargs) -> None:
@@ -312,7 +301,7 @@ class PlantRepository:
         return self._backend.get_plant_total_light_hours(plant_id)
 
     # Plant Cleanup (harvest) --------------------------------------------------
-    def cleanup_plant_data(self, plant_id: int) -> Dict[str, int]:
+    def cleanup_plant_data(self, plant_id: int) -> dict[str, int]:
         """Delete plant-specific data during harvest.
 
         Removes health logs, sensor associations, unit associations,
@@ -332,7 +321,7 @@ class PlantRepository:
 
         _logger = logging.getLogger(__name__)
 
-        deleted: Dict[str, int] = {
+        deleted: dict[str, int] = {
             "plant_health_logs": 0,
             "plant_sensors": 0,
             "plant_unit_associations": 0,
@@ -353,15 +342,11 @@ class PlantRepository:
                     raise
 
             # 2. Plant-sensor associations
-            cursor = conn.execute(
-                "DELETE FROM PlantSensors WHERE plant_id = ?", (plant_id,)
-            )
+            cursor = conn.execute("DELETE FROM PlantSensors WHERE plant_id = ?", (plant_id,))
             deleted["plant_sensors"] = cursor.rowcount
 
             # 3. Plant-unit associations
-            cursor = conn.execute(
-                "DELETE FROM GrowthUnitPlants WHERE plant_id = ?", (plant_id,)
-            )
+            cursor = conn.execute("DELETE FROM GrowthUnitPlants WHERE plant_id = ?", (plant_id,))
             deleted["plant_unit_associations"] = cursor.rowcount
 
             # 4. Clear active_plant_id on units (don't delete the unit)
@@ -371,9 +356,7 @@ class PlantRepository:
             )
 
             # 5. Delete the plant record itself (last!)
-            cursor = conn.execute(
-                "DELETE FROM Plants WHERE plant_id = ?", (plant_id,)
-            )
+            cursor = conn.execute("DELETE FROM Plants WHERE plant_id = ?", (plant_id,))
             deleted["plant_record"] = cursor.rowcount
 
         _logger.info(

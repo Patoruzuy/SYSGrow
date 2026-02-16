@@ -20,11 +20,21 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple
+from datetime import UTC, datetime
+from typing import Any, Callable
 
+from app.hardware.sensors.processors.utils import (
+    DASHBOARD_METRICS,
+    UNIT_MAP,
+    coerce_float,
+    get_meta_val,
+    is_environment_sensor,
+    is_meta_key,
+    is_soil_sensor,
+    to_wire_status,
+)
 from app.schemas.events import DashboardSnapshotPayload
-from app.utils.time import utc_now
+
 # Psychrometric helpers:
 # - calculate_vpd_kpa / calculate_dew_point_c use a Magnus–Tetens-style saturation
 #   vapor pressure approximation, typically accurate for roughly -45°C to 60°C.
@@ -32,22 +42,9 @@ from app.utils.time import utc_now
 #   intended primarily for "hot and humid" conditions (≈ ≥26–27°C and RH ≥40–50%).
 # For full derivations, coefficients, and caveats, see app.utils.psychrometrics.
 from app.utils.psychrometrics import (
-    calculate_vpd_kpa,
-    calculate_dew_point_c,
-    calculate_heat_index_c,
     compute_derived_metrics,
 )
-from app.hardware.sensors.processors.utils import (
-    DASHBOARD_METRICS,
-    UNIT_MAP,
-    is_meta_key,
-    is_environment_sensor,
-    is_soil_sensor,
-    get_meta_val,
-    coerce_float,
-    coerce_int,
-    to_wire_status,
-)
+from app.utils.time import utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +65,7 @@ ALLOWED_PROTOCOLS = {
 }
 
 
-def _normalize_protocol(value: Any) -> Optional[str]:
+def _normalize_protocol(value: Any) -> str | None:
     """Normalize protocol values to lowercase schema-compatible strings."""
     if value is None:
         return None
@@ -79,16 +76,18 @@ def _normalize_protocol(value: Any) -> Optional[str]:
         return text
     return "other"
 
+
 # Type alias for sensor resolver function
-SensorResolver = Callable[[int], Optional[Any]]
+SensorResolver = Callable[[int], Any | None]
 
 
 @dataclass
 class ManualPriority:
     """Manual priority override configuration for a sensor."""
+
     sensor_id: int
-    priority: int               # lower = better
-    reading_types: Set[str]     # empty means "all metrics"
+    priority: int  # lower = better
+    reading_types: set[str]  # empty means "all metrics"
 
 
 class PriorityProcessor:
@@ -141,27 +140,27 @@ class PriorityProcessor:
         self._max_tracked = max_tracked
 
         # Per-sensor tracking
-        self.last_seen: Dict[int, datetime] = {}
-        self.last_readings: Dict[int, Any] = {}  # sensor_id -> SensorReading
+        self.last_seen: dict[int, datetime] = {}
+        self.last_readings: dict[int, Any] = {}  # sensor_id -> SensorReading
 
         # Per-unit index: unit_id -> set of sensor_ids
         # Improves lookup performance for soil_moisture averaging and candidate selection
-        self._unit_sensors: Dict[int, Set[int]] = {}
+        self._unit_sensors: dict[int, set[int]] = {}
 
         # Per-unit per-metric primary sensor selection
         # Key: (unit_id, metric) -> sensor_id
-        self.primary_sensors: Dict[Tuple[int, str], int] = {}
+        self.primary_sensors: dict[tuple[int, str], int] = {}
 
         # Per-unit per-metric previous values for trend computation
         # Key: (unit_id, metric) -> previous_value
-        self._previous_values: Dict[Tuple[int, str], float] = {}
+        self._previous_values: dict[tuple[int, str], float] = {}
 
         # Manual priority overrides
-        self.manual: Dict[int, ManualPriority] = {}
+        self.manual: dict[int, ManualPriority] = {}
 
         # Snapshot cache for REST endpoints (avoids recomputation)
         # Key: unit_id -> (snapshot, timestamp)
-        self._snapshot_cache: Dict[int, Tuple[DashboardSnapshotPayload, datetime]] = {}
+        self._snapshot_cache: dict[int, tuple[DashboardSnapshotPayload, datetime]] = {}
         self._snapshot_cache_ttl_seconds: float = self.MIN_STALE_SECONDS  # Cache TTL for REST endpoints
 
         # Observability counters
@@ -177,12 +176,7 @@ class PriorityProcessor:
     # Public API
     # -------------------------------------------------------------------------
 
-    def set_manual_priority(
-        self,
-        sensor_id: int,
-        priority: int,
-        reading_types: Optional[Set[str]] = None
-    ) -> None:
+    def set_manual_priority(self, sensor_id: int, priority: int, reading_types: set[str] | None = None) -> None:
         """
         Set manual priority override for a sensor.
 
@@ -198,7 +192,9 @@ class PriorityProcessor:
             priority=int(priority),
             reading_types=reading_types_set,
         )
-        logger.debug("Manual priority set: sensor_id=%s priority=%s reading_types=%s", sensor_id, priority, reading_types_set)
+        logger.debug(
+            "Manual priority set: sensor_id=%s priority=%s reading_types=%s", sensor_id, priority, reading_types_set
+        )
 
         # Clear affected primaries so they recompute. An empty `reading_types_set`
         # is documented to mean "all metrics", so clear primaries for all
@@ -219,12 +215,8 @@ class PriorityProcessor:
         logger.debug("Manual priority cleared: sensor_id=%s", sensor_id)
 
     def ingest(
-        self,
-        *,
-        sensor: Any,
-        reading: Any,
-        resolve_sensor: Optional[SensorResolver] = None
-    ) -> Optional[DashboardSnapshotPayload]:
+        self, *, sensor: Any, reading: Any, resolve_sensor: SensorResolver | None = None
+    ) -> DashboardSnapshotPayload | None:
         """
         Update selection state and return a fresh dashboard snapshot.
 
@@ -255,7 +247,12 @@ class PriorityProcessor:
         if len(self.last_readings) > self._max_tracked:
             self._evict_stale_entries()
 
-        logger.debug("PriorityProcessor.ingest: unit_id=%s sensor_id=%s metrics=%s", unit_id, sensor_id, list((getattr(reading, 'data', {}) or {}).keys()))
+        logger.debug(
+            "PriorityProcessor.ingest: unit_id=%s sensor_id=%s metrics=%s",
+            unit_id,
+            sensor_id,
+            list((getattr(reading, "data", {}) or {}).keys()),
+        )
         self._consider_primary(sensor=sensor, reading=reading, resolve_sensor=resolve_sensor)
         snapshot = self._build_snapshot(unit_id=unit_id, resolve_sensor=resolve_sensor)
 
@@ -264,15 +261,14 @@ class PriorityProcessor:
         if snapshot:
             self._snapshot_cache[unit_id] = (snapshot, now)
 
-        logger.debug("PriorityProcessor.ingest -> snapshot metrics=%s", list(snapshot.metrics.keys()) if snapshot else None)
+        logger.debug(
+            "PriorityProcessor.ingest -> snapshot metrics=%s", list(snapshot.metrics.keys()) if snapshot else None
+        )
         return snapshot
 
     def build_dashboard_snapshot(
-        self,
-        sensor: Any,
-        reading: Any,
-        resolve_sensor: Optional[SensorResolver] = None
-    ) -> Optional[DashboardSnapshotPayload]:
+        self, sensor: Any, reading: Any, resolve_sensor: SensorResolver | None = None
+    ) -> DashboardSnapshotPayload | None:
         """
         Alternative API matching IPriorityProcessor protocol.
 
@@ -283,9 +279,9 @@ class PriorityProcessor:
     def build_snapshot_for_unit(
         self,
         unit_id: int,
-        resolve_sensor: Optional[SensorResolver] = None,
+        resolve_sensor: SensorResolver | None = None,
         use_cache: bool = True,
-    ) -> Optional[DashboardSnapshotPayload]:
+    ) -> DashboardSnapshotPayload | None:
         """Build a dashboard snapshot for a unit from current internal state.
 
         Intended for REST endpoints that need the current primary metrics without
@@ -322,7 +318,7 @@ class PriorityProcessor:
 
         return snapshot
 
-    def get_primary_sensor(self, unit_id: int, metric: str) -> Optional[int]:
+    def get_primary_sensor(self, unit_id: int, metric: str) -> int | None:
         """Get the current primary sensor ID for a unit/metric pair."""
         return self.primary_sensors.get((unit_id, metric))
 
@@ -333,11 +329,11 @@ class PriorityProcessor:
         except Exception:
             return False
 
-    def get_sensor_last_seen(self, sensor_id: int) -> Optional[datetime]:
+    def get_sensor_last_seen(self, sensor_id: int) -> datetime | None:
         """Get when a sensor was last seen."""
         return self.last_seen.get(sensor_id)
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get observability statistics for monitoring.
 
         Returns:
@@ -369,18 +365,18 @@ class PriorityProcessor:
         unit_id: int,
         metric: str,
         current_value: float,
-    ) -> Tuple[str, Optional[float]]:
+    ) -> tuple[str, float | None]:
         """
         Compute the trend direction and delta for a metric.
-        
+
         Compares current value with the previous value stored for this unit/metric.
         Updates the stored previous value after computation.
-        
+
         Args:
             unit_id: Growth unit ID
             metric: Metric name (e.g., "temperature")
             current_value: Current metric value
-            
+
         Returns:
             Tuple of (trend_direction, trend_delta) where:
             - trend_direction: "rising", "falling", "stable", or "unknown"
@@ -388,16 +384,16 @@ class PriorityProcessor:
         """
         key = (unit_id, metric)
         previous = self._previous_values.get(key)
-        
+
         # Store current as next "previous"
         self._previous_values[key] = current_value
-        
+
         if previous is None:
             return ("unknown", None)
-        
+
         delta = current_value - previous
         abs_delta = abs(delta)
-        
+
         if abs_delta <= self.TREND_STABLE_THRESHOLD:
             return ("stable", round(delta, 3))
         elif delta > 0:
@@ -416,7 +412,7 @@ class PriorityProcessor:
             return True
         return (utc_now() - last).total_seconds() > self.stale_seconds
 
-    def _get_metric_value(self, data: Dict[str, Any], metric: str) -> Optional[float]:
+    def _get_metric_value(self, data: dict[str, Any], metric: str) -> float | None:
         """Extract a metric value from already-standardized data."""
         val = data.get(metric)
         if val is None:
@@ -431,7 +427,7 @@ class PriorityProcessor:
         """
         eviction_threshold = self.stale_seconds * 2
         now = utc_now()
-        stale_ids: List[int] = []
+        stale_ids: list[int] = []
 
         for sensor_id, last in self.last_seen.items():
             age = (now - last).total_seconds()
@@ -463,9 +459,7 @@ class PriorityProcessor:
             self._unit_sensors.pop(uid, None)
 
         # Clear primary sensor entries pointing to evicted sensors
-        keys_to_remove = [
-            k for k, sid in self.primary_sensors.items() if sid in stale_ids
-        ]
+        keys_to_remove = [k for k, sid in self.primary_sensors.items() if sid in stale_ids]
         for key in keys_to_remove:
             self.primary_sensors.pop(key, None)
 
@@ -482,7 +476,7 @@ class PriorityProcessor:
                 eviction_threshold,
             )
 
-    def _manual_priority_for(self, sensor_id: int, metric: str) -> Optional[int]:
+    def _manual_priority_for(self, sensor_id: int, metric: str) -> int | None:
         """Get manual priority for a sensor/metric if configured."""
         cfg = self.manual.get(sensor_id)
         if not cfg:
@@ -519,7 +513,7 @@ class PriorityProcessor:
 
         return 50
 
-    def _primary_metrics_for_sensor(self, sensor: Any) -> Set[str]:
+    def _primary_metrics_for_sensor(self, sensor: Any) -> set[str]:
         """Return the set of primary metrics for a sensor.
 
         The user explicitly configures which metrics each sensor provides as primary.
@@ -563,13 +557,7 @@ class PriorityProcessor:
             return mp
         return self._auto_priority(sensor, metric)
 
-    def _consider_primary(
-        self,
-        *,
-        sensor: Any,
-        reading: Any,
-        resolve_sensor: Optional[SensorResolver] = None
-    ) -> None:
+    def _consider_primary(self, *, sensor: Any, reading: Any, resolve_sensor: SensorResolver | None = None) -> None:
         """Update primary sensor selection based on new reading."""
         unit_id = int(getattr(reading, "unit_id", 0) or 0)
         if unit_id <= 0:
@@ -606,7 +594,9 @@ class PriorityProcessor:
             if self._is_stale(current_id) and not self._is_stale(sensor_id):
                 self.primary_sensors[key] = sensor_id
                 self._stats["primary_changes"] += 1
-                logger.debug("Primary replaced (stale): unit=%s metric=%s old=%s new=%s", unit_id, metric, current_id, sensor_id)
+                logger.debug(
+                    "Primary replaced (stale): unit=%s metric=%s old=%s new=%s", unit_id, metric, current_id, sensor_id
+                )
                 continue
 
             # Priority replacement
@@ -614,7 +604,13 @@ class PriorityProcessor:
             if not current_sensor:
                 self.primary_sensors[key] = sensor_id
                 self._stats["primary_changes"] += 1
-                logger.debug("Primary replaced (no current sensor resolved): unit=%s metric=%s old=%s new=%s", unit_id, metric, current_id, sensor_id)
+                logger.debug(
+                    "Primary replaced (no current sensor resolved): unit=%s metric=%s old=%s new=%s",
+                    unit_id,
+                    metric,
+                    current_id,
+                    sensor_id,
+                )
                 continue
 
             # Primary-vs-secondary replacement: a sensor for which this metric is *primary*
@@ -654,13 +650,10 @@ class PriorityProcessor:
                 )
 
     def _build_snapshot(
-        self,
-        *,
-        unit_id: int,
-        resolve_sensor: Optional[SensorResolver] = None
-    ) -> Optional[DashboardSnapshotPayload]:
+        self, *, unit_id: int, resolve_sensor: SensorResolver | None = None
+    ) -> DashboardSnapshotPayload | None:
         """Build dashboard snapshot with best available readings for each metric."""
-        metrics: Dict[str, Any] = {}
+        metrics: dict[str, Any] = {}
 
         for metric in sorted(DASHBOARD_METRICS):
             if metric == "soil_moisture":
@@ -683,12 +676,12 @@ class PriorityProcessor:
             metrics=metrics,
         )
 
-    def _add_soil_moisture_aggregate(self, unit_id: int, metrics: Dict[str, Any]) -> None:
+    def _add_soil_moisture_aggregate(self, unit_id: int, metrics: dict[str, Any]) -> None:
         """Add aggregated soil moisture metric to metrics dict.
-        
+
         Handles both simple values and nested lists from multi-channel sensors.
         """
-        values: List[float] = []
+        values: list[float] = []
         unit_sensor_ids = self._unit_sensors.get(unit_id, set())
 
         for sid in unit_sensor_ids:
@@ -698,13 +691,13 @@ class PriorityProcessor:
 
             reading = self.last_readings.get(sid)
             data = getattr(reading, "data", None) or {}
-            
+
             # 1. Check for flat value
             val = coerce_float(data.get("soil_moisture"))
             if val is not None:
                 values.append(float(val))
                 continue
-            
+
             # 2. Check for nested list (e.g. ESP32-GrowTent v3.0+)
             raw_moisture = data.get("soil_moisture")
             if isinstance(raw_moisture, list):
@@ -745,15 +738,10 @@ class PriorityProcessor:
             },
         }
 
-    def _add_lux_metric(
-        self,
-        unit_id: int,
-        metrics: Dict[str, Any],
-        resolve_sensor: Optional[SensorResolver]
-    ) -> None:
+    def _add_lux_metric(self, unit_id: int, metrics: dict[str, Any], resolve_sensor: SensorResolver | None) -> None:
         """Add lux metric with extended freshness window."""
         sid = self.primary_sensors.get((unit_id, "lux"))
-        
+
         # Fallback to finding any lux sensor if primary not set
         if not sid:
             unit_sensor_ids = self._unit_sensors.get(unit_id, set())
@@ -769,7 +757,7 @@ class PriorityProcessor:
 
         last = self.last_seen.get(sid)
         reading = self.last_readings.get(sid)
-        age = (utc_now() - last).total_seconds() if last else float('inf')
+        age = (utc_now() - last).total_seconds() if last else float("inf")
 
         # Use generous MAX_STALE_SECONDS for light sensors (infrequent reporting)
         if not reading or age > self.MAX_STALE_SECONDS:
@@ -809,11 +797,7 @@ class PriorityProcessor:
         }
 
     def _add_standard_metric(
-        self,
-        unit_id: int,
-        metric: str,
-        metrics: Dict[str, Any],
-        resolve_sensor: Optional[SensorResolver]
+        self, unit_id: int, metric: str, metrics: dict[str, Any], resolve_sensor: SensorResolver | None
     ) -> None:
         """Add a standard metric using best available sensor."""
         sid = self._select_best_sensor(unit_id=unit_id, metric=metric, resolve_sensor=resolve_sensor)
@@ -858,12 +842,8 @@ class PriorityProcessor:
         }
 
     def _select_best_sensor(
-        self,
-        *,
-        unit_id: int,
-        metric: str,
-        resolve_sensor: Optional[SensorResolver] = None
-    ) -> Optional[int]:
+        self, *, unit_id: int, metric: str, resolve_sensor: SensorResolver | None = None
+    ) -> int | None:
         """Select the best sensor for a unit/metric pair."""
         # Check current primary first
         primary = self.primary_sensors.get((unit_id, metric))
@@ -873,7 +853,7 @@ class PriorityProcessor:
                 return primary
 
         # Find all valid candidates using per-unit index for efficiency
-        candidates: List[int] = []
+        candidates: list[int] = []
         unit_sensor_ids = self._unit_sensors.get(unit_id, set())
         for sid in unit_sensor_ids:
             if self._is_stale(sid):
@@ -891,9 +871,9 @@ class PriorityProcessor:
         # Prefer sensors for which the metric is primary, then fallback to secondary.
         # Resolve sensors once and reuse — avoids repeated (potentially expensive)
         # resolver calls during sorting and primary checks.
-        resolved_cache: Dict[int, Optional[Any]] = {}
-        primary_candidates: List[int] = []
-        secondary_candidates: List[int] = []
+        resolved_cache: dict[int, Any | None] = {}
+        primary_candidates: list[int] = []
+        secondary_candidates: list[int] = []
         for sid in candidates:
             sensor = resolved_cache.get(sid)
             if sensor is None and resolve_sensor:
@@ -910,10 +890,10 @@ class PriorityProcessor:
         # Sort by priority, then age, then quality
         ref_now = utc_now()
 
-        def sort_key(sid: int) -> Tuple[int, float, float]:
+        def sort_key(sid: int) -> tuple[int, float, float]:
             sensor = resolved_cache.get(sid)
             pr = self._priority_for(sensor, metric) if sensor else 30
-            last = self.last_seen.get(sid) or datetime.fromtimestamp(0, tz=timezone.utc)
+            last = self.last_seen.get(sid) or datetime.fromtimestamp(0, tz=UTC)
             # Use one consistent reference time for all candidates to keep ordering stable.
             age = (ref_now - last).total_seconds()
             reading = self.last_readings.get(sid)
@@ -924,12 +904,12 @@ class PriorityProcessor:
         self.primary_sensors[(unit_id, metric)] = best
         return best
 
-    def _fill_derived_metrics(self, unit_id: int, metrics: Dict[str, Any]) -> None:
+    def _fill_derived_metrics(self, unit_id: int, metrics: dict[str, Any]) -> None:
         """Compute derived metrics (VPD, dew_point, heat_index) if missing.
-        
+
         Requires temperature and humidity to be present in metrics.
         Derived values are computed and added in-place with trend information.
-        
+
         Args:
             unit_id: Growth unit ID for trend tracking
             metrics: Metrics dict to update in-place
@@ -948,7 +928,7 @@ class PriorityProcessor:
 
         # Compute all derived metrics at once
         derived = compute_derived_metrics(float(temp), float(humidity))
-        
+
         # Build base source info for derived metrics
         derived_source = {
             "sensor_id": 0,

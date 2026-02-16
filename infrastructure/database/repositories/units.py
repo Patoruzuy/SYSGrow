@@ -13,15 +13,13 @@ Responsibilities:
 Author: SYSGrow Team
 Date: January 2026
 """
+
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
+from infrastructure.database.decorators import invalidates_caches, repository_cache
 from infrastructure.database.ops.growth import GrowthOperations
-from infrastructure.database.decorators import (
-    repository_cache,
-    invalidates_caches
-)
 
 
 class UnitRepository:
@@ -38,10 +36,10 @@ class UnitRepository:
         name: str,
         location: str = "Indoor",
         user_id: int = 1,
-        timezone: Optional[str] = None,
-        dimensions: Optional[str] = None,
-        custom_image: Optional[str] = None,
-        active_plant_id: Optional[int] = None,
+        timezone: str | None = None,
+        dimensions: str | None = None,
+        custom_image: str | None = None,
+        active_plant_id: int | None = None,
         temperature_threshold: float = 24.0,
         humidity_threshold: float = 50.0,
         soil_moisture_threshold: float = 40.0,
@@ -50,10 +48,10 @@ class UnitRepository:
         lux_threshold: float = 1000.0,
         air_quality_threshold: float = 100.0,
         camera_enabled: bool = False,
-    ) -> Optional[int]:
+    ) -> int | None:
         """
         Create a new growth unit.
-        
+
         Args:
             name: Unit name
             location: Location (Indoor/Outdoor/Greenhouse/Hydroponics)
@@ -69,7 +67,7 @@ class UnitRepository:
             lux_threshold: Light intensity threshold in lux
             air_quality_threshold: Air quality index threshold
             camera_enabled: Enable camera for this unit
-            
+
         Returns:
             Unit ID if successful, None otherwise
         """
@@ -91,7 +89,7 @@ class UnitRepository:
             camera_enabled=camera_enabled,
         )
 
-    @repository_cache(maxsize=128, invalidate_on=['create_unit', 'update_unit', 'update_unit_settings', 'delete_unit'])
+    @repository_cache(maxsize=128, invalidate_on=["create_unit", "update_unit", "update_unit_settings", "delete_unit"])
     def get_unit(self, unit_id: int):
         """Get unit by ID."""
         return self._backend.get_growth_unit(unit_id)
@@ -99,9 +97,9 @@ class UnitRepository:
     def list_units(
         self,
         *,
-        limit: Optional[int] = None,
-        offset: Optional[int] = None,
-    ) -> List[Any]:
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> list[Any]:
         """
         List all growth units with pagination.
 
@@ -114,7 +112,7 @@ class UnitRepository:
         """
         return self._backend.get_all_growth_units(limit=limit, offset=offset)
 
-    def get_user_units(self, user_id: int) -> List[Dict[str, Any]]:
+    def get_user_units(self, user_id: int) -> list[dict[str, Any]]:
         """Get all units for a specific user."""
         return self._backend.get_user_growth_units(user_id)
 
@@ -122,7 +120,7 @@ class UnitRepository:
     def update_unit(self, unit_id: int, **fields: Any) -> None:
         """
         Update unit fields.
-        
+
         Args:
             unit_id: Unit ID
             **fields: Fields to update (name, location, dimensions, custom_image, camera_enabled)
@@ -136,14 +134,14 @@ class UnitRepository:
 
     # Unit Settings ------------------------------------------------------------
     @invalidates_caches
-    def update_unit_settings(self, unit_id: int, settings: Dict[str, Any]) -> bool:
+    def update_unit_settings(self, unit_id: int, settings: dict[str, Any]) -> bool:
         """
         Update unit settings (thresholds, dimensions, camera).
-        
+
         Args:
             unit_id: Unit ID
             settings: Settings dictionary
-            
+
         Returns:
             True if successful
         """
@@ -166,7 +164,7 @@ class UnitRepository:
         """Check if camera is active for a unit."""
         return self._backend.is_camera_active(unit_id)
 
-    def get_unit_last_activity(self, unit_id: int) -> Optional[str]:
+    def get_unit_last_activity(self, unit_id: int) -> str | None:
         """Get last activity timestamp for a unit."""
         return self._backend.get_unit_last_activity(unit_id)
 

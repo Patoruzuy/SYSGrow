@@ -92,12 +92,6 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    # Extend CLI with subcommands for JSON management
     import sys
 
-    parser.add_argument("command", nargs="?", help="Helper: list-json|show-json|delete-json|set-json")
-    parser.add_argument("key", nargs="?", help="Filename for JSON commands")
-    parser.add_argument("value", nargs="?", help="JSON string for set-json")
-
     raise SystemExit(main(sys.argv[1:]))
-

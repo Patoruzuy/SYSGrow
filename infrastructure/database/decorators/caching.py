@@ -13,17 +13,18 @@ Architecture:
 Author: Architecture Refactoring Team
 Date: December 2025
 """
+
 from __future__ import annotations
 
 import functools
 import logging
-from typing import Any, Callable, Dict, Optional, TypeVar, cast
 from threading import Lock
+from typing import Any, Callable, TypeVar, cast
 
 logger = logging.getLogger(__name__)
 
 # Type variable for generic function signatures
-F = TypeVar('F', bound=Callable[..., Any])
+F = TypeVar("F", bound=Callable[..., Any])
 
 
 class RepositoryCacheStats:
@@ -63,7 +64,7 @@ class RepositoryCacheStats:
         with self._lock:
             self.invalidations += 1
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """
         Get current statistics.
 
@@ -81,7 +82,7 @@ class RepositoryCacheStats:
                 "misses": self.misses,
                 "hit_rate": round(hit_rate, 2),
                 "invalidations": self.invalidations,
-                "total_requests": total
+                "total_requests": total,
             }
 
     def reset(self) -> None:
@@ -93,11 +94,11 @@ class RepositoryCacheStats:
 
 
 # Global registry for repository cache statistics
-_cache_stats_registry: Dict[str, RepositoryCacheStats] = {}
+_cache_stats_registry: dict[str, RepositoryCacheStats] = {}
 _registry_lock = Lock()
 
 
-def get_repository_cache_stats() -> Dict[str, Dict[str, Any]]:
+def get_repository_cache_stats() -> dict[str, dict[str, Any]]:
     """
     Get statistics for all repository caches.
 
@@ -105,10 +106,7 @@ def get_repository_cache_stats() -> Dict[str, Dict[str, Any]]:
         Dictionary mapping method names to their statistics
     """
     with _registry_lock:
-        return {
-            name: stats.get_stats()
-            for name, stats in _cache_stats_registry.items()
-        }
+        return {name: stats.get_stats() for name, stats in _cache_stats_registry.items()}
 
 
 def reset_repository_cache_stats() -> None:
@@ -119,10 +117,7 @@ def reset_repository_cache_stats() -> None:
 
 
 def repository_cache(
-    maxsize: int = 128,
-    *,
-    typed: bool = False,
-    invalidate_on: Optional[list[str]] = None
+    maxsize: int = 128, *, typed: bool = False, invalidate_on: list[str] | None = None
 ) -> Callable[[F], F]:
     """
     LRU cache decorator for repository methods with metrics tracking.
@@ -151,6 +146,7 @@ def repository_cache(
     Returns:
         Decorated function with caching and metrics
     """
+
     def decorator(func: F) -> F:
         # Get qualified method name for tracking
         method_name = f"{func.__module__}.{func.__qualname__}"
@@ -188,7 +184,7 @@ def repository_cache(
             stats.record_invalidation()
             logger.info(f"Cache invalidated: {method_name}")
 
-        def get_cache_info() -> Dict[str, Any]:
+        def get_cache_info() -> dict[str, Any]:
             """Get cache info including custom stats."""
             info = cached_func.cache_info()
             custom_stats = stats.get_stats()
@@ -197,7 +193,7 @@ def repository_cache(
                 "lru_hits": info.hits,
                 "lru_misses": info.misses,
                 "lru_currsize": info.currsize,
-                "lru_maxsize": info.maxsize
+                "lru_maxsize": info.maxsize,
             }
 
         # Attach utility methods to wrapper
@@ -206,20 +202,14 @@ def repository_cache(
         wrapper._cache_stats = stats  # type: ignore
         wrapper._invalidate_on = invalidate_on or []  # type: ignore
 
-        logger.debug(
-            f"Repository cache enabled: {method_name} "
-            f"(maxsize={maxsize}, invalidate_on={invalidate_on})"
-        )
+        logger.debug(f"Repository cache enabled: {method_name} (maxsize={maxsize}, invalidate_on={invalidate_on})")
 
         return cast(F, wrapper)
 
     return decorator
 
 
-def invalidate_related_caches(
-    repository_instance: Any,
-    method_name: str
-) -> None:
+def invalidate_related_caches(repository_instance: Any, method_name: str) -> None:
     """
     Invalidate caches that depend on a write operation.
 
@@ -246,26 +236,22 @@ def invalidate_related_caches(
             attr = getattr(repository_instance, attr_name)
 
             # Check if this method has cache invalidation triggers
-            if hasattr(attr, '_invalidate_on'):
+            if hasattr(attr, "_invalidate_on"):
                 invalidate_on = attr._invalidate_on
 
                 # If this method should be invalidated by the current write
                 if method_name in invalidate_on:
-                    if hasattr(attr, 'invalidate_cache'):
+                    if hasattr(attr, "invalidate_cache"):
                         attr.invalidate_cache()
                         invalidated_count += 1
-                        logger.debug(
-                            f"Invalidated {attr_name} due to {method_name}"
-                        )
+                        logger.debug(f"Invalidated {attr_name} due to {method_name}")
         except Exception as e:
             # Skip attributes that can't be accessed
             logger.debug(f"Could not check {attr_name} for invalidation: {e}")
             continue
 
     if invalidated_count > 0:
-        logger.info(
-            f"Write operation '{method_name}' invalidated {invalidated_count} cache(s)"
-        )
+        logger.info(f"Write operation '{method_name}' invalidated {invalidated_count} cache(s)")
 
 
 # Convenience decorator for write methods that trigger invalidations
@@ -281,6 +267,7 @@ def invalidates_caches(func: F) -> F:
 
     This will automatically call invalidate_related_caches after the method executes.
     """
+
     @functools.wraps(func)
     def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
         result = func(self, *args, **kwargs)

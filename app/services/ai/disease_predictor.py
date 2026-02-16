@@ -9,17 +9,17 @@ Refactored to use repository pattern with dependency injection.
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Optional, Any, TYPE_CHECKING
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import timedelta
+from typing import TYPE_CHECKING, Any
 
+from app.enums import DiseaseType, RiskLevel
 from app.utils.time import utc_now
-from app.enums import RiskLevel, DiseaseType
 
 if TYPE_CHECKING:
-    from infrastructure.database.repositories.ai import AIHealthDataRepository
     from app.services.ai.model_registry import ModelRegistry
     from app.services.ai.personalized_learning import PersonalizedLearningService
+    from infrastructure.database.repositories.ai import AIHealthDataRepository
 
 logger = logging.getLogger(__name__)
 
@@ -43,11 +43,11 @@ class DiseaseRisk:
     risk_level: RiskLevel
     confidence: float
     risk_score: float
-    contributing_factors: List[Dict[str, Any]]
-    recommendations: List[str]
-    predicted_onset_days: Optional[int] = None
+    contributing_factors: list[dict[str, Any]]
+    recommendations: list[str]
+    predicted_onset_days: int | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "disease_type": self.disease_type.value,
@@ -70,8 +70,8 @@ class DiseasePredictor:
     def __init__(
         self,
         repo_health: "AIHealthDataRepository",
-        model_registry: Optional["ModelRegistry"] = None,
-        personalized_learning: Optional["PersonalizedLearningService"] = None,
+        model_registry: "ModelRegistry" | None = None,
+        personalized_learning: "PersonalizedLearningService" | None = None,
     ):
         """
         Initialize disease predictor.
@@ -90,7 +90,7 @@ class DiseasePredictor:
         self.ml_feature_columns = None
         self.ml_disease_types = None
         self.risk_thresholds = self._load_risk_thresholds()
-        self.historical_stats: Optional[Dict[str, Any]] = None
+        self.historical_stats: dict[str, Any] | None = None
 
     def load_models(self) -> bool:
         """
@@ -141,8 +141,8 @@ class DiseasePredictor:
         unit_id: int,
         plant_type: str,
         growth_stage: str,
-        current_conditions: Optional[Dict[str, float]] = None,
-    ) -> List[DiseaseRisk]:
+        current_conditions: dict[str, float] | None = None,
+    ) -> list[DiseaseRisk]:
         """
         Predict disease risks for a plant.
 
@@ -168,9 +168,7 @@ class DiseasePredictor:
             end_date = end_dt.isoformat()
             start_date = start_dt.isoformat()
 
-            sensor_df = self.repo_health.get_sensor_time_series(
-                unit_id, start_date, end_date, interval_hours=1
-            )
+            sensor_df = self.repo_health.get_sensor_time_series(unit_id, start_date, end_date, interval_hours=1)
 
             if sensor_df.empty:
                 logger.warning(f"No sensor data for unit {unit_id}")
@@ -179,19 +177,9 @@ class DiseasePredictor:
             # Calculate environmental features
             if current_conditions is None:
                 current_conditions = {
-                    "temperature": (
-                        sensor_df["temperature"].iloc[-1]
-                        if "temperature" in sensor_df
-                        else 0
-                    ),
-                    "humidity": (
-                        sensor_df["humidity"].iloc[-1] if "humidity" in sensor_df else 0
-                    ),
-                    "soil_moisture": (
-                        sensor_df["soil_moisture"].iloc[-1]
-                        if "soil_moisture" in sensor_df
-                        else 0
-                    ),
+                    "temperature": (sensor_df["temperature"].iloc[-1] if "temperature" in sensor_df else 0),
+                    "humidity": (sensor_df["humidity"].iloc[-1] if "humidity" in sensor_df else 0),
+                    "soil_moisture": (sensor_df["soil_moisture"].iloc[-1] if "soil_moisture" in sensor_df else 0),
                 }
 
             # Get historical disease patterns from user's profile
@@ -205,17 +193,14 @@ class DiseasePredictor:
                     disease_key = risk.disease_type.value.split("_")[0]  # Extract base type
                     if disease_key in history_multipliers:
                         risk = self._apply_history_multiplier(
-                            risk, history_multipliers[disease_key],
-                            "Previous issues in your environment"
+                            risk, history_multipliers[disease_key], "Previous issues in your environment"
                         )
                     risks.append(risk)
                 # Still run rule-based to catch things ML might miss
                 # but don't add duplicates
 
             # Assess different disease risks using rules
-            fungal_risk = self._assess_fungal_risk(
-                sensor_df, current_conditions, plant_type
-            )
+            fungal_risk = self._assess_fungal_risk(sensor_df, current_conditions, plant_type)
             if fungal_risk and not any(r.disease_type == DiseaseType.FUNGAL for r in risks):
                 # Apply historical multiplier if user has had fungal issues before
                 if "fungal" in history_multipliers:
@@ -224,19 +209,17 @@ class DiseasePredictor:
                     )
                 risks.append(fungal_risk)
 
-            bacterial_risk = self._assess_bacterial_risk(
-                sensor_df, current_conditions, plant_type
-            )
+            bacterial_risk = self._assess_bacterial_risk(sensor_df, current_conditions, plant_type)
             if bacterial_risk and not any(r.disease_type == DiseaseType.BACTERIAL for r in risks):
                 if "bacterial" in history_multipliers:
                     bacterial_risk = self._apply_history_multiplier(
-                        bacterial_risk, history_multipliers["bacterial"], "Previous bacterial issues in your environment"
+                        bacterial_risk,
+                        history_multipliers["bacterial"],
+                        "Previous bacterial issues in your environment",
                     )
                 risks.append(bacterial_risk)
 
-            pest_risk = self._assess_pest_risk(
-                sensor_df, current_conditions, growth_stage
-            )
+            pest_risk = self._assess_pest_risk(sensor_df, current_conditions, growth_stage)
             if pest_risk and not any(r.disease_type == DiseaseType.PEST for r in risks):
                 if "pest" in history_multipliers:
                     pest_risk = self._apply_history_multiplier(
@@ -244,9 +227,7 @@ class DiseasePredictor:
                     )
                 risks.append(pest_risk)
 
-            nutrient_risk = self._assess_nutrient_risk(
-                sensor_df, current_conditions, plant_type
-            )
+            nutrient_risk = self._assess_nutrient_risk(sensor_df, current_conditions, plant_type)
             if nutrient_risk and not any(r.disease_type == DiseaseType.NUTRIENT_DEFICIENCY for r in risks):
                 if "nutrient" in history_multipliers:
                     nutrient_risk = self._apply_history_multiplier(
@@ -266,38 +247,52 @@ class DiseasePredictor:
     def _predict_with_ml(
         self,
         sensor_df,
-        current_conditions: Dict[str, float],
+        current_conditions: dict[str, float],
         growth_stage: str,
-    ) -> List[DiseaseRisk]:
+    ) -> list[DiseaseRisk]:
         """
         Make disease predictions using the trained ML model.
-        
+
         Args:
             sensor_df: Recent sensor data DataFrame
             current_conditions: Current environmental conditions
             growth_stage: Current plant growth stage
-            
+
         Returns:
             List of DiseaseRisk predictions from ML model, empty if no model available
         """
         import numpy as np
-        
+
         if self.ml_model is None or self.ml_scaler is None:
             return []
-        
+
         try:
             # Calculate features matching the training format
             growth_stage_map = {
-                "seedling": 1, "vegetative": 2, "flowering": 3,
-                "fruiting": 4, "harvest": 5, "dormant": 0,
+                "seedling": 1,
+                "vegetative": 2,
+                "flowering": 3,
+                "fruiting": 4,
+                "harvest": 5,
+                "dormant": 0,
             }
-            
+
             # Calculate 72h averages from sensor data
-            avg_temp_72h = sensor_df["temperature"].mean() if "temperature" in sensor_df else current_conditions.get("temperature", 22)
-            avg_humidity_72h = sensor_df["humidity"].mean() if "humidity" in sensor_df else current_conditions.get("humidity", 60)
-            avg_soil_72h = sensor_df["soil_moisture"].mean() if "soil_moisture" in sensor_df else current_conditions.get("soil_moisture", 50)
+            avg_temp_72h = (
+                sensor_df["temperature"].mean()
+                if "temperature" in sensor_df
+                else current_conditions.get("temperature", 22)
+            )
+            avg_humidity_72h = (
+                sensor_df["humidity"].mean() if "humidity" in sensor_df else current_conditions.get("humidity", 60)
+            )
+            avg_soil_72h = (
+                sensor_df["soil_moisture"].mean()
+                if "soil_moisture" in sensor_df
+                else current_conditions.get("soil_moisture", 50)
+            )
             humidity_variance = sensor_df["humidity"].std() if "humidity" in sensor_df else 5.0
-            
+
             # Calculate VPD if not provided
             vpd = current_conditions.get("vpd")
             if vpd is None:
@@ -306,31 +301,35 @@ class DiseasePredictor:
                 # Simple VPD calculation
                 svp = 0.6108 * np.exp((17.27 * temp) / (temp + 237.3))
                 vpd = svp * (1 - rh / 100)
-            
+
             # Build feature vector matching training format
-            features = np.array([[
-                current_conditions.get("temperature", 22),
-                current_conditions.get("humidity", 60),
-                current_conditions.get("soil_moisture", 50),
-                vpd,
-                avg_temp_72h,
-                avg_humidity_72h,
-                avg_soil_72h,
-                humidity_variance,
-                growth_stage_map.get(growth_stage.lower(), 2),
-                15,  # Default days in stage
-            ]])
-            
+            features = np.array(
+                [
+                    [
+                        current_conditions.get("temperature", 22),
+                        current_conditions.get("humidity", 60),
+                        current_conditions.get("soil_moisture", 50),
+                        vpd,
+                        avg_temp_72h,
+                        avg_humidity_72h,
+                        avg_soil_72h,
+                        humidity_variance,
+                        growth_stage_map.get(growth_stage.lower(), 2),
+                        15,  # Default days in stage
+                    ]
+                ]
+            )
+
             # Scale features
             features_scaled = self.ml_scaler.transform(features)
-            
+
             # Get prediction and probability
             prediction = self.ml_model.predict(features_scaled)[0]
-            
+
             # Only return if prediction is not "healthy"
             if prediction == "healthy":
                 return []
-            
+
             # Get probability scores if available
             try:
                 probabilities = self.ml_model.predict_proba(features_scaled)[0]
@@ -339,10 +338,10 @@ class DiseasePredictor:
                 confidence = prob_dict.get(prediction, 0.5)
             except Exception:
                 confidence = 0.6  # Default confidence for models without predict_proba
-            
+
             # Convert prediction to DiseaseRisk
             risk_score = confidence * 100
-            
+
             # Map disease type string to DiseaseType enum
             disease_type_map = {
                 "fungal": DiseaseType.FUNGAL,
@@ -353,9 +352,9 @@ class DiseasePredictor:
                 "viral": DiseaseType.VIRAL,
                 "environmental": DiseaseType.ENVIRONMENTAL_STRESS,
             }
-            
+
             disease_type = disease_type_map.get(prediction.lower(), DiseaseType.ENVIRONMENTAL_STRESS)
-            
+
             # Determine risk level from score
             if risk_score >= 80:
                 risk_level = RiskLevel.CRITICAL
@@ -365,7 +364,7 @@ class DiseasePredictor:
                 risk_level = RiskLevel.MODERATE
             else:
                 risk_level = RiskLevel.LOW
-            
+
             disease_risk = DiseaseRisk(
                 disease_type=disease_type,
                 risk_level=risk_level,
@@ -381,15 +380,15 @@ class DiseasePredictor:
                 ],
                 recommendations=self._get_recommendations_for_disease(disease_type),
             )
-            
+
             logger.debug(f"ML disease prediction: {prediction} with confidence {confidence:.3f}")
             return [disease_risk]
-            
+
         except Exception as e:
             logger.warning(f"ML disease prediction failed, falling back to rules: {e}")
             return []
 
-    def _get_recommendations_for_disease(self, disease_type: DiseaseType) -> List[str]:
+    def _get_recommendations_for_disease(self, disease_type: DiseaseType) -> list[str]:
         """Get standard recommendations for a disease type."""
         recommendations = {
             DiseaseType.FUNGAL: [
@@ -432,17 +431,13 @@ class DiseasePredictor:
         return recommendations.get(disease_type, ["Monitor plant health closely"])
 
     def _assess_fungal_risk(
-        self, sensor_df, current_conditions: Dict[str, float], plant_type: str
-    ) -> Optional[DiseaseRisk]:
+        self, sensor_df, current_conditions: dict[str, float], plant_type: str
+    ) -> DiseaseRisk | None:
         """Assess fungal disease risk based on humidity and temperature patterns."""
         try:
             # High humidity + moderate temps = fungal risk
-            avg_humidity = (
-                sensor_df["humidity"].mean() if "humidity" in sensor_df else 0
-            )
-            avg_temp = (
-                sensor_df["temperature"].mean() if "temperature" in sensor_df else 0
-            )
+            avg_humidity = sensor_df["humidity"].mean() if "humidity" in sensor_df else 0
+            avg_temp = sensor_df["temperature"].mean() if "temperature" in sensor_df else 0
 
             current_humidity = current_conditions.get("humidity", 0)
             current_temp = current_conditions.get("temperature", 0)
@@ -487,9 +482,7 @@ class DiseasePredictor:
                 )
 
             # Poor air circulation indicator (very stable humidity)
-            humidity_std = (
-                sensor_df["humidity"].std() if "humidity" in sensor_df else 10
-            )
+            humidity_std = sensor_df["humidity"].std() if "humidity" in sensor_df else 10
             if humidity_std < 3:
                 risk_score += 15
                 factors.append(
@@ -511,9 +504,7 @@ class DiseasePredictor:
                 risk_level = RiskLevel.CRITICAL
 
             recommendations = self._get_fungal_recommendations(risk_level, factors)
-            confidence = min(
-                len(factors) * 0.2, 0.9
-            )  # More factors = higher confidence
+            confidence = min(len(factors) * 0.2, 0.9)  # More factors = higher confidence
 
             predicted_onset = None
             if risk_score >= 70:
@@ -536,16 +527,12 @@ class DiseasePredictor:
             return None
 
     def _assess_bacterial_risk(
-        self, sensor_df, current_conditions: Dict[str, float], plant_type: str
-    ) -> Optional[DiseaseRisk]:
+        self, sensor_df, current_conditions: dict[str, float], plant_type: str
+    ) -> DiseaseRisk | None:
         """Assess bacterial disease risk."""
         try:
-            avg_temp = (
-                sensor_df["temperature"].mean() if "temperature" in sensor_df else 0
-            )
-            avg_humidity = (
-                sensor_df["humidity"].mean() if "humidity" in sensor_df else 0
-            )
+            avg_temp = sensor_df["temperature"].mean() if "temperature" in sensor_df else 0
+            avg_humidity = sensor_df["humidity"].mean() if "humidity" in sensor_df else 0
 
             risk_score = 0
             factors = []
@@ -592,13 +579,11 @@ class DiseasePredictor:
             return None
 
     def _assess_pest_risk(
-        self, sensor_df, current_conditions: Dict[str, float], growth_stage: str
-    ) -> Optional[DiseaseRisk]:
+        self, sensor_df, current_conditions: dict[str, float], growth_stage: str
+    ) -> DiseaseRisk | None:
         """Assess pest infestation risk."""
         try:
-            avg_temp = (
-                sensor_df["temperature"].mean() if "temperature" in sensor_df else 0
-            )
+            avg_temp = sensor_df["temperature"].mean() if "temperature" in sensor_df else 0
 
             risk_score = 0
             factors = []
@@ -644,13 +629,11 @@ class DiseasePredictor:
             return None
 
     def _assess_nutrient_risk(
-        self, sensor_df, current_conditions: Dict[str, float], plant_type: str
-    ) -> Optional[DiseaseRisk]:
+        self, sensor_df, current_conditions: dict[str, float], plant_type: str
+    ) -> DiseaseRisk | None:
         """Assess nutrient deficiency risk."""
         try:
-            avg_moisture = (
-                sensor_df["soil_moisture"].mean() if "soil_moisture" in sensor_df else 0
-            )
+            avg_moisture = sensor_df["soil_moisture"].mean() if "soil_moisture" in sensor_df else 0
 
             risk_score = 0
             factors = []
@@ -710,9 +693,7 @@ class DiseasePredictor:
         else:
             return RiskLevel.CRITICAL
 
-    def _get_fungal_recommendations(
-        self, risk_level: RiskLevel, factors: List
-    ) -> List[str]:
+    def _get_fungal_recommendations(self, risk_level: RiskLevel, factors: list) -> list[str]:
         """Get recommendations for fungal disease prevention."""
         recs = []
 
@@ -733,9 +714,7 @@ class DiseasePredictor:
 
         return recs
 
-    def _get_bacterial_recommendations(
-        self, risk_level: RiskLevel, factors: List
-    ) -> List[str]:
+    def _get_bacterial_recommendations(self, risk_level: RiskLevel, factors: list) -> list[str]:
         """Get recommendations for bacterial disease prevention."""
         recs = []
 
@@ -752,16 +731,12 @@ class DiseasePredictor:
 
         return recs
 
-    def _get_pest_recommendations(
-        self, risk_level: RiskLevel, factors: List
-    ) -> List[str]:
+    def _get_pest_recommendations(self, risk_level: RiskLevel, factors: list) -> list[str]:
         """Get recommendations for pest management."""
         recs = []
 
         if risk_level in [RiskLevel.HIGH, RiskLevel.CRITICAL]:
-            recs.append(
-                "🚨 Conduct thorough pest inspection (check undersides of leaves)"
-            )
+            recs.append("🚨 Conduct thorough pest inspection (check undersides of leaves)")
             recs.append("Install sticky traps to monitor pest populations")
             recs.append("Consider biological controls or organic pesticides")
             recs.append("Quarantine any suspicious plants")
@@ -772,9 +747,7 @@ class DiseasePredictor:
 
         return recs
 
-    def _get_nutrient_recommendations(
-        self, risk_level: RiskLevel, factors: List
-    ) -> List[str]:
+    def _get_nutrient_recommendations(self, risk_level: RiskLevel, factors: list) -> list[str]:
         """Get recommendations for nutrient management."""
         recs = []
 
@@ -790,7 +763,7 @@ class DiseasePredictor:
 
         return recs
 
-    def _load_risk_thresholds(self) -> Dict[str, Any]:
+    def _load_risk_thresholds(self) -> dict[str, Any]:
         """Load disease risk thresholds."""
         return {
             "fungal": {
@@ -804,32 +777,30 @@ class DiseasePredictor:
             "nutrient": {"moisture_low": 30, "moisture_high": 80},
         }
 
-    def _get_historical_risk_multipliers(
-        self, unit_id: int, plant_type: str
-    ) -> Dict[str, float]:
+    def _get_historical_risk_multipliers(self, unit_id: int, plant_type: str) -> dict[str, float]:
         """
         Get historical disease risk multipliers from user's environment profile.
-        
+
         If user has experienced certain disease issues before in their environment,
         we increase the risk score for those disease types.
-        
+
         Args:
             unit_id: Unit ID
             plant_type: Plant type
-            
+
         Returns:
             Dict mapping disease type to risk multiplier (e.g., {"fungal": 1.3})
         """
         if not self.personalized_learning:
             return {}
-        
+
         try:
             profile = self.personalized_learning.get_profile(unit_id)
             if not profile:
                 return {}
-            
+
             multipliers = {}
-            
+
             # Check challenge areas for disease-related issues
             for challenge in profile.challenge_areas:
                 challenge_lower = challenge.lower()
@@ -841,47 +812,39 @@ class DiseasePredictor:
                     multipliers["pest"] = 1.3
                 elif "nutrient" in challenge_lower or "deficiency" in challenge_lower:
                     multipliers["nutrient"] = 1.3
-            
+
             if multipliers:
                 logger.debug(f"Applied historical risk multipliers for unit {unit_id}: {multipliers}")
-            
+
             return multipliers
-            
+
         except Exception as e:
             logger.warning(f"Error getting historical risk multipliers: {e}")
             return {}
-    
-    def _apply_history_multiplier(
-        self,
-        risk: DiseaseRisk,
-        multiplier: float,
-        reason: str
-    ) -> DiseaseRisk:
+
+    def _apply_history_multiplier(self, risk: DiseaseRisk, multiplier: float, reason: str) -> DiseaseRisk:
         """
         Apply a historical multiplier to a disease risk assessment.
-        
+
         Args:
             risk: Original DiseaseRisk
             multiplier: Risk score multiplier
             reason: Reason for the multiplier
-            
+
         Returns:
             New DiseaseRisk with adjusted score
         """
         new_score = min(risk.risk_score * multiplier, 100)
-        
+
         # Add historical factor to contributing factors
         new_factors = list(risk.contributing_factors)
-        new_factors.append({
-            "factor": "historical_pattern",
-            "description": reason,
-            "multiplier": multiplier,
-            "impact": "moderate"
-        })
-        
+        new_factors.append(
+            {"factor": "historical_pattern", "description": reason, "multiplier": multiplier, "impact": "moderate"}
+        )
+
         # Recalculate risk level based on new score
         new_risk_level = self._score_to_risk_level(new_score)
-        
+
         return DiseaseRisk(
             disease_type=risk.disease_type,
             risk_level=new_risk_level,
@@ -889,7 +852,7 @@ class DiseasePredictor:
             risk_score=new_score,
             contributing_factors=new_factors,
             recommendations=risk.recommendations,
-            predicted_onset_days=risk.predicted_onset_days
+            predicted_onset_days=risk.predicted_onset_days,
         )
 
     def is_available(self) -> bool:

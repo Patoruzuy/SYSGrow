@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -34,7 +34,7 @@ def test_log_watering_event_includes_pre_moisture():
 
 
 def test_capture_manual_outcomes_updates_post_moisture():
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     watered_at = (now - timedelta(minutes=30)).isoformat()
 
     repo = Mock()

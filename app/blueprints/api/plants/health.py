@@ -5,20 +5,21 @@ Plant Health Monitoring
 Endpoints for recording and analyzing plant health observations, symptoms,
 and recommendations. Includes integration with AI health monitoring.
 """
+
 from __future__ import annotations
 
-from flask import request, current_app
-from app.utils.time import iso_now
 import logging
 
-from . import plants_api
+from flask import current_app, request
+
 from app.blueprints.api._common import (
-    success as _success,
     fail as _fail,
     get_container,
-    get_growth_service as _growth_service,
     get_plant_service as _plant_service,
+    success as _success,
 )
+
+from . import plants_api
 
 logger = logging.getLogger("plants_api.health")
 
@@ -29,13 +30,14 @@ logger = logging.getLogger("plants_api.health")
 
 # Deprecated endpoint /api/plants/health/summary removed - use /api/health/plants/summary instead
 
+
 @plants_api.post("/plants/<int:plant_id>/health/record")
 def record_plant_health(plant_id: int):
     """
     Record a plant health observation with optional image upload
-    
+
     Accepts: multipart/form-data or application/json
-    
+
     Form fields / JSON body:
     {
         "health_status": "stressed",  // Required: healthy, stressed, diseased, pest_infestation, nutrient_deficiency, dying
@@ -47,24 +49,26 @@ def record_plant_health(plant_id: int):
         "notes": "Lower leaves showing yellowing",  // Required
         "growth_stage": "Vegetative"  // Optional, will be auto-detected if not provided
     }
-    
+
     File field:
     - image: Image file (jpg, png, gif) - optional
     """
     logger.info(f"Recording health observation for plant {plant_id}")
     try:
-        import os
         import json
+        import os
+
         from werkzeug.utils import secure_filename
-        from app.services.ai import PlantHealthObservation, HealthStatus, DiseaseType
-        
+
+        from app.services.ai import DiseaseType, HealthStatus, PlantHealthObservation
+
         plant_service = _plant_service()
-        
+
         # Verify plant exists
         plant = plant_service.get_plant(plant_id)
         if not plant:
             return _fail(f"Plant {plant_id} not found", 404)
-        
+
         # Handle both JSON and form-data
         if request.is_json:
             payload = request.get_json() or {}
@@ -72,28 +76,25 @@ def record_plant_health(plant_id: int):
         else:
             # Form data (multipart)
             payload = request.form.to_dict()
-            image_file = request.files.get('image')
-        
+            image_file = request.files.get("image")
+
         # Validate required fields
         health_status_str = payload.get("health_status")
         notes = payload.get("notes", "").strip()
-        
+
         if not health_status_str:
             return _fail("Missing required field: health_status", 400)
-        
+
         if not notes:
             return _fail("Missing required field: notes", 400)
-        
+
         # Parse health status
         try:
             health_status = HealthStatus(health_status_str)
         except ValueError:
             valid_statuses = [s.value for s in HealthStatus]
-            return _fail(
-                f"Invalid health_status. Must be one of: {', '.join(valid_statuses)}", 
-                400
-            )
-        
+            return _fail(f"Invalid health_status. Must be one of: {', '.join(valid_statuses)}", 400)
+
         # Parse symptoms (handle JSON string or comma-separated)
         symptoms = []
         symptoms_data = payload.get("symptoms")
@@ -103,10 +104,10 @@ def record_plant_health(plant_id: int):
                     symptoms = json.loads(symptoms_data)
                 except json.JSONDecodeError:
                     # Try comma-separated
-                    symptoms = [s.strip() for s in symptoms_data.split(',') if s.strip()]
+                    symptoms = [s.strip() for s in symptoms_data.split(",") if s.strip()]
             elif isinstance(symptoms_data, list):
                 symptoms = symptoms_data
-        
+
         # Parse affected parts (handle JSON string or comma-separated)
         affected_parts = []
         affected_data = payload.get("affected_parts")
@@ -116,10 +117,10 @@ def record_plant_health(plant_id: int):
                     affected_parts = json.loads(affected_data)
                 except json.JSONDecodeError:
                     # Try comma-separated
-                    affected_parts = [p.strip() for p in affected_data.split(',') if p.strip()]
+                    affected_parts = [p.strip() for p in affected_data.split(",") if p.strip()]
             elif isinstance(affected_data, list):
                 affected_parts = affected_data
-        
+
         # Parse severity level
         severity = None
         if payload.get("severity_level"):
@@ -129,11 +130,11 @@ def record_plant_health(plant_id: int):
                     return _fail("severity_level must be between 1 and 5", 400)
             except (ValueError, TypeError):
                 return _fail("severity_level must be an integer", 400)
-        
+
         # If not healthy, severity is recommended
         if health_status != HealthStatus.HEALTHY and severity is None:
             logger.warning(f"No severity provided for non-healthy status: {health_status_str}")
-        
+
         # Parse disease type (optional)
         disease_type = None
         if payload.get("disease_type"):
@@ -141,46 +142,44 @@ def record_plant_health(plant_id: int):
                 disease_type = DiseaseType(payload["disease_type"])
             except ValueError:
                 valid_types = [t.value for t in DiseaseType]
-                return _fail(
-                    f"Invalid disease_type. Must be one of: {', '.join(valid_types)}", 
-                    400
-                )
-        
+                return _fail(f"Invalid disease_type. Must be one of: {', '.join(valid_types)}", 400)
+
         # Handle image upload
         image_path = None
         if image_file and image_file.filename:
             # Validate file type
-            allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+            allowed_extensions = {"png", "jpg", "jpeg", "gif", "webp"}
             filename = secure_filename(image_file.filename)
-            file_ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
-            
+            file_ext = filename.rsplit(".", 1)[1].lower() if "." in filename else ""
+
             if file_ext not in allowed_extensions:
                 return _fail(f"Invalid image format. Allowed: {', '.join(allowed_extensions)}", 400)
-            
+
             # Create uploads directory if not exists
-            upload_dir = os.path.join(current_app.root_path, '..', 'uploads', 'plant_health')
+            upload_dir = os.path.join(current_app.root_path, "..", "uploads", "plant_health")
             os.makedirs(upload_dir, exist_ok=True)
-            
+
             # Generate unique filename
             from datetime import datetime
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             unique_filename = f"plant_{plant_id}_{timestamp}.{file_ext}"
             file_path = os.path.join(upload_dir, unique_filename)
-            
+
             # Save file
             image_file.save(file_path)
-            
+
             # Store relative path for database
             image_path = f"/uploads/plant_health/{unique_filename}"
             logger.info(f"Saved health observation image: {image_path}")
-        
+
         # Get plant_type and growth_stage
         plant_type = plant.get("plant_type")
         growth_stage = payload.get("growth_stage") or plant.get("current_growth_stage")
-        
+
         # Get environmental data for context
         unit_id = plant.get("unit_id")
-        
+
         # Create observation
         observation = PlantHealthObservation(
             unit_id=unit_id,
@@ -196,41 +195,44 @@ def record_plant_health(plant_id: int):
             plant_type=plant_type,
             growth_stage=growth_stage,
             image_path=image_path,
-            user_id=payload.get("user_id")
+            user_id=payload.get("user_id"),
         )
-        
+
         # Record observation via the DI-wired health monitor
         health_monitor = get_container().plant_health_monitor
         health_id = health_monitor.record_health_observation(observation)
-        
+
         # Get correlations
         correlations = health_monitor.analyze_environmental_correlation(observation)
-        
-        return _success({
-            "health_id": health_id,
-            "plant_id": plant_id,
-            "plant_name": plant.get("plant_name"),
-            "plant_type": plant_type,
-            "growth_stage": growth_stage,
-            "observation_date": observation.observation_date.isoformat(),
-            "image_path": image_path,
-            "correlations": [
-                {
-                    "factor": corr.factor_name,
-                    "strength": round(corr.correlation_strength, 2),
-                    "confidence": round(corr.confidence_level, 2),
-                    "recommended_range": corr.recommended_range,
-                    "current_value": round(corr.current_value, 2),
-                    "trend": corr.trend
-                }
-                for corr in correlations
-            ],
-            "message": f"Health observation recorded successfully for {plant.get('plant_name')}"
-        }, 201)
-        
+
+        return _success(
+            {
+                "health_id": health_id,
+                "plant_id": plant_id,
+                "plant_name": plant.get("plant_name"),
+                "plant_type": plant_type,
+                "growth_stage": growth_stage,
+                "observation_date": observation.observation_date.isoformat(),
+                "image_path": image_path,
+                "correlations": [
+                    {
+                        "factor": corr.factor_name,
+                        "strength": round(corr.correlation_strength, 2),
+                        "confidence": round(corr.confidence_level, 2),
+                        "recommended_range": corr.recommended_range,
+                        "current_value": round(corr.current_value, 2),
+                        "trend": corr.trend,
+                    }
+                    for corr in correlations
+                ],
+                "message": f"Health observation recorded successfully for {plant.get('plant_name')}",
+            },
+            201,
+        )
+
     except ValueError as e:
         logger.warning(f"Validation error recording health: {e}")
-        return _fail(str(e), 400)
+        return safe_error(e, 400)
     except Exception as e:
         logger.exception(f"Error recording health for plant {plant_id}: {e}")
         return _fail("Failed to record plant health observation", 500)
@@ -240,7 +242,7 @@ def record_plant_health(plant_id: int):
 def get_plant_health_history(plant_id: int):
     """
     Get health observation history for a plant
-    
+
     Query params:
     - days: Number of days of history (default: 7)
     """
@@ -250,16 +252,18 @@ def get_plant_health_history(plant_id: int):
         repo_health = container.ai_health_repo
     except Exception as e:
         logger.warning("Health monitor unavailable, returning empty history: %s", e)
-        return _success({"plant_id": plant_id, "observations": [], "count": 0, "days": request.args.get("days", 7, type=int)})
-    
+        return _success(
+            {"plant_id": plant_id, "observations": [], "count": 0, "days": request.args.get("days", 7, type=int)}
+        )
+
     try:
         plant_service = _plant_service()
-        
+
         # Verify plant exists
         plant = plant_service.get_plant(plant_id)
         if not plant:
             return _fail(f"Plant {plant_id} not found", 404)
-        
+
         days = request.args.get("days", 7, type=int)
         plant = plant.to_dict()
         try:
@@ -268,22 +272,21 @@ def get_plant_health_history(plant_id: int):
         except Exception as exc:
             logger.warning("Health monitor backend unavailable, returning empty history: %s", exc)
             observations = []
-        
+
         # Filter for this specific plant
-        plant_observations = [
-            obs for obs in observations 
-            if obs.get("plant_id") == plant_id
-        ]
-        
-        return _success({
-            "plant_id": plant_id,
-            "plant_name": plant.get("plant_name"),
-            "plant_type": plant.get("plant_type"),
-            "observations": plant_observations,
-            "count": len(plant_observations),
-            "days": days
-        })
-        
+        plant_observations = [obs for obs in observations if obs.get("plant_id") == plant_id]
+
+        return _success(
+            {
+                "plant_id": plant_id,
+                "plant_name": plant.get("plant_name"),
+                "plant_type": plant.get("plant_type"),
+                "observations": plant_observations,
+                "count": len(plant_observations),
+                "days": days,
+            }
+        )
+
     except Exception as e:
         logger.exception(f"Error getting health history for plant {plant_id}: {e}")
         return _fail("Failed to get plant health history", 500)
@@ -296,32 +299,30 @@ def get_plant_health_recommendations(plant_id: int):
     try:
         container = get_container()
         health_monitor = container.plant_health_monitor
-        
+
         plant_service = _plant_service()
-        
+
         # Verify plant exists
         plant = plant_service.get_plant(plant_id)
         if not plant:
             return _fail(f"Plant {plant_id} not found", 404)
-        
+
         unit_id = plant.get("unit_id")
         plant_type = plant.get("plant_type")
         growth_stage = plant.get("current_growth_stage")
-        
-        recommendations = health_monitor.get_health_recommendations(
-            unit_id, 
-            plant_type, 
-            growth_stage
+
+        recommendations = health_monitor.get_health_recommendations(unit_id, plant_type, growth_stage)
+
+        return _success(
+            {
+                "plant_id": plant_id,
+                "plant_name": plant.get("plant_name"),
+                "plant_type": plant_type,
+                "growth_stage": growth_stage,
+                "recommendations": recommendations,
+            }
         )
-        
-        return _success({
-            "plant_id": plant_id,
-            "plant_name": plant.get("plant_name"),
-            "plant_type": plant_type,
-            "growth_stage": growth_stage,
-            "recommendations": recommendations
-        })
-        
+
     except Exception as e:
         logger.exception(f"Error getting health recommendations for plant {plant_id}: {e}")
         return _fail("Failed to get health recommendations", 500)
@@ -334,21 +335,18 @@ def get_available_symptoms():
     try:
         container = get_container()
         health_monitor = container.plant_health_monitor
-        
+
         symptoms = [
             {
                 "name": symptom,
                 "likely_causes": data["likely_causes"],
-                "environmental_factors": data["environmental_factors"]
+                "environmental_factors": data["environmental_factors"],
             }
             for symptom, data in health_monitor.symptom_database.items()
         ]
-        
-        return _success({
-            "symptoms": symptoms,
-            "count": len(symptoms)
-        })
-        
+
+        return _success({"symptoms": symptoms, "count": len(symptoms)})
+
     except Exception as e:
         logger.exception(f"Error getting available symptoms: {e}")
         return _fail("Failed to get available symptoms", 500)
@@ -359,23 +357,14 @@ def get_health_statuses():
     """Get list of available health status values"""
     logger.info("Getting available health statuses")
     try:
-        from app.services.ai import HealthStatus, DiseaseType
-        
-        statuses = [
-            {"value": status.value, "name": status.name}
-            for status in HealthStatus
-        ]
-        
-        disease_types = [
-            {"value": dtype.value, "name": dtype.name}
-            for dtype in DiseaseType
-        ]
-        
-        return _success({
-            "health_statuses": statuses,
-            "disease_types": disease_types
-        })
-        
+        from app.services.ai import DiseaseType, HealthStatus
+
+        statuses = [{"value": status.value, "name": status.name} for status in HealthStatus]
+
+        disease_types = [{"value": dtype.value, "name": dtype.name} for dtype in DiseaseType]
+
+        return _success({"health_statuses": statuses, "disease_types": disease_types})
+
     except Exception as e:
         logger.exception(f"Error getting health statuses: {e}")
         return _fail("Failed to get health statuses", 500)

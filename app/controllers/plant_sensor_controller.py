@@ -20,15 +20,16 @@ Author: Sebastian Gomez
 Date: 2024
 Updated: January 2026 - Moved to app.controllers package
 """
+
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable, Dict, Optional, Set, List
+from typing import Any, Callable
 
+from app.controllers.throttle_config import ThrottleConfig
+from app.controllers.throttled_analytics_writer import ThrottledAnalyticsWriter
 from app.enums import IrrigationEligibilityDecision, IrrigationSkipReason, NotificationSeverity
 from app.enums.events import NotificationEvent, SensorEvent
-from app.controllers.throttle_config import ThrottleConfig, DEFAULT_THROTTLE_CONFIG
-from app.controllers.throttled_analytics_writer import ThrottledAnalyticsWriter
 from app.utils.event_bus import EventBus
 from app.utils.psychrometrics import calculate_vpd_kpa
 from app.utils.time import iso_now
@@ -39,17 +40,17 @@ logger = logging.getLogger(__name__)
 class PlantSensorController(ThrottledAnalyticsWriter):
     """
     Per-unit controller for plant sensor events and irrigation detection.
-    
+
     Persists plant sensor data to PlantReadings table.
     Environment sensors are handled by ClimateController -> SensorReading table.
-    
+
     Note:
         Irrigation is user-controlled. This controller detects when irrigation
         might be needed and notifies the user, but does not control it via PID.
     """
 
     # Metrics managed by this controller
-    MANAGED_METRICS: Set[str] = {"soil_moisture", "ph", "ec"}
+    MANAGED_METRICS: set[str] = {"soil_moisture", "ph", "ec"}
 
     def __init__(
         self,
@@ -57,10 +58,10 @@ class PlantSensorController(ThrottledAnalyticsWriter):
         unit_id: int,
         analytics_repo: Any,
         irrigation_workflow_service: Any,
-        plant_context_resolver: Optional[Callable[..., Dict[str, Any]]] = None,
-        threshold_service: Optional[Any] = None,
-        event_bus: Optional[EventBus] = None,
-        throttle_config: Optional[ThrottleConfig] = None,
+        plant_context_resolver: Callable[..., dict[str, Any]] | None = None,
+        threshold_service: Any | None = None,
+        event_bus: EventBus | None = None,
+        throttle_config: ThrottleConfig | None = None,
     ) -> None:
         # Initialize base class
         super().__init__(
@@ -69,8 +70,8 @@ class PlantSensorController(ThrottledAnalyticsWriter):
             throttle_config=throttle_config,
         )
 
-        self._unsubscribe_callbacks: List[Callable[[], None]] = []
-        
+        self._unsubscribe_callbacks: list[Callable[[], None]] = []
+
         self.analytics_repo = analytics_repo
         self.irrigation_workflow_service = irrigation_workflow_service
         self.plant_context_resolver = plant_context_resolver
@@ -81,7 +82,7 @@ class PlantSensorController(ThrottledAnalyticsWriter):
         self._subscribed = True
         logger.info("PlantSensorController initialized for unit %s", self.unit_id)
 
-    def _get_managed_metrics(self) -> Set[str]:
+    def _get_managed_metrics(self) -> set[str]:
         """Return set of metric names managed by this controller."""
         return self.MANAGED_METRICS
 
@@ -107,7 +108,7 @@ class PlantSensorController(ThrottledAnalyticsWriter):
 
     # ==================== Context Resolution ====================
 
-    def _resolve_context(self, sensor_id: Optional[int]) -> Dict[str, Any]:
+    def _resolve_context(self, sensor_id: int | None) -> dict[str, Any]:
         """Resolve plant context for a sensor."""
         if not self.plant_context_resolver or sensor_id is None:
             return {}
@@ -117,7 +118,7 @@ class PlantSensorController(ThrottledAnalyticsWriter):
             logger.debug("Plant context resolution failed for sensor %s: %s", sensor_id, exc, exc_info=True)
             return {}
 
-    def _resolve_threshold(self, context: Dict[str, Any]) -> Optional[float]:
+    def _resolve_threshold(self, context: dict[str, Any]) -> float | None:
         """Extract target moisture threshold from context."""
         value = context.get("target_moisture")
         if value is not None:
@@ -132,10 +133,10 @@ class PlantSensorController(ThrottledAnalyticsWriter):
     def _record_skip(
         self,
         *,
-        sensor_id: Optional[int],
-        plant_id: Optional[int],
-        moisture: Optional[float],
-        threshold: Optional[float],
+        sensor_id: int | None,
+        plant_id: int | None,
+        moisture: float | None,
+        threshold: float | None,
         reason: IrrigationSkipReason,
     ) -> None:
         """Record an irrigation eligibility skip in the trace log."""
@@ -151,7 +152,7 @@ class PlantSensorController(ThrottledAnalyticsWriter):
             skip_reason=reason,
         )
 
-    def _get_latest_environment_snapshot(self) -> Dict[str, Optional[float]]:
+    def _get_latest_environment_snapshot(self) -> dict[str, float | None]:
         """Fetch latest environment readings for irrigation context enrichment."""
         if not self.analytics_repo:
             return {}
@@ -165,9 +166,9 @@ class PlantSensorController(ThrottledAnalyticsWriter):
         self,
         *,
         moisture: float,
-        sensor_id: Optional[int],
-        reading_timestamp: Optional[str],
-        context: Dict[str, Any],
+        sensor_id: int | None,
+        reading_timestamp: str | None,
+        context: dict[str, Any],
     ) -> None:
         """Evaluate if irrigation should be triggered and delegate to workflow service."""
         if not self.irrigation_workflow_service:
@@ -249,7 +250,7 @@ class PlantSensorController(ThrottledAnalyticsWriter):
 
     # ==================== Event Handlers ====================
 
-    def on_soil_moisture_update(self, data: Dict[str, Any]) -> None:
+    def on_soil_moisture_update(self, data: dict[str, Any]) -> None:
         """Handle soil moisture updates and trigger irrigation workflow."""
         if not self._is_for_this_unit(data):
             return
@@ -272,7 +273,7 @@ class PlantSensorController(ThrottledAnalyticsWriter):
             payload["plant_id"] = context.get("plant_id")
         self._log_analytics_data(payload, {"soil_moisture"})
 
-    def on_ph_update(self, data: Dict[str, Any]) -> None:
+    def on_ph_update(self, data: dict[str, Any]) -> None:
         """Handle pH updates and alert on out-of-range values."""
         if not self._is_for_this_unit(data):
             return
@@ -291,7 +292,7 @@ class PlantSensorController(ThrottledAnalyticsWriter):
             payload["plant_id"] = context.get("plant_id")
         self._log_analytics_data(payload, {"ph"})
 
-    def on_ec_update(self, data: Dict[str, Any]) -> None:
+    def on_ec_update(self, data: dict[str, Any]) -> None:
         """Handle EC updates and alert on out-of-range values."""
         if not self._is_for_this_unit(data):
             return
@@ -315,44 +316,50 @@ class PlantSensorController(ThrottledAnalyticsWriter):
     def _check_ph_thresholds(self, ph_val: float, sensor_id: Any) -> None:
         """Check pH value against configurable thresholds and publish alerts."""
         cfg = self.throttle_config
-        
+
         # Check if outside warning range
         if ph_val < cfg.ph_warning_min or ph_val > cfg.ph_warning_max:
             # Determine severity based on critical thresholds
             is_critical = ph_val < cfg.ph_critical_min or ph_val > cfg.ph_critical_max
-            
-            self.event_bus.publish(NotificationEvent.PLANT_HEALTH_WARNING, {
-                "unit_id": self.unit_id,
-                "sensor_id": sensor_id,
-                "metric": "ph",
-                "value": ph_val,
-                "message": f"pH Level out of safe range: {ph_val:.2f}",
-                "severity": NotificationSeverity.CRITICAL if is_critical else NotificationSeverity.WARNING,
-            })
+
+            self.event_bus.publish(
+                NotificationEvent.PLANT_HEALTH_WARNING,
+                {
+                    "unit_id": self.unit_id,
+                    "sensor_id": sensor_id,
+                    "metric": "ph",
+                    "value": ph_val,
+                    "message": f"pH Level out of safe range: {ph_val:.2f}",
+                    "severity": NotificationSeverity.CRITICAL if is_critical else NotificationSeverity.WARNING,
+                },
+            )
 
     def _check_ec_thresholds(self, ec_val: float, sensor_id: Any) -> None:
         """Check EC value against configurable thresholds and publish alerts."""
         cfg = self.throttle_config
-        
+
         # Check if above warning threshold
         if ec_val > cfg.ec_warning_max:
             is_critical = ec_val > cfg.ec_critical_max
-            
-            self.event_bus.publish(NotificationEvent.PLANT_HEALTH_WARNING, {
-                "unit_id": self.unit_id,
-                "sensor_id": sensor_id,
-                "metric": "ec",
-                "value": ec_val,
-                "message": f"EC (Nutrient) Concentration too high: {ec_val:.2f} mS/cm",
-                "severity": NotificationSeverity.CRITICAL if is_critical else NotificationSeverity.WARNING,
-            })
+
+            self.event_bus.publish(
+                NotificationEvent.PLANT_HEALTH_WARNING,
+                {
+                    "unit_id": self.unit_id,
+                    "sensor_id": sensor_id,
+                    "metric": "ec",
+                    "value": ec_val,
+                    "message": f"EC (Nutrient) Concentration too high: {ec_val:.2f} mS/cm",
+                    "severity": NotificationSeverity.CRITICAL if is_critical else NotificationSeverity.WARNING,
+                },
+            )
 
     # ==================== Analytics Persistence ====================
 
-    def _log_analytics_data(self, data: Dict[str, Any], metrics: Set[str]) -> None:
+    def _log_analytics_data(self, data: dict[str, Any], metrics: set[str]) -> None:
         """
         Log plant sensor data to PlantReadings table with throttling.
-        
+
         Note: This persists to PlantReadings (plant-specific), not SensorReading
         (environment sensors handled by ClimateController).
         """
@@ -361,7 +368,7 @@ class PlantSensorController(ThrottledAnalyticsWriter):
             return
 
         # Extract metrics to save
-        savable_metrics: Dict[str, Any] = {}
+        savable_metrics: dict[str, Any] = {}
         for metric in metrics:
             value = data.get(metric)
             if value is not None:

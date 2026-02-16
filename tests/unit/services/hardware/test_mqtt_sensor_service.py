@@ -4,13 +4,14 @@ Unit Tests for MQTTSensorService
 Tests for unified MQTT sensor service (Zigbee + ESP32).
 """
 
-import pytest
 import json
 from types import SimpleNamespace
 from unittest.mock import Mock
 
-from app.services.hardware.mqtt_sensor_service import MQTTSensorService
+import pytest
+
 from app.schemas.events import DeviceSensorReadingPayload
+from app.services.hardware.mqtt_sensor_service import MQTTSensorService
 
 
 @pytest.fixture
@@ -69,16 +70,16 @@ def _make_msg(topic: str, payload_obj) -> Mock:
 
 class TestMQTTSensorServiceInitialization:
     """Test service initialization"""
-    
+
     def test_subscribes_to_topics(self, mqtt_sensor_service, mock_mqtt_client):
         """Should subscribe to Zigbee and ESP32 topics"""
         # Verify subscriptions
         assert mock_mqtt_client.subscribe.call_count >= 3
-        
+
         # Check for expected topics
         calls = mock_mqtt_client.subscribe.call_args_list
         topics = [call[0][0] for call in calls]
-        
+
         assert "zigbee2mqtt/+" in topics
         # Current implementation subscribes to SYSGrow-style topics
         assert "sysgrow/+" in topics
@@ -92,7 +93,7 @@ class TestMQTTSensorServiceInitialization:
 
 class TestZigbeeMessageHandling:
     """Test Zigbee2MQTT message handling"""
-    
+
     def test_handles_registered_zigbee_message_emits_device_payload(
         self,
         mqtt_sensor_service,
@@ -144,14 +145,14 @@ class TestZigbeeMessageHandling:
         mock_processor.process.assert_called_once()
         mock_processor.build_payloads.assert_called_once()
         mock_emitter.emit_device_sensor_reading.assert_called_once()
-    
+
     def test_skips_bridge_messages(self, mqtt_sensor_service, mock_processor, mock_emitter):
         """Should skip Zigbee2MQTT bridge messages"""
         msg = _make_msg("zigbee2mqtt/bridge", {"type": "bridge"})
         mqtt_sensor_service._on_message(None, None, msg)
         mock_processor.process.assert_not_called()
         mock_emitter.emit_device_sensor_reading.assert_not_called()
-    
+
     def test_handles_unknown_device(self, mqtt_sensor_service):
         """Should handle unknown Zigbee device gracefully"""
         # No friendly-name resolution available
@@ -162,8 +163,10 @@ class TestZigbeeMessageHandling:
 
 class TestESP32MessageHandling:
     """Test ESP32 custom sensor message handling"""
-    
-    def test_handles_registered_esp32_message(self, mqtt_sensor_service, mock_sensor_manager, mock_processor, mock_emitter):
+
+    def test_handles_registered_esp32_message(
+        self, mqtt_sensor_service, mock_sensor_manager, mock_processor, mock_emitter
+    ):
         """Registered ESP32 payload should be processed and emitted."""
         sensor = Mock()
         sensor.id = 1
@@ -206,7 +209,7 @@ class TestESP32MessageHandling:
         mock_processor.process.assert_called_once()
         mock_processor.build_payloads.assert_called_once()
         mock_emitter.emit_device_sensor_reading.assert_called_once()
-    
+
     def test_handles_reload_request(self, mqtt_sensor_service, mock_processor, mock_emitter):
         """Should handle ESP32 reload request without crashing."""
         msg = Mock()
@@ -215,7 +218,7 @@ class TestESP32MessageHandling:
         mqtt_sensor_service._on_message(None, None, msg)
         mock_processor.process.assert_not_called()
         mock_emitter.emit_device_sensor_reading.assert_not_called()
-    
+
     def test_validates_unit_id_match(self, mqtt_sensor_service, mock_sensor_manager):
         """Should validate unit_id matches between topic and sensor"""
         sensor = Mock()
@@ -229,7 +232,9 @@ class TestESP32MessageHandling:
 
 
 class TestUnregisteredESP32:
-    def test_emits_unregistered_payload_for_unknown_sensor(self, mqtt_sensor_service, mock_sensor_manager, mock_emitter):
+    def test_emits_unregistered_payload_for_unknown_sensor(
+        self, mqtt_sensor_service, mock_sensor_manager, mock_emitter
+    ):
         mock_sensor_manager.get_sensor_entity.return_value = None
 
         # Simulate an unregistered sysgrow device state

@@ -21,6 +21,7 @@ Usage:
 Author: SYSGrow Team
 Date: January 2026
 """
+
 from __future__ import annotations
 
 import logging
@@ -29,9 +30,10 @@ import time
 from collections import defaultdict
 from dataclasses import dataclass, field
 from functools import wraps
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable
 
 from flask import Flask, Response, current_app, g, request
+
 from app.utils.http import error_response
 
 logger = logging.getLogger(__name__)
@@ -40,18 +42,21 @@ logger = logging.getLogger(__name__)
 @dataclass
 class RateLimitConfig:
     """Configuration for rate limiting."""
+
     enabled: bool = True
     default_limit: int = 60  # requests per window
     default_window: int = 60  # seconds
     burst_limit: int = 10  # extra requests allowed in burst
     cleanup_interval: int = 300  # clean old entries every 5 minutes
-    exempt_paths: List[str] = field(default_factory=lambda: [
-        "/api/health/ping",
-        "/api/health/system",
-        "/socket.io",
-        "/static/",
-    ])
-    exempt_methods: List[str] = field(default_factory=lambda: ["OPTIONS"])
+    exempt_paths: list[str] = field(
+        default_factory=lambda: [
+            "/api/health/ping",
+            "/api/health/system",
+            "/socket.io",
+            "/static/",
+        ]
+    )
+    exempt_methods: list[str] = field(default_factory=lambda: ["OPTIONS"])
 
 
 class RateLimiter:
@@ -62,14 +67,14 @@ class RateLimiter:
     Thread-safe and memory-efficient with automatic cleanup.
     """
 
-    def __init__(self, config: Optional[RateLimitConfig] = None):
+    def __init__(self, config: RateLimitConfig | None = None):
         self.config = config or RateLimitConfig()
-        self._requests: Dict[str, List[float]] = defaultdict(list)
+        self._requests: dict[str, list[float]] = defaultdict(list)
         self._lock = threading.RLock()
         self._last_cleanup = time.time()
-        self._app: Optional[Flask] = None
+        self._app: Flask | None = None
 
-    def init_app(self, app: Flask, default_limits: Optional[List[str]] = None) -> None:
+    def init_app(self, app: Flask, default_limits: list[str] | None = None) -> None:
         """
         Initialize rate limiter with Flask app.
 
@@ -111,9 +116,7 @@ class RateLimiter:
 
             # Check rate limit
             allowed, remaining, reset_time = self.is_allowed(
-                client_key,
-                max_requests=self.config.default_limit,
-                window_seconds=self.config.default_window
+                client_key, max_requests=self.config.default_limit, window_seconds=self.config.default_window
             )
 
             # Store info for response headers
@@ -130,18 +133,17 @@ class RateLimiter:
         # Register after_request hook for headers
         @app.after_request
         def add_rate_limit_headers(response: Response) -> Response:
-            if hasattr(g, 'rate_limit_remaining'):
-                response.headers['X-RateLimit-Limit'] = str(g.rate_limit_limit)
-                response.headers['X-RateLimit-Remaining'] = str(g.rate_limit_remaining)
-                response.headers['X-RateLimit-Reset'] = str(int(g.rate_limit_reset))
+            if hasattr(g, "rate_limit_remaining"):
+                response.headers["X-RateLimit-Limit"] = str(g.rate_limit_limit)
+                response.headers["X-RateLimit-Remaining"] = str(g.rate_limit_remaining)
+                response.headers["X-RateLimit-Reset"] = str(int(g.rate_limit_reset))
             return response
 
         logger.info(
-            f"Rate limiter initialized: {self.config.default_limit} requests "
-            f"per {self.config.default_window} seconds"
+            f"Rate limiter initialized: {self.config.default_limit} requests per {self.config.default_window} seconds"
         )
 
-    def _parse_limit(self, limit: str) -> Optional[Tuple[int, int]]:
+    def _parse_limit(self, limit: str) -> tuple[int, int] | None:
         """Parse limit string like '60/minute' into (count, seconds)."""
         try:
             parts = limit.lower().split("/")
@@ -175,12 +177,7 @@ class RateLimiter:
             return forwarded.split(",")[0].strip()
         return request.remote_addr or "unknown"
 
-    def is_allowed(
-        self,
-        key: str,
-        max_requests: int = 60,
-        window_seconds: int = 60
-    ) -> Tuple[bool, int, float]:
+    def is_allowed(self, key: str, max_requests: int = 60, window_seconds: int = 60) -> tuple[bool, int, float]:
         """
         Check if request is allowed within rate limit.
 
@@ -254,7 +251,7 @@ class RateLimiter:
         response.headers["Retry-After"] = str(retry_after)
         return response
 
-    def get_stats(self) -> Dict[str, any]:
+    def get_stats(self) -> dict[str, any]:
         """Get rate limiter statistics."""
         with self._lock:
             active_clients = len(self._requests)
@@ -266,12 +263,12 @@ class RateLimiter:
             "total_tracked_requests": total_tracked,
             "default_limit": self.config.default_limit,
             "default_window_seconds": self.config.default_window,
-            "exempt_paths": self.config.exempt_paths
+            "exempt_paths": self.config.exempt_paths,
         }
 
 
 # Global limiter instance
-_limiter: Optional[RateLimiter] = None
+_limiter: RateLimiter | None = None
 
 
 def get_limiter() -> RateLimiter:
@@ -282,11 +279,7 @@ def get_limiter() -> RateLimiter:
     return _limiter
 
 
-def rate_limit(
-    max_requests: int = 60,
-    window_seconds: int = 60,
-    key_func: Optional[Callable[[], str]] = None
-):
+def rate_limit(max_requests: int = 60, window_seconds: int = 60, key_func: Callable[[], str] | None = None):
     """
     Decorator for rate limiting specific endpoints.
 
@@ -304,6 +297,7 @@ def rate_limit(
     Returns:
         Decorated function
     """
+
     def decorator(f: Callable) -> Callable:
         @wraps(f)
         def wrapped(*args, **kwargs):
@@ -322,9 +316,7 @@ def rate_limit(
             endpoint_key = f"{client_key}:{request.endpoint}"
 
             allowed, remaining, reset_time = limiter.is_allowed(
-                endpoint_key,
-                max_requests=max_requests,
-                window_seconds=window_seconds
+                endpoint_key, max_requests=max_requests, window_seconds=window_seconds
             )
 
             # Store for headers
@@ -333,13 +325,13 @@ def rate_limit(
             g.rate_limit_limit = max_requests + max(0, limiter.config.burst_limit)
 
             if not allowed:
-                logger.warning(
-                    f"Rate limit exceeded for {client_key} on {request.endpoint}"
-                )
+                logger.warning(f"Rate limit exceeded for {client_key} on {request.endpoint}")
                 return limiter._rate_limit_response(reset_time)
 
             return f(*args, **kwargs)
+
         return wrapped
+
     return decorator
 
 

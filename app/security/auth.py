@@ -2,6 +2,7 @@ from functools import wraps
 from typing import Callable, TypeVar, cast
 
 from flask import flash, redirect, session, url_for
+
 from app.utils.http import error_response
 
 F = TypeVar("F", bound=Callable[..., object])

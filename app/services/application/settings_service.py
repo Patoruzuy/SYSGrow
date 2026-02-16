@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
-from datetime import datetime
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from infrastructure.database.repositories.settings import SettingsRepository
 from app.utils.time import iso_now
+from infrastructure.database.repositories.settings import SettingsRepository
 
 if TYPE_CHECKING:
     from app.services.application.growth_service import GrowthService
@@ -25,17 +23,17 @@ class SettingsService:
     Bidirectional Dependencies:
         - growth_service: Set by ContainerBuilder for unit management operations
         - sensor_service: Set by ContainerBuilder for sensor configuration
-        
+
     Note: Environment thresholds are now managed per-unit by ThresholdService.
     Use ThresholdService.get_environment_thresholds(unit_id=...) for unit thresholds.
     """
 
     repository: SettingsRepository
-    growth_service: Optional['GrowthService'] = None
-    sensor_service: Optional['SensorManagementService'] = None
+    growth_service: "GrowthService" | None = None
+    sensor_service: "SensorManagementService" | None = None
 
     # --- Hotspot -----------------------------------------------------------------
-    def get_hotspot_settings(self) -> Optional[Dict[str, Any]]:
+    def get_hotspot_settings(self) -> dict[str, Any] | None:
         record = self.repository.get_hotspot()
         if not record:
             return None
@@ -45,7 +43,7 @@ class SettingsService:
             "password_present": bool(record.get("encrypted_password")),
         }
 
-    def update_hotspot_settings(self, *, ssid: str, encrypted_password: Optional[str] = None) -> Dict[str, Any]:
+    def update_hotspot_settings(self, *, ssid: str, encrypted_password: str | None = None) -> dict[str, Any]:
         current = self.repository.get_hotspot() or {}
         password = encrypted_password if encrypted_password is not None else current.get("encrypted_password")
         if password is None:
@@ -58,23 +56,23 @@ class SettingsService:
         }
 
     # --- Camera ------------------------------------------------------------------
-    def get_camera_settings(self) -> Optional[Dict[str, Any]]:
+    def get_camera_settings(self) -> dict[str, Any] | None:
         return self.repository.get_camera()
 
     def update_camera_settings(
         self,
         *,
         camera_type: str,
-        ip_address: Optional[str] = None,
-        usb_cam_index: Optional[int] = None,
-        resolution: Optional[int] = None,
-        quality: Optional[int] = None,
-        brightness: Optional[int] = None,
-        contrast: Optional[int] = None,
-        saturation: Optional[int] = None,
-        flip: Optional[int] = None,
-        last_used: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        ip_address: str | None = None,
+        usb_cam_index: int | None = None,
+        resolution: int | None = None,
+        quality: int | None = None,
+        brightness: int | None = None,
+        contrast: int | None = None,
+        saturation: int | None = None,
+        flip: int | None = None,
+        last_used: str | None = None,
+    ) -> dict[str, Any]:
         current = self.repository.get_camera() or {}
         payload = {
             "camera_type": camera_type,

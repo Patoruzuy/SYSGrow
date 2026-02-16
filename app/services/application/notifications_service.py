@@ -18,27 +18,27 @@ Features:
 Author: SYSGrow Team
 Date: January 2026
 """
+
 from __future__ import annotations
 
 import json
 import logging
-from dataclasses import field
-from datetime import datetime, time, timedelta
-from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING
+from datetime import datetime
+from typing import TYPE_CHECKING, Any, Callable
 
 from app.domain.notification_settings import NotificationSettings
 from app.enums import (
-    NotificationType,
-    NotificationSeverity,
-    NotificationChannel,
     IrrigationFeedback,
+    NotificationChannel,
+    NotificationSeverity,
+    NotificationType,
 )
 from app.utils.time import iso_now, utc_now
 
 if TYPE_CHECKING:
-    from infrastructure.database.repositories.notifications import NotificationRepository
-    from app.utils.emitters import EmitterService
     from app.services.utilities.email_service import EmailService
+    from app.utils.emitters import EmitterService
+    from infrastructure.database.repositories.notifications import NotificationRepository
 
 logger = logging.getLogger(__name__)
 
@@ -63,8 +63,8 @@ class NotificationsService:
     def __init__(
         self,
         notification_repo: "NotificationRepository",
-        emitter_service: Optional["EmitterService"] = None,
-        email_service: Optional["EmailService"] = None,
+        emitter_service: "EmitterService" | None = None,
+        email_service: "EmailService" | None = None,
     ):
         """
         Initialize NotificationsService.
@@ -79,8 +79,8 @@ class NotificationsService:
         self._email_service = email_service
 
         # In-memory throttle cache: key -> last_sent_timestamp
-        self._throttle_cache: Dict[str, datetime] = {}
-        self._action_handlers: Dict[str, Callable[[str, Dict[str, Any], Optional[Dict[str, Any]]], bool]] = {}
+        self._throttle_cache: dict[str, datetime] = {}
+        self._action_handlers: dict[str, Callable[[str, dict[str, Any], dict[str, Any] | None], bool]] = {}
 
     # --- Settings Management ---
 
@@ -108,7 +108,7 @@ class NotificationsService:
             logger.error(f"Error saving notification settings: {e}")
             return False
 
-    def update_user_settings(self, user_id: int, updates: Dict[str, Any]) -> bool:
+    def update_user_settings(self, user_id: int, updates: dict[str, Any]) -> bool:
         """Update specific notification settings for a user."""
         try:
             current = self.get_user_settings(user_id)
@@ -129,14 +129,14 @@ class NotificationsService:
         title: str,
         message: str,
         severity: str = NotificationSeverity.INFO,
-        source_type: Optional[str] = None,
-        source_id: Optional[int] = None,
-        unit_id: Optional[int] = None,
+        source_type: str | None = None,
+        source_id: int | None = None,
+        unit_id: int | None = None,
         requires_action: bool = False,
-        action_type: Optional[str] = None,
-        action_data: Optional[Dict[str, Any]] = None,
+        action_type: str | None = None,
+        action_data: dict[str, Any] | None = None,
         force: bool = False,
-    ) -> Optional[int]:
+    ) -> int | None:
         """
         Send a notification to a user.
 
@@ -202,7 +202,7 @@ class NotificationsService:
             )
 
             if not message_id:
-                logger.error(f"Failed to create notification record")
+                logger.error("Failed to create notification record")
                 return None
 
             # Update throttle cache
@@ -268,13 +268,9 @@ class NotificationsService:
         elapsed = (utc_now() - last_sent).total_seconds()
         return elapsed < interval_seconds
 
-    def _determine_channel(self, settings: NotificationSettings) -> Optional[str]:
+    def _determine_channel(self, settings: NotificationSettings) -> str | None:
         """Determine which notification channel(s) to use."""
-        email_ready = (
-            settings.email_enabled
-            and settings.email_address
-            and settings.smtp_host
-        )
+        email_ready = settings.email_enabled and settings.email_address and settings.smtp_host
         in_app_ready = settings.in_app_enabled
 
         if email_ready and in_app_ready:
@@ -293,7 +289,7 @@ class NotificationsService:
         title: str,
         message: str,
         severity: str,
-        unit_id: Optional[int] = None,
+        unit_id: int | None = None,
     ) -> None:
         """Send in-app notification via WebSocket."""
         if not self._emitter:
@@ -330,14 +326,14 @@ class NotificationsService:
         """Send email notification via EmailService."""
         if not settings.email_address or not settings.smtp_host:
             return
-        
+
         if not self._email_service:
             logger.warning("Email service not configured, skipping email notification")
             return
 
         try:
             from app.services.utilities.email_service import EmailConfig
-            
+
             config = EmailConfig(
                 smtp_host=settings.smtp_host,
                 smtp_port=settings.smtp_port,
@@ -345,7 +341,7 @@ class NotificationsService:
                 smtp_password=settings.smtp_password,
                 smtp_use_tls=settings.smtp_use_tls,
             )
-            
+
             success = self._email_service.send_notification_email(
                 to_address=settings.email_address,
                 title=title,
@@ -353,7 +349,7 @@ class NotificationsService:
                 severity=severity,
                 config=config,
             )
-            
+
             if success:
                 self._repo.update_email_status(message_id, sent=True)
             else:
@@ -371,9 +367,9 @@ class NotificationsService:
         user_id: int,
         sensor_name: str,
         battery_level: float,
-        sensor_id: Optional[int] = None,
-        unit_id: Optional[int] = None,
-    ) -> Optional[int]:
+        sensor_id: int | None = None,
+        unit_id: int | None = None,
+    ) -> int | None:
         """Send low battery notification for a sensor."""
         title = f"Low Battery: {sensor_name}"
         message = f"The sensor '{sensor_name}' has a low battery level ({battery_level:.1f}%). Please replace or recharge the batteries soon."
@@ -397,10 +393,10 @@ class NotificationsService:
         plant_name: str,
         soil_moisture: float,
         threshold: float,
-        plant_id: Optional[int] = None,
-        unit_id: Optional[int] = None,
+        plant_id: int | None = None,
+        unit_id: int | None = None,
         has_pump: bool = False,
-    ) -> Optional[int]:
+    ) -> int | None:
         """
         Send notification that a plant needs water.
 
@@ -452,13 +448,13 @@ class NotificationsService:
         self,
         user_id: int,
         unit_id: int,
-        plant_id: Optional[int] = None,
-        plant_name: Optional[str] = None,
-        soil_moisture_before: Optional[float] = None,
-        soil_moisture_after: Optional[float] = None,
-        irrigation_duration: Optional[int] = None,
-        actuator_id: Optional[int] = None,
-    ) -> Optional[int]:
+        plant_id: int | None = None,
+        plant_name: str | None = None,
+        soil_moisture_before: float | None = None,
+        soil_moisture_after: float | None = None,
+        irrigation_duration: int | None = None,
+        actuator_id: int | None = None,
+    ) -> int | None:
         """
         Request irrigation feedback from user after watering.
 
@@ -513,9 +509,9 @@ class NotificationsService:
         metric_name: str,
         current_value: float,
         threshold_value: float,
-        unit_id: Optional[int] = None,
+        unit_id: int | None = None,
         is_above: bool = True,
-    ) -> Optional[int]:
+    ) -> int | None:
         """Send notification when a threshold is exceeded."""
         direction = "above" if is_above else "below"
         title = f"{metric_name.title()} Alert"
@@ -538,10 +534,10 @@ class NotificationsService:
         user_id: int,
         device_name: str,
         device_type: str,
-        device_id: Optional[int] = None,
-        unit_id: Optional[int] = None,
-        last_seen: Optional[str] = None,
-    ) -> Optional[int]:
+        device_id: int | None = None,
+        unit_id: int | None = None,
+        last_seen: str | None = None,
+    ) -> int | None:
         """Send notification when a device goes offline."""
         title = f"Device Offline: {device_name}"
         message = f"The {device_type} '{device_name}' is offline and not responding."
@@ -563,10 +559,10 @@ class NotificationsService:
         self,
         user_id: int,
         plant_name: str,
-        plant_id: Optional[int] = None,
-        unit_id: Optional[int] = None,
-        estimated_yield: Optional[float] = None,
-    ) -> Optional[int]:
+        plant_id: int | None = None,
+        unit_id: int | None = None,
+        estimated_yield: float | None = None,
+    ) -> int | None:
         """Send notification when a plant is ready for harvest."""
         title = f"Harvest Ready: {plant_name}"
         message = f"The plant '{plant_name}' is ready for harvest!"
@@ -589,11 +585,11 @@ class NotificationsService:
         user_id: int,
         plant_name: str,
         health_issue: str,
-        recommendations: Optional[str] = None,
-        plant_id: Optional[int] = None,
-        unit_id: Optional[int] = None,
+        recommendations: str | None = None,
+        plant_id: int | None = None,
+        unit_id: int | None = None,
         severity: str = NotificationSeverity.WARNING,
-    ) -> Optional[int]:
+    ) -> int | None:
         """Send notification about plant health issues."""
         title = f"Health Alert: {plant_name}"
         message = f"Health issue detected for '{plant_name}': {health_issue}"
@@ -619,7 +615,7 @@ class NotificationsService:
         unread_only: bool = False,
         limit: int = 50,
         offset: int = 0,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Get notifications for a user."""
         try:
             return self._repo.get_user_messages(user_id, unread_only, limit, offset)
@@ -670,8 +666,8 @@ class NotificationsService:
     def get_pending_actions(
         self,
         user_id: int,
-        action_type: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+        action_type: str | None = None,
+    ) -> list[dict[str, Any]]:
         """Get notifications requiring user action."""
         try:
             return self._repo.get_pending_actions(user_id, action_type)
@@ -682,7 +678,7 @@ class NotificationsService:
     def register_action_handler(
         self,
         action_type: str,
-        handler: Callable[[str, Dict[str, Any], Optional[Dict[str, Any]]], bool],
+        handler: Callable[[str, dict[str, Any], dict[str, Any] | None], bool],
     ) -> None:
         """Register a handler for notification action responses."""
         if not action_type:
@@ -728,7 +724,7 @@ class NotificationsService:
         self,
         feedback_id: int,
         response: str,
-        notes: Optional[str] = None,
+        notes: str | None = None,
     ) -> bool:
         """
         Submit irrigation feedback.
@@ -773,7 +769,7 @@ class NotificationsService:
             logger.error(f"Error submitting irrigation feedback: {e}")
             return False
 
-    def get_pending_irrigation_feedback(self, user_id: int) -> List[Dict[str, Any]]:
+    def get_pending_irrigation_feedback(self, user_id: int) -> list[dict[str, Any]]:
         """Get pending irrigation feedback requests for a user."""
         try:
             return self._repo.get_pending_irrigation_feedback(user_id)
@@ -785,7 +781,7 @@ class NotificationsService:
         self,
         unit_id: int,
         limit: int = 20,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Get irrigation feedback history for a unit."""
         try:
             return self._repo.get_irrigation_feedback_history(unit_id, limit)

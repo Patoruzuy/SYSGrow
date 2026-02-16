@@ -1,5 +1,13 @@
 """Test enum consolidation after standardization"""
 
+import sys
+from pathlib import Path
+
+# Add repository root to path.
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
 from app.enums.device import Protocol, SensorType
 
 print("Enum Consolidation Test")

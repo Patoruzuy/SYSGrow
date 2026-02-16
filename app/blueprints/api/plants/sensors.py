@@ -5,20 +5,23 @@ Plant-Sensor Linking
 Endpoints for linking plants to sensors and managing plant sensor associations.
 Includes VPD (Vapor Pressure Deficit) monitoring for plant health optimization.
 """
+
 from __future__ import annotations
 
-from flask import request, current_app
-from app.utils.time import iso_now
-from app.utils.psychrometrics import calculate_vpd_kpa
 import logging
 
-from . import plants_api
+from flask import current_app, request
+
 from app.blueprints.api._common import (
-    success as _success,
     fail as _fail,
     get_growth_service as _growth_service,
     get_plant_service as _plant_service,
+    success as _success,
 )
+from app.utils.psychrometrics import calculate_vpd_kpa
+from app.utils.time import iso_now
+
+from . import plants_api
 
 logger = logging.getLogger("plants_api.sensors")
 
@@ -26,6 +29,7 @@ logger = logging.getLogger("plants_api.sensors")
 # ============================================================================
 # PLANT-SENSOR LINKING
 # ============================================================================
+
 
 @plants_api.get("/units/<int:unit_id>/sensors/available")
 def get_available_sensors(unit_id: int):
@@ -35,23 +39,25 @@ def get_available_sensors(unit_id: int):
         # Verify unit exists
         if not _growth_service().get_unit(unit_id):
             return _fail(f"Growth unit {unit_id} not found", 404)
-        
+
         # Optional sensor_type filter (default: SOIL_MOISTURE)
-        sensor_type = request.args.get('sensor_type', 'SOIL_MOISTURE')
-        
+        sensor_type = request.args.get("sensor_type", "SOIL_MOISTURE")
+
         plant_service = _plant_service()
-        
+
         # Get available sensors with friendly names
         sensors = plant_service.get_available_sensors_for_plant(unit_id, sensor_type)
-        
-        return _success({
-            "unit_id": unit_id,
-            "sensor_type": sensor_type,
-            "sensors": sensors,
-            "count": len(sensors),
-            "timestamp": iso_now()
-        })
-        
+
+        return _success(
+            {
+                "unit_id": unit_id,
+                "sensor_type": sensor_type,
+                "sensors": sensors,
+                "count": len(sensors),
+                "timestamp": iso_now(),
+            }
+        )
+
     except Exception as e:
         logger.exception(f"Error getting available sensors for unit {unit_id}: {e}")
         return _fail("Failed to get available sensors", 500)
@@ -63,27 +69,29 @@ def link_plant_to_sensor(plant_id: int, sensor_id: int):
     logger.info(f"Linking plant {plant_id} to sensor {sensor_id}")
     try:
         plant_service = _plant_service()
-        
+
         # Verify plant exists
         plant = plant_service.get_plant(plant_id)
         if not plant:
             return _fail(f"Plant {plant_id} not found", 404)
-        
+
         # Link sensor to plant
         success = plant_service.link_plant_sensor(plant_id, sensor_id)
-        
+
         if success:
-            return _success({
-                "plant_id": plant_id,
-                "sensor_id": sensor_id,
-                "message": f"Sensor {sensor_id} linked to plant '{plant.get('plant_name')}' successfully"
-            })
+            return _success(
+                {
+                    "plant_id": plant_id,
+                    "sensor_id": sensor_id,
+                    "message": f"Sensor {sensor_id} linked to plant '{plant.get('plant_name')}' successfully",
+                }
+            )
         else:
             return _fail(f"Failed to link sensor {sensor_id} to plant {plant_id}", 400)
-            
+
     except ValueError as e:
         logger.warning(f"Validation error linking sensor: {e}")
-        return _fail(str(e), 400)
+        return safe_error(e, 400)
     except Exception as e:
         logger.exception(f"Error linking plant {plant_id} to sensor {sensor_id}: {e}")
         return _fail("Failed to link plant to sensor", 500)
@@ -95,24 +103,26 @@ def unlink_plant_from_sensor(plant_id: int, sensor_id: int):
     logger.info(f"Unlinking plant {plant_id} from sensor {sensor_id}")
     try:
         plant_service = _plant_service()
-        
+
         # Verify plant exists
         plant = plant_service.get_plant(plant_id)
         if not plant:
             return _fail(f"Plant {plant_id} not found", 404)
-        
+
         # Unlink sensor from plant
         success = plant_service.unlink_plant_sensor(plant_id, sensor_id)
-        
+
         if success:
-            return _success({
-                "plant_id": plant_id,
-                "sensor_id": sensor_id,
-                "message": f"Sensor {sensor_id} unlinked from plant successfully"
-            })
+            return _success(
+                {
+                    "plant_id": plant_id,
+                    "sensor_id": sensor_id,
+                    "message": f"Sensor {sensor_id} unlinked from plant successfully",
+                }
+            )
         else:
             return _fail(f"Failed to unlink sensor {sensor_id} from plant {plant_id}", 400)
-            
+
     except Exception as e:
         logger.exception(f"Error unlinking plant {plant_id} from sensor {sensor_id}: {e}")
         return _fail("Failed to unlink plant from sensor", 500)
@@ -124,23 +134,25 @@ def get_plant_sensors(plant_id: int):
     logger.info(f"Getting sensors for plant {plant_id}")
     try:
         plant_service = _plant_service()
-        
+
         # Verify plant exists
         plant = plant_service.get_plant(plant_id)
         plant = plant.to_dict() if plant else None
         if not plant:
             return _fail(f"Plant {plant_id} not found", 404)
-        
+
         # Get full sensor details
         sensors = plant_service.get_plant_sensors(plant_id)
-        
-        return _success({
-            "plant_id": plant_id,
-            "plant_name": plant.get('plant_name'),
-            "sensors": sensors,
-            "sensor_count": len(sensors),
-            "timestamp": iso_now()
-        })
+
+        return _success(
+            {
+                "plant_id": plant_id,
+                "plant_name": plant.get("plant_name"),
+                "sensors": sensors,
+                "sensor_count": len(sensors),
+                "timestamp": iso_now(),
+            }
+        )
 
     except Exception as e:
         logger.exception(f"Error getting sensors for plant {plant_id}: {e}")
@@ -207,9 +219,8 @@ def get_vpd_status(unit_id: int):
 
         if temperature is None or humidity is None:
             return _fail(
-                "Temperature or humidity data not available. "
-                "Ensure temperature and humidity sensors are configured.",
-                404
+                "Temperature or humidity data not available. Ensure temperature and humidity sensors are configured.",
+                404,
             )
 
         # Calculate VPD
@@ -264,7 +275,7 @@ def get_vpd_status(unit_id: int):
                 f"Increase temperature by {round(deficit * 5, 1)}°C",
                 f"Decrease humidity by {round(deficit * 15, 1)}%",
                 "Improve air circulation with fans",
-                "Check for excess moisture sources"
+                "Check for excess moisture sources",
             ]
         elif vpd > max_vpd:
             status = "high"
@@ -273,41 +284,33 @@ def get_vpd_status(unit_id: int):
                 f"Decrease temperature by {round(excess * 5, 1)}°C",
                 f"Increase humidity by {round(excess * 15, 1)}%",
                 "Add humidifier or misting system",
-                "Reduce ventilation temporarily"
+                "Reduce ventilation temporarily",
             ]
         else:
-            suggested_actions = [
-                "VPD is within optimal range",
-                "Continue current environmental settings"
-            ]
+            suggested_actions = ["VPD is within optimal range", "Continue current environmental settings"]
 
         # Calculate how far from optimal
         deviation_percent = round(abs(vpd - target_vpd) / target_vpd * 100, 1)
 
-        return _success({
-            "unit_id": unit_id,
-            "vpd_kpa": vpd,
-            "status": status,
-            "optimal_range": {
-                "min": min_vpd,
-                "max": max_vpd,
-                "target": target_vpd
-            },
-            "growth_stage": growth_stage,
-            "plant_name": plant_name,
-            "current_conditions": {
-                "temperature_c": round(temperature, 1),
-                "humidity_percent": round(humidity, 1)
-            },
-            "deviation_percent": deviation_percent,
-            "suggested_actions": suggested_actions,
-            "vpd_explanation": {
-                "low_vpd": "Low VPD reduces transpiration, can lead to mold/mildew and nutrient uptake issues",
-                "high_vpd": "High VPD causes excessive transpiration, leading to stress, wilting, and nutrient lockout",
-                "optimal_vpd": "Optimal VPD promotes healthy transpiration and nutrient uptake"
-            },
-            "timestamp": iso_now()
-        })
+        return _success(
+            {
+                "unit_id": unit_id,
+                "vpd_kpa": vpd,
+                "status": status,
+                "optimal_range": {"min": min_vpd, "max": max_vpd, "target": target_vpd},
+                "growth_stage": growth_stage,
+                "plant_name": plant_name,
+                "current_conditions": {"temperature_c": round(temperature, 1), "humidity_percent": round(humidity, 1)},
+                "deviation_percent": deviation_percent,
+                "suggested_actions": suggested_actions,
+                "vpd_explanation": {
+                    "low_vpd": "Low VPD reduces transpiration, can lead to mold/mildew and nutrient uptake issues",
+                    "high_vpd": "High VPD causes excessive transpiration, leading to stress, wilting, and nutrient lockout",
+                    "optimal_vpd": "Optimal VPD promotes healthy transpiration and nutrient uptake",
+                },
+                "timestamp": iso_now(),
+            }
+        )
 
     except Exception as e:
         logger.exception(f"Error getting VPD status for unit {unit_id}: {e}")

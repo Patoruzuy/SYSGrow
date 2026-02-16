@@ -13,24 +13,25 @@ Integrates with:
 
 This service is the primary entry point for per-plant health assessments.
 """
+
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Optional, Any, TYPE_CHECKING, Tuple
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import TYPE_CHECKING, Any
 
 from app.enums import RiskLevel
 from app.utils.time import utc_now
 
 if TYPE_CHECKING:
-    from infrastructure.database.repositories.analytics import AnalyticsRepository
-    from app.services.application.threshold_service import ThresholdService
     from app.services.ai.disease_predictor import DiseasePredictor
     from app.services.ai.environmental_health_scorer import EnvironmentalLeafHealthScorer
-    from app.services.application.plant_service import PlantViewService
-    from app.services.ai.model_registry import ModelRegistry
     from app.services.ai.feature_engineering import PlantHealthFeatureExtractor
+    from app.services.ai.model_registry import ModelRegistry
+    from app.services.application.plant_service import PlantViewService
+    from app.services.application.threshold_service import ThresholdService
+    from infrastructure.database.repositories.analytics import AnalyticsRepository
 
 logger = logging.getLogger(__name__)
 
@@ -56,45 +57,45 @@ class PlantHealthScore:
 
     # Status classifications
     health_status: str  # healthy, stressed, critical
-    disease_risk: str   # low, moderate, high
+    disease_risk: str  # low, moderate, high
     nutrient_status: str  # optimal, deficient, excess
 
     # Actionable guidance
-    recommendations: List[str] = field(default_factory=list)
-    urgent_actions: List[str] = field(default_factory=list)
+    recommendations: list[str] = field(default_factory=list)
+    urgent_actions: list[str] = field(default_factory=list)
 
     # Data quality
     data_completeness: float = 1.0  # 0.0-1.0
 
     # Optional: raw values used
-    raw_values: Dict[str, Optional[float]] = field(default_factory=dict)
+    raw_values: dict[str, float | None] = field(default_factory=dict)
 
     # Metric availability (ok, estimated, n/a)
-    metric_status: Dict[str, str] = field(default_factory=dict)
+    metric_status: dict[str, str] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for API response."""
         return {
-            'plant_id': self.plant_id,
-            'unit_id': self.unit_id,
-            'timestamp': self.timestamp.isoformat(),
-            'overall_score': round(self.overall_score, 1),
-            'component_scores': {
-                'soil_moisture': round(self.soil_moisture_score, 1),
-                'ph': round(self.ph_score, 1),
-                'ec': round(self.ec_score, 1),
-                'temperature': round(self.temperature_score, 1),
-                'humidity': round(self.humidity_score, 1),
-                'vpd': round(self.vpd_score, 1),
+            "plant_id": self.plant_id,
+            "unit_id": self.unit_id,
+            "timestamp": self.timestamp.isoformat(),
+            "overall_score": round(self.overall_score, 1),
+            "component_scores": {
+                "soil_moisture": round(self.soil_moisture_score, 1),
+                "ph": round(self.ph_score, 1),
+                "ec": round(self.ec_score, 1),
+                "temperature": round(self.temperature_score, 1),
+                "humidity": round(self.humidity_score, 1),
+                "vpd": round(self.vpd_score, 1),
             },
-            'health_status': self.health_status,
-            'disease_risk': self.disease_risk,
-            'nutrient_status': self.nutrient_status,
-            'recommendations': self.recommendations,
-            'urgent_actions': self.urgent_actions,
-            'data_completeness': round(self.data_completeness, 2),
-            'raw_values': self.raw_values,
-            'metric_status': self.metric_status,
+            "health_status": self.health_status,
+            "disease_risk": self.disease_risk,
+            "nutrient_status": self.nutrient_status,
+            "recommendations": self.recommendations,
+            "urgent_actions": self.urgent_actions,
+            "data_completeness": round(self.data_completeness, 2),
+            "raw_values": self.raw_values,
+            "metric_status": self.metric_status,
         }
 
 
@@ -114,29 +115,29 @@ class PlantHealthScorer:
 
     # Scoring weights
     WEIGHTS = {
-        'soil_moisture': 0.25,
-        'ph': 0.15,
-        'ec': 0.10,
-        'temperature': 0.20,
-        'humidity': 0.15,
-        'vpd': 0.15,
+        "soil_moisture": 0.25,
+        "ph": 0.15,
+        "ec": 0.10,
+        "temperature": 0.20,
+        "humidity": 0.15,
+        "vpd": 0.15,
     }
 
     # Default thresholds (overridden by ThresholdService)
     DEFAULT_THRESHOLDS = {
-        'soil_moisture': {'optimal': 60.0, 'tolerance': 15.0, 'min': 30.0, 'max': 85.0},
-        'ph': {'optimal': 6.5, 'tolerance': 0.5, 'min': 5.5, 'max': 7.5},
-        'ec': {'optimal': 1.5, 'tolerance': 0.5, 'min': 0.5, 'max': 3.0},
-        'temperature': {'optimal': 24.0, 'tolerance': 3.0, 'min': 15.0, 'max': 32.0},
-        'humidity': {'optimal': 60.0, 'tolerance': 10.0, 'min': 40.0, 'max': 80.0},
-        'vpd': {'optimal': 1.0, 'tolerance': 0.3, 'min': 0.5, 'max': 1.5},
+        "soil_moisture": {"optimal": 60.0, "tolerance": 15.0, "min": 30.0, "max": 85.0},
+        "ph": {"optimal": 6.5, "tolerance": 0.5, "min": 5.5, "max": 7.5},
+        "ec": {"optimal": 1.5, "tolerance": 0.5, "min": 0.5, "max": 3.0},
+        "temperature": {"optimal": 24.0, "tolerance": 3.0, "min": 15.0, "max": 32.0},
+        "humidity": {"optimal": 60.0, "tolerance": 10.0, "min": 40.0, "max": 80.0},
+        "vpd": {"optimal": 1.0, "tolerance": 0.3, "min": 0.5, "max": 1.5},
     }
 
     # Health status thresholds
     STATUS_THRESHOLDS = {
-        'critical': 40.0,
-        'stressed': 65.0,
-        'healthy': 100.0,
+        "critical": 40.0,
+        "stressed": 65.0,
+        "healthy": 100.0,
     }
 
     # ML model names
@@ -146,13 +147,13 @@ class PlantHealthScorer:
 
     def __init__(
         self,
-        analytics_repo: Optional["AnalyticsRepository"] = None,
-        threshold_service: Optional["ThresholdService"] = None,
-        disease_predictor: Optional["DiseasePredictor"] = None,
-        environmental_scorer: Optional["EnvironmentalLeafHealthScorer"] = None,
-        plant_service: Optional["PlantViewService"] = None,
-        model_registry: Optional["ModelRegistry"] = None,
-        feature_extractor: Optional["PlantHealthFeatureExtractor"] = None,
+        analytics_repo: "AnalyticsRepository" | None = None,
+        threshold_service: "ThresholdService" | None = None,
+        disease_predictor: "DiseasePredictor" | None = None,
+        environmental_scorer: "EnvironmentalLeafHealthScorer" | None = None,
+        plant_service: "PlantViewService" | None = None,
+        model_registry: "ModelRegistry" | None = None,
+        feature_extractor: "PlantHealthFeatureExtractor" | None = None,
     ):
         """
         Initialize the plant health scorer.
@@ -230,11 +231,11 @@ class PlantHealthScorer:
         self,
         plant_id: int,
         unit_id: int,
-        plant_info: Dict[str, Any],
-        plant_metrics: Dict[str, Optional[float]],
-        env_metrics: Dict[str, Optional[float]],
-        thresholds: Dict[str, Dict[str, float]],
-    ) -> Optional[PlantHealthScore]:
+        plant_info: dict[str, Any],
+        plant_metrics: dict[str, float | None],
+        env_metrics: dict[str, float | None],
+        thresholds: dict[str, dict[str, float]],
+    ) -> PlantHealthScore | None:
         """
         ML-based health prediction using ensemble of regressor and classifier.
 
@@ -261,6 +262,7 @@ class PlantHealthScorer:
 
         try:
             import numpy as np
+
             from app.services.ai.feature_engineering import FeatureEngineer
 
             # Extract features
@@ -340,9 +342,7 @@ class PlantHealthScorer:
                 vpd_score=deviation_to_score(features.get("vpd_deviation", 0), 50.0),
                 health_status=health_status,
                 disease_risk=self._get_disease_risk_level(unit_id, env_metrics),
-                nutrient_status=self._determine_nutrient_status(
-                    plant_metrics.get("ec"), plant_metrics.get("ph")
-                ),
+                nutrient_status=self._determine_nutrient_status(plant_metrics.get("ec"), plant_metrics.get("ph")),
                 recommendations=recommendations,
                 urgent_actions=urgent_actions,
                 data_completeness=confidence,
@@ -356,10 +356,10 @@ class PlantHealthScorer:
 
     def _generate_ml_recommendations(
         self,
-        features: Dict[str, float],
+        features: dict[str, float],
         score: float,
         status: str,
-    ) -> List[str]:
+    ) -> list[str]:
         """Generate recommendations based on ML features."""
         recommendations = []
 
@@ -395,9 +395,9 @@ class PlantHealthScorer:
 
     def _identify_ml_urgent_actions(
         self,
-        features: Dict[str, float],
+        features: dict[str, float],
         score: float,
-    ) -> List[str]:
+    ) -> list[str]:
         """Identify urgent actions based on ML features."""
         urgent = []
 
@@ -418,7 +418,7 @@ class PlantHealthScorer:
     def _get_disease_risk_level(
         self,
         unit_id: int,
-        env_metrics: Dict[str, Optional[float]],
+        env_metrics: dict[str, float | None],
     ) -> str:
         """Get disease risk level."""
         if self.disease_predictor:
@@ -439,7 +439,7 @@ class PlantHealthScorer:
     def score_plant_health(
         self,
         plant_id: int,
-        unit_id: Optional[int] = None,
+        unit_id: int | None = None,
     ) -> PlantHealthScore:
         """
         Calculate comprehensive health score for a single plant.
@@ -455,10 +455,10 @@ class PlantHealthScorer:
             # Get plant profile and unit_id
             plant_info = self._get_plant_info(plant_id)
             if not unit_id:
-                unit_id = plant_info.get('unit_id', 0)
+                unit_id = plant_info.get("unit_id", 0)
 
-            plant_type = plant_info.get('plant_type')
-            growth_stage = plant_info.get('current_stage')
+            plant_type = plant_info.get("plant_type")
+            growth_stage = plant_info.get("current_stage")
 
             # Get thresholds for this plant type
             thresholds = self._get_thresholds(plant_type, growth_stage)
@@ -490,7 +490,7 @@ class PlantHealthScorer:
             total_components = len(self.WEIGHTS)
 
             # Score plant-specific metrics
-            for metric in ['soil_moisture', 'ph', 'ec']:
+            for metric in ["soil_moisture", "ph", "ec"]:
                 value = plant_metrics.get(metric)
                 raw_values[metric] = value
                 if value is not None:
@@ -503,7 +503,7 @@ class PlantHealthScorer:
                     scores[metric] = 50.0  # Default to neutral
 
             # Score environmental metrics
-            for metric in ['temperature', 'humidity', 'vpd']:
+            for metric in ["temperature", "humidity", "vpd"]:
                 value = env_metrics.get(metric)
                 raw_values[metric] = value
                 if value is not None:
@@ -517,9 +517,7 @@ class PlantHealthScorer:
                     metric_status[metric] = "n/a"
 
             # Calculate overall score (weighted average)
-            overall_score = sum(
-                scores[m] * self.WEIGHTS[m] for m in self.WEIGHTS
-            )
+            overall_score = sum(scores[m] * self.WEIGHTS[m] for m in self.WEIGHTS)
 
             # Calculate data completeness
             data_completeness = available_components / total_components
@@ -531,9 +529,7 @@ class PlantHealthScorer:
             disease_risk = self._get_disease_risk(unit_id, env_metrics)
 
             # Determine nutrient status
-            nutrient_status = self._determine_nutrient_status(
-                plant_metrics.get('ec'), plant_metrics.get('ph')
-            )
+            nutrient_status = self._determine_nutrient_status(plant_metrics.get("ec"), plant_metrics.get("ph"))
 
             # Generate recommendations and urgent actions
             recommendations, urgent_actions = self._generate_recommendations(
@@ -541,21 +537,19 @@ class PlantHealthScorer:
             )
             missing_metrics = [m for m, status in metric_status.items() if status == "n/a"]
             if missing_metrics:
-                recommendations.append(
-                    f"No sensor data configured for: {', '.join(sorted(missing_metrics))} (N/A)"
-                )
+                recommendations.append(f"No sensor data configured for: {', '.join(sorted(missing_metrics))} (N/A)")
 
             return PlantHealthScore(
                 plant_id=plant_id,
                 unit_id=unit_id,
                 timestamp=utc_now(),
                 overall_score=overall_score,
-                soil_moisture_score=scores['soil_moisture'],
-                ph_score=scores['ph'],
-                ec_score=scores['ec'],
-                temperature_score=scores['temperature'],
-                humidity_score=scores['humidity'],
-                vpd_score=scores['vpd'],
+                soil_moisture_score=scores["soil_moisture"],
+                ph_score=scores["ph"],
+                ec_score=scores["ec"],
+                temperature_score=scores["temperature"],
+                humidity_score=scores["humidity"],
+                vpd_score=scores["vpd"],
                 health_status=health_status,
                 disease_risk=disease_risk,
                 nutrient_status=nutrient_status,
@@ -570,7 +564,7 @@ class PlantHealthScorer:
             logger.error(f"Failed to score plant {plant_id}: {e}", exc_info=True)
             return self._get_default_score(plant_id, unit_id or 0)
 
-    def score_plants_in_unit(self, unit_id: int) -> List[PlantHealthScore]:
+    def score_plants_in_unit(self, unit_id: int) -> list[PlantHealthScore]:
         """
         Calculate health scores for all plants in a unit.
 
@@ -590,7 +584,7 @@ class PlantHealthScorer:
             env_metrics = self._get_environmental_metrics(unit_id)
 
             for plant in plants:
-                plant_id = plant.get('plant_id')
+                plant_id = plant.get("plant_id")
                 if plant_id:
                     score = self.score_plant_health(plant_id, unit_id)
                     scores.append(score)
@@ -602,9 +596,9 @@ class PlantHealthScorer:
 
     def get_plants_needing_attention(
         self,
-        unit_id: Optional[int] = None,
+        unit_id: int | None = None,
         score_threshold: float = 65.0,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Get plants that need attention based on health score.
 
@@ -630,24 +624,26 @@ class PlantHealthScorer:
 
             for score in scores:
                 if score.overall_score < score_threshold:
-                    attention_needed.append({
-                        'plant_id': score.plant_id,
-                        'unit_id': score.unit_id,
-                        'overall_score': round(score.overall_score, 1),
-                        'health_status': score.health_status,
-                        'urgent_actions': score.urgent_actions,
-                        'top_issues': self._identify_top_issues(score),
-                    })
+                    attention_needed.append(
+                        {
+                            "plant_id": score.plant_id,
+                            "unit_id": score.unit_id,
+                            "overall_score": round(score.overall_score, 1),
+                            "health_status": score.health_status,
+                            "urgent_actions": score.urgent_actions,
+                            "top_issues": self._identify_top_issues(score),
+                        }
+                    )
 
             # Sort by score (lowest first)
-            attention_needed.sort(key=lambda x: x['overall_score'])
+            attention_needed.sort(key=lambda x: x["overall_score"])
 
         except Exception as e:
             logger.error(f"Failed to get plants needing attention: {e}", exc_info=True)
 
         return attention_needed
 
-    def _get_plant_info(self, plant_id: int) -> Dict[str, Any]:
+    def _get_plant_info(self, plant_id: int) -> dict[str, Any]:
         """Get plant information from PlantService or repository."""
         # Try PlantService first (in-memory, fast)
         if self.plant_service:
@@ -655,12 +651,12 @@ class PlantHealthScorer:
                 plant = self.plant_service.get_plant(plant_id)
                 if plant:
                     return {
-                        'plant_id': plant.plant_id,
-                        'plant_type': plant.plant_type,
-                        'current_stage': plant.current_stage,
-                        'unit_id': plant.unit_id,
-                        'moisture_level': plant.moisture_level,
-                        'sensor_id': getattr(plant, 'sensor_id', None),
+                        "plant_id": plant.plant_id,
+                        "plant_type": plant.plant_type,
+                        "current_stage": plant.current_stage,
+                        "unit_id": plant.unit_id,
+                        "moisture_level": plant.moisture_level,
+                        "sensor_id": getattr(plant, "sensor_id", None),
                     }
             except Exception as e:
                 logger.debug(f"PlantService lookup failed: {e}")
@@ -674,19 +670,19 @@ class PlantHealthScorer:
             except Exception as e:
                 logger.debug(f"Repository lookup failed: {e}")
 
-        return {'plant_id': plant_id, 'unit_id': 0}
+        return {"plant_id": plant_id, "unit_id": 0}
 
-    def _get_plants_in_unit(self, unit_id: int) -> List[Dict[str, Any]]:
+    def _get_plants_in_unit(self, unit_id: int) -> list[dict[str, Any]]:
         """Get all plants in a unit."""
         if self.plant_service:
             try:
                 plants = self.plant_service.list_plants(unit_id)
                 return [
                     {
-                        'plant_id': p.plant_id,
-                        'plant_type': p.plant_type,
-                        'current_stage': p.current_stage,
-                        'moisture_level': p.moisture_level,
+                        "plant_id": p.plant_id,
+                        "plant_type": p.plant_type,
+                        "current_stage": p.current_stage,
+                        "moisture_level": p.moisture_level,
                     }
                     for p in plants
                 ]
@@ -696,8 +692,8 @@ class PlantHealthScorer:
         return []
 
     def _get_plant_metrics(
-        self, plant_id: int, plant_info: Dict[str, Any]
-    ) -> Tuple[Dict[str, Optional[float]], Dict[str, str]]:
+        self, plant_id: int, plant_info: dict[str, Any]
+    ) -> tuple[dict[str, float | None], dict[str, str]]:
         """
         Get plant-specific metrics (soil_moisture, pH, EC).
 
@@ -705,19 +701,19 @@ class PlantHealthScorer:
         1. Prefer latest PlantReadings per metric (including zero values).
         2. Fallback to PlantProfile.moisture_level if a sensor is configured.
         """
-        metrics: Dict[str, Optional[float]] = {
-            'soil_moisture': None,
-            'ph': None,
-            'ec': None,
+        metrics: dict[str, float | None] = {
+            "soil_moisture": None,
+            "ph": None,
+            "ec": None,
         }
-        status: Dict[str, str] = {k: "n/a" for k in metrics}
+        status: dict[str, str] = {k: "n/a" for k in metrics}
 
-        sensor_id = plant_info.get('sensor_id')
+        sensor_id = plant_info.get("sensor_id")
         if isinstance(sensor_id, (list, tuple, set)):
             has_sensor = len(sensor_id) > 0
         else:
             has_sensor = sensor_id is not None
-        readings: List[Dict[str, Any]] = []
+        readings: list[dict[str, Any]] = []
 
         if self.analytics_repo:
             try:
@@ -737,27 +733,27 @@ class PlantHealthScorer:
                         break
 
         # Fallback to PlantProfile moisture level when a sensor is configured.
-        if metrics['soil_moisture'] is None:
-            moisture = plant_info.get('moisture_level')
+        if metrics["soil_moisture"] is None:
+            moisture = plant_info.get("moisture_level")
             if has_sensor and moisture is not None:
                 try:
-                    metrics['soil_moisture'] = float(moisture)
-                    status['soil_moisture'] = "estimated"
+                    metrics["soil_moisture"] = float(moisture)
+                    status["soil_moisture"] = "estimated"
                 except (TypeError, ValueError):
                     pass
 
         return metrics, status
 
-    def _get_environmental_metrics(self, unit_id: int) -> Dict[str, Optional[float]]:
+    def _get_environmental_metrics(self, unit_id: int) -> dict[str, float | None]:
         """
         Get environmental metrics from unit sensors.
 
         Returns temperature, humidity, and calculated VPD.
         """
         metrics = {
-            'temperature': None,
-            'humidity': None,
-            'vpd': None,
+            "temperature": None,
+            "humidity": None,
+            "vpd": None,
         }
 
         if not self.analytics_repo:
@@ -768,20 +764,20 @@ class PlantHealthScorer:
             if not reading:
                 return metrics
 
-            temp = reading.get('temperature')
-            humidity = reading.get('humidity')
+            temp = reading.get("temperature")
+            humidity = reading.get("humidity")
 
             if temp is not None:
-                metrics['temperature'] = float(temp)
+                metrics["temperature"] = float(temp)
             if humidity is not None:
-                metrics['humidity'] = float(humidity)
+                metrics["humidity"] = float(humidity)
 
             # Get VPD if present, or calculate
-            vpd = reading.get('vpd')
+            vpd = reading.get("vpd")
             if vpd is not None:
-                metrics['vpd'] = float(vpd)
+                metrics["vpd"] = float(vpd)
             elif temp is not None and humidity is not None:
-                metrics['vpd'] = self._calculate_vpd(temp, humidity)
+                metrics["vpd"] = self._calculate_vpd(temp, humidity)
 
         except Exception as e:
             logger.debug(f"Failed to get environmental metrics: {e}")
@@ -799,37 +795,35 @@ class PlantHealthScorer:
 
     def _get_thresholds(
         self,
-        plant_type: Optional[str],
-        growth_stage: Optional[str],
-    ) -> Dict[str, Dict[str, float]]:
+        plant_type: str | None,
+        growth_stage: str | None,
+    ) -> dict[str, dict[str, float]]:
         """Get thresholds from ThresholdService or defaults."""
         if self.threshold_service and plant_type:
             try:
-                thresholds_obj = self.threshold_service.get_thresholds(
-                    plant_type, growth_stage
-                )
+                thresholds_obj = self.threshold_service.get_thresholds(plant_type, growth_stage)
                 return {
-                    'temperature': {
-                        'optimal': thresholds_obj.temperature,
-                        'tolerance': 3.0,
-                        'min': thresholds_obj.temperature - 8,
-                        'max': thresholds_obj.temperature + 8,
+                    "temperature": {
+                        "optimal": thresholds_obj.temperature,
+                        "tolerance": 3.0,
+                        "min": thresholds_obj.temperature - 8,
+                        "max": thresholds_obj.temperature + 8,
                     },
-                    'humidity': {
-                        'optimal': thresholds_obj.humidity,
-                        'tolerance': 10.0,
-                        'min': thresholds_obj.humidity - 25,
-                        'max': thresholds_obj.humidity + 20,
+                    "humidity": {
+                        "optimal": thresholds_obj.humidity,
+                        "tolerance": 10.0,
+                        "min": thresholds_obj.humidity - 25,
+                        "max": thresholds_obj.humidity + 20,
                     },
-                    'soil_moisture': {
-                        'optimal': thresholds_obj.soil_moisture,
-                        'tolerance': 15.0,
-                        'min': thresholds_obj.soil_moisture - 30,
-                        'max': thresholds_obj.soil_moisture + 25,
+                    "soil_moisture": {
+                        "optimal": thresholds_obj.soil_moisture,
+                        "tolerance": 15.0,
+                        "min": thresholds_obj.soil_moisture - 30,
+                        "max": thresholds_obj.soil_moisture + 25,
                     },
-                    'ph': self.DEFAULT_THRESHOLDS['ph'],
-                    'ec': self.DEFAULT_THRESHOLDS['ec'],
-                    'vpd': self.DEFAULT_THRESHOLDS['vpd'],
+                    "ph": self.DEFAULT_THRESHOLDS["ph"],
+                    "ec": self.DEFAULT_THRESHOLDS["ec"],
+                    "vpd": self.DEFAULT_THRESHOLDS["vpd"],
                 }
             except Exception as e:
                 logger.debug(f"Failed to get thresholds: {e}")
@@ -839,17 +833,17 @@ class PlantHealthScorer:
     def _calculate_metric_score(
         self,
         value: float,
-        threshold: Dict[str, float],
+        threshold: dict[str, float],
     ) -> float:
         """
         Calculate score (0-100) for a metric based on thresholds.
 
         Uses a bell curve centered on optimal value.
         """
-        optimal = threshold.get('optimal', 50.0)
-        tolerance = threshold.get('tolerance', 10.0)
-        min_val = threshold.get('min', optimal - 30)
-        max_val = threshold.get('max', optimal + 30)
+        optimal = threshold.get("optimal", 50.0)
+        tolerance = threshold.get("tolerance", 10.0)
+        min_val = threshold.get("min", optimal - 30)
+        max_val = threshold.get("max", optimal + 30)
 
         # Out of bounds check
         if value < min_val or value > max_val:
@@ -871,17 +865,17 @@ class PlantHealthScorer:
 
     def _determine_health_status(self, overall_score: float) -> str:
         """Determine health status based on overall score."""
-        if overall_score < self.STATUS_THRESHOLDS['critical']:
-            return 'critical'
-        elif overall_score < self.STATUS_THRESHOLDS['stressed']:
-            return 'stressed'
+        if overall_score < self.STATUS_THRESHOLDS["critical"]:
+            return "critical"
+        elif overall_score < self.STATUS_THRESHOLDS["stressed"]:
+            return "stressed"
         else:
-            return 'healthy'
+            return "healthy"
 
     def _get_disease_risk(
         self,
         unit_id: int,
-        env_metrics: Dict[str, Optional[float]],
+        env_metrics: dict[str, float | None],
     ) -> str:
         """Get disease risk level."""
         # Use disease predictor if available
@@ -889,8 +883,8 @@ class PlantHealthScorer:
             try:
                 # Create conditions dict for predictor
                 conditions = {
-                    'temperature': env_metrics.get('temperature', 22.0),
-                    'humidity': env_metrics.get('humidity', 60.0),
+                    "temperature": env_metrics.get("temperature", 22.0),
+                    "humidity": env_metrics.get("humidity", 60.0),
                 }
                 risk = self.disease_predictor.predict_risk(unit_id, conditions)
                 if risk:
@@ -899,7 +893,7 @@ class PlantHealthScorer:
                 logger.debug(f"Disease predictor failed: {e}")
 
         # Fallback to simple humidity-based assessment
-        humidity = env_metrics.get('humidity')
+        humidity = env_metrics.get("humidity")
         if humidity is not None:
             if humidity > 85:
                 return RiskLevel.HIGH.value
@@ -912,75 +906,75 @@ class PlantHealthScorer:
 
     def _determine_nutrient_status(
         self,
-        ec: Optional[float],
-        ph: Optional[float],
+        ec: float | None,
+        ph: float | None,
     ) -> str:
         """Determine nutrient status from EC and pH."""
         if ec is None and ph is None:
-            return 'unknown'
+            return "unknown"
 
         t = self.RECOMMENDATION_THRESHOLDS
 
         # EC-based assessment
         if ec is not None:
             if ec < t["ec_low"]:
-                return 'deficient'
+                return "deficient"
             elif ec > t["ec_urgent_high"]:
-                return 'excess'
+                return "excess"
 
         # pH affects nutrient availability
         if ph is not None:
             if ph < t["ph_urgent_low"] or ph > t["ph_urgent_high"]:
-                return 'locked_out'  # Nutrients unavailable at extreme pH
+                return "locked_out"  # Nutrients unavailable at extreme pH
 
-        return 'optimal'
+        return "optimal"
 
     # ==================== Recommendation Thresholds (audit item #17) ====================
     # Extracted from _generate_recommendations so they can be overridden or configured.
     # All thresholds are documented with units and rationale.
-    RECOMMENDATION_THRESHOLDS: Dict[str, Any] = {
+    RECOMMENDATION_THRESHOLDS: dict[str, Any] = {
         # Soil moisture (%)
-        "moisture_critical":       30,    # Below this → urgent "water immediately"
-        "moisture_low_offset":     15,    # optimal − offset → "consider watering"
-        "moisture_high_offset":    20,    # optimal + offset → "reduce watering"
+        "moisture_critical": 30,  # Below this → urgent "water immediately"
+        "moisture_low_offset": 15,  # optimal − offset → "consider watering"
+        "moisture_high_offset": 20,  # optimal + offset → "reduce watering"
         # pH (dimensionless, 0-14)
-        "ph_urgent_low":           5.5,   # Below → "too acidic"
-        "ph_urgent_high":          7.5,   # Above → "too alkaline"
-        "ph_monitor_low":          6.0,   # Below → "monitor pH"
-        "ph_monitor_high":         7.0,   # Above → "monitor pH"
+        "ph_urgent_low": 5.5,  # Below → "too acidic"
+        "ph_urgent_high": 7.5,  # Above → "too alkaline"
+        "ph_monitor_low": 6.0,  # Below → "monitor pH"
+        "ph_monitor_high": 7.0,  # Above → "monitor pH"
         # Temperature (°C)
-        "temp_urgent_low":         15,    # Below → "too cold"
-        "temp_urgent_high":        32,    # Above → "too hot"
-        "temp_deviation":          5,     # abs(temp − optimal) > this → recommendation
+        "temp_urgent_low": 15,  # Below → "too cold"
+        "temp_urgent_high": 32,  # Above → "too hot"
+        "temp_deviation": 5,  # abs(temp − optimal) > this → recommendation
         # Humidity (%)
-        "humidity_urgent_high":    85,    # Above → fungal risk
-        "humidity_low":            35,    # Below → "increase humidity"
-        "humidity_slightly_high":  75,    # Above → "monitor humidity"
+        "humidity_urgent_high": 85,  # Above → fungal risk
+        "humidity_low": 35,  # Below → "increase humidity"
+        "humidity_slightly_high": 75,  # Above → "monitor humidity"
         # VPD (kPa)
-        "vpd_low":                 0.4,   # Below → "increase VPD"
-        "vpd_high":                1.6,   # Above → "decrease VPD"
+        "vpd_low": 0.4,  # Below → "increase VPD"
+        "vpd_high": 1.6,  # Above → "decrease VPD"
         # EC (mS/cm)
-        "ec_low":                  0.8,   # Below → "increase nutrients"
-        "ec_urgent_high":          2.5,   # Above → "flush – toxicity risk"
+        "ec_low": 0.8,  # Below → "increase nutrients"
+        "ec_urgent_high": 2.5,  # Above → "flush – toxicity risk"
     }
 
     def _generate_recommendations(
         self,
-        scores: Dict[str, float],
-        raw_values: Dict[str, Optional[float]],
-        thresholds: Dict[str, Dict[str, float]],
+        scores: dict[str, float],
+        raw_values: dict[str, float | None],
+        thresholds: dict[str, dict[str, float]],
         health_status: str,
-    ) -> tuple[List[str], List[str]]:
+    ) -> tuple[list[str], list[str]]:
         """Generate recommendations and urgent actions."""
         recommendations = []
         urgent_actions = []
         t = self.RECOMMENDATION_THRESHOLDS
 
         # Soil moisture
-        moisture = raw_values.get('soil_moisture')
-        moisture_score = scores.get('soil_moisture', 50)
+        moisture = raw_values.get("soil_moisture")
+        moisture_score = scores.get("soil_moisture", 50)
         if moisture is not None:
-            optimal = thresholds.get('soil_moisture', {}).get('optimal', 60)
+            optimal = thresholds.get("soil_moisture", {}).get("optimal", 60)
             if moisture < optimal - t["moisture_low_offset"]:
                 if moisture < t["moisture_critical"]:
                     urgent_actions.append(f"Water immediately - soil moisture critically low ({moisture:.0f}%)")
@@ -990,7 +984,7 @@ class PlantHealthScorer:
                 recommendations.append(f"Reduce watering - soil too wet ({moisture:.0f}%)")
 
         # pH
-        ph = raw_values.get('ph')
+        ph = raw_values.get("ph")
         if ph is not None:
             if ph < t["ph_urgent_low"]:
                 urgent_actions.append(f"Raise pH - too acidic ({ph:.1f})")
@@ -1000,10 +994,10 @@ class PlantHealthScorer:
                 recommendations.append(f"Monitor pH levels ({ph:.1f})")
 
         # Temperature
-        temp = raw_values.get('temperature')
-        temp_score = scores.get('temperature', 50)
+        temp = raw_values.get("temperature")
+        temp_score = scores.get("temperature", 50)
         if temp is not None:
-            optimal = thresholds.get('temperature', {}).get('optimal', 24)
+            optimal = thresholds.get("temperature", {}).get("optimal", 24)
             if temp < t["temp_urgent_low"]:
                 urgent_actions.append(f"Increase temperature - too cold ({temp:.1f}C)")
             elif temp > t["temp_urgent_high"]:
@@ -1013,7 +1007,7 @@ class PlantHealthScorer:
                 recommendations.append(f"Consider {direction}ing temperature to {optimal}C")
 
         # Humidity
-        humidity = raw_values.get('humidity')
+        humidity = raw_values.get("humidity")
         if humidity is not None:
             if humidity > t["humidity_urgent_high"]:
                 urgent_actions.append(f"Reduce humidity - fungal risk high ({humidity:.0f}%)")
@@ -1023,7 +1017,7 @@ class PlantHealthScorer:
                 recommendations.append(f"Monitor humidity - slightly high ({humidity:.0f}%)")
 
         # VPD
-        vpd = raw_values.get('vpd')
+        vpd = raw_values.get("vpd")
         if vpd is not None:
             if vpd < t["vpd_low"]:
                 recommendations.append("Increase VPD - improve air circulation")
@@ -1031,7 +1025,7 @@ class PlantHealthScorer:
                 recommendations.append("Decrease VPD - increase humidity or lower temperature")
 
         # EC
-        ec = raw_values.get('ec')
+        ec = raw_values.get("ec")
         if ec is not None:
             if ec < t["ec_low"]:
                 recommendations.append(f"Increase nutrient concentration (EC: {ec:.2f})")
@@ -1039,26 +1033,26 @@ class PlantHealthScorer:
                 urgent_actions.append(f"Flush with clean water - nutrient toxicity risk (EC: {ec:.2f})")
 
         # General status-based recommendations
-        if health_status == 'critical' and not urgent_actions:
+        if health_status == "critical" and not urgent_actions:
             urgent_actions.append("Plant requires immediate attention")
-        elif health_status == 'stressed' and not recommendations:
+        elif health_status == "stressed" and not recommendations:
             recommendations.append("Monitor plant closely for changes")
-        elif health_status == 'healthy' and not recommendations:
+        elif health_status == "healthy" and not recommendations:
             recommendations.append("Continue current care routine")
 
         return recommendations, urgent_actions
 
-    def _identify_top_issues(self, score: PlantHealthScore) -> List[str]:
+    def _identify_top_issues(self, score: PlantHealthScore) -> list[str]:
         """Identify the top issues from a health score."""
         issues = []
 
         component_scores = {
-            'Soil Moisture': score.soil_moisture_score,
-            'pH': score.ph_score,
-            'EC/Nutrients': score.ec_score,
-            'Temperature': score.temperature_score,
-            'Humidity': score.humidity_score,
-            'VPD': score.vpd_score,
+            "Soil Moisture": score.soil_moisture_score,
+            "pH": score.ph_score,
+            "EC/Nutrients": score.ec_score,
+            "Temperature": score.temperature_score,
+            "Humidity": score.humidity_score,
+            "VPD": score.vpd_score,
         }
 
         # Find low-scoring components
@@ -1083,9 +1077,9 @@ class PlantHealthScorer:
             temperature_score=50.0,
             humidity_score=50.0,
             vpd_score=50.0,
-            health_status='unknown',
-            disease_risk='unknown',
-            nutrient_status='unknown',
+            health_status="unknown",
+            disease_risk="unknown",
+            nutrient_status="unknown",
             recommendations=["Unable to calculate health score - insufficient data"],
             urgent_actions=[],
             data_completeness=0.0,

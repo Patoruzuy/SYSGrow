@@ -9,12 +9,13 @@ Provides:
 """
 
 import logging
+
 from flask import Blueprint, jsonify, request
 
 from app.blueprints.api._common import (
+    fail as _fail,
     get_container as _container,
     success as _success,
-    fail as _fail,
 )
 
 logger = logging.getLogger(__name__)
@@ -26,7 +27,7 @@ base_bp = Blueprint("ml_base", __name__, url_prefix="/api/ml")
 def ml_health():
     """
     ML system health check.
-    
+
     Returns:
     {
         "healthy": true,
@@ -39,37 +40,31 @@ def ml_health():
     """
     try:
         container = _container()
-        
+
         components = {
             "model_registry": container.model_registry is not None,
             "drift_detector": container.drift_detector is not None,
             "retraining_service": container.automated_retraining is not None,
         }
-        
+
         healthy = all(components.values())
-        
-        return jsonify({
-            "healthy": healthy,
-            "components": components
-        })
-        
+
+        return jsonify({"healthy": healthy, "components": components})
+
     except Exception as e:
         logger.error(f"Health check failed: {e}", exc_info=True)
-        return jsonify({
-            "healthy": False,
-            "error": str(e)
-        }), 500
+        return jsonify({"healthy": False, "error": str(e)}), 500
 
 
 @base_bp.get("/training/history")
 def get_training_history():
     """
     Get training history across all models.
-    
+
     Query params:
     - days: Number of days (default: 30)
     - limit: Max results (default: 50)
-    
+
     Returns:
     {
         "history": [
@@ -89,11 +84,11 @@ def get_training_history():
     try:
         container = _container()
         registry = container.model_registry
-        
+
         # Build history from model registry
         history = []
         models = registry.list_models()
-        
+
         for model in models:
             metrics = {}
             if model.get("accuracy"):
@@ -102,25 +97,24 @@ def get_training_history():
                 metrics["mae"] = model["mae"]
             if model.get("r2"):
                 metrics["r2"] = model["r2"]
-                
-            history.append({
-                "model_name": model["name"],
-                "version": model.get("latest_version", "unknown"),
-                "accuracy": model.get("accuracy"),
-                "mae": model.get("mae"),
-                "data_points": None,  # Would need to store this in registry
-                "trained_at": model.get("trained_at"),
-                "status": "success" if model.get("active") else "inactive"
-            })
-        
-        return _success({
-            "history": history,
-            "count": len(history)
-        })
-        
+
+            history.append(
+                {
+                    "model_name": model["name"],
+                    "version": model.get("latest_version", "unknown"),
+                    "accuracy": model.get("accuracy"),
+                    "mae": model.get("mae"),
+                    "data_points": None,  # Would need to store this in registry
+                    "trained_at": model.get("trained_at"),
+                    "status": "success" if model.get("active") else "inactive",
+                }
+            )
+
+        return _success({"history": history, "count": len(history)})
+
     except Exception as e:
         logger.error(f"Error getting training history: {e}", exc_info=True)
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
 @base_bp.post("/training/cancel")
@@ -171,4 +165,4 @@ def cancel_training():
 
     except Exception as e:
         logger.error(f"Error cancelling training: {e}", exc_info=True)
-        return _fail(str(e), 500)
+        return safe_error(e, 500)

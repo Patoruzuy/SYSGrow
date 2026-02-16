@@ -4,20 +4,21 @@ import json
 import logging
 from collections import OrderedDict
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
+from app.utils.cache import CacheRegistry, TTLCache
 from app.utils.time import iso_now, utc_now
 from infrastructure.database.repositories.alerts import AlertRepository
-from app.utils.cache import TTLCache, CacheRegistry
 
 logger = logging.getLogger(__name__)
 
 # Maximum number of alerts kept in the in-memory cache.
 _ALERTS_CACHE_MAXSIZE = 2048
 
-#TODO: Consider adding alert expiration and automatic cleanup of old alerts.
+# TODO: Consider adding alert expiration and automatic cleanup of old alerts.
 # if the alert is the same as an existing active alert, we might want to just update a count/timestamp instead of creating a new one.
 # Take all the database opertaions to repository layer.
+
 
 class AlertService:
     """Service for managing system alerts and notifications."""
@@ -43,7 +44,7 @@ class AlertService:
 
     def __init__(self, alert_repo: AlertRepository):
         """Initialize the alert service.
-        
+
         Args:
             repo: AlertRepository instance
         """
@@ -64,11 +65,11 @@ class AlertService:
 
         # In-memory alert store to reduce DB reads on constrained devices (Raspberry Pi)
         # Maps alert_id -> alert row dict — bounded to _ALERTS_CACHE_MAXSIZE (LRU eviction)
-        self._alerts: OrderedDict[int, Dict[str, Any]] = OrderedDict()
+        self._alerts: OrderedDict[int, dict[str, Any]] = OrderedDict()
         # Quick index: dedup_key -> alert_id (most recent)
-        self._alerts_by_dedup: Dict[str, int] = {}
+        self._alerts_by_dedup: dict[str, int] = {}
 
-    def _cache_alert_row(self, row: Dict[str, Any]) -> None:
+    def _cache_alert_row(self, row: dict[str, Any]) -> None:
         """Cache a DB alert row in memory and index by dedup_key if present."""
         try:
             if not row:
@@ -108,7 +109,7 @@ class AlertService:
             logger.debug("_cache_alert_row failed: %s", e)
             return
 
-    def _get_cached_alert(self, alert_id: int) -> Optional[Dict[str, Any]]:
+    def _get_cached_alert(self, alert_id: int) -> dict[str, Any] | None:
         """Return cached alert row or None. If missing, try to fetch from repo and cache it."""
         try:
             if alert_id in self._alerts:
@@ -129,16 +130,16 @@ class AlertService:
     @staticmethod
     def _compute_dedup_key(
         alert_type: str,
-        source_type: Optional[str],
-        source_id: Optional[int],
-        explicit_key: Optional[str] = None,
+        source_type: str | None,
+        source_id: int | None,
+        explicit_key: str | None = None,
     ) -> str:
         """Return a stable cache key for deduplication."""
         if explicit_key:
             return f"alert:{explicit_key}"
         return f"alert:{alert_type}:{source_type or ''}:{source_id or ''}"
 
-    def _parse_alert_timestamp(self, ts: Optional[str]) -> Optional[datetime]:
+    def _parse_alert_timestamp(self, ts: str | None) -> datetime | None:
         """Parse an ISO-format timestamp, falling back to dateutil if needed."""
         if not ts:
             return None
@@ -147,6 +148,7 @@ class AlertService:
         except Exception:
             try:
                 from dateutil import parser as _parser
+
                 return _parser.parse(ts)
             except Exception:
                 return None
@@ -154,7 +156,7 @@ class AlertService:
     def _increment_occurrences(
         self,
         existing_id: int,
-        existing_meta: Dict[str, Any],
+        existing_meta: dict[str, Any],
         cache_key: str,
         now_iso: str,
     ) -> int:
@@ -181,11 +183,11 @@ class AlertService:
         self,
         cache_key: str,
         alert_type: str,
-        source_type: Optional[str],
-        source_id: Optional[int],
-        metadata: Dict[str, Any],
+        source_type: str | None,
+        source_id: int | None,
+        metadata: dict[str, Any],
         now_iso: str,
-    ) -> Optional[int]:
+    ) -> int | None:
         """Check all dedup layers and return existing alert_id, or None.
 
         Layer 1: In-memory ``_alerts_by_dedup`` dict (fastest).
@@ -207,7 +209,10 @@ class AlertService:
                         existing_dt = self._parse_alert_timestamp(cached.get("timestamp"))
                         if existing_dt and (utc_now() - existing_dt).total_seconds() <= ttl:
                             return self._increment_occurrences(
-                                aid, cached.get("metadata") or {}, cache_key, now_iso,
+                                aid,
+                                cached.get("metadata") or {},
+                                cache_key,
+                                now_iso,
                             )
         except Exception:
             logger.debug("In-memory dedup fast-path failed")
@@ -234,7 +239,9 @@ class AlertService:
         if self._dedupe_db_enabled:
             try:
                 cand = self.alert_repo.find_latest(
-                    alert_type, source_type, source_id,
+                    alert_type,
+                    source_type,
+                    source_id,
                     dedup_key=dedup_key_val if isinstance(metadata, dict) else None,
                 )
                 if cand and cand.get("alert_id"):
@@ -247,7 +254,10 @@ class AlertService:
                             except Exception:
                                 existing_meta = {}
                         return self._increment_occurrences(
-                            int(cand["alert_id"]), existing_meta, cache_key, now_iso,
+                            int(cand["alert_id"]),
+                            existing_meta,
+                            cache_key,
+                            now_iso,
                         )
             except Exception:
                 logger.warning("DB dedup check failed for %s", cache_key)
@@ -260,15 +270,15 @@ class AlertService:
         severity: str,
         title: str,
         message: str,
-        source_type: Optional[str] = None,
-        source_id: Optional[int] = None,
-        unit_id: Optional[int] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        source_type: str | None = None,
+        source_id: int | None = None,
+        unit_id: int | None = None,
+        metadata: dict[str, Any] | None = None,
         dedupe: bool = True,
-        dedupe_key: Optional[str] = None,
+        dedupe_key: str | None = None,
     ) -> int:
         """Create a new alert.
-        
+
         Args:
             alert_type: Type of alert (use class constants)
             severity: Severity level (info, warning, critical)
@@ -278,25 +288,33 @@ class AlertService:
             source_id: ID of the source entity
             unit_id: Associated growth unit ID
             metadata: Additional metadata as dictionary (will be JSON serialized)
-        
+
         Returns:
             int: The ID of the created alert
-        
+
         Raises:
             ValueError: If alert_type or severity is invalid
         """
         valid_alert_types = {
-            self.DEVICE_OFFLINE, self.DEVICE_MALFUNCTION, self.SENSOR_ANOMALY,
-            self.ACTUATOR_FAILURE, self.THRESHOLD_EXCEEDED, self.PLANT_HEALTH_WARNING,
-            self.LOW_BATTERY, self.CONNECTION_LOST, self.SYSTEM_ERROR,
-            self.MAINTENANCE_REQUIRED, self.HARVEST_READY, self.WATER_LOW
+            self.DEVICE_OFFLINE,
+            self.DEVICE_MALFUNCTION,
+            self.SENSOR_ANOMALY,
+            self.ACTUATOR_FAILURE,
+            self.THRESHOLD_EXCEEDED,
+            self.PLANT_HEALTH_WARNING,
+            self.LOW_BATTERY,
+            self.CONNECTION_LOST,
+            self.SYSTEM_ERROR,
+            self.MAINTENANCE_REQUIRED,
+            self.HARVEST_READY,
+            self.WATER_LOW,
         }
-        
+
         valid_severities = {self.INFO, self.WARNING, self.CRITICAL}
-        
+
         if alert_type not in valid_alert_types:
             raise ValueError(f"Invalid alert_type: {alert_type}")
-        
+
         if severity not in valid_severities:
             raise ValueError(f"Invalid severity: {severity}")
 
@@ -326,7 +344,12 @@ class AlertService:
         if dedupe:
             _key = self._compute_dedup_key(alert_type, source_type, source_id, dedupe_key)
             existing_id = self._try_deduplicate(
-                _key, alert_type, source_type, source_id, metadata, now_iso,
+                _key,
+                alert_type,
+                source_type,
+                source_id,
+                metadata,
+                now_iso,
             )
             if existing_id is not None:
                 return existing_id
@@ -365,23 +388,23 @@ class AlertService:
 
     def get_active_alerts(
         self,
-        severity: Optional[str] = None,
-        unit_id: Optional[int] = None,
+        severity: str | None = None,
+        unit_id: int | None = None,
         limit: int = 100,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Get active (unresolved) alerts.
-        
+
         Args:
             severity: Filter by severity level (optional)
             unit_id: Filter by unit ID (optional)
             limit: Maximum number of alerts to return
-        
+
         Returns:
             List of alert dictionaries
         """
         try:
             # Try to satisfy from in-memory cache first to reduce DB reads
-            results: List[Dict[str, Any]] = []
+            results: list[dict[str, Any]] = []
             if self._alerts:
                 for a in self._alerts.values():
                     try:
@@ -421,13 +444,13 @@ class AlertService:
             logger.error(f"Failed to retrieve active alerts: {e}")
             return []
 
-    def acknowledge_alert(self, alert_id: int, user_id: Optional[int] = None) -> bool:
+    def acknowledge_alert(self, alert_id: int, user_id: int | None = None) -> bool:
         """Acknowledge an alert.
-        
+
         Args:
             alert_id: ID of the alert to acknowledge
             user_id: ID of the user acknowledging the alert
-        
+
         Returns:
             bool: True if successful, False otherwise
         """
@@ -439,10 +462,10 @@ class AlertService:
 
     def resolve_alert(self, alert_id: int) -> bool:
         """Mark an alert as resolved.
-        
+
         Args:
             alert_id: ID of the alert to resolve
-        
+
         Returns:
             bool: True if successful, False otherwise
         """
@@ -458,9 +481,9 @@ class AlertService:
             logger.error(f"Failed to resolve alert: {e}")
             return False
 
-    def get_alert_summary(self) -> Dict[str, Any]:
+    def get_alert_summary(self) -> dict[str, Any]:
         """Get summary statistics of alerts.
-        
+
         Returns:
             Dictionary containing alert counts by severity and status
         """
@@ -474,7 +497,7 @@ class AlertService:
                 "active_by_severity": {"info": 0, "warning": 0, "critical": 0},
             }
 
-    def purge_old_alerts(self, retention_days: int = 30, resolved_only: bool = True) -> Dict[str, Any]:
+    def purge_old_alerts(self, retention_days: int = 30, resolved_only: bool = True) -> dict[str, Any]:
         """
         Purge or compact old alerts from the database.
 

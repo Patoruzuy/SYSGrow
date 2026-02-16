@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 import threading
-from typing import Any, Dict, Optional
+from typing import Any
 
 from app.hardware.devices.camera_manager import CameraHandler, ESP32CameraController
 from infrastructure.database.repositories.camera import CameraRepository
@@ -17,7 +17,7 @@ from infrastructure.database.repositories.camera import CameraRepository
 logger = logging.getLogger(__name__)
 
 
-def _coerce_int(value: object) -> Optional[int]:
+def _coerce_int(value: object) -> int | None:
     if value is None or value == "":
         return None
     try:
@@ -26,7 +26,7 @@ def _coerce_int(value: object) -> Optional[int]:
         return None
 
 
-def _map_esp32_resolution(value: object) -> Optional[int]:
+def _map_esp32_resolution(value: object) -> int | None:
     """
     Map a stored resolution value to the ESP32 framesize integer (0-13).
 
@@ -77,12 +77,12 @@ class CameraService:
 
     def __init__(self, repository: CameraRepository):
         self.repository = repository
-        self._cameras: Dict[int, CameraHandler] = {}
+        self._cameras: dict[int, CameraHandler] = {}
         self._camera_lock = threading.Lock()
-        self._settings_controllers: Dict[int, ESP32CameraController] = {}
+        self._settings_controllers: dict[int, ESP32CameraController] = {}
         logger.info("CameraService initialized")
 
-    def get_camera_for_unit(self, unit_id: int) -> Optional[CameraHandler]:
+    def get_camera_for_unit(self, unit_id: int) -> CameraHandler | None:
         with self._camera_lock:
             return self._cameras.get(unit_id)
 
@@ -90,7 +90,7 @@ class CameraService:
         camera = self.get_camera_for_unit(unit_id)
         return bool(camera and getattr(camera, "_running", False))
 
-    def load_camera_settings(self, unit_id: int) -> Optional[Dict[str, Any]]:
+    def load_camera_settings(self, unit_id: int) -> dict[str, Any] | None:
         """
         Load camera settings for a specific unit from database.
 
@@ -147,18 +147,18 @@ class CameraService:
         *,
         unit_id: int,
         camera_type: str,
-        ip_address: Optional[str] = None,
-        port: Optional[int] = None,
-        device_index: Optional[int] = None,
-        resolution: Optional[str] = None,
-        stream_url: Optional[str] = None,
-        username: Optional[str] = None,
-        password: Optional[str] = None,
-        quality: Optional[int] = None,
-        brightness: Optional[int] = None,
-        contrast: Optional[int] = None,
-        saturation: Optional[int] = None,
-        flip: Optional[int] = None,
+        ip_address: str | None = None,
+        port: int | None = None,
+        device_index: int | None = None,
+        resolution: str | None = None,
+        stream_url: str | None = None,
+        username: str | None = None,
+        password: str | None = None,
+        quality: int | None = None,
+        brightness: int | None = None,
+        contrast: int | None = None,
+        saturation: int | None = None,
+        flip: int | None = None,
     ) -> bool:
         """
         Save camera settings for a specific unit.
@@ -304,7 +304,7 @@ class CameraService:
             )
             return False
 
-    def get_camera_frame(self, unit_id: int) -> Optional[bytes]:
+    def get_camera_frame(self, unit_id: int) -> bytes | None:
         """Get current JPEG frame bytes for a unit camera."""
         camera = self.get_camera_for_unit(unit_id)
         if not camera:
@@ -316,7 +316,7 @@ class CameraService:
             logger.error("Error getting frame from unit %s camera: %s", unit_id, exc)
             return None
 
-    def get_camera_settings_controller(self, unit_id: int) -> Optional[ESP32CameraController]:
+    def get_camera_settings_controller(self, unit_id: int) -> ESP32CameraController | None:
         """Get the ESP32 camera settings controller for a unit (if any)."""
         return self._settings_controllers.get(unit_id)
 

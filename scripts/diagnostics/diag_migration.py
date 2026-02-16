@@ -1,11 +1,18 @@
 #!/usr/bin/env python3
 """Quick verification of database migration."""
 
+import os
 import sqlite3
+from pathlib import Path
 
-db_path = 'e:/Work/SYSGrow/backend/database/grow_tent.db'
-conn = sqlite3.connect(db_path)
+REPO_ROOT = Path(__file__).resolve().parents[2]
+db_path = Path(
+    os.getenv("SYSGROW_DATABASE_PATH", str(REPO_ROOT / "database" / "sysgrow.db"))
+)
+conn = sqlite3.connect(str(db_path))
 
+print("=" * 60)
+print(f"Database: {db_path}")
 print("=" * 60)
 print("Database Tables:")
 print("=" * 60)

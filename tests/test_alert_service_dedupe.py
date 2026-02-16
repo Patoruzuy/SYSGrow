@@ -1,17 +1,17 @@
+import json
 import os
 import sys
-import json
 
 # Ensure repository root is on sys.path so tests can import application modules
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
 import pytest
 
-from infrastructure.database.sqlite_handler import SQLiteDatabaseHandler
-from infrastructure.database.repositories.alerts import AlertRepository
 from app.services.application.alert_service import AlertService
+from infrastructure.database.repositories.alerts import AlertRepository
+from infrastructure.database.sqlite_handler import SQLiteDatabaseHandler
 
 
 @pytest.fixture

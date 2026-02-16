@@ -12,16 +12,15 @@ import logging
 
 from flask import Response, request
 
+from app.blueprints.api._common import (
+    fail as _fail,
+    get_camera_service as _camera_manager,
+    get_growth_service as _service,
+    success as _success,
+)
 from app.utils.time import iso_now
 
 from . import growth_api
-from app.blueprints.api._common import (
-    success as _success,
-    fail as _fail,
-    get_container as _container,
-    get_growth_service as _service,
-    get_camera_service as _camera_manager,
-)
 
 logger = logging.getLogger("growth_api.camera")
 
@@ -87,10 +86,10 @@ def start_camera(unit_id: int):
 
     except (ValueError, RuntimeError) as exc:
         logger.warning("Camera start failed for unit %s: %s", unit_id, exc)
-        return _fail(str(exc), 400)
+        return safe_error(exc, 400)
     except Exception as exc:
         logger.exception("Error starting camera for unit %s: %s", unit_id, exc)
-        return _fail(f"Failed to start camera: {str(exc)}", 500)
+        return _fail(f"Failed to start camera: {exc!s}", 500)
 
 
 @growth_api.post("/units/<int:unit_id>/camera/stop")
@@ -117,7 +116,7 @@ def stop_camera(unit_id: int):
 
     except Exception as exc:
         logger.exception("Error stopping camera for unit %s: %s", unit_id, exc)
-        return _fail(f"Failed to stop camera: {str(exc)}", 500)
+        return _fail(f"Failed to stop camera: {exc!s}", 500)
 
 
 @growth_api.post("/units/<int:unit_id>/camera/capture")
@@ -147,7 +146,7 @@ def capture_photo(unit_id: int):
 
     except Exception as exc:
         logger.exception("Error capturing photo for unit %s: %s", unit_id, exc)
-        return _fail(f"Failed to capture photo: {str(exc)}", 500)
+        return _fail(f"Failed to capture photo: {exc!s}", 500)
 
 
 @growth_api.get("/units/<int:unit_id>/camera/status")
@@ -185,7 +184,7 @@ def get_camera_status(unit_id: int):
 
     except Exception as exc:
         logger.exception("Error getting camera status for unit %s: %s", unit_id, exc)
-        return _fail(f"Failed to get camera status: {str(exc)}", 500)
+        return _fail(f"Failed to get camera status: {exc!s}", 500)
 
 
 @growth_api.put("/units/<int:unit_id>/camera/settings")
@@ -352,7 +351,7 @@ def update_camera_settings(unit_id: int):
 
     except Exception as exc:
         logger.exception("Error updating camera settings for unit %s: %s", unit_id, exc)
-        return _fail(f"Failed to update camera settings: {str(exc)}", 500)
+        return _fail(f"Failed to update camera settings: {exc!s}", 500)
 
 
 @growth_api.get("/units/<int:unit_id>/camera/feed")
@@ -379,10 +378,7 @@ def camera_feed(unit_id: int):
                 while camera._running:
                     frame = camera.get_frame()
                     if frame:
-                        yield (
-                            b"--frame\r\n"
-                            b"Content-Type: image/jpeg\r\n\r\n" + frame + b"\r\n"
-                        )
+                        yield (b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + frame + b"\r\n")
                     else:
                         import time
 
@@ -397,4 +393,4 @@ def camera_feed(unit_id: int):
 
     except Exception as exc:
         logger.exception("Error streaming camera feed for unit %s: %s", unit_id, exc)
-        return _fail(f"Failed to stream camera feed: {str(exc)}", 500)
+        return _fail(f"Failed to stream camera feed: {exc!s}", 500)

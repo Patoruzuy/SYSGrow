@@ -1,9 +1,9 @@
-from unittest.mock import Mock
-from pathlib import Path
 import tempfile
+from pathlib import Path
+from unittest.mock import Mock
 
-from app.services.application.threshold_service import ThresholdService
 from app.services.ai.personalized_learning import PersonalizedLearningService
+from app.services.application.threshold_service import ThresholdService
 
 
 class StubPlantHandler:
@@ -20,9 +20,7 @@ class StubPlantHandler:
                         "sensor_targets": {"soil_moisture": 35.0},
                     }
                 ],
-                "sensor_requirements": {
-                    "co2_requirements": {"min": 900.0, "max": 1100.0}
-                },
+                "sensor_requirements": {"co2_requirements": {"min": 900.0, "max": 1100.0}},
             }
         ]
 

@@ -15,20 +15,24 @@ Features:
 
 All endpoints support unit_id filtering for multi-unit installations.
 """
+
 import logging
+
 from flask import Blueprint
 
 logger = logging.getLogger(__name__)
 
 # Create the blueprint
-analytics_api = Blueprint('analytics_api', __name__, url_prefix='/api/analytics')
+analytics_api = Blueprint("analytics_api", __name__, url_prefix="/api/analytics")
 
 # Import routes after blueprint creation to avoid circular imports
-from app.blueprints.api.analytics import sensors  # noqa: F401, E402
-from app.blueprints.api.analytics import actuators  # noqa: F401, E402
-from app.blueprints.api.analytics import batch  # noqa: F401, E402
-from app.blueprints.api.analytics import dashboard  # noqa: F401, E402
-from app.blueprints.api.analytics import efficiency  # noqa: F401, E402
+from app.blueprints.api.analytics import (
+    actuators,
+    batch,
+    dashboard,
+    efficiency,
+    sensors,
+)
 
 # Re-export for backwards compatibility
-__all__ = ['analytics_api']
+__all__ = ["analytics_api"]

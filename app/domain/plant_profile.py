@@ -5,18 +5,19 @@ PlantProfile - Thin data model for plant state
 Holds plant state (stage, moisture, sensors) as data only. All behavior
 (DB writes, events, stage transitions) lives in services.
 """
+
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
 import logging
+from dataclasses import dataclass, field
+from typing import Any
 
 from app.enums.common import ConditionProfileMode
 
 logger = logging.getLogger(__name__)
 
 
-def _normalize_stages(growth_stages: Any, current_stage: str) -> List[Dict[str, Any]]:
+def _normalize_stages(growth_stages: Any, current_stage: str) -> list[dict[str, Any]]:
     """Ensure at least one stage and normalize legacy shapes."""
     try:
         stages = growth_stages or []
@@ -44,9 +45,9 @@ def _normalize_stages(growth_stages: Any, current_stage: str) -> List[Dict[str, 
         ]
 
 
-def _compute_stage_meta(stages: List[Dict[str, Any]]) -> tuple[Dict[str, int], Dict[str, float]]:
-    durations: Dict[str, Dict[str, int]] = {}
-    lighting: Dict[str, float] = {}
+def _compute_stage_meta(stages: list[dict[str, Any]]) -> tuple[dict[str, int], dict[str, float]]:
+    durations: dict[str, dict[str, int]] = {}
+    lighting: dict[str, float] = {}
     for stage in stages:
         name = stage.get("stage", "Unknown")
         duration = stage.get("duration", {}) or {}
@@ -64,32 +65,32 @@ class PlantProfile:
 
     plant_id: int
     plant_name: str
-    plant_species: Optional[str] = None
-    plant_type: Optional[str] = None # This is common name/type, e.g., "tomato", "lettuce"
-    plant_variety: Optional[str] = None
+    plant_species: str | None = None
+    plant_type: str | None = None  # This is common name/type, e.g., "tomato", "lettuce"
+    plant_variety: str | None = None
     current_stage: str = "Unknown"
-    growth_stages: List[Dict[str, Any]] = field(default_factory=list)
-    gdd_base_temp_c: Optional[float] = None
+    growth_stages: list[dict[str, Any]] = field(default_factory=list)
+    gdd_base_temp_c: float | None = None
     current_stage_index: int = 0
     days_in_stage: int = 0
-    sensor_id: Optional[int] = None
+    sensor_id: int | None = None
     moisture_level: float = 0.0
     days_left: int = 0
-    stage_durations: Dict[str, Dict[str, int]] = field(default_factory=dict)
-    stage_lighting_hours: Dict[str, float] = field(default_factory=dict)
+    stage_durations: dict[str, dict[str, int]] = field(default_factory=dict)
+    stage_lighting_hours: dict[str, float] = field(default_factory=dict)
     # Full lighting schedule from automation config: {stage: {hours, intensity}}
-    lighting_schedule: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+    lighting_schedule: dict[str, dict[str, Any]] = field(default_factory=dict)
     pot_size_liters: float = 0.0
     pot_material: str = "plastic"
     growing_medium: str = "soil"
     medium_ph: float = 7.0
-    strain_variety: Optional[str] = None
+    strain_variety: str | None = None
     expected_yield_grams: float = 0.0
     light_distance_cm: float = 0.0
-    soil_moisture_threshold_override: Optional[float] = None
-    condition_profile_id: Optional[str] = None
-    condition_profile_mode: Optional[ConditionProfileMode] = None
-    
+    soil_moisture_threshold_override: float | None = None
+    condition_profile_id: str | None = None
+    condition_profile_mode: ConditionProfileMode | None = None
+
     def __post_init__(self) -> None:
         self._recompute_metadata()
 
@@ -152,26 +153,26 @@ class PlantProfile:
             raise ValueError(f"Moisture level {moisture_level} is outside the valid range (0-100).")
         self.moisture_level = moisture_level
 
-    def link_sensor(self, sensor_id: Optional[int]) -> None:
+    def link_sensor(self, sensor_id: int | None) -> None:
         """Link/unlink a sensor."""
         self.sensor_id = sensor_id
 
-    def get_sensor_id(self) -> Optional[int]:
+    def get_sensor_id(self) -> int | None:
         """Return linked sensor id."""
         return self.sensor_id
 
     def get_moisture_level(self) -> float:
         """Return current moisture level."""
         return self.moisture_level
-    
-    def get_threshold_overrides(self) -> Dict[str, float]:
+
+    def get_threshold_overrides(self) -> dict[str, float]:
         """Return threshold overrides as unit settings keys."""
         overrides = {
             "soil_moisture_threshold": self.soil_moisture_threshold_override,
         }
         return {key: value for key, value in overrides.items() if value is not None}
 
-    def set_threshold_overrides(self, overrides: Dict[str, Any]) -> None:
+    def set_threshold_overrides(self, overrides: dict[str, Any]) -> None:
         """Update override fields from threshold settings keys."""
         mapping = {
             "soil_moisture_threshold": "soil_moisture_threshold_override",
@@ -206,29 +207,29 @@ class PlantProfile:
             return self.growth_stages[0].get("stage", self.current_stage or "Unknown")
         return self.growth_stages[self.current_stage_index].get("stage", self.current_stage or "Unknown")
 
-    def get_current_lighting(self) -> Optional[Dict[str, Any]]:
+    def get_current_lighting(self) -> dict[str, Any] | None:
         """
         Get lighting settings (hours, intensity) for the current growth stage.
-        
+
         Uses the lighting_schedule from automation config, with fallback to
         stage_lighting_hours for backward compatibility.
-        
+
         Returns:
             Dict with 'hours' and 'intensity' keys, or None if not available.
             Example: {"hours": 16, "intensity": 80}
         """
         stage_name = self.get_current_stage_name().strip().lower()
-        
+
         # Try lighting_schedule from automation config first
         if self.lighting_schedule:
             # Direct match
             if stage_name in self.lighting_schedule:
                 return dict(self.lighting_schedule[stage_name])
-            
+
             # Common stage name mappings
             stage_mappings = {
                 "germination": "seedling",
-                "veg": "vegetative", 
+                "veg": "vegetative",
                 "flower": "flowering",
                 "bloom": "flowering",
                 "fruit": "fruiting",
@@ -238,36 +239,36 @@ class PlantProfile:
             mapped = stage_mappings.get(stage_name)
             if mapped and mapped in self.lighting_schedule:
                 return dict(self.lighting_schedule[mapped])
-        
+
         # Fallback to stage_lighting_hours (hours only, no intensity)
         hours = self.stage_lighting_hours.get(self.get_current_stage_name())
         if hours is not None:
             return {"hours": hours, "intensity": None}
-        
+
         return None
 
-    def get_lighting_for_stage(self, stage: str) -> Optional[Dict[str, Any]]:
+    def get_lighting_for_stage(self, stage: str) -> dict[str, Any] | None:
         """
         Get lighting settings for a specific stage.
-        
+
         Args:
             stage: Growth stage name (e.g., "vegetative", "flowering")
-            
+
         Returns:
             Dict with 'hours' and 'intensity' keys, or None if not available.
         """
         stage_lower = stage.strip().lower()
-        
+
         if self.lighting_schedule:
             if stage_lower in self.lighting_schedule:
                 return dict(self.lighting_schedule[stage_lower])
-            
+
             # Common stage name mappings
             stage_mappings = {
                 "germination": "seedling",
                 "veg": "vegetative",
                 "flower": "flowering",
-                "bloom": "flowering", 
+                "bloom": "flowering",
                 "fruit": "fruiting",
                 "fruit development": "fruiting",
                 "harvest": "fruiting",
@@ -275,7 +276,7 @@ class PlantProfile:
             mapped = stage_mappings.get(stage_lower)
             if mapped and mapped in self.lighting_schedule:
                 return dict(self.lighting_schedule[mapped])
-        
+
         return None
 
     def grow(self) -> None:
@@ -311,7 +312,7 @@ class PlantProfile:
             self.days_left = self._compute_days_left()
 
     # -------------------------- Serialization ---------------------
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize plant state for runtime/API use."""
         return {
             "plant_id": self.plant_id,
@@ -341,7 +342,7 @@ class PlantProfile:
             "condition_profile_mode": str(self.condition_profile_mode) if self.condition_profile_mode else None,
         }
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """Detailed status including stage metadata."""
         status = self.to_dict()
         current_stage_name = self.get_current_stage_name()
@@ -350,7 +351,11 @@ class PlantProfile:
             "min_days": self.stage_durations.get(current_stage_name, {}).get("min_days", 0),
             "max_days": self.stage_durations.get(current_stage_name, {}).get("max_days", 0),
             "conditions": next(
-                (stage.get("conditions", {}) for stage in self.growth_stages if stage.get("stage") == current_stage_name),
+                (
+                    stage.get("conditions", {})
+                    for stage in self.growth_stages
+                    if stage.get("stage") == current_stage_name
+                ),
                 {},
             ),
             "light_hours": self.stage_lighting_hours.get(current_stage_name, 12),

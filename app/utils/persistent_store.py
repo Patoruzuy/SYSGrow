@@ -4,13 +4,14 @@ Provides `load_json` / `save_json` helpers that store files under the
 workspace `var/` directory. Also exposes convenience functions for
 the growth last-run store used by `plant_grow_task`.
 """
+
 from __future__ import annotations
 
 import json
 import logging
 import os
 import time
-from typing import Any, Dict
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -68,21 +69,21 @@ class FileLock:
         self.release()
 
 
-def load_json(name: str) -> Dict[str, Any]:
+def load_json(name: str) -> dict[str, Any]:
     path = _path(name)
     lock = path + ".lock"
     try:
         if not os.path.exists(path):
             return {}
         with FileLock(lock):
-            with open(path, "r", encoding="utf-8") as fh:
+            with open(path, encoding="utf-8") as fh:
                 return json.load(fh) or {}
     except Exception as e:
         logger.warning("Failed to load JSON store %s: %s", name, e)
         return {}
 
 
-def save_json(name: str, data: Dict[str, Any]) -> None:
+def save_json(name: str, data: dict[str, Any]) -> None:
     path = _path(name)
     lock = path + ".lock"
     try:
@@ -99,9 +100,9 @@ def save_json(name: str, data: Dict[str, Any]) -> None:
 GROWTH_LAST_RUN_FILE = "growth_last_run.json"
 
 
-def load_growth_last_runs() -> Dict[str, str]:
+def load_growth_last_runs() -> dict[str, str]:
     return load_json(GROWTH_LAST_RUN_FILE)
 
 
-def save_growth_last_runs(data: Dict[str, str]) -> None:
+def save_growth_last_runs(data: dict[str, str]) -> None:
     save_json(GROWTH_LAST_RUN_FILE, data)

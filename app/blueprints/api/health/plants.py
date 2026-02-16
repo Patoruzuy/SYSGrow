@@ -7,30 +7,31 @@ Health monitoring endpoints for plants including:
 - Per-plant health scores
 - Plants needing attention
 """
+
 import logging
+
 from flask import Blueprint, request
 
-from app.enums.common import PlantHealthStatus
-
 from app.blueprints.api._common import (
-    success as _success,
     fail as _fail,
+    get_container as _container,
     get_growth_service as _growth_service,
     get_plant_service as _plant_service,
-    get_container as _container,
+    success as _success,
 )
+from app.enums.common import PlantHealthStatus
 
-logger = logging.getLogger('health_api')
+logger = logging.getLogger("health_api")
 
 
 def register_plant_routes(health_api: Blueprint):
     """Register plant health routes on the blueprint."""
 
-    @health_api.get('/plants/summary')
+    @health_api.get("/plants/summary")
     def get_plants_health_summary():
         """
         Get health summary for all plants across all units.
-        
+
         Returns:
             {
                 "plants": [
@@ -52,16 +53,16 @@ def register_plant_routes(health_api: Blueprint):
         try:
             growth_service = _growth_service()
             plant_service = _plant_service()
-            
+
             units = growth_service.list_units()
             all_plants_health = []
-            
+
             for unit in units:
-                unit_id = unit.get('unit_id')
-                unit_name = unit.get('name')
+                unit_id = unit.get("unit_id")
+                unit_name = unit.get("name")
                 # list_plants returns PlantProfile objects
                 plants = plant_service.list_plants(unit_id)
-                
+
                 for plant in plants:
                     # PlantProfile is a dataclass - use attribute access
                     health_data = {
@@ -71,26 +72,23 @@ def register_plant_routes(health_api: Blueprint):
                         "unit_name": unit_name,
                         "plant_species": plant.plant_type,
                         "current_stage": plant.current_stage,
-                        "current_health_status": getattr(plant, 'health_status', 'healthy'),
-                        "last_observation_date": getattr(plant, 'last_health_check', None),
-                        "issues": []
+                        "current_health_status": getattr(plant, "health_status", "healthy"),
+                        "last_observation_date": getattr(plant, "last_health_check", None),
+                        "issues": [],
                     }
                     all_plants_health.append(health_data)
-                    
-            return _success({
-                "plants": all_plants_health,
-                "count": len(all_plants_health)
-            })
-            
+
+            return _success({"plants": all_plants_health, "count": len(all_plants_health)})
+
         except Exception as e:
             logger.exception(f"Error getting plants health summary: {e}")
             return _fail("Failed to get plants health summary", 500)
 
-    @health_api.get('/plants/symptoms')
+    @health_api.get("/plants/symptoms")
     def get_health_symptoms():
         """
         Get list of available plant health symptoms for recording observations.
-        
+
         Returns:
             {
                 "symptoms": [
@@ -111,11 +109,11 @@ def register_plant_routes(health_api: Blueprint):
             "discoloration",
             "mold",
             "pests",
-            "root_rot"
+            "root_rot",
         ]
         return _success({"symptoms": symptoms})
 
-    @health_api.get('/plants/statuses')
+    @health_api.get("/plants/statuses")
     def get_health_statuses():
         """
         Get list of available plant health statuses.
@@ -135,7 +133,7 @@ def register_plant_routes(health_api: Blueprint):
         statuses = [status.value for status in PlantHealthStatus]
         return _success({"statuses": statuses})
 
-    @health_api.get('/plants/<int:plant_id>/score')
+    @health_api.get("/plants/<int:plant_id>/score")
     def get_plant_health_score(plant_id: int):
         """
         Get comprehensive health score for a single plant.
@@ -166,7 +164,7 @@ def register_plant_routes(health_api: Blueprint):
         """
         try:
             container = _container()
-            scorer = getattr(container, "plant_health_scorer")
+            scorer = container.plant_health_scorer
 
             if not scorer:
                 return _fail("Plant health scorer not available", 503)
@@ -176,9 +174,9 @@ def register_plant_routes(health_api: Blueprint):
 
         except Exception as e:
             logger.exception(f"Error getting health score for plant {plant_id}: {e}")
-            return _fail(f"Failed to get health score: {str(e)}", 500)
+            return _fail(f"Failed to get health score: {e!s}", 500)
 
-    @health_api.get('/units/<int:unit_id>/plants/scores')
+    @health_api.get("/units/<int:unit_id>/plants/scores")
     def get_unit_plants_health_scores(unit_id: int):
         """
         Get health scores for all plants in a unit.
@@ -212,18 +210,20 @@ def register_plant_routes(health_api: Blueprint):
             if scores:
                 avg_score = sum(s.overall_score for s in scores) / len(scores)
 
-            return _success({
-                "unit_id": unit_id,
-                "plants": scores_data,
-                "count": len(scores),
-                "average_score": round(avg_score, 1),
-            })
+            return _success(
+                {
+                    "unit_id": unit_id,
+                    "plants": scores_data,
+                    "count": len(scores),
+                    "average_score": round(avg_score, 1),
+                }
+            )
 
         except Exception as e:
             logger.exception(f"Error getting health scores for unit {unit_id}: {e}")
-            return _fail(f"Failed to get health scores: {str(e)}", 500)
+            return _fail(f"Failed to get health scores: {e!s}", 500)
 
-    @health_api.get('/plants/attention')
+    @health_api.get("/plants/attention")
     def get_plants_needing_attention():
         """
         Get plants needing attention across all units.
@@ -255,25 +255,27 @@ def register_plant_routes(health_api: Blueprint):
                 return _fail("Plant health scorer not available", 503)
 
             # Parse query params
-            unit_id = request.args.get('unit_id', type=int)
-            threshold = request.args.get('threshold', default=65.0, type=float)
+            unit_id = request.args.get("unit_id", type=int)
+            threshold = request.args.get("threshold", default=65.0, type=float)
 
             plants = scorer.get_plants_needing_attention(
                 unit_id=unit_id,
                 score_threshold=threshold,
             )
 
-            return _success({
-                "plants": plants,
-                "count": len(plants),
-                "threshold": threshold,
-            })
+            return _success(
+                {
+                    "plants": plants,
+                    "count": len(plants),
+                    "threshold": threshold,
+                }
+            )
 
         except Exception as e:
             logger.exception(f"Error getting plants needing attention: {e}")
-            return _fail(f"Failed to get plants needing attention: {str(e)}", 500)
+            return _fail(f"Failed to get plants needing attention: {e!s}", 500)
 
-    @health_api.post('/plants/<int:plant_id>/observe')
+    @health_api.post("/plants/<int:plant_id>/observe")
     def record_health_observation(plant_id: int):
         """
         Record a health observation for a plant.
@@ -322,10 +324,7 @@ def register_plant_routes(health_api: Blueprint):
 
             valid_statuses = ["healthy", "stressed", "critical", "diseased", "recovering"]
             if health_status not in valid_statuses:
-                return _fail(
-                    f"Invalid health_status. Must be one of: {', '.join(valid_statuses)}",
-                    400
-                )
+                return _fail(f"Invalid health_status. Must be one of: {', '.join(valid_statuses)}", 400)
 
             # Get plant info for context
             plant_info = plant_service.get_plant(plant_id)
@@ -353,13 +352,13 @@ def register_plant_routes(health_api: Blueprint):
                 health_status=health_status,
                 symptoms=symptoms,
                 severity_level=severity_level,
-                unit_id=getattr(plant_info, 'unit_id', None),
+                unit_id=getattr(plant_info, "unit_id", None),
                 disease_type=disease_type,
                 affected_parts=affected_parts,
                 environmental_factors=environmental_factors,
                 treatment_applied=treatment_applied,
-                plant_type=getattr(plant_info, 'plant_type', None),
-                growth_stage=getattr(plant_info, 'current_stage', None),
+                plant_type=getattr(plant_info, "plant_type", None),
+                growth_stage=getattr(plant_info, "current_stage", None),
                 notes=notes,
                 image_path=image_path,
                 user_id=None,  # TODO: Get from auth when available
@@ -369,18 +368,20 @@ def register_plant_routes(health_api: Blueprint):
             if not entry_id:
                 return _fail("Failed to record health observation", 500)
 
-            return _success({
-                "entry_id": entry_id,
-                "plant_id": plant_id,
-                "health_status": health_status,
-                "message": "Health observation recorded successfully",
-            }), 201
+            return _success(
+                {
+                    "entry_id": entry_id,
+                    "plant_id": plant_id,
+                    "health_status": health_status,
+                    "message": "Health observation recorded successfully",
+                }
+            ), 201
 
         except Exception as e:
             logger.exception(f"Error recording health observation for plant {plant_id}: {e}")
-            return _fail(f"Failed to record health observation: {str(e)}", 500)
+            return _fail(f"Failed to record health observation: {e!s}", 500)
 
-    @health_api.get('/plants/<int:plant_id>/observations')
+    @health_api.get("/plants/<int:plant_id>/observations")
     def get_plant_observations(plant_id: int):
         """
         Get health observations for a specific plant.
@@ -412,9 +413,9 @@ def register_plant_routes(health_api: Blueprint):
                 return _fail("Plant journal service not available", 503)
 
             # Parse query params
-            days = request.args.get('days', default=30, type=int)
-            limit = request.args.get('limit', default=50, type=int)
-            health_status = request.args.get('health_status')
+            days = request.args.get("days", default=30, type=int)
+            limit = request.args.get("limit", default=50, type=int)
+            health_status = request.args.get("health_status")
 
             # Get observations
             entries = journal_service.get_health_timeline(
@@ -429,12 +430,14 @@ def register_plant_routes(health_api: Blueprint):
             # Limit results
             entries = entries[:limit]
 
-            return _success({
-                "observations": entries,
-                "count": len(entries),
-                "plant_id": plant_id,
-            })
+            return _success(
+                {
+                    "observations": entries,
+                    "count": len(entries),
+                    "plant_id": plant_id,
+                }
+            )
 
         except Exception as e:
             logger.exception(f"Error getting observations for plant {plant_id}: {e}")
-            return _fail(f"Failed to get plant observations: {str(e)}", 500)
+            return _fail(f"Failed to get plant observations: {e!s}", 500)

@@ -1,5 +1,3 @@
-import threading
-import time
 from datetime import datetime
 from types import SimpleNamespace
 from unittest.mock import Mock
@@ -32,7 +30,9 @@ class StubProcessor:
     def build_payloads(self, *, sensor, reading):
         # Minimal stub matching CompositeProcessor.build_payloads return shape.
         # We only assert the emitter methods are called, not payload content.
-        return SimpleNamespace(device_payload={"unit_id": reading.unit_id}, dashboard_payload={"unit_id": reading.unit_id})
+        return SimpleNamespace(
+            device_payload={"unit_id": reading.unit_id}, dashboard_payload={"unit_id": reading.unit_id}
+        )
 
 
 class StubSensorManager:

@@ -3,14 +3,23 @@ Shared Device Endpoints
 Handles system configuration, connectivity history, device aggregation, and error handlers.
 """
 
-from flask import request, Response
 import logging
 
+from flask import Response, request
+
 from app.enums import DeviceCategory
+
+from app.utils.http import safe_error
+
 from ..devices import devices_api
 from .utils import (
-    _device_repo, _growth_service, _success, _fail, _to_csv,
-    _sensor_service, _actuator_service  # Direct hardware access
+    _actuator_service,
+    _device_repo,
+    _fail,
+    _growth_service,
+    _sensor_service,  # Direct hardware access
+    _success,
+    _to_csv,
 )
 
 logger = logging.getLogger(__name__)
@@ -18,6 +27,7 @@ logger = logging.getLogger(__name__)
 # Check if config module is available
 try:
     from app.config import SystemConfigDefaults
+
     CONFIG_AVAILABLE = True
 except ImportError:
     CONFIG_AVAILABLE = False
@@ -25,7 +35,8 @@ except ImportError:
 
 # ======================== SYSTEM CONFIGURATION ========================
 
-@devices_api.get('/config/gpio_pins')
+
+@devices_api.get("/config/gpio_pins")
 def get_available_gpio_pins():
     """Get available GPIO pins"""
     try:
@@ -35,16 +46,25 @@ def get_available_gpio_pins():
         else:
             # Return default pins if config not available
             default_pins = {
-                "2": "GPIO 2", "3": "GPIO 3", "4": "GPIO 4", "5": "GPIO 5",
-                "18": "GPIO 18", "19": "GPIO 19", "21": "GPIO 21", "22": "GPIO 22",
-                "23": "GPIO 23", "25": "GPIO 25", "26": "GPIO 26", "27": "GPIO 27"
+                "2": "GPIO 2",
+                "3": "GPIO 3",
+                "4": "GPIO 4",
+                "5": "GPIO 5",
+                "18": "GPIO 18",
+                "19": "GPIO 19",
+                "21": "GPIO 21",
+                "22": "GPIO 22",
+                "23": "GPIO 23",
+                "25": "GPIO 25",
+                "26": "GPIO 26",
+                "27": "GPIO 27",
             }
             return _success({"gpio_pins": default_pins, "count": len(default_pins)})
     except Exception as e:
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
-@devices_api.get('/config/adc_channels')
+@devices_api.get("/config/adc_channels")
 def get_available_adc_channels():
     """Get available ADC channels"""
     try:
@@ -53,18 +73,16 @@ def get_available_adc_channels():
             return _success({"adc_channels": channels, "count": len(channels)})
         else:
             # Return default channels if config not available
-            default_channels = {
-                "0": "A0", "1": "A1", "2": "A2", "3": "A3"
-            }
+            default_channels = {"0": "A0", "1": "A1", "2": "A2", "3": "A3"}
             return _success({"adc_channels": default_channels, "count": len(default_channels)})
     except Exception as e:
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
-@devices_api.get('/config/sensor_types')
+@devices_api.get("/config/sensor_types")
 def get_sensor_types():
     """Get available sensor types and models"""
-    from app.enums import SensorType, SensorModel
+    from app.enums import SensorModel, SensorType
 
     env_models = [
         {"value": SensorModel.MQ2.value, "text": "Smoke/Gas Sensor (MQ2)"},
@@ -93,69 +111,71 @@ def get_sensor_types():
     return _success({"sensor_types": sensor_types})
 
 
-@devices_api.get('/config/actuator_types')
+@devices_api.get("/config/actuator_types")
 def get_actuator_types():
     """Get available actuator types"""
     actuator_types = [
-        'Light', 'Heater', 'Cooler', 'Humidifier', 
-        'Dehumidifier', 'Water-Pump', 'CO2-Injector',
-        'Fan', 'Extractor'
+        "Light",
+        "Heater",
+        "Cooler",
+        "Humidifier",
+        "Dehumidifier",
+        "Water-Pump",
+        "CO2-Injector",
+        "Fan",
+        "Extractor",
     ]
     return _success({"actuator_types": actuator_types, "count": len(actuator_types)})
 
 
 # ======================== CONNECTIVITY HISTORY ========================
 
-@devices_api.get('/connectivity-history')
+
+@devices_api.get("/connectivity-history")
 def get_connectivity_history():
     """Get recent connectivity events (MQTT/WiFi/Zigbee)."""
     try:
-        limit = request.args.get('limit', default=100, type=int)
-        since = request.args.get('since')
-        until = request.args.get('until')
-        connection_type = request.args.get('connection_type')
+        limit = request.args.get("limit", default=100, type=int)
+        since = request.args.get("since")
+        until = request.args.get("until")
+        connection_type = request.args.get("connection_type")
         repo = _device_repo()
-        rows = repo.get_connectivity_history(
-            connection_type=connection_type, limit=limit, since=since, until=until
-        )
+        rows = repo.get_connectivity_history(connection_type=connection_type, limit=limit, since=since, until=until)
         return _success({"history": rows, "count": len(rows)})
     except Exception as e:
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
-@devices_api.get('/connectivity-history.csv')
+@devices_api.get("/connectivity-history.csv")
 def export_connectivity_history_csv():
     try:
-        limit = request.args.get('limit', default=1000, type=int)
-        since = request.args.get('since')
-        until = request.args.get('until')
-        connection_type = request.args.get('connection_type')
+        limit = request.args.get("limit", default=1000, type=int)
+        since = request.args.get("since")
+        until = request.args.get("until")
+        connection_type = request.args.get("connection_type")
         repo = _device_repo()
-        rows = repo.get_connectivity_history(
-            connection_type=connection_type, limit=limit, since=since, until=until
-        )
-        headers = [
-            'timestamp', 'connection_type', 'status', 'endpoint', 'broker', 'port', 'unit_id', 'device_id'
-        ]
+        rows = repo.get_connectivity_history(connection_type=connection_type, limit=limit, since=since, until=until)
+        headers = ["timestamp", "connection_type", "status", "endpoint", "broker", "port", "unit_id", "device_id"]
         csv_data = _to_csv(rows, headers)
         filename = f"connectivity_{connection_type}_history.csv" if connection_type else "connectivity_history.csv"
-        return Response(csv_data, mimetype='text/csv', headers={
-            'Content-Disposition': f'attachment; filename={filename}'
-        })
+        return Response(
+            csv_data, mimetype="text/csv", headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
     except Exception as e:
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
 # ======================== DEVICE AGGREGATION ========================
 
-@devices_api.get('/all/unit/<int:unit_id>')
+
+@devices_api.get("/all/unit/<int:unit_id>")
 def get_all_devices_for_unit(unit_id: int):
     """
     Get all devices (sensors + actuators) for a specific unit.
-    
+
     Returns grouped response with sensors and actuators separated,
     making it easy for frontend to differentiate device types.
-    
+
     Response format:
     {
         "ok": true,
@@ -185,57 +205,64 @@ def get_all_devices_for_unit(unit_id: int):
         sensor_svc = _sensor_service()
         actuator_svc = _actuator_service()
         growth_service = _growth_service()
-        
+
         # Validate unit exists
         unit = growth_service.get_unit(unit_id)
         if not unit:
             return _fail(f"Growth unit {unit_id} not found", 404)
-        
+
         # Get sensors for unit (direct hardware access)
         sensors = sensor_svc.list_sensors(unit_id=unit_id)
         sensor_list = []
         for sensor in sensors:
             config = dict(sensor.get("config") or {})
-            sensor_list.append({
-                "sensor_id": sensor.get('sensor_id'),
-                "name": sensor.get('name'),
-                "sensor_type": sensor.get('sensor_type'),
-                "protocol": sensor.get('protocol'),
-                "model": sensor.get('model'),
-                "config": config,
-                "device_type": DeviceCategory.SENSOR.value
-            })
-        
+            sensor_list.append(
+                {
+                    "sensor_id": sensor.get("sensor_id"),
+                    "name": sensor.get("name"),
+                    "sensor_type": sensor.get("sensor_type"),
+                    "protocol": sensor.get("protocol"),
+                    "model": sensor.get("model"),
+                    "config": config,
+                    "device_type": DeviceCategory.SENSOR.value,
+                }
+            )
+
         # Get actuators for unit (direct hardware access)
         actuators = actuator_svc.list_actuators(unit_id=unit_id)
         actuator_list = []
         for actuator in actuators:
             config = dict(actuator.get("config") or {})
-            actuator_list.append({
-                "actuator_id": actuator.get('actuator_id'),
-                "actuator_type": actuator.get('actuator_type'),
-                "name": actuator.get('name'),
-                "protocol": actuator.get('protocol'),
-                "model": actuator.get('model'),
-                "config": config,
-                "device_type": DeviceCategory.ACTUATOR.value
-            })
-        
-        return _success({
-            "unit_id": unit_id,
-            "unit_name": unit.get('name'),
-            "sensors": sensor_list,
-            "actuators": actuator_list,
-            "total_devices": len(sensor_list) + len(actuator_list),
-            "sensor_count": len(sensor_list),
-            "actuator_count": len(actuator_list)
-        })
-        
+            actuator_list.append(
+                {
+                    "actuator_id": actuator.get("actuator_id"),
+                    "actuator_type": actuator.get("actuator_type"),
+                    "name": actuator.get("name"),
+                    "protocol": actuator.get("protocol"),
+                    "model": actuator.get("model"),
+                    "config": config,
+                    "device_type": DeviceCategory.ACTUATOR.value,
+                }
+            )
+
+        return _success(
+            {
+                "unit_id": unit_id,
+                "unit_name": unit.get("name"),
+                "sensors": sensor_list,
+                "actuators": actuator_list,
+                "total_devices": len(sensor_list) + len(actuator_list),
+                "sensor_count": len(sensor_list),
+                "actuator_count": len(actuator_list),
+            }
+        )
+
     except Exception as e:
-        return _fail(f"Error getting devices for unit {unit_id}: {str(e)}", 500)
+        return _fail(f"Error getting devices for unit {unit_id}: {e!s}", 500)
 
 
 # ======================== ERROR HANDLERS ========================
+
 
 @devices_api.errorhandler(404)
 def not_found(error):

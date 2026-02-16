@@ -35,7 +35,7 @@ import logging
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -44,13 +44,14 @@ logger = logging.getLogger(__name__)
 # Data structures
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class LLMResponse:
     """Standardised wrapper around every backend response."""
 
     text: str
     model: str
-    usage: Dict[str, int] = field(default_factory=dict)   # prompt_tokens, completion_tokens, total_tokens
+    usage: dict[str, int] = field(default_factory=dict)  # prompt_tokens, completion_tokens, total_tokens
     latency_ms: float = 0.0
     raw: Any = None  # backend-specific raw response object
 
@@ -58,6 +59,7 @@ class LLMResponse:
 # ---------------------------------------------------------------------------
 # Abstract backend
 # ---------------------------------------------------------------------------
+
 
 class LLMBackend(ABC):
     """
@@ -130,6 +132,7 @@ class LLMBackend(ABC):
 # OpenAI backend  (ChatGPT / GPT-4o-mini)
 # ---------------------------------------------------------------------------
 
+
 class OpenAIBackend(LLMBackend):
     """
     Backend for OpenAI's Chat Completions API.
@@ -152,7 +155,7 @@ class OpenAIBackend(LLMBackend):
         self,
         api_key: str,
         model: str = "gpt-4o-mini",
-        base_url: Optional[str] = None,
+        base_url: str | None = None,
         timeout: int = 30,
     ):
         self._api_key = api_key
@@ -176,8 +179,9 @@ class OpenAIBackend(LLMBackend):
             logger.warning("OpenAI backend: no API key provided")
             return False
         try:
-            import openai  # noqa: F811 — lazy import
-            kwargs: Dict[str, Any] = {
+            import openai
+
+            kwargs: dict[str, Any] = {
                 "api_key": self._api_key,
                 "timeout": self._timeout,
             }
@@ -188,10 +192,7 @@ class OpenAIBackend(LLMBackend):
             logger.info("OpenAI backend initialised (model=%s)", self._model)
             return True
         except ImportError:
-            logger.error(
-                "OpenAI backend: 'openai' package not installed.  "
-                "Run: pip install openai"
-            )
+            logger.error("OpenAI backend: 'openai' package not installed.  Run: pip install openai")
         except Exception as exc:
             logger.error("OpenAI backend init failed: %s", exc)
         return False
@@ -212,7 +213,7 @@ class OpenAIBackend(LLMBackend):
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ]
-        kwargs: Dict[str, Any] = {
+        kwargs: dict[str, Any] = {
             "model": self._model,
             "messages": messages,
             "max_tokens": max_tokens,
@@ -221,9 +222,7 @@ class OpenAIBackend(LLMBackend):
         if json_mode:
             kwargs["response_format"] = {"type": "json_object"}
 
-        response, latency = self._timed(
-            self._client.chat.completions.create, **kwargs
-        )
+        response, latency = self._timed(self._client.chat.completions.create, **kwargs)
 
         usage = {}
         if response.usage:
@@ -245,6 +244,7 @@ class OpenAIBackend(LLMBackend):
 # ---------------------------------------------------------------------------
 # Anthropic backend  (Claude)
 # ---------------------------------------------------------------------------
+
 
 class AnthropicBackend(LLMBackend):
     """
@@ -288,7 +288,8 @@ class AnthropicBackend(LLMBackend):
             logger.warning("Anthropic backend: no API key provided")
             return False
         try:
-            import anthropic  # noqa: F811
+            import anthropic
+
             self._client = anthropic.Anthropic(
                 api_key=self._api_key,
                 timeout=self._timeout,
@@ -296,10 +297,7 @@ class AnthropicBackend(LLMBackend):
             logger.info("Anthropic backend initialised (model=%s)", self._model)
             return True
         except ImportError:
-            logger.error(
-                "Anthropic backend: 'anthropic' package not installed.  "
-                "Run: pip install anthropic"
-            )
+            logger.error("Anthropic backend: 'anthropic' package not installed.  Run: pip install anthropic")
         except Exception as exc:
             logger.error("Anthropic backend init failed: %s", exc)
         return False
@@ -339,9 +337,7 @@ class AnthropicBackend(LLMBackend):
             usage = {
                 "prompt_tokens": response.usage.input_tokens,
                 "completion_tokens": response.usage.output_tokens,
-                "total_tokens": (
-                    response.usage.input_tokens + response.usage.output_tokens
-                ),
+                "total_tokens": (response.usage.input_tokens + response.usage.output_tokens),
             }
 
         return LLMResponse(
@@ -356,6 +352,7 @@ class AnthropicBackend(LLMBackend):
 # ---------------------------------------------------------------------------
 # Local HuggingFace Transformers backend  (EXAONE 4.0 1.2B etc.)
 # ---------------------------------------------------------------------------
+
 
 class LocalTransformersBackend(LLMBackend):
     """
@@ -418,7 +415,9 @@ class LocalTransformersBackend(LLMBackend):
 
             logger.info(
                 "Loading local model %s (device=%s, quantize=%s) …",
-                self._model_path, self._device, self._quantize,
+                self._model_path,
+                self._device,
+                self._quantize,
             )
 
             dtype_map = {
@@ -435,7 +434,7 @@ class LocalTransformersBackend(LLMBackend):
             if self._tokenizer.pad_token is None:
                 self._tokenizer.pad_token = self._tokenizer.eos_token
 
-            model_kwargs: Dict[str, Any] = {
+            model_kwargs: dict[str, Any] = {
                 "torch_dtype": torch_dtype,
                 "trust_remote_code": True,
             }
@@ -443,6 +442,7 @@ class LocalTransformersBackend(LLMBackend):
             if self._quantize:
                 try:
                     from transformers import BitsAndBytesConfig
+
                     model_kwargs["quantization_config"] = BitsAndBytesConfig(
                         load_in_4bit=True,
                         bnb_4bit_compute_dtype=torch_dtype,
@@ -451,8 +451,7 @@ class LocalTransformersBackend(LLMBackend):
                     logger.info("4-bit quantisation enabled via bitsandbytes")
                 except ImportError:
                     logger.warning(
-                        "bitsandbytes not installed — loading without "
-                        "quantisation.  Run: pip install bitsandbytes"
+                        "bitsandbytes not installed — loading without quantisation.  Run: pip install bitsandbytes"
                     )
 
             if self._device == "auto":
@@ -468,14 +467,14 @@ class LocalTransformersBackend(LLMBackend):
 
             logger.info(
                 "✓ Local model loaded: %s (dtype=%s)",
-                self._model_path, torch_dtype,
+                self._model_path,
+                torch_dtype,
             )
             return True
 
         except ImportError as exc:
             logger.error(
-                "Local model backend: missing dependency — %s.  "
-                "Run: pip install torch transformers",
+                "Local model backend: missing dependency — %s.  Run: pip install torch transformers",
                 exc,
             )
         except Exception as exc:
@@ -502,7 +501,7 @@ class LocalTransformersBackend(LLMBackend):
 
         # Build chat-template messages (works with EXAONE Instruct and
         # most HuggingFace chat models)
-        messages: List[Dict[str, str]] = [
+        messages: list[dict[str, str]] = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": prompt},
         ]
@@ -527,7 +526,7 @@ class LocalTransformersBackend(LLMBackend):
         inputs = {k: v.to(device) for k, v in inputs.items()}
         input_len = inputs["input_ids"].shape[1]
 
-        gen_kwargs: Dict[str, Any] = {
+        gen_kwargs: dict[str, Any] = {
             "max_new_tokens": max_tokens,
             "do_sample": temperature > 0,
             "pad_token_id": self._tokenizer.pad_token_id,
@@ -538,7 +537,9 @@ class LocalTransformersBackend(LLMBackend):
 
         with torch.no_grad():
             outputs, latency = self._timed(
-                self._model.generate, **inputs, **gen_kwargs,
+                self._model.generate,
+                **inputs,
+                **gen_kwargs,
             )
 
         new_tokens = outputs[0][input_len:]
@@ -560,18 +561,19 @@ class LocalTransformersBackend(LLMBackend):
 # Factory
 # ---------------------------------------------------------------------------
 
+
 def create_backend(
     provider: str,
     *,
     api_key: str = "",
     model: str = "",
-    base_url: Optional[str] = None,
+    base_url: str | None = None,
     local_model_path: str = "",
     local_device: str = "auto",
     local_quantize: bool = False,
     local_torch_dtype: str = "float16",
     timeout: int = 30,
-) -> Optional[LLMBackend]:
+) -> LLMBackend | None:
     """
     Factory: create and initialise the right backend from a provider name.
 
@@ -591,7 +593,7 @@ def create_backend(
         logger.info("LLM provider set to 'none' — LLM features disabled")
         return None
 
-    backend: Optional[LLMBackend] = None
+    backend: LLMBackend | None = None
 
     if provider == "openai":
         backend = OpenAIBackend(

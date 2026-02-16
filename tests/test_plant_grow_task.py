@@ -1,11 +1,8 @@
 import os
-import tempfile
 from datetime import date, timedelta
 
-import pytest
-
-from app.workers.scheduled_tasks import plant_grow_task
 import app.utils.persistent_store as ps
+from app.workers.scheduled_tasks import plant_grow_task
 
 
 class FakePlant:
@@ -39,6 +36,7 @@ class FakeGrowthService:
 class FakePlantService:
     def __init__(self):
         self.updated = []
+
     def __init__(self, growth_service=None):
         self.updated = []
         self.growth_service = growth_service

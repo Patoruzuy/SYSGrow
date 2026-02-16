@@ -12,6 +12,7 @@ MQTT_TOPIC = "zigbee2mqtt/ESP32-C6-Relay/battery_warning"
 FCM_SERVER_KEY = "YOUR_FIREBASE_SERVER_KEY"
 FCM_DEVICE_TOKEN = "USER_DEVICE_FCM_TOKEN"
 
+
 def send_firebase_notification(voltage):
     """Send a Firebase push notification for low battery."""
     url = "https://fcm.googleapis.com/fcm/send"
@@ -33,12 +34,14 @@ def send_firebase_notification(voltage):
         # Log and continue; notification failure should not crash MQTT processing
         print(f"Failed to send FCM notification: {e}")
 
+
 def on_message(client, userdata, message):
     """Handle incoming MQTT messages."""
     payload = json.loads(message.payload.decode())
     voltage = payload["voltage"]
     print(f"🔋 Low Battery Alert Received: {voltage}V")
     send_firebase_notification(voltage)
+
 
 # Connect to MQTT Broker
 client = create_mqtt_client()

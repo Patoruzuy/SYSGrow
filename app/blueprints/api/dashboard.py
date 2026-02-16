@@ -1,47 +1,51 @@
-"""Dashboard API 
+"""Dashboard API
 ===================
 """
-from flask import Blueprint, request, current_app, session
-from datetime import datetime, timedelta, timezone
+
+import logging
+from datetime import UTC, datetime, timedelta
+from typing import Any
+
+from flask import Blueprint, current_app, request, session
+
+from app.blueprints.api._common import (
+    coerce_datetime as _coerce_datetime,
+    ensure_utc as _ensure_utc,
+    fail as _fail,
+    get_growth_service,
+    get_plant_service,
+    get_scheduling_service,
+    parse_datetime,
+    success as _success,
+)
 from app.domain.agronomics import infer_gdd_base_temp_c
 from app.utils.psychrometrics import calculate_vpd_kpa
 from app.utils.time import iso_now
-import logging
-from typing import List, Dict, Any, Optional, Tuple
-
-from app.blueprints.api._common import (
-    get_scheduling_service,
-    success as _success,
-    fail as _fail,
-    ensure_utc as _ensure_utc,
-    parse_datetime,
-    coerce_datetime as _coerce_datetime,
-    get_plant_service,
-    get_growth_service,
-)
 
 logger = logging.getLogger(__name__)
 
 # Create blueprint for dashboard API
-dashboard_api = Blueprint('dashboard_api', __name__, url_prefix='/api/dashboard')
+dashboard_api = Blueprint("dashboard_api", __name__, url_prefix="/api/dashboard")
 
 CACHE_TTL_SECONDS = 30
-_timeseries_cache: Dict[Tuple[str, str, Optional[int], Optional[int], Optional[int], Optional[int]], Dict[str, Any]] = {}
+_timeseries_cache: dict[tuple[str, str, int | None, int | None, int | None, int | None], dict[str, Any]] = {}
 
 
-def _parse_iso8601(value: Optional[str], fallback: datetime) -> datetime:
+def _parse_iso8601(value: str | None, fallback: datetime) -> datetime:
     """Parse ISO 8601 datetime - wraps common parse_datetime."""
     return parse_datetime(value, fallback)
 
 
-def _downsample(rows: List[Dict[str, Any]], target: int) -> List[Dict[str, Any]]:
+def _downsample(rows: list[dict[str, Any]], target: int) -> list[dict[str, Any]]:
     if not target or len(rows) <= target:
         return rows
     stride = max(1, len(rows) // target)
     return rows[::stride][:target]
 
 
-def _cache_key(start: datetime, end: datetime, unit_id: Optional[int], sensor_id: Optional[int], limit: Optional[int], hours: Optional[int]):
+def _cache_key(
+    start: datetime, end: datetime, unit_id: int | None, sensor_id: int | None, limit: int | None, hours: int | None
+):
     return (
         start.isoformat(),
         end.isoformat(),
@@ -88,32 +92,35 @@ def _build_snapshot_or_analytics(container, selected_unit_id):
         # Build sensor payloads depending on source
         try:
             if snapshot is not None:
-                metrics = getattr(snapshot, 'metrics', None) or {}
-                timestamp = getattr(snapshot, 'timestamp', None) or iso_now()
+                metrics = getattr(snapshot, "metrics", None) or {}
+                timestamp = getattr(snapshot, "timestamp", None) or iso_now()
                 sensors = {
-                    'temperature': _snap_metric_from_metrics(metrics, 'temperature', '°C', 'temperature', timestamp, container),
-                    'humidity': _snap_metric_from_metrics(metrics, 'humidity', '%', 'humidity', timestamp, container),
-                    'soil_moisture': _snap_metric_from_metrics(metrics, 'soil_moisture', '%', 'soil_moisture', timestamp, container, trend='up'),
-                    'co2': _snap_metric_from_metrics(metrics, 'co2', 'ppm', 'co2', timestamp, container),
-                    'lux': _snap_metric_from_metrics(metrics, 'lux', 'lux', 'lux', timestamp, container),
-                    'energy_usage': _build_energy_metric(energy_row),
+                    "temperature": _snap_metric_from_metrics(
+                        metrics, "temperature", "°C", "temperature", timestamp, container
+                    ),
+                    "humidity": _snap_metric_from_metrics(metrics, "humidity", "%", "humidity", timestamp, container),
+                    "soil_moisture": _snap_metric_from_metrics(
+                        metrics, "soil_moisture", "%", "soil_moisture", timestamp, container, trend="up"
+                    ),
+                    "co2": _snap_metric_from_metrics(metrics, "co2", "ppm", "co2", timestamp, container),
+                    "lux": _snap_metric_from_metrics(metrics, "lux", "lux", "lux", timestamp, container),
+                    "energy_usage": _build_energy_metric(energy_row),
                 }
 
-                temp_m = metrics.get('temperature')
-                hum_m = metrics.get('humidity')
+                temp_m = metrics.get("temperature")
+                hum_m = metrics.get("humidity")
                 if temp_m and hum_m:
                     analytics_service = getattr(container, "analytics_service", None)
                     if analytics_service:
                         try:
                             vpd = analytics_service.calculate_vpd_with_zones(
-                                getattr(temp_m, 'value', None),
-                                getattr(hum_m, 'value', None)
+                                getattr(temp_m, "value", None), getattr(hum_m, "value", None)
                             )
                         except Exception as exc:
                             logger.debug("Analytics vpd calculation failed: %s", exc)
-                            vpd = _calculate_vpd(getattr(temp_m, 'value', None), getattr(hum_m, 'value', None))
+                            vpd = _calculate_vpd(getattr(temp_m, "value", None), getattr(hum_m, "value", None))
                     else:
-                        vpd = _calculate_vpd(getattr(temp_m, 'value', None), getattr(hum_m, 'value', None))
+                        vpd = _calculate_vpd(getattr(temp_m, "value", None), getattr(hum_m, "value", None))
                 else:
                     vpd = {}
 
@@ -121,25 +128,24 @@ def _build_snapshot_or_analytics(container, selected_unit_id):
 
             if latest is not None:
                 sensors = {
-                    'temperature': _build_metric(latest, 'temperature', '°C', 'temperature'),
-                    'humidity': _build_metric(latest, 'humidity', '%', 'humidity'),
-                    'soil_moisture': _build_metric(latest, 'soil_moisture', '%', 'soil_moisture', trend='up'),
-                    'co2': _build_metric(latest, 'co2', 'ppm', 'co2'),
-                    'lux': _build_metric(latest, 'lux', 'lux', 'lux'),
-                    'energy_usage': _build_energy_metric(energy_row),
+                    "temperature": _build_metric(latest, "temperature", "°C", "temperature"),
+                    "humidity": _build_metric(latest, "humidity", "%", "humidity"),
+                    "soil_moisture": _build_metric(latest, "soil_moisture", "%", "soil_moisture", trend="up"),
+                    "co2": _build_metric(latest, "co2", "ppm", "co2"),
+                    "lux": _build_metric(latest, "lux", "lux", "lux"),
+                    "energy_usage": _build_energy_metric(energy_row),
                 }
                 analytics_service = getattr(container, "analytics_service", None)
                 if analytics_service:
                     try:
                         vpd = analytics_service.calculate_vpd_with_zones(
-                            latest.get('temperature'),
-                            latest.get('humidity')
+                            latest.get("temperature"), latest.get("humidity")
                         )
                     except Exception as exc:
                         logger.debug("Analytics vpd calculation failed: %s", exc)
-                        vpd = _calculate_vpd(latest.get('temperature'), latest.get('humidity'))
+                        vpd = _calculate_vpd(latest.get("temperature"), latest.get("humidity"))
                 else:
-                    vpd = _calculate_vpd(latest.get('temperature'), latest.get('humidity'))
+                    vpd = _calculate_vpd(latest.get("temperature"), latest.get("humidity"))
                 return sensors, vpd, energy_row
 
         except Exception as exc:
@@ -206,15 +212,17 @@ def _build_unit_settings_summary(container, growth_service, selected_unit_id, se
                     schedules_summary[device_type] = []
                     for schedule in device_schedules:
                         payload = schedule.to_dict() if hasattr(schedule, "to_dict") else dict(schedule)
-                        schedules_summary[device_type].append({
-                            "schedule_id": payload.get("schedule_id"),
-                            "name": payload.get("name"),
-                            "schedule_type": payload.get("schedule_type"),
-                            "start_time": payload.get("start_time"),
-                            "end_time": payload.get("end_time"),
-                            "enabled": payload.get("enabled"),
-                            "priority": payload.get("priority"),
-                        })
+                        schedules_summary[device_type].append(
+                            {
+                                "schedule_id": payload.get("schedule_id"),
+                                "name": payload.get("name"),
+                                "schedule_type": payload.get("schedule_type"),
+                                "start_time": payload.get("start_time"),
+                                "end_time": payload.get("end_time"),
+                                "enabled": payload.get("enabled"),
+                                "priority": payload.get("priority"),
+                            }
+                        )
 
         sensors = sensors or []
         actuators = actuators or []
@@ -257,48 +265,46 @@ def _build_unit_settings_summary(container, growth_service, selected_unit_id, se
 def _build_active_plant_details(focus_plant):
     """Build active_plant dashboard payload from a focus plant dict."""
     try:
-        focus_plant_id = focus_plant.get('plant_id')
-        focus_stage = focus_plant.get('current_stage')
-        growth_stages = focus_plant.get('growth_stages') or []
+        focus_plant_id = focus_plant.get("plant_id")
+        focus_stage = focus_plant.get("current_stage")
+        growth_stages = focus_plant.get("growth_stages") or []
         conditions = _find_stage_conditions(growth_stages, focus_stage)
 
-        temp_cfg = conditions.get('temperature_C', {}) or {}
-        humidity_cfg = conditions.get('humidity_percent', {}) or {}
-        hours_per_day = conditions.get('hours_per_day')
+        temp_cfg = conditions.get("temperature_C", {}) or {}
+        humidity_cfg = conditions.get("humidity_percent", {}) or {}
+        hours_per_day = conditions.get("hours_per_day")
 
-        explicit_base = focus_plant.get('gdd_base_temp_c')
-        base_source = 'explicit' if explicit_base is not None else 'inferred'
+        explicit_base = focus_plant.get("gdd_base_temp_c")
+        base_source = "explicit" if explicit_base is not None else "inferred"
         base_temp_c = None
         try:
             if explicit_base is not None:
                 base_temp_c = float(explicit_base)
             else:
-                base_temp_c = float(
-                    infer_gdd_base_temp_c(growth_stages, stage_name=focus_stage, default=10.0)
-                )
+                base_temp_c = float(infer_gdd_base_temp_c(growth_stages, stage_name=focus_stage, default=10.0))
         except Exception:
             base_temp_c = None
-            base_source = 'unknown'
+            base_source = "unknown"
 
         return {
-            'plant_id': focus_plant_id,
-            'active_plant_id': focus_plant_id,
-            'name': focus_plant.get('plant_name') or focus_plant.get('name', 'Unknown'),
-            'plant_type': focus_plant.get('plant_type') or focus_plant.get('species') or '',
-            'status': focus_plant.get('status') or 'active',
-            'current_stage': focus_stage,
-            'days_in_stage': focus_plant.get('days_in_stage', 0),
-            'days_left': focus_plant.get('days_left', 0),
-            'gdd_base_temp_c': base_temp_c,
-            'gdd_base_temp_source': base_source,
-            'targets': {
-                'temperature_c': {'min': temp_cfg.get('min'), 'max': temp_cfg.get('max')},
-                'humidity_percent': {'min': humidity_cfg.get('min'), 'max': humidity_cfg.get('max')},
-                'photoperiod_hours': hours_per_day,
+            "plant_id": focus_plant_id,
+            "active_plant_id": focus_plant_id,
+            "name": focus_plant.get("plant_name") or focus_plant.get("name", "Unknown"),
+            "plant_type": focus_plant.get("plant_type") or focus_plant.get("species") or "",
+            "status": focus_plant.get("status") or "active",
+            "current_stage": focus_stage,
+            "days_in_stage": focus_plant.get("days_in_stage", 0),
+            "days_left": focus_plant.get("days_left", 0),
+            "gdd_base_temp_c": base_temp_c,
+            "gdd_base_temp_source": base_source,
+            "targets": {
+                "temperature_c": {"min": temp_cfg.get("min"), "max": temp_cfg.get("max")},
+                "humidity_percent": {"min": humidity_cfg.get("min"), "max": humidity_cfg.get("max")},
+                "photoperiod_hours": hours_per_day,
             },
         }
     except Exception as exc:
-        logger.debug('Failed to build active plant details: %s', exc)
+        logger.debug("Failed to build active plant details: %s", exc)
         return None
 
 
@@ -306,19 +312,19 @@ def _build_alerts_summary(container, selected_unit_id):
     """Return a concise alerts summary for dashboard."""
     alert_service = getattr(container, "alert_service", None)
     if not alert_service:
-        return {'count': 0, 'recent': [], 'critical': 0, 'warning': 0}
+        return {"count": 0, "recent": [], "critical": 0, "warning": 0}
 
     try:
         recent_alerts = alert_service.get_active_alerts(unit_id=selected_unit_id, limit=20)
         return {
-            'count': len(recent_alerts),
-            'critical': len([a for a in recent_alerts if a.get('severity') == 'critical']),
-            'warning': len([a for a in recent_alerts if a.get('severity') == 'warning']),
-            'recent': recent_alerts[:5]
+            "count": len(recent_alerts),
+            "critical": len([a for a in recent_alerts if a.get("severity") == "critical"]),
+            "warning": len([a for a in recent_alerts if a.get("severity") == "warning"]),
+            "recent": recent_alerts[:5],
         }
     except Exception as exc:
         logger.debug("Failed to fetch alerts for unit %s: %s", selected_unit_id, exc)
-        return {'count': 0, 'recent': [], 'critical': 0, 'warning': 0}
+        return {"count": 0, "recent": [], "critical": 0, "warning": 0}
 
 
 def _build_devices_summary(container, selected_unit_id):
@@ -361,8 +367,9 @@ def _build_devices_summary(container, selected_unit_id):
     active_actuators = len([a for a in actuators if _is_active(a)]) if isinstance(actuators, list) else 0
 
     devices_summary = {
-        'active': active_sensors + active_actuators,
-        'total': (len(sensors) if isinstance(sensors, list) else 0) + (len(actuators) if isinstance(actuators, list) else 0)
+        "active": active_sensors + active_actuators,
+        "total": (len(sensors) if isinstance(sensors, list) else 0)
+        + (len(actuators) if isinstance(actuators, list) else 0),
     }
     return sensors, actuators, devices_summary
 
@@ -383,55 +390,55 @@ def _build_energy_summary(container, energy_row, selected_unit_id):
 
     # Fallback summary
     return {
-        'current_power_watts': energy_row.get('power_watts', 0),
-        'daily_cost': 0.0,
-        'trend': 'stable',
-        'timestamp': energy_row.get('timestamp')
+        "current_power_watts": energy_row.get("power_watts", 0),
+        "daily_cost": 0.0,
+        "trend": "stable",
+        "timestamp": energy_row.get("timestamp"),
     }
 
 
 def _build_system_summary(container, current_summary):
     """Compose system health summary using DeviceHealthService when available,
     falling back to a simple heuristic."""
-    system = dict(current_summary.get('system', {'health_score': 0, 'status': 'unknown'}))
+    system = dict(current_summary.get("system", {"health_score": 0, "status": "unknown"}))
     try:
         device_health_service = getattr(container, "device_health_service", None)
         if device_health_service:
             try:
                 system_health = device_health_service.calculate_system_health(
-                    vpd_status=current_summary.get('vpd', {}).get('status'),
-                    plant_health_avg=system.get('plant_health_avg'),
-                    critical_alerts=current_summary.get('alerts', {}).get('critical', 0),
-                    warning_alerts=current_summary.get('alerts', {}).get('warning', 0),
-                    devices_active=current_summary.get('devices', {}).get('active', 0),
-                    devices_total=current_summary.get('devices', {}).get('total', 0),
+                    vpd_status=current_summary.get("vpd", {}).get("status"),
+                    plant_health_avg=system.get("plant_health_avg"),
+                    critical_alerts=current_summary.get("alerts", {}).get("critical", 0),
+                    warning_alerts=current_summary.get("alerts", {}).get("warning", 0),
+                    devices_active=current_summary.get("devices", {}).get("active", 0),
+                    devices_total=current_summary.get("devices", {}).get("total", 0),
                 )
-                system['health_score'] = system_health['health_score']
-                system['status'] = system_health['status']
-                system['health_factors'] = system_health.get('factors', {})
+                system["health_score"] = system_health["health_score"]
+                system["status"] = system_health["status"]
+                system["health_factors"] = system_health.get("factors", {})
                 return system
             except Exception as exc:
                 logger.debug("DeviceHealthService.calculate_system_health failed: %s", exc)
 
         # Fallback: derive from plant_health_avg
-        plant_health_avg = system.get('plant_health_avg')
+        plant_health_avg = system.get("plant_health_avg")
         if plant_health_avg is not None:
-            system['health_score'] = max(system.get('health_score', 0), float(plant_health_avg))
+            system["health_score"] = max(system.get("health_score", 0), float(plant_health_avg))
 
-        score = system.get('health_score', 0)
+        score = system.get("health_score", 0)
         if score >= 80:
-            system['status'] = 'healthy'
+            system["status"] = "healthy"
         elif score >= 50:
-            system['status'] = 'degraded'
+            system["status"] = "degraded"
         elif score > 0:
-            system['status'] = 'unhealthy'
+            system["status"] = "unhealthy"
         else:
-            system.setdefault('health_score', 75.0)
-            system.setdefault('status', 'good')
+            system.setdefault("health_score", 75.0)
+            system.setdefault("status", "good")
     except Exception as exc:
         logger.debug("Failed to compute system summary: %s", exc)
-        system.setdefault('health_score', 75.0)
-        system.setdefault('status', 'good')
+        system.setdefault("health_score", 75.0)
+        system.setdefault("status", "good")
     return system
 
 
@@ -441,9 +448,9 @@ def _cache_get(key):
         return None
     expires = entry.get("expires")
     if expires:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if expires.tzinfo is None:
-            expires = expires.replace(tzinfo=timezone.utc)
+            expires = expires.replace(tzinfo=UTC)
         if expires < now:
             _timeseries_cache.pop(key, None)
             return None
@@ -455,7 +462,7 @@ def _cache_get(key):
 def _cache_set(key, value):
     _timeseries_cache[key] = {
         "value": value,
-        "expires": datetime.now(timezone.utc) + timedelta(seconds=CACHE_TTL_SECONDS),
+        "expires": datetime.now(UTC) + timedelta(seconds=CACHE_TTL_SECONDS),
     }
     if len(_timeseries_cache) > 64:
         # Drop oldest-ish entry to avoid unbounded growth
@@ -463,7 +470,7 @@ def _cache_set(key, value):
         _timeseries_cache.pop(oldest_key, None)
 
 
-def _resolve_unit_id() -> Optional[int]:
+def _resolve_unit_id() -> int | None:
     unit_id = request.args.get("unit_id", type=int)
     if unit_id is not None:
         return unit_id
@@ -474,19 +481,20 @@ def _resolve_unit_id() -> Optional[int]:
         return None
 
 
-def _normalize_stage_name(stage_name: Optional[str]) -> str:
+def _normalize_stage_name(stage_name: str | None) -> str:
     return str(stage_name or "").strip().lower()
 
 
-def _parse_date_value(value: Any) -> Optional[datetime]:
+def _parse_date_value(value: Any) -> datetime | None:
     if value is None:
         return None
     if isinstance(value, datetime):
         return _ensure_utc(value)
     try:
         from datetime import date as date_type
+
         if isinstance(value, date_type):
-            return datetime(value.year, value.month, value.day, tzinfo=timezone.utc)
+            return datetime(value.year, value.month, value.day, tzinfo=UTC)
     except Exception:
         pass
     if isinstance(value, str):
@@ -494,8 +502,8 @@ def _parse_date_value(value: Any) -> Optional[datetime]:
     return None
 
 
-def _extract_stage_names(growth_stages: Any) -> List[str]:
-    stages: List[str] = []
+def _extract_stage_names(growth_stages: Any) -> list[str]:
+    stages: list[str] = []
     if isinstance(growth_stages, dict):
         growth_stages = growth_stages.get("growth_stage") or growth_stages.get("stages") or []
     if isinstance(growth_stages, list):
@@ -506,7 +514,7 @@ def _extract_stage_names(growth_stages: Any) -> List[str]:
     return stages
 
 
-def _find_stage_details(growth_stages: Any, stage_name: Optional[str]) -> Optional[Dict[str, Any]]:
+def _find_stage_details(growth_stages: Any, stage_name: str | None) -> dict[str, Any] | None:
     if not growth_stages or not stage_name:
         return None
     target = _normalize_stage_name(stage_name)
@@ -523,7 +531,7 @@ def _find_stage_details(growth_stages: Any, stage_name: Optional[str]) -> Option
     return None
 
 
-def _hours_until_time(start_time: Optional[str]) -> Optional[int]:
+def _hours_until_time(start_time: str | None) -> int | None:
     if not start_time:
         return None
     try:
@@ -538,14 +546,14 @@ def _hours_until_time(start_time: Optional[str]) -> Optional[int]:
     return max(0, int(delta.total_seconds() // 3600))
 
 
-def _schedule_days(payload: Optional[Dict[str, Any]]) -> List[int]:
+def _schedule_days(payload: dict[str, Any] | None) -> list[int]:
     if not payload:
         return []
     if payload.get("enabled") is False:
         return []
     days = payload.get("days_of_week") or payload.get("days")
     if isinstance(days, list):
-        result: List[int] = []
+        result: list[int] = []
         for entry in days:
             try:
                 result.append(int(entry))
@@ -555,21 +563,21 @@ def _schedule_days(payload: Optional[Dict[str, Any]]) -> List[int]:
     return list(range(7))
 
 
-@dashboard_api.get('/sensors/current')
+@dashboard_api.get("/sensors/current")
 def get_current_sensor_data():
     """Get current sensor readings for dashboard display"""
     try:
         # Get selected unit from session
-        raw_unit_id = session.get('selected_unit')
+        raw_unit_id = session.get("selected_unit")
         try:
             selected_unit_id = int(raw_unit_id) if raw_unit_id is not None else None
         except (TypeError, ValueError):
             selected_unit_id = None
-        
+
         # Get services from app container
         container = current_app.config.get("CONTAINER")
         if not container:
-            return _fail('Container unavailable', 503)
+            return _fail("Container unavailable", 503)
 
         # Prefer live, priority-selected snapshot from MQTT pipeline.
         snapshot = None
@@ -594,42 +602,49 @@ def get_current_sensor_data():
             except Exception as db_error:
                 logger.error(f"Service error: {db_error}", exc_info=True)
                 if snapshot is None:
-                    return _fail('Analytics service unavailable', 503)
+                    return _fail("Analytics service unavailable", 503)
 
         if snapshot is not None:
-            metrics = getattr(snapshot, 'metrics', None) or {}
-            timestamp = getattr(snapshot, 'timestamp', None) or iso_now()
+            metrics = getattr(snapshot, "metrics", None) or {}
+            timestamp = getattr(snapshot, "timestamp", None) or iso_now()
             sensor_data = {
-                'temperature': _snap_metric_from_metrics(metrics, 'temperature', '°C', 'temperature', timestamp, container),
-                'humidity': _snap_metric_from_metrics(metrics, 'humidity', '%', 'humidity', timestamp, container),
-                'soil_moisture': _snap_metric_from_metrics(metrics, 'soil_moisture', '%', 'soil_moisture', timestamp, container, trend='up'),
-                'co2': _snap_metric_from_metrics(metrics, 'co2', 'ppm', 'co2', timestamp, container),
-                'lux': _snap_metric_from_metrics(metrics, 'lux', 'lux', 'lux', timestamp, container),
-                'energy_usage': _build_energy_metric(energy_row),
+                "temperature": _snap_metric_from_metrics(
+                    metrics, "temperature", "°C", "temperature", timestamp, container
+                ),
+                "humidity": _snap_metric_from_metrics(metrics, "humidity", "%", "humidity", timestamp, container),
+                "soil_moisture": _snap_metric_from_metrics(
+                    metrics, "soil_moisture", "%", "soil_moisture", timestamp, container, trend="up"
+                ),
+                "co2": _snap_metric_from_metrics(metrics, "co2", "ppm", "co2", timestamp, container),
+                "lux": _snap_metric_from_metrics(metrics, "lux", "lux", "lux", timestamp, container),
+                "energy_usage": _build_energy_metric(energy_row),
             }
         else:
             # Build sensor data - will show N/A for units with no sensors
             sensor_data = {
-                'temperature': _build_metric(latest, 'temperature', '°C', 'temperature'),
-                'humidity': _build_metric(latest, 'humidity', '%', 'humidity'),
-                'soil_moisture': _build_metric(latest, 'soil_moisture', '%', 'soil_moisture', trend='up'),
-                'co2': _build_metric(latest, 'co2', 'ppm', 'co2'),
-                'lux': _build_metric(latest, 'lux', 'lux', 'lux'),
-                'energy_usage': _build_energy_metric(energy_row)
+                "temperature": _build_metric(latest, "temperature", "°C", "temperature"),
+                "humidity": _build_metric(latest, "humidity", "%", "humidity"),
+                "soil_moisture": _build_metric(latest, "soil_moisture", "%", "soil_moisture", trend="up"),
+                "co2": _build_metric(latest, "co2", "ppm", "co2"),
+                "lux": _build_metric(latest, "lux", "lux", "lux"),
+                "energy_usage": _build_energy_metric(energy_row),
             }
-        
+
         logger.debug(f"Sensor data response: {sensor_data}")
 
         return _success(
             {
-                'sensor_data': sensor_data,
-                'timestamp': ((getattr(snapshot, 'timestamp', None) if snapshot else None) or (latest['timestamp'] if latest else iso_now()))
+                "sensor_data": sensor_data,
+                "timestamp": (
+                    (getattr(snapshot, "timestamp", None) if snapshot else None)
+                    or (latest["timestamp"] if latest else iso_now())
+                ),
             }
         )
-        
+
     except Exception as e:
         logger.error(f"Error getting current sensor data: {e}", exc_info=True)
-        return _fail('Failed to get sensor data', 500)
+        return _fail("Failed to get sensor data", 500)
 
 
 @dashboard_api.get("/timeseries")
@@ -648,7 +663,7 @@ def get_timeseries():
         limit = request.args.get("limit", default=500, type=int)
         horizon_hours = request.args.get("hours", type=int)
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         end_dt = _parse_iso8601(end_param, fallback=now)
         start_default = end_dt - timedelta(hours=horizon_hours or 24)
         start_dt = _parse_iso8601(start_param, fallback=start_default)
@@ -697,18 +712,18 @@ def get_timeseries():
         return _success(payload)
     except ValueError as exc:
         logger.warning("Validation error in get_timeseries: %s", exc)
-        return _fail(str(exc), 400)
+        return safe_error(exc, 400)
     except Exception as exc:
         logger.exception("Error fetching dashboard timeseries: %s", exc)
         return _fail("Failed to fetch timeseries", 500)
 
 
-@dashboard_api.get('/actuators/recent-state')
+@dashboard_api.get("/actuators/recent-state")
 def get_recent_actuator_state():
     """Return last N actuator state transitions for dashboard tile."""
     try:
-        limit = request.args.get('limit', default=20, type=int)
-        unit_id = request.args.get('unit_id', default=None, type=int)
+        limit = request.args.get("limit", default=20, type=int)
+        unit_id = request.args.get("unit_id", default=None, type=int)
         container = current_app.config.get("CONTAINER")
         if not container:
             return _fail("Container unavailable", 503)
@@ -719,12 +734,12 @@ def get_recent_actuator_state():
         return _fail("Failed to get recent actuator state", 500)
 
 
-@dashboard_api.get('/connectivity/recent')
+@dashboard_api.get("/connectivity/recent")
 def get_recent_connectivity():
     """Return last N connectivity events for dashboard tile (optional type filter)."""
     try:
-        limit = request.args.get('limit', default=20, type=int)
-        connection_type = request.args.get('connection_type')
+        limit = request.args.get("limit", default=20, type=int)
+        connection_type = request.args.get("connection_type")
         container = current_app.config.get("CONTAINER")
         if not container:
             return _fail("Container unavailable", 503)
@@ -734,12 +749,13 @@ def get_recent_connectivity():
         logger.error(f"Error getting recent connectivity events: {e}")
         return _fail("Failed to get connectivity events", 500)
 
-def _build_metric(row, value_key, unit, threshold_key, trend='stable'):
+
+def _build_metric(row, value_key, unit, threshold_key, trend="stable"):
     value = row.get(value_key) if row else None
-    timestamp = row.get('timestamp') if row else iso_now()
-    
+    timestamp = row.get("timestamp") if row else iso_now()
+
     # Use DeviceHealthService for status evaluation
-    status = 'Unknown'
+    status = "Unknown"
     if value is not None:
         container = current_app.config.get("CONTAINER")
         device_health_service = getattr(container, "device_health_service", None) if container else None
@@ -748,29 +764,31 @@ def _build_metric(row, value_key, unit, threshold_key, trend='stable'):
         else:
             # Fallback to simple evaluation
             status = get_status(value, threshold_key)
-    
-    return {
-        'value': value,
-        'unit': unit,
-        'status': status,
-        'trend': trend,
-        'timestamp': timestamp
-    }
+
+    return {"value": value, "unit": unit, "status": status, "trend": trend, "timestamp": timestamp}
 
 
 def _build_energy_metric(row):
-    value = row['power_watts'] if row else None
-    timestamp = row['timestamp'] if row else iso_now()
+    value = row["power_watts"] if row else None
+    timestamp = row["timestamp"] if row else iso_now()
     return {
-        'value': value,
-        'unit': 'W',
-        'status': get_status(value, 'energy_usage') if value is not None else 'Unknown',
-        'trend': 'stable',
-        'timestamp': timestamp
+        "value": value,
+        "unit": "W",
+        "status": get_status(value, "energy_usage") if value is not None else "Unknown",
+        "trend": "stable",
+        "timestamp": timestamp,
     }
 
 
-def _snap_metric_from_metrics(metrics: Dict[str, Any], metric_key: str, default_unit: str, threshold_key: str, timestamp: Any, container, trend: str = 'stable') -> Dict[str, Any]:
+def _snap_metric_from_metrics(
+    metrics: dict[str, Any],
+    metric_key: str,
+    default_unit: str,
+    threshold_key: str,
+    timestamp: Any,
+    container,
+    trend: str = "stable",
+) -> dict[str, Any]:
     """Construct a metric response from a snapshot metrics mapping.
 
     This pulls a metric object from `metrics` and returns a normalized dict.
@@ -780,16 +798,16 @@ def _snap_metric_from_metrics(metrics: Dict[str, Any], metric_key: str, default_
     m = metrics.get(metric_key)
     if not m:
         return {
-            'value': None,
-            'unit': default_unit,
-            'status': 'Unknown',
-            'trend': trend,
-            'timestamp': timestamp,
+            "value": None,
+            "unit": default_unit,
+            "status": "Unknown",
+            "trend": trend,
+            "timestamp": timestamp,
         }
-    value = getattr(m, 'value', None)
-    unit = getattr(m, 'unit', None) or default_unit
-    source = getattr(m, 'source', None)
-    source_status = getattr(source, 'status', None) if source else None
+    value = getattr(m, "value", None)
+    unit = getattr(m, "unit", None) or default_unit
+    source = getattr(m, "source", None)
+    source_status = getattr(source, "status", None) if source else None
 
     # Use DeviceHealthService for status evaluation when available
     status = source_status
@@ -803,34 +821,37 @@ def _snap_metric_from_metrics(metrics: Dict[str, Any], metric_key: str, default_
         else:
             status = get_status(value, threshold_key)
     elif status is None:
-        status = 'Unknown'
+        status = "Unknown"
 
     return {
-        'value': value,
-        'unit': unit,
-        'status': status,
-        'trend': trend,
-        'timestamp': timestamp,
+        "value": value,
+        "unit": unit,
+        "status": status,
+        "trend": trend,
+        "timestamp": timestamp,
     }
 
 
-@dashboard_api.get('/status')
+@dashboard_api.get("/status")
 def get_system_status():
     """Get overall system status for dashboard header"""
     try:
         container = current_app.config["CONTAINER"]
         growth_service = getattr(container, "growth_service", None)
-        connected = getattr(container, "zigbee_service", None).is_connected() if getattr(container, "zigbee_service", None) else False
+        connected = (
+            getattr(container, "zigbee_service", None).is_connected()
+            if getattr(container, "zigbee_service", None)
+            else False
+        )
         database_online = bool(container.database)
         units_online = len(growth_service.get_unit_runtimes()) if growth_service else 0
         try:
-            devices_count = (
-                len(container.sensor_management_service.list_sensors())
-                + len(container.actuator_management_service.list_actuators())
+            devices_count = len(container.sensor_management_service.list_sensors()) + len(
+                container.actuator_management_service.list_actuators()
             )
         except Exception:
             devices_count = 0
-        
+
         # Count active alerts (critical + warning)
         alerts_count = 0
         try:
@@ -841,26 +862,26 @@ def get_system_status():
         except Exception as e:
             logger.debug(f"Could not fetch alert count: {e}")
             alerts_count = 0
-        
+
         system_status = {
-            'connected': bool(connected),
-            'sensors_online': units_online > 0,
-            'database_online': database_online,
-            'last_update': iso_now(),
-            'devices_count': devices_count,
-            'alerts_count': alerts_count
+            "connected": bool(connected),
+            "sensors_online": units_online > 0,
+            "database_online": database_online,
+            "last_update": iso_now(),
+            "devices_count": devices_count,
+            "alerts_count": alerts_count,
         }
         return _success(system_status)
-        
+
     except Exception as e:
         logger.exception(f"Error getting system status: {e}")
-        return _fail('Failed to get system status', 500)
+        return _fail("Failed to get system status", 500)
 
 
 def _find_stage_conditions(
     growth_stages: Any,
     stage_name: str,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     if not growth_stages or not stage_name:
         return {}
 
@@ -896,43 +917,49 @@ def _build_plants_summary(container, selected_unit_id, growth_service, plant_hea
         try:
             active = plant_service.get_active_plant(selected_unit_id) if growth_service and selected_unit_id else None
             active_plant = active.to_dict() if active else None
-            active_plant_id = active_plant.get('plant_id') if active_plant else None
+            active_plant_id = active_plant.get("plant_id") if active_plant else None
         except Exception:
             active_plant_id = None
 
         focus_plant = active_plant
         if focus_plant is None and plants:
-            focus_plant = plants[0].to_dict() if hasattr(plants[0], 'to_dict') else dict(plants[0])
+            focus_plant = plants[0].to_dict() if hasattr(plants[0], "to_dict") else dict(plants[0])
 
         for plant in plants:
-            plant = plant.to_dict() if hasattr(plant, 'to_dict') else dict(plant)
-            plant_id = plant.get('plant_id') or plant.get('id')
+            plant = plant.to_dict() if hasattr(plant, "to_dict") else dict(plant)
+            plant_id = plant.get("plant_id") or plant.get("id")
             health = plant_health_scorer.score_plant_health(plant_id) if plant_id else None
-            health_score = health.get('overall_score', 75) if health else 75
+            health_score = health.get("overall_score", 75) if health else 75
             health_scores.append(health_score)
 
             device_health_service = getattr(container, "device_health_service", None)
-            health_status = device_health_service.interpret_health_score(health_score) if device_health_service else 'good'
+            health_status = (
+                device_health_service.interpret_health_score(health_score) if device_health_service else "good"
+            )
 
-            plant_summaries.append({
-                'plant_id': plant_id,
-                'name': plant.get('plant_name') or plant.get('name', 'Unknown'),
-                'plant_name': plant.get('plant_name') or plant.get('name', 'Unknown'),
-                'species': plant.get('species') or plant.get('plant_type') or '',
-                'plant_type': plant.get('plant_type') or plant.get('species') or '',
-                'current_stage': plant.get('current_stage') or plant.get('growth_stage', 'vegetative'),
-                'growth_stage': plant.get('current_stage') or plant.get('growth_stage', 'vegetative'),
-                'days_in_stage': plant.get('days_in_stage', 0),
-                'status': plant.get('status') or ('active' if plant_id == active_plant_id else 'inactive'),
-                'health_score': health_score,
-                'health_status': health_status,
-                'moisture_level': plant.get('moisture_level'),
-                'moisture_percent': plant.get('moisture_percent') if plant.get('moisture_percent') is not None else plant.get('moisture'),
-                'last_watered': plant.get('last_watered') or plant.get('last_watered_at'),
-                'custom_image': plant.get('custom_image') or plant.get('image'),
-                'image': plant.get('image') or plant.get('image_url') or plant.get('custom_image'),
-                'image_url': plant.get('image_url') or plant.get('image'),
-            })
+            plant_summaries.append(
+                {
+                    "plant_id": plant_id,
+                    "name": plant.get("plant_name") or plant.get("name", "Unknown"),
+                    "plant_name": plant.get("plant_name") or plant.get("name", "Unknown"),
+                    "species": plant.get("species") or plant.get("plant_type") or "",
+                    "plant_type": plant.get("plant_type") or plant.get("species") or "",
+                    "current_stage": plant.get("current_stage") or plant.get("growth_stage", "vegetative"),
+                    "growth_stage": plant.get("current_stage") or plant.get("growth_stage", "vegetative"),
+                    "days_in_stage": plant.get("days_in_stage", 0),
+                    "status": plant.get("status") or ("active" if plant_id == active_plant_id else "inactive"),
+                    "health_score": health_score,
+                    "health_status": health_status,
+                    "moisture_level": plant.get("moisture_level"),
+                    "moisture_percent": plant.get("moisture_percent")
+                    if plant.get("moisture_percent") is not None
+                    else plant.get("moisture"),
+                    "last_watered": plant.get("last_watered") or plant.get("last_watered_at"),
+                    "custom_image": plant.get("custom_image") or plant.get("image"),
+                    "image": plant.get("image") or plant.get("image_url") or plant.get("custom_image"),
+                    "image_url": plant.get("image_url") or plant.get("image"),
+                }
+            )
 
         plant_health_avg = sum(health_scores) / len(health_scores) if health_scores else None
         return plant_summaries, focus_plant, plant_health_avg
@@ -941,7 +968,7 @@ def _build_plants_summary(container, selected_unit_id, growth_service, plant_hea
         return [], None, None
 
 
-@dashboard_api.get('/summary')
+@dashboard_api.get("/summary")
 def get_dashboard_summary():
     """
     Get comprehensive dashboard summary - aggregated data for the main dashboard.
@@ -963,25 +990,25 @@ def get_dashboard_summary():
             selected_unit_id = None
         container = current_app.config.get("CONTAINER")
         growth_service = getattr(container, "growth_service", None) if container else None
-        plant_health_scorer = getattr(container, "plant_health_scorer")
+        plant_health_scorer = container.plant_health_scorer
 
         if not container:
-            return _fail('Container unavailable', 503)
+            return _fail("Container unavailable", 503)
 
         # Collect all dashboard data in parallel-ish fashion
         summary = {
-            'unit_id': selected_unit_id,
-            'timestamp': iso_now(),
-            'sensors': {},
-            'vpd': {},
-            'plants': [],
-            'active_plant': None,
-            'alerts': {'count': 0, 'recent': []},
-            'energy': {},
-            'devices': {'active': 0, 'total': 0},
-            'actuators': [],
-            'system': {'health_score': 0, 'status': 'unknown'},
-            'unit_settings': None,
+            "unit_id": selected_unit_id,
+            "timestamp": iso_now(),
+            "sensors": {},
+            "vpd": {},
+            "plants": [],
+            "active_plant": None,
+            "alerts": {"count": 0, "recent": []},
+            "energy": {},
+            "devices": {"active": 0, "total": 0},
+            "actuators": [],
+            "system": {"health_score": 0, "status": "unknown"},
+            "unit_settings": None,
         }
         sensors = []
         actuators = []
@@ -989,11 +1016,11 @@ def get_dashboard_summary():
         # 1. Get current sensor data (snapshot preferred, analytics fallback)
         try:
             sensors_dict, vpd_dict, energy_row = _build_snapshot_or_analytics(container, selected_unit_id)
-            summary['sensors'] = sensors_dict or {}
-            summary['vpd'] = vpd_dict or {}
+            summary["sensors"] = sensors_dict or {}
+            summary["vpd"] = vpd_dict or {}
             if energy_row:
                 try:
-                    summary['energy'] = _build_energy_summary(container, energy_row, selected_unit_id)
+                    summary["energy"] = _build_energy_summary(container, energy_row, selected_unit_id)
                 except Exception as exc:
                     logger.debug("Failed to build energy summary: %s", exc)
         except Exception as e:
@@ -1004,17 +1031,17 @@ def get_dashboard_summary():
             plant_summaries, focus_plant, plant_health_avg = _build_plants_summary(
                 container, selected_unit_id, growth_service, plant_health_scorer
             )
-            summary['plants'] = plant_summaries
+            summary["plants"] = plant_summaries
             if focus_plant:
-                summary['active_plant'] = _build_active_plant_details(focus_plant)
+                summary["active_plant"] = _build_active_plant_details(focus_plant)
             if plant_health_avg is not None:
-                summary['system']['plant_health_avg'] = plant_health_avg
+                summary["system"]["plant_health_avg"] = plant_health_avg
         except Exception as e:
             logger.warning(f"Error fetching plant data: {e}")
 
         # 4. Get alerts count
         try:
-            summary['alerts'] = _build_alerts_summary(container, selected_unit_id)
+            summary["alerts"] = _build_alerts_summary(container, selected_unit_id)
         except Exception as e:
             logger.warning(f"Error fetching alerts: {e}")
 
@@ -1022,8 +1049,8 @@ def get_dashboard_summary():
         try:
             sensors_summary, actuators_summary, devices_summary = _build_devices_summary(container, selected_unit_id)
             # merge into summary
-            summary['devices'] = devices_summary
-            summary['actuators'] = actuators_summary if isinstance(actuators_summary, list) else []
+            summary["devices"] = devices_summary
+            summary["actuators"] = actuators_summary if isinstance(actuators_summary, list) else []
             # keep raw device lists for downstream use
             sensors = sensors_summary if isinstance(sensors_summary, list) else []
             actuators = actuators_summary if isinstance(actuators_summary, list) else []
@@ -1032,7 +1059,7 @@ def get_dashboard_summary():
 
         # 6. System health summary
         try:
-            summary['system'] = _build_system_summary(container, summary)
+            summary["system"] = _build_system_summary(container, summary)
         except Exception as exc:
             logger.debug("Failed to build system summary: %s", exc)
 
@@ -1053,13 +1080,12 @@ def get_dashboard_summary():
 
     except Exception as e:
         logger.exception(f"Error getting dashboard summary: {e}")
-        return _fail('Failed to get dashboard summary', 500)
+        return _fail("Failed to get dashboard summary", 500)
 
 
 @dashboard_api.get("/growth-stage")
 def get_growth_stage():
-    """Get growth stage progress details for the selected unit.
-    """
+    """Get growth stage progress details for the selected unit."""
     try:
         unit_id = _resolve_unit_id()
 
@@ -1070,36 +1096,40 @@ def get_growth_stage():
             return _fail("Services unavailable", 503)
 
         if unit_id is None:
-            return _success({
-                "unit_id": None,
-                "plant_id": None,
-                "plant_name": None,
-                "current_stage": "unknown",
-                "stage_index": -1,
-                "stages": [],
-                "days_in_stage": 0,
-                "days_left": None,
-                "days_total": 0,
-                "progress": 0,
-                "tip": None,
-            })
+            return _success(
+                {
+                    "unit_id": None,
+                    "plant_id": None,
+                    "plant_name": None,
+                    "current_stage": "unknown",
+                    "stage_index": -1,
+                    "stages": [],
+                    "days_in_stage": 0,
+                    "days_left": None,
+                    "days_total": 0,
+                    "progress": 0,
+                    "tip": None,
+                }
+            )
 
         active_plant = plant_service.get_active_plant(unit_id)
 
         if not active_plant:
-            return _success({
-                "unit_id": unit_id,
-                "plant_id": None,
-                "plant_name": None,
-                "current_stage": "unknown",
-                "stage_index": -1,
-                "stages": [],
-                "days_in_stage": 0,
-                "days_left": None,
-                "days_total": 0,
-                "progress": 0,
-                "tip": None,
-            })
+            return _success(
+                {
+                    "unit_id": unit_id,
+                    "plant_id": None,
+                    "plant_name": None,
+                    "current_stage": "unknown",
+                    "stage_index": -1,
+                    "stages": [],
+                    "days_in_stage": 0,
+                    "days_left": None,
+                    "days_total": 0,
+                    "progress": 0,
+                    "tip": None,
+                }
+            )
         plant = active_plant.to_dict()
         current_stage = plant.get("current_stage") or plant.get("growth_stage") or plant.get("stage") or "unknown"
         stage_names = _extract_stage_names(plant.get("growth_stages"))
@@ -1180,24 +1210,24 @@ def get_harvest_timeline():
         upcoming = []
         if unit_id is not None:
             plants = plant_service.list_plants(unit_id)
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             for plant in plants:
                 plant = plant.to_dict()
                 expected = (
-                    plant.get("expected_harvest_date")
-                    or plant.get("expected_harvest")
-                    or plant.get("harvest_date")
+                    plant.get("expected_harvest_date") or plant.get("expected_harvest") or plant.get("harvest_date")
                 )
                 target = _parse_date_value(expected)
                 if not target:
                     continue
                 days_until = max(0, (target.date() - now.date()).days)
-                upcoming.append({
-                    "plant_id": plant.get("plant_id") or plant.get("id"),
-                    "name": plant.get("plant_name") or plant.get("name") or "Plant",
-                    "expected_harvest_date": target.date().isoformat(),
-                    "days_until_harvest": days_until,
-                })
+                upcoming.append(
+                    {
+                        "plant_id": plant.get("plant_id") or plant.get("id"),
+                        "name": plant.get("plant_name") or plant.get("name") or "Plant",
+                        "expected_harvest_date": target.date().isoformat(),
+                        "days_until_harvest": days_until,
+                    }
+                )
             upcoming.sort(key=lambda item: item.get("days_until_harvest", 0))
 
         recent = None
@@ -1212,45 +1242,50 @@ def get_harvest_timeline():
                     "amount": report.get("harvest_weight_grams"),
                 }
 
-        return _success({
-            "unit_id": unit_id,
-            "upcoming": upcoming,
-            "recent_harvest": recent,
-        })
+        return _success(
+            {
+                "unit_id": unit_id,
+                "upcoming": upcoming,
+                "recent_harvest": recent,
+            }
+        )
     except Exception as exc:
         logger.exception("Error getting harvest timeline: %s", exc)
         return _fail("Failed to get harvest timeline", 500)
 
-#TODO: This belong to api/growth/schedule.py?
+
+# TODO: This belong to api/growth/schedule.py?
 @dashboard_api.get("/water-schedule")
 def get_water_schedule():
     """Get watering and feeding schedule overview for the selected unit."""
     try:
         unit_id = _resolve_unit_id()
         scheduling_service = get_scheduling_service()
-        
+
         if not scheduling_service:
             return _fail("Scheduling service unavailable", 503)
 
         if unit_id is None:
-            return _success({
-                "unit_id": None,
-                "next_water_hours": None,
-                "next_feed_hours": None,
-                "water_days": [],
-                "feed_days": [],
-            })
+            return _success(
+                {
+                    "unit_id": None,
+                    "next_water_hours": None,
+                    "next_feed_hours": None,
+                    "water_days": [],
+                    "feed_days": [],
+                }
+            )
 
         # Get schedules from SchedulingService
         schedules = scheduling_service.get_schedules_for_unit(unit_id)
-        
+
         # Find water/irrigation schedule
         water_schedule = None
         for sched in schedules:
             if sched.device_type and sched.device_type.lower() in ("watering", "water", "irrigation", "pump"):
                 water_schedule = sched
                 break
-        
+
         # Find feed/nutrient schedule
         feed_schedule = None
         for sched in schedules:
@@ -1258,19 +1293,25 @@ def get_water_schedule():
                 feed_schedule = sched
                 break
 
-        water_payload = {"start_time": water_schedule.start_time, "end_time": water_schedule.end_time} if water_schedule else None
-        feed_payload = {"start_time": feed_schedule.start_time, "end_time": feed_schedule.end_time} if feed_schedule else None
+        water_payload = (
+            {"start_time": water_schedule.start_time, "end_time": water_schedule.end_time} if water_schedule else None
+        )
+        feed_payload = (
+            {"start_time": feed_schedule.start_time, "end_time": feed_schedule.end_time} if feed_schedule else None
+        )
 
         next_water = _hours_until_time(water_payload.get("start_time") if water_payload else None)
         next_feed = _hours_until_time(feed_payload.get("start_time") if feed_payload else None)
 
-        return _success({
-            "unit_id": unit_id,
-            "next_water_hours": next_water,
-            "next_feed_hours": next_feed,
-            "water_days": _schedule_days(water_payload),
-            "feed_days": _schedule_days(feed_payload),
-        })
+        return _success(
+            {
+                "unit_id": unit_id,
+                "next_water_hours": next_water,
+                "next_feed_hours": next_feed,
+                "water_days": _schedule_days(water_payload),
+                "feed_days": _schedule_days(feed_payload),
+            }
+        )
     except Exception as exc:
         logger.exception("Error getting water schedule: %s", exc)
         return _fail("Failed to get water schedule", 500)
@@ -1306,19 +1347,21 @@ def get_irrigation_status():
             except Exception as exc:
                 logger.debug("Failed to load latest soil moisture for unit %s: %s", unit_id, exc)
 
-        return _success({
-            "unit_id": unit_id,
-            "last_run": last_run,
-            "duration_seconds": duration,
-            "amount_ml": amount,
-            "soil_moisture": soil_moisture,
-        })
+        return _success(
+            {
+                "unit_id": unit_id,
+                "last_run": last_run,
+                "duration_seconds": duration,
+                "amount_ml": amount,
+                "soil_moisture": soil_moisture,
+            }
+        )
     except Exception as exc:
         logger.exception("Error getting irrigation status: %s", exc)
         return _fail("Failed to get irrigation status", 500)
 
 
-def _calculate_vpd(temperature: float, humidity: float) -> Dict[str, Any]:
+def _calculate_vpd(temperature: float, humidity: float) -> dict[str, Any]:
     """
     Calculate Vapor Pressure Deficit (VPD) from temperature and humidity.
 
@@ -1331,13 +1374,7 @@ def _calculate_vpd(temperature: float, humidity: float) -> Dict[str, Any]:
     - Flowering: 1.0-1.5 kPa
     """
     if temperature is None or humidity is None:
-        return {
-            'value': None,
-            'unit': 'kPa',
-            'status': 'unknown',
-            'zone': 'unknown',
-            'optimal_for': []
-        }
+        return {"value": None, "unit": "kPa", "status": "unknown", "zone": "unknown", "optimal_for": []}
 
     try:
         vpd_value = calculate_vpd_kpa(temperature, humidity)
@@ -1347,49 +1384,43 @@ def _calculate_vpd(temperature: float, humidity: float) -> Dict[str, Any]:
         vpd = round(float(vpd_value), 2)
 
         # Determine zone and optimal stage
-        zone = 'unknown'
+        zone = "unknown"
         optimal_for = []
-        status = 'normal'
+        status = "normal"
 
         if vpd < 0.4:
-            zone = 'too_low'
-            status = 'low'
+            zone = "too_low"
+            status = "low"
             optimal_for = []
         elif vpd < 0.8:
-            zone = 'seedling'
-            status = 'optimal'
-            optimal_for = ['seedling', 'clone', 'early_veg']
+            zone = "seedling"
+            status = "optimal"
+            optimal_for = ["seedling", "clone", "early_veg"]
         elif vpd < 1.2:
-            zone = 'vegetative'
-            status = 'optimal'
-            optimal_for = ['vegetative', 'late_veg']
+            zone = "vegetative"
+            status = "optimal"
+            optimal_for = ["vegetative", "late_veg"]
         elif vpd < 1.5:
-            zone = 'flowering'
-            status = 'optimal'
-            optimal_for = ['flowering', 'bloom']
+            zone = "flowering"
+            status = "optimal"
+            optimal_for = ["flowering", "bloom"]
         else:
-            zone = 'too_high'
-            status = 'high'
+            zone = "too_high"
+            status = "high"
             optimal_for = []
 
         return {
-            'value': vpd,
-            'unit': 'kPa',
-            'status': status,
-            'zone': zone,
-            'optimal_for': optimal_for,
-            'temperature': temperature,
-            'humidity': humidity
+            "value": vpd,
+            "unit": "kPa",
+            "status": status,
+            "zone": zone,
+            "optimal_for": optimal_for,
+            "temperature": temperature,
+            "humidity": humidity,
         }
     except Exception as e:
         logger.warning(f"Error calculating VPD: {e}")
-        return {
-            'value': None,
-            'unit': 'kPa',
-            'status': 'error',
-            'zone': 'unknown',
-            'optimal_for': []
-        }
+        return {"value": None, "unit": "kPa", "status": "error", "zone": "unknown", "optimal_for": []}
 
 
 def get_status(value, sensor_type):
@@ -1398,22 +1429,22 @@ def get_status(value, sensor_type):
         # Simple threshold logic as fallback
         # Production code should use DeviceHealthService.evaluate_sensor_status()
         thresholds = {
-            'temperature': {'min': 18, 'max': 28},
-            'humidity': {'min': 40, 'max': 80},
-            'soil_moisture': {'min': 30, 'max': 70},
-            'lux': {'min': 200, 'max': 1500},
-            'co2': {'min': 300, 'max': 800},
-            'energy_usage': {'min': 0, 'max': 5}
+            "temperature": {"min": 18, "max": 28},
+            "humidity": {"min": 40, "max": 80},
+            "soil_moisture": {"min": 30, "max": 70},
+            "lux": {"min": 200, "max": 1500},
+            "co2": {"min": 300, "max": 800},
+            "energy_usage": {"min": 0, "max": 5},
         }
-        
-        threshold = thresholds.get(sensor_type, {'min': 0, 'max': 100})
-        
-        if value < threshold['min']:
-            return 'Low'
-        elif value > threshold['max']:
-            return 'High'
+
+        threshold = thresholds.get(sensor_type, {"min": 0, "max": 100})
+
+        if value < threshold["min"]:
+            return "Low"
+        elif value > threshold["max"]:
+            return "High"
         else:
-            return 'Normal'
-            
+            return "Normal"
+
     except Exception:
-        return 'Unknown'
+        return "Unknown"

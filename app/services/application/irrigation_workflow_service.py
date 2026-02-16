@@ -13,36 +13,37 @@ Manages the irrigation standby/notification/approval workflow:
 Author: SYSGrow Team
 Date: January 2026
 """
+
 from __future__ import annotations
 
 import logging
 import os
 import threading
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
-from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING, Any, Callable
 
+from app.defaults import SystemConfigDefaults
 from app.domain.actuators import ActuatorState
 from app.enums import (
     IrrigationEligibilityDecision,
-    IrrigationSkipReason,
     IrrigationFeedback,
-    NotificationType,
+    IrrigationSkipReason,
     NotificationSeverity,
+    NotificationType,
 )
 from app.utils.concurrency import synchronized
 from app.utils.time import coerce_datetime, iso_now, utc_now
-from app.defaults import SystemConfigDefaults
 
 if TYPE_CHECKING:
-    from infrastructure.database.repositories.irrigation_workflow import IrrigationWorkflowRepository
+    from app.domain.irrigation_calculator import IrrigationCalculator
+    from app.services.ai.bayesian_threshold import BayesianThresholdAdjuster
     from app.services.application.notifications_service import NotificationsService
     from app.services.application.plant_service import PlantViewService
     from app.services.hardware.actuator_management_service import ActuatorManagementService
-    from app.workers.unified_scheduler import UnifiedScheduler
-    from app.services.ai.bayesian_threshold import BayesianThresholdAdjuster
-    from app.domain.irrigation_calculator import IrrigationCalculator
     from app.services.hardware.pump_calibration import PumpCalibrationService
+    from app.workers.unified_scheduler import UnifiedScheduler
+    from infrastructure.database.repositories.irrigation_workflow import IrrigationWorkflowRepository
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +54,7 @@ ActuatorManager = "ActuatorManagementService"
 # Request status constants
 class RequestStatus:
     """Pending irrigation request status constants."""
+
     PENDING = "pending"
     APPROVED = "approved"
     DELAYED = "delayed"
@@ -65,6 +67,7 @@ class RequestStatus:
 # User response constants
 class UserResponse:
     """User response types."""
+
     APPROVE = "approve"
     DELAY = "delay"
     CANCEL = "cancel"
@@ -74,6 +77,7 @@ class UserResponse:
 @dataclass
 class WorkflowConfig:
     """Configuration for irrigation workflow."""
+
     workflow_enabled: bool = True
     auto_irrigation_enabled: bool = False
     manual_mode_enabled: bool = False
@@ -90,7 +94,7 @@ class WorkflowConfig:
     ml_threshold_adjustment_enabled: bool = False
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "WorkflowConfig":
+    def from_dict(cls, data: dict[str, Any]) -> "WorkflowConfig":
         """Create config from dictionary."""
         return cls(
             workflow_enabled=bool(data.get("workflow_enabled", True)),
@@ -109,7 +113,7 @@ class WorkflowConfig:
             ml_threshold_adjustment_enabled=bool(data.get("ml_threshold_adjustment_enabled", False)),
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "workflow_enabled": self.workflow_enabled,
@@ -145,18 +149,18 @@ class IrrigationWorkflowService:
     def __init__(
         self,
         workflow_repo: "IrrigationWorkflowRepository",
-        notifications_service: Optional["NotificationsService"] = None,
-        actuator_service: Optional["ActuatorManagementService"] = None,
-        scheduler: Optional["UnifiedScheduler"] = None,
-        scheduling_service: Optional[Any] = None,
-        bayesian_adjuster: Optional["BayesianThresholdAdjuster"] = None,
-        irrigation_calculator: Optional["IrrigationCalculator"] = None,
-        pump_calibration_service: Optional["PumpCalibrationService"] = None,
-        plant_service: Optional["PlantViewService"] = None,
-        completion_interval_seconds: Optional[int] = None,
-        post_capture_interval_seconds: Optional[int] = None,
-        post_capture_delay_seconds: Optional[int] = None,
-        hysteresis_margin: Optional[float] = None,
+        notifications_service: "NotificationsService" | None = None,
+        actuator_service: "ActuatorManagementService" | None = None,
+        scheduler: "UnifiedScheduler" | None = None,
+        scheduling_service: Any | None = None,
+        bayesian_adjuster: "BayesianThresholdAdjuster" | None = None,
+        irrigation_calculator: "IrrigationCalculator" | None = None,
+        pump_calibration_service: "PumpCalibrationService" | None = None,
+        plant_service: "PlantViewService" | None = None,
+        completion_interval_seconds: int | None = None,
+        post_capture_interval_seconds: int | None = None,
+        post_capture_delay_seconds: int | None = None,
+        hysteresis_margin: float | None = None,
     ):
         """
         Initialize IrrigationWorkflowService.
@@ -186,11 +190,11 @@ class IrrigationWorkflowService:
         self._plant_service = plant_service
 
         # Cache for workflow configs
-        self._config_cache: Dict[int, WorkflowConfig] = {}
+        self._config_cache: dict[int, WorkflowConfig] = {}
         self._lock = threading.Lock()
 
         # Callback for threshold adjustment (set by ThresholdService)
-        self._threshold_adjustment_callback: Optional[Callable] = None
+        self._threshold_adjustment_callback: Callable | None = None
 
         self._completion_interval_seconds = (
             completion_interval_seconds
@@ -225,7 +229,7 @@ class IrrigationWorkflowService:
             "SYSGROW_IRRIGATION_SENSOR_MISSING_ALERT_MINUTES",
             60,
         )
-        self._last_sensor_missing_alert: Dict[str, datetime] = {}
+        self._last_sensor_missing_alert: dict[str, datetime] = {}
 
         logger.info("IrrigationWorkflowService initialized")
 
@@ -256,11 +260,11 @@ class IrrigationWorkflowService:
         *,
         user_id: int,
         unit_id: int,
-        sensor_id: Optional[int],
-        plant_id: Optional[int],
-        plant_name: Optional[str],
+        sensor_id: int | None,
+        plant_id: int | None,
+        plant_name: str | None,
         reason: IrrigationSkipReason,
-        last_seen: Optional[str] = None,
+        last_seen: str | None = None,
     ) -> None:
         """Send a throttled alert when soil moisture sensor is missing or stale."""
         if not self._notifications or not user_id:
@@ -297,12 +301,12 @@ class IrrigationWorkflowService:
         self,
         *,
         unit_id: int,
-        plant_id: Optional[int],
-        sensor_id: Optional[int],
-        moisture: Optional[float],
-        threshold: Optional[float],
+        plant_id: int | None,
+        sensor_id: int | None,
+        moisture: float | None,
+        threshold: float | None,
         decision: IrrigationEligibilityDecision,
-        skip_reason: Optional[IrrigationSkipReason],
+        skip_reason: IrrigationSkipReason | None,
     ) -> None:
         """Persist an irrigation eligibility decision for troubleshooting."""
         if not self._repo:
@@ -323,7 +327,7 @@ class IrrigationWorkflowService:
             logger.debug("Failed to record irrigation eligibility trace: %s", exc)
 
     @staticmethod
-    def _coerce_actuator_id(value: Any) -> Optional[int]:
+    def _coerce_actuator_id(value: Any) -> int | None:
         """Coerce actuator id values to int if possible."""
         if value is None:
             return None
@@ -334,8 +338,8 @@ class IrrigationWorkflowService:
 
     def _resolve_valve_actuator_id(
         self,
-        plant_id: Optional[int],
-    ) -> Optional[int]:
+        plant_id: int | None,
+    ) -> int | None:
         """Resolve valve actuator for a plant, if configured."""
         if plant_id is None or not self._plant_service:
             return None
@@ -389,12 +393,12 @@ class IrrigationWorkflowService:
         self,
         *,
         unit_id: int,
-        plant_id: Optional[int],
-        sensor_id: Optional[int],
-        moisture: Optional[float],
-        threshold: Optional[float],
+        plant_id: int | None,
+        sensor_id: int | None,
+        moisture: float | None,
+        threshold: float | None,
         decision: IrrigationEligibilityDecision,
-        skip_reason: Optional[IrrigationSkipReason],
+        skip_reason: IrrigationSkipReason | None,
     ) -> None:
         """Record an eligibility trace entry for irrigation decisions."""
         self._record_eligibility_trace(
@@ -430,7 +434,7 @@ class IrrigationWorkflowService:
             self._config_cache[unit_id] = config
         return success
 
-    def update_config(self, unit_id: int, updates: Dict[str, Any]) -> bool:
+    def update_config(self, unit_id: int, updates: dict[str, Any]) -> bool:
         """Update specific configuration values."""
         current = self.get_config(unit_id)
         for key, value in updates.items():
@@ -446,19 +450,19 @@ class IrrigationWorkflowService:
         soil_moisture: float,
         threshold: float,
         user_id: int,
-        plant_id: Optional[int] = None,
-        actuator_id: Optional[int] = None,
-        sensor_id: Optional[int] = None,
-        reading_timestamp: Optional[str] = None,
-        plant_name: Optional[str] = None,
+        plant_id: int | None = None,
+        actuator_id: int | None = None,
+        sensor_id: int | None = None,
+        reading_timestamp: str | None = None,
+        plant_name: str | None = None,
         plant_pump_assigned: bool = False,
-        temperature: Optional[float] = None,
-        humidity: Optional[float] = None,
-        vpd: Optional[float] = None,
-        lux: Optional[float] = None,
-        plant_type: Optional[str] = None,
-        growth_stage: Optional[str] = None,
-    ) -> Optional[int]:
+        temperature: float | None = None,
+        humidity: float | None = None,
+        vpd: float | None = None,
+        lux: float | None = None,
+        plant_type: str | None = None,
+        growth_stage: str | None = None,
+    ) -> int | None:
         """
         Handle detection of irrigation need.
 
@@ -733,18 +737,18 @@ class IrrigationWorkflowService:
 
         return scheduled.isoformat()
 
-    def _calculate_hours_since_last_irrigation(self, unit_id: int) -> Optional[float]:
+    def _calculate_hours_since_last_irrigation(self, unit_id: int) -> float | None:
         """Calculate hours since last successful irrigation for ML context."""
         try:
             last_irrigation = self._repo.get_last_completed_irrigation(unit_id)
             if not last_irrigation or not last_irrigation.get("executed_at"):
                 return None
-            
+
             last_time = coerce_datetime(last_irrigation["executed_at"])
             if last_time is None:
                 return None
             now = utc_now()
-            delta = now - last_time.astimezone(timezone.utc)
+            delta = now - last_time.astimezone(UTC)
             return delta.total_seconds() / 3600  # Convert to hours
         except Exception as exc:
             logger.debug(f"Could not calculate hours since last irrigation: {exc}")
@@ -755,11 +759,11 @@ class IrrigationWorkflowService:
         request_id: int,
         user_id: int,
         unit_id: int,
-        plant_name: Optional[str],
+        plant_name: str | None,
         soil_moisture: float,
         threshold: float,
         scheduled_time: str,
-    ) -> Optional[int]:
+    ) -> int | None:
         """Send notification requesting user approval for irrigation."""
         if not self._notifications:
             return None
@@ -784,8 +788,8 @@ class IrrigationWorkflowService:
         )
 
         from app.services.application.notifications_service import (
-            NotificationType,
             NotificationSeverity,
+            NotificationType,
         )
 
         return self._notifications.send_notification(
@@ -815,8 +819,8 @@ class IrrigationWorkflowService:
         request_id: int,
         response: str,
         user_id: int,
-        delay_minutes: Optional[int] = None,
-    ) -> Dict[str, Any]:
+        delay_minutes: int | None = None,
+    ) -> dict[str, Any]:
         """
         Handle user response to irrigation request.
 
@@ -856,11 +860,11 @@ class IrrigationWorkflowService:
 
     def _handle_approve(
         self,
-        request: Dict[str, Any],
+        request: dict[str, Any],
         config: WorkflowConfig,
         user_id: int,
         response_time_seconds: float,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Handle approval response."""
         request_id = request["request_id"]
 
@@ -889,12 +893,12 @@ class IrrigationWorkflowService:
 
     def _handle_delay(
         self,
-        request: Dict[str, Any],
+        request: dict[str, Any],
         config: WorkflowConfig,
         user_id: int,
         response_time_seconds: float,
-        delay_minutes: Optional[int],
-    ) -> Dict[str, Any]:
+        delay_minutes: int | None,
+    ) -> dict[str, Any]:
         """Handle delay response."""
         request_id = request["request_id"]
         unit_id = request["unit_id"]
@@ -925,9 +929,7 @@ class IrrigationWorkflowService:
 
         # Update user preference for ML
         if config.ml_learning_enabled:
-            self._repo.update_preference_on_response(
-                user_id, UserResponse.DELAY, response_time_seconds, unit_id
-            )
+            self._repo.update_preference_on_response(user_id, UserResponse.DELAY, response_time_seconds, unit_id)
             # Neutral preference score for delay
             self._repo.mark_ml_collected(request_id, preference_score=0.5)
 
@@ -941,11 +943,11 @@ class IrrigationWorkflowService:
 
     def _handle_cancel(
         self,
-        request: Dict[str, Any],
+        request: dict[str, Any],
         config: WorkflowConfig,
         user_id: int,
         response_time_seconds: float,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Handle cancel response."""
         request_id = request["request_id"]
         unit_id = request["unit_id"]
@@ -959,9 +961,7 @@ class IrrigationWorkflowService:
 
         # Update user preference for ML
         if config.ml_learning_enabled:
-            self._repo.update_preference_on_response(
-                user_id, UserResponse.CANCEL, response_time_seconds, unit_id
-            )
+            self._repo.update_preference_on_response(user_id, UserResponse.CANCEL, response_time_seconds, unit_id)
             # Negative preference score for cancellation
             self._repo.mark_ml_collected(request_id, preference_score=-1.0)
 
@@ -975,7 +975,7 @@ class IrrigationWorkflowService:
     # ==================== Scheduled Execution ====================
 
     @synchronized
-    def execute_due_requests(self) -> List[Dict[str, Any]]:
+    def execute_due_requests(self) -> list[dict[str, Any]]:
         """
         Execute all requests that are due.
 
@@ -997,9 +997,9 @@ class IrrigationWorkflowService:
         return results
 
     @synchronized
-    def complete_due_executions(self) -> List[Dict[str, Any]]:
+    def complete_due_executions(self) -> list[dict[str, Any]]:
         """Complete executing irrigations that have reached their planned duration."""
-        results: List[Dict[str, Any]] = []
+        results: list[dict[str, Any]] = []
         executing = self._repo.get_executing_requests()
         if not executing:
             return results
@@ -1107,9 +1107,9 @@ class IrrigationWorkflowService:
         return results
 
     @synchronized
-    def capture_due_post_moisture(self) -> List[Dict[str, Any]]:
+    def capture_due_post_moisture(self) -> list[dict[str, Any]]:
         """Capture post-watering moisture for completed irrigations."""
-        results: List[Dict[str, Any]] = []
+        results: list[dict[str, Any]] = []
         logs = self._repo.get_execution_logs_pending_post_capture()
         if not logs:
             return results
@@ -1164,17 +1164,17 @@ class IrrigationWorkflowService:
 
     def _log_execution_result(
         self,
-        request: Dict[str, Any],
+        request: dict[str, Any],
         *,
-        planned_duration_s: Optional[int] = None,
-        pump_actuator_id: Optional[str] = None,
-        valve_actuator_id: Optional[str] = None,
-        assumed_flow_ml_s: Optional[float] = None,
-        estimated_volume_ml: Optional[float] = None,
+        planned_duration_s: int | None = None,
+        pump_actuator_id: str | None = None,
+        valve_actuator_id: str | None = None,
+        assumed_flow_ml_s: float | None = None,
+        estimated_volume_ml: float | None = None,
         execution_status: str = "failed",
-        execution_error: Optional[str] = None,
-        executed_at_utc: Optional[str] = None,
-    ) -> Optional[int]:
+        execution_error: str | None = None,
+        executed_at_utc: str | None = None,
+    ) -> int | None:
         """Create a standardised execution log row.
 
         Consolidates the repeated ``create_execution_log`` parameter lists that
@@ -1186,11 +1186,7 @@ class IrrigationWorkflowService:
             user_id=request.get("user_id"),
             unit_id=request["unit_id"],
             plant_id=request.get("plant_id"),
-            sensor_id=(
-                str(request.get("sensor_id"))
-                if request.get("sensor_id") is not None
-                else None
-            ),
+            sensor_id=(str(request.get("sensor_id")) if request.get("sensor_id") is not None else None),
             trigger_reason="below_threshold",
             trigger_moisture=request.get("soil_moisture_detected"),
             threshold_at_trigger=request.get("soil_moisture_threshold"),
@@ -1206,10 +1202,10 @@ class IrrigationWorkflowService:
             post_moisture_delay_s=self._post_capture_delay_seconds,
         )
 
-    def _execute_irrigation(self, request: Dict[str, Any]) -> Dict[str, Any]:
+    def _execute_irrigation(self, request: dict[str, Any]) -> dict[str, Any]:
         """
         Execute irrigation for a single request.
-        
+
         Uses IrrigationCalculator for data-driven duration when available,
         falling back to configurable default duration.
 
@@ -1228,9 +1224,7 @@ class IrrigationWorkflowService:
         if not request.get("user_response"):
             config = self.get_config(unit_id)
             if config.ml_learning_enabled:
-                self._repo.update_preference_on_response(
-                    request["user_id"], UserResponse.AUTO, 0, unit_id
-                )
+                self._repo.update_preference_on_response(request["user_id"], UserResponse.AUTO, 0, unit_id)
                 self._repo.mark_ml_collected(request_id, preference_score=0.0)
 
         # Execute via actuator manager
@@ -1293,6 +1287,7 @@ class IrrigationWorkflowService:
 
         # Turn on water pump
         try:
+
             def close_valve() -> None:
                 if valve_actuator_id is None or not self._actuator_service:
                     return
@@ -1411,20 +1406,20 @@ class IrrigationWorkflowService:
 
     def _calculate_irrigation_duration(
         self,
-        plant_id: Optional[int],
+        plant_id: int | None,
         actuator_id: int,
-        request: Dict[str, Any],
+        request: dict[str, Any],
     ) -> int:
         """
         Calculate irrigation duration using IrrigationCalculator if available.
-        
+
         Falls back to default duration if calculator not configured or plant not found.
-        
+
         Args:
             plant_id: Optional plant ID for plant-specific calculation
             actuator_id: Pump actuator ID for flow rate lookup
             request: Irrigation request with context data
-            
+
         Returns:
             Duration in seconds
         """
@@ -1452,7 +1447,7 @@ class IrrigationWorkflowService:
                 adjusted,
             )
             return adjusted
-        
+
         # Try to use IrrigationCalculator for data-driven duration
         if self._irrigation_calculator and plant_id:
             try:
@@ -1460,22 +1455,22 @@ class IrrigationWorkflowService:
                 flow_rate = None
                 if self._pump_calibration:
                     flow_rate = self._pump_calibration.get_flow_rate(actuator_id)
-                
+
                 # Build environmental data from ML context if available
                 environmental_data = None
                 if request:
                     env_fields = {
-                        'temperature': request.get('temperature_at_detection'),
-                        'humidity': request.get('humidity_at_detection'),
-                        'vpd': request.get('vpd_at_detection'),
-                        'lux': request.get('lux_at_detection'),
-                        'soil_moisture': request.get('soil_moisture_detected'),
+                        "temperature": request.get("temperature_at_detection"),
+                        "humidity": request.get("humidity_at_detection"),
+                        "vpd": request.get("vpd_at_detection"),
+                        "lux": request.get("lux_at_detection"),
+                        "soil_moisture": request.get("soil_moisture_detected"),
                     }
                     # Only include fields that have values (not None)
                     environmental_data = {k: v for k, v in env_fields.items() if v is not None}
                     if not environmental_data:
                         environmental_data = None
-                
+
                 # Use calculate_with_ml if environmental data available, otherwise calculate()
                 # calculate_with_ml will fall back to formula-based if ML predictor unavailable
                 if environmental_data:
@@ -1505,18 +1500,15 @@ class IrrigationWorkflowService:
                         calculation.water_volume_ml,
                         calculation.confidence,
                     )
-                
+
                 return apply_volume_adjustment(
                     calculation.duration_seconds,
                     ml_adjusted=calculation.ml_adjusted,
                 )
-                
+
             except Exception as e:
-                logger.warning(
-                    "IrrigationCalculator failed for plant %s, using default: %s",
-                    plant_id, e
-                )
-        
+                logger.warning("IrrigationCalculator failed for plant %s, using default: %s", plant_id, e)
+
         # Fallback: Use default duration
         logger.debug(
             "Using default irrigation duration %ds for request (no calculator or plant_id)",
@@ -1532,15 +1524,13 @@ class IrrigationWorkflowService:
             self._repo.update_status(request["request_id"], RequestStatus.EXPIRED)
             logger.info(f"Request {request['request_id']} expired")
 
-    def _schedule_feedback_request(self, request: Dict[str, Any], config: WorkflowConfig) -> None:
+    def _schedule_feedback_request(self, request: dict[str, Any], config: WorkflowConfig) -> None:
         """Schedule feedback request after irrigation."""
         if not self._notifications:
             return
 
         # For immediate feedback request (could be delayed via scheduler)
         try:
-            from app.services.application.notifications_service import IrrigationFeedbackResponse
-
             feedback_id = self._notifications.request_irrigation_feedback(
                 user_id=request["user_id"],
                 unit_id=request["unit_id"],
@@ -1555,7 +1545,7 @@ class IrrigationWorkflowService:
         except Exception as e:
             logger.error(f"Failed to request feedback for request {request['request_id']}: {e}")
 
-    def _get_current_moisture(self, plant_id: Optional[int], unit_id: Optional[int]) -> Optional[float]:
+    def _get_current_moisture(self, plant_id: int | None, unit_id: int | None) -> float | None:
         """Fetch the latest moisture reading for a plant or unit."""
         if not self._plant_service:
             return None
@@ -1596,9 +1586,9 @@ class IrrigationWorkflowService:
     def _classify_attribution(
         self,
         *,
-        trigger_moisture: Optional[float],
-        threshold_at_trigger: Optional[float],
-        post_moisture: Optional[float],
+        trigger_moisture: float | None,
+        threshold_at_trigger: float | None,
+        post_moisture: float | None,
     ) -> str:
         """
         Classify irrigation outcomes to separate timing vs volume issues.
@@ -1632,8 +1622,8 @@ class IrrigationWorkflowService:
     def _resolve_threshold_feedback_from_volume(
         self,
         response: IrrigationFeedback,
-        execution_log: Optional[Dict[str, Any]],
-    ) -> Optional[IrrigationFeedback]:
+        execution_log: dict[str, Any] | None,
+    ) -> IrrigationFeedback | None:
         """Map volume feedback to threshold adjustment when moisture is within band."""
         if not execution_log:
             return None
@@ -1668,7 +1658,7 @@ class IrrigationWorkflowService:
         self,
         *,
         unit_id: int,
-        plant_id: Optional[int],
+        plant_id: int | None,
         current_threshold: float,
         adjustment: float,
     ) -> None:
@@ -1710,8 +1700,8 @@ class IrrigationWorkflowService:
         request_id: int,
         feedback_response: str | IrrigationFeedback,
         user_id: int,
-        notes: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        notes: str | None = None,
+    ) -> dict[str, Any]:
         """
         Handle user feedback on irrigation amount.
 
@@ -1760,9 +1750,7 @@ class IrrigationWorkflowService:
 
         # Update user preference statistics
         if config.ml_learning_enabled and response in volume_feedback:
-            self._repo.update_moisture_feedback(
-                user_id, response.value, request["unit_id"]
-            )
+            self._repo.update_moisture_feedback(user_id, response.value, request["unit_id"])
 
         execution_log = self._repo.get_latest_execution_log_for_request(request_id)
         recommendation = execution_log.get("recommendation") if execution_log else None
@@ -1796,9 +1784,7 @@ class IrrigationWorkflowService:
             else:
                 threshold_feedback = IrrigationFeedback.TOO_LITTLE
         elif response in volume_feedback:
-            threshold_feedback = self._resolve_threshold_feedback_from_volume(
-                response, execution_log
-            )
+            threshold_feedback = self._resolve_threshold_feedback_from_volume(response, execution_log)
 
         if threshold_feedback is None and recommendation == "adjust_threshold":
             if response == IrrigationFeedback.TOO_MUCH:
@@ -1810,15 +1796,9 @@ class IrrigationWorkflowService:
             # Use Bayesian adjuster if available (intelligent learning)
             if self._bayesian_adjuster:
                 try:
-                    plant_type = (
-                        request.get("plant_type")
-                        or getattr(plant_context, "plant_type", None)
-                        or "default"
-                    )
+                    plant_type = request.get("plant_type") or getattr(plant_context, "plant_type", None) or "default"
                     growth_stage = (
-                        request.get("growth_stage")
-                        or getattr(plant_context, "current_stage", None)
-                        or "Vegetative"
+                        request.get("growth_stage") or getattr(plant_context, "current_stage", None) or "Vegetative"
                     )
                     bayesian_result = self._bayesian_adjuster.update_from_feedback(
                         unit_id=request["unit_id"],
@@ -1832,13 +1812,13 @@ class IrrigationWorkflowService:
                         strain_variety=strain_variety,
                         pot_size_liters=pot_size_liters,
                     )
-                    
+
                     # Only apply if adjustment is significant
                     if bayesian_result.direction != "maintain" and bayesian_result.adjustment_amount >= 1.0:
                         adjustment = bayesian_result.adjustment_amount
                         if bayesian_result.direction == "decrease":
                             adjustment = -adjustment
-                        
+
                         self._apply_soil_moisture_adjustment(
                             unit_id=request["unit_id"],
                             plant_id=plant_id,
@@ -1846,8 +1826,7 @@ class IrrigationWorkflowService:
                             adjustment=adjustment,
                         )
                         logger.info(
-                            "Applied Bayesian threshold adjustment of %.1f%% "
-                            "for unit %s (confidence: %.0f%%)",
+                            "Applied Bayesian threshold adjustment of %.1f%% for unit %s (confidence: %.0f%%)",
                             adjustment,
                             request["unit_id"],
                             bayesian_result.confidence * 100.0,
@@ -1855,7 +1834,7 @@ class IrrigationWorkflowService:
                 except Exception as e:
                     logger.error(f"Bayesian adjustment failed, falling back to fixed: {e}")
                     bayesian_result = None
-            
+
             # Fallback to fixed ±5% adjustment if Bayesian not available
             if bayesian_result is None:
                 if threshold_feedback == IrrigationFeedback.TOO_LITTLE:
@@ -1888,7 +1867,7 @@ class IrrigationWorkflowService:
             "message": "Thank you for your feedback!",
             "adjustment_applied": adjustment is not None,
         }
-        
+
         # Include Bayesian learning info if available
         if bayesian_result:
             result["learning"] = {
@@ -1897,7 +1876,7 @@ class IrrigationWorkflowService:
                 "recommended_threshold": round(bayesian_result.recommended_threshold, 1),
                 "reasoning": bayesian_result.reasoning,
             }
-        
+
         return result
 
     def handle_feedback_for_feedback_id(
@@ -1905,8 +1884,8 @@ class IrrigationWorkflowService:
         feedback_id: int,
         feedback_response: str | IrrigationFeedback,
         user_id: int,
-        notes: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        notes: str | None = None,
+    ) -> dict[str, Any]:
         """Handle feedback submission using a feedback record ID."""
         request = self._repo.get_request_by_feedback_id(feedback_id)
         if not request:
@@ -1920,11 +1899,11 @@ class IrrigationWorkflowService:
 
     # ==================== Query Methods ====================
 
-    def get_pending_requests(self, user_id: int, limit: int = 20) -> List[Dict[str, Any]]:
+    def get_pending_requests(self, user_id: int, limit: int = 20) -> list[dict[str, Any]]:
         """Get pending irrigation requests for a user."""
         return self._repo.get_requests_for_user(user_id, status=RequestStatus.PENDING, limit=limit)
 
-    def get_request_history(self, unit_id: int, limit: int = 50) -> List[Dict[str, Any]]:
+    def get_request_history(self, unit_id: int, limit: int = 50) -> list[dict[str, Any]]:
         """Get irrigation request history for a unit."""
         return self._repo.get_history(unit_id, limit)
 
@@ -1932,11 +1911,11 @@ class IrrigationWorkflowService:
         self,
         *,
         unit_id: int,
-        plant_id: Optional[int] = None,
-        user_id: Optional[int] = None,
+        plant_id: int | None = None,
+        user_id: int | None = None,
         lookback_hours: int = 7 * 24,
         history_limit: int = 200,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Build ML feature inputs directly from irrigation workflow telemetry.
 
@@ -1952,8 +1931,8 @@ class IrrigationWorkflowService:
         start_ts = (now - timedelta(hours=window_hours)).isoformat()
         end_ts = now.isoformat()
 
-        irrigation_history: List[Dict[str, Any]] = []
-        latest_trace: Optional[Dict[str, Any]] = None
+        irrigation_history: list[dict[str, Any]] = []
+        latest_trace: dict[str, Any] | None = None
 
         if self._repo:
             try:
@@ -1978,15 +1957,16 @@ class IrrigationWorkflowService:
                 if traces:
                     traces = sorted(
                         traces,
-                        key=lambda row: coerce_datetime(row.get("evaluated_at_utc"))
-                        or datetime.min.replace(tzinfo=timezone.utc),
+                        key=lambda row: (
+                            coerce_datetime(row.get("evaluated_at_utc")) or datetime.min.replace(tzinfo=UTC)
+                        ),
                         reverse=True,
                     )
                     latest_trace = traces[0]
             except Exception as exc:
                 logger.debug("Failed to load irrigation eligibility traces: %s", exc)
 
-        current_conditions: Dict[str, Any] = {}
+        current_conditions: dict[str, Any] = {}
         if latest_trace:
             moisture = latest_trace.get("moisture")
             threshold = latest_trace.get("threshold")
@@ -2032,7 +2012,7 @@ class IrrigationWorkflowService:
             except Exception as exc:
                 logger.debug("Failed to compute irrigation cooldown: %s", exc)
 
-        user_preferences: Dict[str, Any] = {}
+        user_preferences: dict[str, Any] = {}
         if self._repo and user_id is not None:
             try:
                 prefs = self._repo.get_user_preference(int(user_id), unit_id)
@@ -2041,7 +2021,7 @@ class IrrigationWorkflowService:
             except Exception as exc:
                 logger.debug("Failed to load irrigation user preferences: %s", exc)
 
-        plant_info: Dict[str, Any] = {}
+        plant_info: dict[str, Any] = {}
         resolved_plant_id = plant_id
         if resolved_plant_id is None and self._plant_service:
             active = self._plant_service.get_active_plant(unit_id)
@@ -2070,7 +2050,7 @@ class IrrigationWorkflowService:
             "plant_info": plant_info,
         }
 
-    def get_request(self, request_id: int) -> Optional[Dict[str, Any]]:
+    def get_request(self, request_id: int) -> dict[str, Any] | None:
         """Get a specific request."""
         return self._repo.get_request(request_id)
 
@@ -2078,8 +2058,8 @@ class IrrigationWorkflowService:
         self,
         unit_id: int,
         *,
-        plant_id: Optional[int] = None,
-    ) -> Optional[Dict[str, Any]]:
+        plant_id: int | None = None,
+    ) -> dict[str, Any] | None:
         """Get the most recent completed irrigation for a unit or plant."""
         try:
             return self._repo.get_last_completed_irrigation(unit_id, plant_id)
@@ -2087,7 +2067,7 @@ class IrrigationWorkflowService:
             logger.debug("Failed to fetch last completed irrigation for unit %s: %s", unit_id, exc)
             return None
 
-    def get_user_preferences(self, user_id: int, unit_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
+    def get_user_preferences(self, user_id: int, unit_id: int | None = None) -> dict[str, Any] | None:
         """Get user irrigation preferences."""
         return self._repo.get_user_preference(user_id, unit_id)
 

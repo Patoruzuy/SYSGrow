@@ -382,7 +382,7 @@ class MLDataService {
         const cacheKey = `ab-tests:${status || 'all'}`;
         const cached = this.getFromCache(cacheKey);
         if (cached) return cached;
-        const data = await API.ABTesting.getTests(status);
+        const data = await API.ABTesting.listTests(status);
         this.setCache(cacheKey, data, 60000);
         return data;
     }
@@ -396,8 +396,8 @@ class MLDataService {
         return data;
     }
 
-    async completeABTest(testId, deployWinner = false) {
-        const result = await API.ABTesting.completeTest(testId, deployWinner);
+    async completeABTest(testId, winner = null) {
+        const result = await API.ABTesting.completeTest(testId, winner);
         this.invalidateCache('ab-tests*');
         this.invalidateCache(`ab-analysis:${testId}`);
         return result;

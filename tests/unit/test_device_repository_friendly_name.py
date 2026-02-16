@@ -24,4 +24,3 @@ def test_get_by_friendly_name_falls_back_to_sensor_name_for_legacy_zigbee2mqtt_c
     assert result is not None
     assert result.sensor_id == 12
     assert result.unit_id == 1
-

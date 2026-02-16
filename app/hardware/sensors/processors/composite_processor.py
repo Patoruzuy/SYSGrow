@@ -6,27 +6,29 @@ Chains multiple processors into a single pipeline.
 Implements both stage methods and pipeline methods (process, build_payloads)
 so it can be used directly by mqtt_sensor_service.
 """
-import logging
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, TYPE_CHECKING
 
-from .base_processor import IDataProcessor, ProcessorError, PreparedPayloads
+import logging
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Optional
+
+from app.enums.events import SensorEvent
+
+from .base_processor import IDataProcessor, PreparedPayloads, ProcessorError
 from .utils import (
     UNIT_MAP,
     coerce_int,
     coerce_numeric_readings,
-    to_wire_status,
     infer_power_source,
+    to_wire_status,
 )
-from app.enums.events import SensorEvent
 
 if TYPE_CHECKING:
-    from app.domain.sensors import SensorEntity, SensorReading, CalibrationData
+    from app.domain.sensors import CalibrationData, SensorEntity, SensorReading
     from app.hardware.sensors.processors.priority_processor import PriorityProcessor
 
 logger = logging.getLogger(__name__)
 
 # Type alias for sensor resolver
-SensorResolver = Callable[[int], Optional[Any]]
+SensorResolver = Callable[[int], Any | None]
 
 
 class CompositeProcessor(IDataProcessor):
@@ -46,9 +48,9 @@ class CompositeProcessor(IDataProcessor):
         transformer: IDataProcessor,
         enricher: IDataProcessor,
         priority: Optional["PriorityProcessor"] = None,
-        resolve_sensor: Optional[SensorResolver] = None,
-        units_map: Optional[Dict[str, str]] = None,
-        meta_keys: Optional[Iterable[str]] = None,
+        resolve_sensor: SensorResolver | None = None,
+        units_map: dict[str, str] | None = None,
+        meta_keys: Iterable[str] | None = None,
     ):
         """
         Initialize composite processor with individual processors.
@@ -79,7 +81,7 @@ class CompositeProcessor(IDataProcessor):
     # Stage Methods
     # -------------------------------------------------------------------------
 
-    def validate(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
+    def validate(self, raw_data: dict[str, Any]) -> dict[str, Any]:
         """
         Validate raw sensor data using validator processor.
 
@@ -94,7 +96,7 @@ class CompositeProcessor(IDataProcessor):
         """
         return self.validator.validate(raw_data)
 
-    def apply_calibration(self, data: Dict[str, Any], calibration: 'CalibrationData') -> Dict[str, Any]:
+    def apply_calibration(self, data: dict[str, Any], calibration: "CalibrationData") -> dict[str, Any]:
         """
         Apply calibration using calibrator processor.
 
@@ -107,7 +109,7 @@ class CompositeProcessor(IDataProcessor):
         """
         return self.calibrator.apply_calibration(data, calibration)
 
-    def transform(self, validated_data: Dict[str, Any], sensor: 'SensorEntity') -> 'SensorReading':
+    def transform(self, validated_data: dict[str, Any], sensor: "SensorEntity") -> "SensorReading":
         """
         Transform validated data into SensorReading using transformer processor.
 
@@ -120,7 +122,7 @@ class CompositeProcessor(IDataProcessor):
         """
         return self.transformer.transform(validated_data, sensor)
 
-    def enrich(self, reading: 'SensorReading') -> 'SensorReading':
+    def enrich(self, reading: "SensorReading") -> "SensorReading":
         """
         Enrich reading with metadata using enricher processor.
 
@@ -136,7 +138,7 @@ class CompositeProcessor(IDataProcessor):
     # Pipeline Methods
     # -------------------------------------------------------------------------
 
-    def process(self, sensor: 'SensorEntity', raw_data: Dict[str, Any]) -> 'SensorReading':
+    def process(self, sensor: "SensorEntity", raw_data: dict[str, Any]) -> "SensorReading":
         """
         Run the full processing pipeline: validate -> calibrate -> transform -> enrich.
 
@@ -182,12 +184,7 @@ class CompositeProcessor(IDataProcessor):
             logger.error("Pipeline processing failed for sensor %s: %s", getattr(sensor, "id", "?"), e)
             raise ProcessorError(f"Processing failed: {e}") from e
 
-    def build_payloads(
-        self,
-        *,
-        sensor: 'SensorEntity',
-        reading: 'SensorReading'
-    ) -> Optional[PreparedPayloads]:
+    def build_payloads(self, *, sensor: "SensorEntity", reading: "SensorReading") -> PreparedPayloads | None:
         """
         Build ready-to-emit WebSocket payloads.
 
@@ -199,8 +196,7 @@ class CompositeProcessor(IDataProcessor):
             PreparedPayloads with device and optional dashboard payloads,
             or None if unit_id is invalid (payload should be dropped).
         """
-        from app.schemas.events import DeviceSensorReadingPayload, DashboardSnapshotPayload
-        from app.utils.time import utc_now
+        from app.schemas.events import DashboardSnapshotPayload
 
         # Strict unit_id validation
         unit_id = int(getattr(reading, "unit_id", 0) or 0)
@@ -237,7 +233,7 @@ class CompositeProcessor(IDataProcessor):
         )
 
         # Build dashboard payload via priority processor (if available)
-        dashboard_payload: Optional[DashboardSnapshotPayload] = None
+        dashboard_payload: DashboardSnapshotPayload | None = None
         if self._priority is not None:
             try:
                 dashboard_payload = self._priority.ingest(
@@ -305,14 +301,14 @@ class CompositeProcessor(IDataProcessor):
         reading: "SensorReading",
         unit_id: int,
         sensor_id: int,
-    ) -> List[Tuple[str, Dict[str, Any]]]:
+    ) -> list[tuple[str, dict[str, Any]]]:
         """Build EventBus events for control/persistence."""
         data = getattr(reading, "data", None) or {}
 
         ts = getattr(reading, "timestamp", None)
         timestamp = ts.isoformat() if hasattr(ts, "isoformat") else None
 
-        payload_base: Dict[str, Any] = {
+        payload_base: dict[str, Any] = {
             "unit_id": unit_id,
             "sensor_id": sensor_id,
             "timestamp": timestamp,
@@ -330,7 +326,7 @@ class CompositeProcessor(IDataProcessor):
             except Exception:
                 return True
 
-        events: List[Tuple[str, Dict[str, Any]]] = []
+        events: list[tuple[str, dict[str, Any]]] = []
 
         temperature = data.get("temperature")
         humidity = data.get("humidity")
@@ -357,9 +353,7 @@ class CompositeProcessor(IDataProcessor):
 
         soil_moisture = data.get("soil_moisture")
         if soil_moisture is not None:
-            events.append(
-                (SensorEvent.SOIL_MOISTURE_UPDATE.value, {**payload_base, "soil_moisture": soil_moisture})
-            )
+            events.append((SensorEvent.SOIL_MOISTURE_UPDATE.value, {**payload_base, "soil_moisture": soil_moisture}))
 
         co2 = data.get("co2", data.get("co2_ppm"))
         voc = data.get("voc", data.get("voc_ppb"))
@@ -396,12 +390,12 @@ class CompositeProcessor(IDataProcessor):
     def _build_device_payload(
         self,
         *,
-        sensor: 'SensorEntity',
-        reading: 'SensorReading',
+        sensor: "SensorEntity",
+        reading: "SensorReading",
         unit_id: int,
         sensor_id: int,
-        data: Dict[str, Any],
-        numeric: Dict[str, float],
+        data: dict[str, Any],
+        numeric: dict[str, float],
     ):
         """Build the device sensor reading payload."""
         from app.schemas.events import DeviceSensorReadingPayload
@@ -414,7 +408,7 @@ class CompositeProcessor(IDataProcessor):
         # Build units mapping
         units = getattr(reading, "units", None)
         if not isinstance(units, dict) or not units:
-            units = {k: self._units_map.get(k, "") for k in numeric.keys()}
+            units = {k: self._units_map.get(k, "") for k in numeric}
 
         # Extract status
         status = to_wire_status(getattr(reading, "status", "success"))

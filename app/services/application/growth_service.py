@@ -27,43 +27,42 @@ This module is intended to be reviewed under SOC2-style change controls:
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
 import logging
 import threading
+from typing import TYPE_CHECKING, Any
 
+from app.controllers import ClimateController, ControlLogic, PlantSensorController
+from app.domain.plant_profile import PlantProfile
+from app.domain.unit_runtime import UnitRuntime
+from app.domain.unit_runtime_factory import UnitRuntimeFactory
 from app.enums import NotificationSeverity, NotificationType
 from app.enums.events import PlantEvent, RuntimeEvent
+from app.hardware.sensors.processors.base_processor import IDataProcessor
 from app.schemas.events import (
+    ActivePlantSetPayload,
     PlantLifecyclePayload,
     PlantStageUpdatePayload,
     ThresholdsProposedPayload,
-    ActivePlantSetPayload,
 )
+from app.services.hardware.sensor_polling_service import SensorPollingService
+from app.utils.cache import CacheRegistry, TTLCache
 from app.utils.event_bus import EventBus
+from app.utils.plant_json_handler import PlantJsonHandler
 from infrastructure.database.repositories.analytics import AnalyticsRepository
 from infrastructure.database.repositories.devices import DeviceRepository
 from infrastructure.database.repositories.units import UnitRepository
 from infrastructure.logging.audit import AuditLogger
-from app.domain.unit_runtime import UnitRuntime
-from app.domain.plant_profile import PlantProfile
-from app.domain.unit_runtime_factory import UnitRuntimeFactory
-from app.utils.cache import TTLCache, CacheRegistry
-from app.utils.plant_json_handler import PlantJsonHandler
-from app.hardware.sensors.processors.base_processor import IDataProcessor
-
-from app.services.hardware.sensor_polling_service import SensorPollingService
-from app.controllers import ClimateController, ControlLogic, PlantSensorController
 from infrastructure.utils.structured_fields import (
     dump_json_field,
     normalize_dimensions,
 )
 
 if TYPE_CHECKING:
-    from app.services.application.threshold_service import ThresholdService
     from app.services.application.activity_logger import ActivityLogger
-    from app.services.application.notifications_service import NotificationsService
     from app.services.application.irrigation_workflow_service import IrrigationWorkflowService
-    from app.services.hardware import SensorManagementService, ActuatorManagementService
+    from app.services.application.notifications_service import NotificationsService
+    from app.services.application.threshold_service import ThresholdService
+    from app.services.hardware import ActuatorManagementService, SensorManagementService
     from app.services.protocols import PlantStateReader
 
 logger = logging.getLogger(__name__)
@@ -72,8 +71,10 @@ logger = logging.getLogger(__name__)
 class GrowthServiceError(RuntimeError):
     """Base exception for GrowthService failures."""
 
+
 class NotFoundError(GrowthServiceError):
     """Resource not found."""
+
 
 class ValidationError(GrowthServiceError):
     """Invalid input from caller."""
@@ -88,7 +89,7 @@ def _row_to_dict(row) -> dict[str, Any]:
 
 
 # Import threshold constants from ThresholdService (single source of truth)
-from app.services.application.threshold_service import THRESHOLD_KEYS, PLANT_OVERRIDE_FIELDS
+from app.services.application.threshold_service import THRESHOLD_KEYS
 
 
 class GrowthService:
@@ -114,19 +115,19 @@ class GrowthService:
         analytics_repo: AnalyticsRepository,
         audit_logger: AuditLogger,
         devices_repo: DeviceRepository,
-        activity_logger: Optional['ActivityLogger'] = None,
-        notifications_service: Optional['NotificationsService'] = None,
-        irrigation_workflow_service: Optional['IrrigationWorkflowService'] = None,
-        event_bus: Optional[EventBus] = None,
-        mqtt_client: Optional[Any] = None,
-        zigbee_service: Optional[Any] = None,
-        threshold_service: Optional['ThresholdService'] = None,
-        device_health_service: Optional[Any] = None,
-        sensor_management_service: Optional['SensorManagementService'] = None,
-        actuator_management_service: Optional['ActuatorManagementService'] = None,
-        plant_service: Optional['PlantStateReader'] = None,
-        sensor_processor: Optional[IDataProcessor] = None,
-        ai_health_repo: Optional[Any] = None,
+        activity_logger: "ActivityLogger" | None = None,
+        notifications_service: "NotificationsService" | None = None,
+        irrigation_workflow_service: "IrrigationWorkflowService" | None = None,
+        event_bus: EventBus | None = None,
+        mqtt_client: Any | None = None,
+        zigbee_service: Any | None = None,
+        threshold_service: "ThresholdService" | None = None,
+        device_health_service: Any | None = None,
+        sensor_management_service: "SensorManagementService" | None = None,
+        actuator_management_service: "ActuatorManagementService" | None = None,
+        plant_service: "PlantStateReader" | None = None,
+        sensor_processor: IDataProcessor | None = None,
+        ai_health_repo: Any | None = None,
         cache_enabled: bool = True,
         cache_ttl_seconds: int = 30,
         cache_maxsize: int = 128,
@@ -195,27 +196,25 @@ class GrowthService:
             pass
 
         # Registry of active unit runtimes
-        self._unit_runtimes: Dict[int, UnitRuntime] = {}
+        self._unit_runtimes: dict[int, UnitRuntime] = {}
         self._runtime_lock = threading.Lock()
-        
+
         # Per-unit infrastructure
         # unit_id -> SensorPollingService
-        self._polling_services: Dict[int, SensorPollingService] = {}
+        self._polling_services: dict[int, SensorPollingService] = {}
         # unit_id -> ClimateController
-        self._climate_controllers: Dict[int, ClimateController] = {}
+        self._climate_controllers: dict[int, ClimateController] = {}
         # unit_id -> PlantSensorController (plant sensors + irrigation workflow)
-        self._plant_sensor_controllers: Dict[int, PlantSensorController] = {}
-        
+        self._plant_sensor_controllers: dict[int, PlantSensorController] = {}
 
         logger.info(
-            f"GrowthService initialized "
-            f"(hardware_services={'enabled' if sensor_management_service else 'disabled'})"
+            f"GrowthService initialized (hardware_services={'enabled' if sensor_management_service else 'disabled'})"
         )
 
         # Subscribe to runtime events for persistence
         self._subscribe_to_runtime_events()
         self._subscribe_to_plant_events()
-        
+
         # Wire up ThresholdService event handling and cache invalidation
         self._setup_threshold_service_integration()
 
@@ -227,9 +226,7 @@ class GrowthService:
             self.event_bus.subscribe(RuntimeEvent.ACTIVE_PLANT_SET, self._handle_active_plant_set)
             # AI threshold proposals on stage changes (moved from UnitRuntime)
             self.event_bus.subscribe(PlantEvent.PLANT_STAGE_UPDATE, self._handle_plant_stage_update)
-            logger.debug(
-                "GrowthService subscribed to THRESHOLDS_PROPOSED, ACTIVE_PLANT_SET, PLANT_STAGE_UPDATE"
-            )
+            logger.debug("GrowthService subscribed to THRESHOLDS_PROPOSED, ACTIVE_PLANT_SET, PLANT_STAGE_UPDATE")
 
     def _subscribe_to_plant_events(self) -> None:
         """Subscribe to PlantEvent.* events for schedule automation."""
@@ -316,10 +313,7 @@ class GrowthService:
             plant_label = plant_type or "plant"
             stage_label = growth_stage or "current stage"
             title = "AI Threshold Update Proposal"
-            message = (
-                f"AI suggests updated thresholds for {plant_label} "
-                f"({stage_label}). Review and accept to apply."
-            )
+            message = f"AI suggests updated thresholds for {plant_label} ({stage_label}). Review and accept to apply."
 
             action_data = {
                 "unit_id": unit_id,
@@ -385,6 +379,7 @@ class GrowthService:
                     # Log activity
                     if self.activity_logger:
                         from app.services.application.activity_logger import ActivityLogger
+
                         self.activity_logger.log_activity(
                             activity_type=ActivityLogger.PLANT_UPDATED,
                             description=f"Set active plant to '{plant.plant_name}' in unit {unit_id}",
@@ -424,7 +419,7 @@ class GrowthService:
         except Exception as e:
             logger.error("Error handling PLANT_STAGE_UPDATE: %s", e, exc_info=True)
 
-    def _find_unit_for_plant(self, plant_id: int) -> Optional[int]:
+    def _find_unit_for_plant(self, plant_id: int) -> int | None:
         """Resolve the unit_id that owns a given plant_id."""
         # Check active runtimes first (fast path)
         with self._runtime_lock:
@@ -483,9 +478,7 @@ class GrowthService:
 
             proposed = optimal.to_settings_dict()
             current_thresholds = {
-                key: getattr(runtime.settings, key)
-                for key in THRESHOLD_KEYS
-                if hasattr(runtime.settings, key)
+                key: getattr(runtime.settings, key) for key in THRESHOLD_KEYS if hasattr(runtime.settings, key)
             }
 
             # Filter insignificant changes
@@ -497,7 +490,9 @@ class GrowthService:
             if not filtered_proposed:
                 logger.debug(
                     "No significant threshold changes for unit %s (%s/%s)",
-                    unit_id, plant.plant_type, plant.current_stage,
+                    unit_id,
+                    plant.plant_type,
+                    plant.current_stage,
                 )
                 return
 
@@ -518,7 +513,9 @@ class GrowthService:
 
             logger.info(
                 "Proposed AI conditions for unit %s: %s (%s)",
-                unit_id, plant.plant_type, plant.current_stage,
+                unit_id,
+                plant.plant_type,
+                plant.current_stage,
             )
 
         except Exception as e:
@@ -556,7 +553,7 @@ class GrowthService:
             return
 
         current_thresholds = runtime.settings.to_dict()
-        changes: Dict[str, float] = {}
+        changes: dict[str, float] = {}
         for key, value in overrides.items():
             if key not in THRESHOLD_KEYS:
                 continue
@@ -578,7 +575,7 @@ class GrowthService:
     def _resolve_unit_actuator_ids(
         self,
         unit_id: int,
-    ) -> tuple[Optional[int], Optional[int]]:
+    ) -> tuple[int | None, int | None]:
         if not self.devices_repo:
             return None, None
         try:
@@ -607,7 +604,7 @@ class GrowthService:
     def _build_plant_schedule_payload(
         self,
         plant: PlantProfile,
-    ) -> tuple[str, str, Dict[str, Any]]:
+    ) -> tuple[str, str, dict[str, Any]]:
         if not self._plant_service:
             raise ValueError("PlantService not available")
 
@@ -624,9 +621,7 @@ class GrowthService:
         intensity = stage_lighting.get("intensity")
 
         if hours is None or intensity is None:
-            raise ValueError(
-                f"Lighting data missing for plant '{plant_type}' stage '{current_stage}'."
-            )
+            raise ValueError(f"Lighting data missing for plant '{plant_type}' stage '{current_stage}'.")
 
         automation = dict(automation)
         lighting_schedule = dict(lighting_schedule)
@@ -638,7 +633,7 @@ class GrowthService:
         self,
         *,
         unit_id: int,
-        plant_id: Optional[int] = None,
+        plant_id: int | None = None,
         require_empty: bool = False,
         reason: str = "auto",
     ) -> int:
@@ -730,8 +725,8 @@ class GrowthService:
     def _update_plant_threshold_overrides(
         self,
         plant_id: int,
-        thresholds: Dict[str, float],
-        unit_id: Optional[int] = None,
+        thresholds: dict[str, float],
+        unit_id: int | None = None,
     ) -> bool:
         """Persist threshold overrides to plant and update runtime cache."""
         if not thresholds:
@@ -770,8 +765,8 @@ class GrowthService:
     def handle_threshold_update_action(
         self,
         action_response: str,
-        action_data: Dict[str, Any],
-        message: Optional[Dict[str, Any]] = None,
+        action_data: dict[str, Any],
+        message: dict[str, Any] | None = None,
     ) -> bool:
         """Apply threshold updates after user confirmation."""
         response = (action_response or "").strip().lower()
@@ -798,7 +793,7 @@ class GrowthService:
             logger.debug("Threshold update action missing unit_id or proposed thresholds")
             return False
 
-        threshold_updates: Dict[str, float] = {}
+        threshold_updates: dict[str, float] = {}
         for key in THRESHOLD_KEYS:
             if key not in proposed:
                 continue
@@ -856,28 +851,28 @@ class GrowthService:
         self,
         *,
         unit_id: int,
-        sensor_id: Optional[int],
-    ) -> Dict[str, Any]:
+        sensor_id: int | None,
+    ) -> dict[str, Any]:
         """
         Resolve plant-specific context for a soil moisture sensor (thin wrapper).
-        
+
         Delegates to PlantViewService which owns plant context resolution.
         Exists for backward compatibility with ClimateController.
-        
+
         Args:
             unit_id: Unit identifier
             sensor_id: Sensor identifier
-            
+
         Returns:
             Plant context dictionary
         """
         if sensor_id is None:
             return {}
-        
+
         if not self._plant_service:
             logger.warning("PlantViewService not available; cannot resolve plant context")
             return {}
-        
+
         try:
             return self._plant_service.get_plant_context_for_sensor(
                 unit_id=unit_id,
@@ -886,23 +881,23 @@ class GrowthService:
         except Exception as exc:
             logger.debug(f"Failed to resolve plant context for sensor {sensor_id}: {exc}", exc_info=True)
             return {}
-    
+
     # ==================== Unit Registry Management ====================
-    
+
     def start_unit_runtime(self, unit_id: int) -> bool:
         """
         Start hardware operations for a unit.
-        
+
         This method now directly manages infrastructure without UnitRuntimeManager wrapper.
         Responsibilities:
         - Initialize sensor polling
-        - Initialize climate control  
+        - Initialize climate control
         - Load and register devices with hardware services
         - Setup plant growth scheduling
-        
+
         Args:
             unit_id: Unit identifier
-            
+
         Returns:
             True if successful
         """
@@ -910,20 +905,19 @@ class GrowthService:
         if not runtime:
             logger.error(f"Cannot start unit {unit_id}: not found")
             return False
-        
+
         try:
             # Direct infrastructure initialization (no UnitRuntimeManager)
             if self.sensor_service and self.actuator_service:
                 logger.info(
-                    f"Starting runtime for unit {unit_id} ({runtime.unit_name}) "
-                    f"using singleton hardware services"
+                    f"Starting runtime for unit {unit_id} ({runtime.unit_name}) using singleton hardware services"
                 )
-                
+
                 # 1. Load devices from database
                 if self.devices_repo:
                     sensors = self.devices_repo.list_sensor_configs(unit_id=unit_id)
                     actuators = self.devices_repo.list_actuator_configs(unit_id=unit_id)
-                    
+
                     # 2. Register devices with singleton hardware services
                     for sensor in sensors:
                         try:
@@ -931,20 +925,20 @@ class GrowthService:
                             logger.debug(f"   Registered sensor {sensor.get('sensor_id')} for unit {unit_id}")
                         except Exception as e:
                             logger.warning(f"Failed to register sensor {sensor.get('sensor_id')}: {e}")
-                    
+
                     for actuator in actuators:
                         try:
                             self.actuator_service.register_actuator_config(actuator)
                             logger.debug(f"   Registered actuator {actuator.get('actuator_id')} for unit {unit_id}")
                         except Exception as e:
                             logger.warning(f"Failed to register actuator {actuator.get('actuator_id')}: {e}")
-                    
+
                     # 3. Sensor polling is managed by SensorManagementService
                     # It auto-starts when GPIO/WiFi sensors are registered
                     polling_service = self.sensor_service.polling_service
                     self._polling_services[unit_id] = polling_service
                     logger.debug(f"   Sensor polling service referenced for unit {unit_id}")
-                    
+
                     # 4. Initialize climate control (per-unit)
                     # Note: Primary sensor filtering is done by CompositeProcessor before events
                     # reach ClimateController, so no priority_processor is needed here.
@@ -978,7 +972,7 @@ class GrowthService:
                                 "co2": thresholds.co2,
                                 "voc": thresholds.voc,
                                 "lux": thresholds.lux,
-                                "air_quality": thresholds.air_quality
+                                "air_quality": thresholds.air_quality,
                             }
                         )
                     else:
@@ -989,21 +983,21 @@ class GrowthService:
                                 "co2": runtime.settings.co2_threshold,
                                 "voc": runtime.settings.voc_threshold,
                                 "lux": runtime.settings.lux_threshold,
-                                "air_quality": runtime.settings.air_quality_threshold
+                                "air_quality": runtime.settings.air_quality_threshold,
                             }
                         )
                     climate_controller.start()
                     self._climate_controllers[unit_id] = climate_controller
                     self._plant_sensor_controllers[unit_id] = plant_sensor_controller
                     logger.debug(f"   Climate controller started for unit {unit_id}")
-                    
+
                     # 5. Load schedules into memory (memory-first pattern)
                     # Schedules are owned by SchedulingService via ActuatorManager
                     scheduling_service = self._get_scheduling_service()
                     if scheduling_service:
                         schedule_count = scheduling_service.load_schedules_for_unit(unit_id)
                         logger.debug(f"   Loaded {schedule_count} schedules for unit {unit_id}")
-                    
+
                     # 6. Mark hardware as running on runtime
                     # Note: Plant growth scheduling is handled globally by UnifiedScheduler
                     # (see app/workers/scheduled_tasks.py -> plant_grow_task)
@@ -1011,17 +1005,17 @@ class GrowthService:
 
                     logger.info("Unit %s runtime fully operational (new architecture)", unit_id)
                     return True
-            
+
             logger.error(
                 "Hardware services not available for unit %s; cannot start runtime",
                 unit_id,
             )
             return False
-            
+
         except Exception as e:
             logger.error(f"Error starting runtime for unit {unit_id}: {e}", exc_info=True)
             return False
-    
+
     def stop_unit_runtime(self, unit_id: int) -> bool:
         """
         Stop hardware operations for a unit.
@@ -1077,7 +1071,7 @@ class GrowthService:
 
             logger.info(f"Stopped and removed unit {unit_id} from registry")
             return True
-            
+
         except Exception as e:
             logger.error(f"Error stopping runtime for unit {unit_id}: {e}", exc_info=True)
             return False
@@ -1089,8 +1083,8 @@ class GrowthService:
     def get_climate_controller(self, unit_id: int):
         """Return the ClimateController instance for a unit, if running."""
         return self._climate_controllers.get(unit_id)
-        
-    def get_unit_runtimes(self) -> Dict[int, UnitRuntime]:
+
+    def get_unit_runtimes(self) -> dict[int, UnitRuntime]:
         """
         Get all active unit runtimes.
 
@@ -1100,7 +1094,7 @@ class GrowthService:
         with self._runtime_lock:
             return dict(self._unit_runtimes)
 
-    def get_unit_runtime(self, unit_id: int) -> Optional[UnitRuntime]:
+    def get_unit_runtime(self, unit_id: int) -> UnitRuntime | None:
         """
         Fetch or create the UnitRuntime instance for a unit.
 
@@ -1116,33 +1110,31 @@ class GrowthService:
             if not row:
                 return None
             unit_data = _row_to_dict(row)
-            
+
             # Factory creates runtime WITHOUT plants
             runtime = self.factory.create_runtime(unit_data)
-            
+
             # PlantService loads plants into its own collection
             if self._plant_service:
-                active_plant_id = unit_data.get('active_plant_id')
+                active_plant_id = unit_data.get("active_plant_id")
                 plant_count = self._plant_service.load_plants_for_unit(unit_id, active_plant_id)
-                logger.debug(
-                    f"PlantService loaded {plant_count} plants for unit {unit_id}"
-                )
-            
+                logger.debug(f"PlantService loaded {plant_count} plants for unit {unit_id}")
+
             with self._runtime_lock:
                 self._unit_runtimes[unit_id] = runtime
             return runtime
         except Exception as exc:
             logger.error("Error loading runtime for unit %s: %s", unit_id, exc, exc_info=True)
             return None
-    
-    def update_unit_thresholds(self, unit_id: int, thresholds: Dict[str, float]) -> bool:
+
+    def update_unit_thresholds(self, unit_id: int, thresholds: dict[str, float]) -> bool:
         """
         Update environmental thresholds for a unit.
-        
+
         Args:
             unit_id: Unit identifier
             thresholds: Dictionary of threshold values
-            
+
         Returns:
             True if successful
         """
@@ -1161,7 +1153,7 @@ class GrowthService:
         if runtime and hasattr(runtime, "update_settings"):
             runtime.update_settings(**thresholds)
 
-        repo_fields: Dict[str, float] = {}
+        repo_fields: dict[str, float] = {}
         for key in THRESHOLD_KEYS:
             if key in thresholds:
                 repo_fields[key] = thresholds[key]
@@ -1185,14 +1177,14 @@ class GrowthService:
     def set_active_plant(self, unit_id: int, plant_id: int) -> bool:
         """
         Set active plant for a unit (thin wrapper).
-        
+
         Delegates to PlantViewService which owns plant lifecycle operations.
         Exists for backward compatibility and to handle runtime updates.
-        
+
         Args:
             unit_id: Unit identifier
             plant_id: Plant identifier
-            
+
         Returns:
             True if successful, False otherwise
         """
@@ -1203,7 +1195,7 @@ class GrowthService:
         try:
             # Delegate to PlantViewService (handles DB, memory, events)
             success = self._plant_service.set_active_plant(unit_id, plant_id)
-            
+
             if success:
                 # Apply plant overrides and trigger AI conditions on runtime
                 runtime = self.get_unit_runtime(unit_id)
@@ -1212,9 +1204,9 @@ class GrowthService:
                     if plant:
                         self._apply_active_plant_overrides(runtime, plant)
                         self.propose_ai_conditions(unit_id)
-            
+
             return success
-            
+
         except Exception as exc:
             logger.error(f"Failed to set active plant via PlantViewService: {exc}", exc_info=True)
             return False
@@ -1226,23 +1218,23 @@ class GrowthService:
         plant_type: str,
         current_stage: str,
         days_in_stage: int = 0,
-        growth_stages: Optional[Any] = None,
+        growth_stages: Any | None = None,
         moisture_level: float = 0.0,
         # Creation-time fields
         pot_size_liters: float = 0.0,
         pot_material: str = "plastic",
         growing_medium: str = "soil",
         medium_ph: float = 7.0,
-        strain_variety: Optional[str] = None,
+        strain_variety: str | None = None,
         expected_yield_grams: float = 0.0,
         light_distance_cm: float = 0.0,
-    ) -> Optional[int]:
+    ) -> int | None:
         """
         Create plant in unit (thin wrapper).
-        
+
         Delegates to PlantViewService which owns plant lifecycle operations.
         Exists for backward compatibility with code that calls GrowthService directly.
-        
+
         Args:
             unit_id: Unit identifier
             plant_name: Plant name
@@ -1258,7 +1250,7 @@ class GrowthService:
             strain_variety: Specific cultivar/strain
             expected_yield_grams: Target harvest amount
             light_distance_cm: Light distance
-            
+
         Returns:
             Plant ID if successful, None otherwise
         """
@@ -1282,13 +1274,13 @@ class GrowthService:
                 expected_yield_grams=expected_yield_grams,
                 light_distance_cm=light_distance_cm,
             )
-            
+
             if result:
                 # Invalidate cache for API responses
                 self._invalidate_unit_cache(unit_id)
-                return result.get('plant_id')
+                return result.get("plant_id")
             return None
-            
+
         except Exception as exc:
             logger.error(f"Failed to create plant via PlantViewService: {exc}", exc_info=True)
             return None
@@ -1296,14 +1288,14 @@ class GrowthService:
     def remove_plant_from_unit(self, unit_id: int, plant_id: int) -> bool:
         """
         Remove plant from unit (thin wrapper).
-        
+
         Delegates to PlantViewService which owns plant lifecycle operations.
         Exists for backward compatibility with code that calls GrowthService directly.
-        
+
         Args:
             unit_id: Unit identifier
             plant_id: Plant identifier
-            
+
         Returns:
             True if successful, False otherwise
         """
@@ -1313,26 +1305,26 @@ class GrowthService:
 
         try:
             success = self._plant_service.remove_plant(unit_id, plant_id)
-            
+
             if success:
                 # Invalidate cache for API responses
                 self._invalidate_unit_cache(unit_id)
-            
+
             return success
-            
+
         except Exception as exc:
             logger.error(f"Failed to remove plant via PlantViewService: {exc}", exc_info=True)
             return False
 
     # ==================== Unit CRUD Operations ====================
-    
-    def list_units(self, user_id: Optional[int] = None) -> List[dict[str, Any]]:
+
+    def list_units(self, user_id: int | None = None) -> list[dict[str, Any]]:
         """
         List all units, optionally filtered by user.
-        
+
         Args:
             user_id: Optional user filter
-            
+
         Returns:
             List of unit dictionaries
         """
@@ -1352,11 +1344,7 @@ class GrowthService:
                         logger.debug("Unable to serialize runtime for unit %s: %s", unit_id, exc)
             # Second: only fetch from database if no units found in memory
             if not units_by_id:
-                rows = (
-                    self.unit_repo.get_user_units(user_id)
-                    if user_id
-                    else self.unit_repo.list_units()
-                )
+                rows = self.unit_repo.get_user_units(user_id) if user_id else self.unit_repo.list_units()
 
                 for row in rows or []:
                     unit_dict = _row_to_dict(row)
@@ -1378,13 +1366,13 @@ class GrowthService:
             logger.error("Error listing units: %s", e, exc_info=True)
             return []
 
-    def get_unit(self, unit_id: int) -> Optional[dict[str, Any]]:
+    def get_unit(self, unit_id: int) -> dict[str, Any] | None:
         """
         Get unit details from cache or database.
-        
+
         Args:
             unit_id: Unit identifier
-            
+
         Returns:
             Unit dictionary or None
         """
@@ -1422,15 +1410,15 @@ class GrowthService:
         *,
         name: str,
         location: str = "Indoor",
-        user_id: Optional[int] = None,
-        timezone: Optional[str] = None,
-        dimensions: Optional[Dict[str, float]] = None,
-        custom_image: Optional[str] = None,
-        camera_enabled: bool = False
-        ) -> Optional[int]:
+        user_id: int | None = None,
+        timezone: str | None = None,
+        dimensions: dict[str, float] | None = None,
+        custom_image: str | None = None,
+        camera_enabled: bool = False,
+    ) -> int | None:
         """
         Create a new growth unit.
-        
+
         Args:
             name: Unit name
             location: Indoor/Outdoor/Greenhouse/Hydroponics
@@ -1438,7 +1426,7 @@ class GrowthService:
             dimensions: Optional physical dimensions (e.g., {"width": 100, "height": 200, "depth": 50})
             custom_image: Optional custom image path
             camera_enabled: Enable camera for this unit
-            
+
         Returns:
             Unit ID if successful, None otherwise
         """
@@ -1447,29 +1435,29 @@ class GrowthService:
             normalized_dimensions = normalize_dimensions(dimensions) if dimensions else dimensions
 
             dimensions_json = dump_json_field(normalized_dimensions)
-            
+
             # Default user_id to 1 if not provided
             if user_id is None:
                 user_id = 1
-            
+
             logger.debug("Calling repo.create_unit with user_id=%s", user_id)
             unit_id = self.unit_repo.create_unit(
-                name=name, 
+                name=name,
                 location=location,
                 user_id=user_id,
                 timezone=timezone,
                 dimensions=dimensions_json,
                 custom_image=custom_image,
-                camera_enabled=camera_enabled
+                camera_enabled=camera_enabled,
             )
             logger.debug("repo.create_unit returned unit_id=%s", unit_id)
-            
+
             if unit_id is None:
                 logger.error("repo.create_unit returned None; raising RuntimeError")
                 raise RuntimeError("Failed to create growth unit.")
-            
+
             logger.debug("Creating unit runtime for unit_id=%s", unit_id)
-            
+
             # Create unit runtime and start hardware
             unit_data = {
                 "unit_id": unit_id,
@@ -1481,7 +1469,7 @@ class GrowthService:
                 "dimensions": normalized_dimensions,
                 "camera_enabled": camera_enabled,
             }
-            
+
             runtime = self.factory.create_runtime(unit_data)
 
             logger.debug("Runtime created for unit_id=%s; adding to _unit_runtimes", unit_id)
@@ -1489,7 +1477,7 @@ class GrowthService:
                 self._unit_runtimes[unit_id] = runtime
 
             self._invalidate_unit_cache(unit_id)
-            
+
             # Start hardware runtime
             logger.info(f"Starting hardware runtime for new unit {unit_id} ({name})")
             self.start_unit_runtime(unit_id)
@@ -1499,7 +1487,7 @@ class GrowthService:
                 require_empty=True,
                 reason="unit_creation",
             )
-            
+
             self.audit_logger.log_event(
                 actor="system",
                 action="create",
@@ -1508,10 +1496,10 @@ class GrowthService:
                 name=name,
                 location=location,
             )
-            
+
             logger.info("Growth unit created successfully with unit_id=%s", unit_id)
             return unit_id
-            
+
         except Exception as e:
             logger.error(f"Error creating unit: {e}", exc_info=True)
             return None
@@ -1520,16 +1508,16 @@ class GrowthService:
         self,
         unit_id: int,
         *,
-        name: Optional[str] = None,
-        location: Optional[str] = None,
-        dimensions: Optional[Dict[str, float]] = None,
-        custom_image: Optional[str] = None,
+        name: str | None = None,
+        location: str | None = None,
+        dimensions: dict[str, float] | None = None,
+        custom_image: str | None = None,
         camera_enabled: bool = False,
-        timezone: Optional[str] = None,
-    ) -> Optional[dict[str, Any]]:
+        timezone: str | None = None,
+    ) -> dict[str, Any] | None:
         """
         Update unit information.
-        
+
         Args:
             unit_id: Unit identifier
             name: New name
@@ -1537,7 +1525,7 @@ class GrowthService:
             dimensions: Physical dimensions
             custom_image: Custom image path
             camera_enabled: Enable camera for this unit
-            
+
         Returns:
             Updated unit dictionary
         """
@@ -1550,12 +1538,12 @@ class GrowthService:
             "timezone": timezone,
             "custom_image": custom_image,
             "dimensions": dump_json_field(normalized_dimensions),
-            "camera_enabled": camera_enabled
-            }
+            "camera_enabled": camera_enabled,
+        }
 
         if unit_data is not None:
             self.unit_repo.update_unit(unit_id, **unit_data)
-            
+
             # Update runtime if exists
             with self._runtime_lock:
                 if unit_id in self._unit_runtimes:
@@ -1573,7 +1561,7 @@ class GrowthService:
                     runtime.settings.camera_enabled = camera_enabled
 
             self._invalidate_unit_cache(unit_id)
-            
+
             self.audit_logger.log_event(
                 actor="system",
                 action="update",
@@ -1581,13 +1569,13 @@ class GrowthService:
                 outcome="success",
                 **unit_data,
             )
-        
+
         return self.get_unit(unit_id)
 
     def delete_unit(self, unit_id: int) -> None:
         """
         Delete a growth unit.
-        
+
         Args:
             unit_id: Unit identifier
         """
@@ -1616,21 +1604,21 @@ class GrowthService:
     def get_thresholds(self, unit_id: int) -> dict[str, Any]:
         """
         Get environmental thresholds and settings for a unit.
-        
+
         Delegates threshold retrieval to ThresholdService (single source of truth),
         then adds non-threshold settings like dimensions, camera_enabled.
-        
+
         Note: device_schedules and light_mode are no longer returned here.
         Use SchedulingService.get_schedules_for_unit() for schedule data.
-        
+
         Args:
             unit_id: Unit identifier
-            
+
         Returns:
             Dictionary of threshold values plus dimensions, camera_enabled
         """
         # Get thresholds from ThresholdService (single source of truth)
-        thresholds: Dict[str, Any] = {}
+        thresholds: dict[str, Any] = {}
         if self.threshold_service:
             thresholds = self.threshold_service.get_unit_thresholds_dict(unit_id)
 
@@ -1648,10 +1636,12 @@ class GrowthService:
                     "lux_threshold": settings.lux_threshold,
                     "air_quality_threshold": settings.air_quality_threshold,
                 }
-            thresholds.update({
-                "dimensions": settings.dimensions,
-                "camera_enabled": settings.camera_enabled,
-            })
+            thresholds.update(
+                {
+                    "dimensions": settings.dimensions,
+                    "camera_enabled": settings.camera_enabled,
+                }
+            )
             return thresholds
 
         # Fallback to unit data from DB
@@ -1669,24 +1659,26 @@ class GrowthService:
                 "air_quality_threshold": unit.get("air_quality_threshold", unit.get("aqi_threshold")),
             }
 
-        thresholds.update({
-            "dimensions": unit.get("dimensions"),
-            "camera_enabled": unit.get("camera_enabled"),
-        })
+        thresholds.update(
+            {
+                "dimensions": unit.get("dimensions"),
+                "camera_enabled": unit.get("camera_enabled"),
+            }
+        )
         return thresholds
 
     def set_thresholds(
         self,
         unit_id: int,
         *,
-        temperature_threshold: Optional[float] = None,
-        humidity_threshold: Optional[float] = None,
-    ) -> Optional[dict[str, Any]]:
+        temperature_threshold: float | None = None,
+        humidity_threshold: float | None = None,
+    ) -> dict[str, Any] | None:
         """
         Set environmental thresholds for a unit.
-        
+
         Delegates to ThresholdService for persistence, adds audit logging.
-        
+
         Args:
             unit_id: Unit identifier
             temperature_threshold: Temperature threshold
@@ -1699,14 +1691,14 @@ class GrowthService:
             updates["temperature_threshold"] = temperature_threshold
         if humidity_threshold is not None:
             updates["humidity_threshold"] = humidity_threshold
-        
+
         if updates:
             # Delegate to ThresholdService (single source of truth)
             if self.threshold_service:
                 self.threshold_service.update_unit_thresholds(unit_id, updates)
             else:
                 self.update_unit_thresholds(unit_id, updates)
-        
+
         self.audit_logger.log_event(
             actor="system",
             action="update",
@@ -1715,7 +1707,7 @@ class GrowthService:
             temperature_threshold=temperature_threshold,
             humidity_threshold=humidity_threshold,
         )
-        
+
         return self.get_unit(unit_id)
 
     def update_unit_settings(self, unit_id: int, settings: Any) -> bool:
@@ -1735,14 +1727,10 @@ class GrowthService:
             logger.warning("update_unit_settings called with empty settings for unit %s", unit_id)
             return False
 
-        threshold_payload = {
-            key: settings_dict[key]
-            for key in THRESHOLD_KEYS
-            if key in settings_dict
-        }
+        threshold_payload = {key: settings_dict[key] for key in THRESHOLD_KEYS if key in settings_dict}
         if threshold_payload and self.threshold_service:
             current = self.threshold_service.get_unit_thresholds_dict(unit_id)
-            changes: Dict[str, float] = {}
+            changes: dict[str, float] = {}
             for key, value in threshold_payload.items():
                 if key not in current or current.get(key) != value:
                     changes[key] = value
@@ -1766,27 +1754,27 @@ class GrowthService:
                 if runtime and hasattr(runtime, "settings"):
                     # Keep runtime in sync with persisted settings (write-through).
                     if hasattr(settings, "device_schedules"):
-                        runtime.settings.device_schedules = getattr(settings, "device_schedules")
+                        runtime.settings.device_schedules = settings.device_schedules
                     elif "device_schedules" in settings_dict:
                         runtime.settings.device_schedules = settings_dict.get("device_schedules")
 
                     if hasattr(settings, "dimensions"):
-                        runtime.settings.dimensions = getattr(settings, "dimensions")
+                        runtime.settings.dimensions = settings.dimensions
                     elif "dimensions" in settings_dict:
                         runtime.settings.dimensions = settings_dict.get("dimensions")
 
                     if hasattr(settings, "camera_enabled"):
-                        runtime.settings.camera_enabled = bool(getattr(settings, "camera_enabled"))
+                        runtime.settings.camera_enabled = bool(settings.camera_enabled)
                     elif "camera_enabled" in settings_dict:
                         runtime.settings.camera_enabled = bool(settings_dict.get("camera_enabled"))
 
                     if hasattr(settings, "timezone"):
-                        runtime.settings.timezone = getattr(settings, "timezone")
+                        runtime.settings.timezone = settings.timezone
                     elif "timezone" in settings_dict:
                         runtime.settings.timezone = settings_dict.get("timezone")
 
                     if not self.threshold_service:
-                        threshold_updates: Dict[str, float] = {}
+                        threshold_updates: dict[str, float] = {}
                         for key in (
                             "temperature_threshold",
                             "humidity_threshold",
@@ -1807,7 +1795,7 @@ class GrowthService:
     def _remove_unit_runtime(self, unit_id: int) -> None:
         """
         Remove a UnitRuntime from the registry.
-        
+
         Args:
             unit_id: Unit identifier
         """
@@ -1815,22 +1803,22 @@ class GrowthService:
             if unit_id in self._unit_runtimes:
                 del self._unit_runtimes[unit_id]
                 logger.info(f"Removed unit {unit_id} from runtime registry")
-    
+
     def shutdown(self) -> None:
         """
         Shutdown all unit runtimes gracefully.
-        
+
         Call this when the application is shutting down.
         """
         logger.info("Shutting down all unit runtimes...")
-        
+
         with self._runtime_lock:
             unit_ids = list(self._unit_runtimes.keys())
-        
+
         for unit_id in unit_ids:
             try:
                 self.stop_unit_runtime(unit_id)
             except Exception as e:
                 logger.error(f"Error stopping unit {unit_id} during shutdown: {e}")
-        
+
         logger.info("All unit runtimes stopped")

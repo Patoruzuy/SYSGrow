@@ -17,20 +17,20 @@ Architecture:
 Author: Sebastian GOmez
 Date: November 2025
 """
+
 from __future__ import annotations
 
 import logging
-from typing import Dict, Optional, Any, TYPE_CHECKING
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 
 from app.domain.plant_profile import PlantProfile
-from app.utils.event_bus import EventBus
 from app.enums.events import RuntimeEvent
 from app.schemas.events import (
     ThresholdsUpdatePayload,
-    ActivePlantSetPayload,
 )
+from app.utils.event_bus import EventBus
 
 logger = logging.getLogger(__name__)
 
@@ -38,9 +38,10 @@ logger = logging.getLogger(__name__)
 @dataclass
 class UnitDimensions:
     """Physical dimensions of a growth unit."""
-    width: float   # cm
+
+    width: float  # cm
     height: float  # cm
-    depth: float   # cm
+    depth: float  # cm
 
     # --- computed helpers used by AI services ---
 
@@ -59,7 +60,7 @@ class UnitDimensions:
         """Internal volume in m³ (width × height × depth / 1 000 000)."""
         return (self.width * self.height * self.depth) / 1_000_000
 
-    def to_dict(self) -> Dict[str, float]:
+    def to_dict(self) -> dict[str, float]:
         return {
             "width": self.width,
             "height": self.height,
@@ -68,17 +69,14 @@ class UnitDimensions:
             "area_m2": self.area_m2,
             "volume_m3": self.volume_m3,
         }
-    
+
     @staticmethod
-    def from_dict(data: Dict[str, float]) -> Optional['UnitDimensions']:
+    def from_dict(data: dict[str, float]) -> "UnitDimensions" | None:
         """Create UnitDimensions from dictionary"""
-        if not data or 'width' not in data:
+        if not data or "width" not in data:
             return None
-        return UnitDimensions(
-            width=data['width'],
-            height=data['height'],
-            depth=data['depth']
-        )
+        return UnitDimensions(width=data["width"], height=data["height"], depth=data["depth"])
+
 
 @dataclass
 class UnitSettings:
@@ -90,11 +88,11 @@ class UnitSettings:
     voc_threshold: float = 1000.0
     lux_threshold: float = 1000.0
     air_quality_threshold: float = 100.0
-    timezone: Optional[str] = None
-    dimensions: Optional[UnitDimensions] = None
+    timezone: str | None = None
+    dimensions: UnitDimensions | None = None
     camera_enabled: bool = False
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "temperature_threshold": self.temperature_threshold,
             "humidity_threshold": self.humidity_threshold,
@@ -108,11 +106,11 @@ class UnitSettings:
         }
 
     @staticmethod
-    def from_dict(data: Dict[str, Any]) -> "UnitSettings":
+    def from_dict(data: dict[str, Any]) -> "UnitSettings":
         """Create UnitSettings from database row or dictionary."""
         # Import here to avoid circular dependency
         from infrastructure.utils.structured_fields import normalize_dimensions
-        
+
         dimensions = normalize_dimensions(data.get("dimensions"))
         return UnitSettings(
             temperature_threshold=data.get("temperature_threshold", 24.0),
@@ -125,7 +123,8 @@ class UnitSettings:
             dimensions=UnitDimensions.from_dict(dimensions) if dimensions else None,
             camera_enabled=data.get("camera_enabled", False),
         )
-    
+
+
 class UnitRuntime:
     """
     Domain model for a single growth unit.
@@ -149,10 +148,10 @@ class UnitRuntime:
         unit_name: str,
         location: str,
         user_id: int,
-        settings: Optional[UnitSettings] = None,
-        custom_image: Optional[str] = None,
+        settings: UnitSettings | None = None,
+        custom_image: str | None = None,
         # DEPRECATED: threshold_service is accepted for backward compat but ignored.
-        threshold_service: Optional[Any] = None,
+        threshold_service: Any | None = None,
     ):
         """
         Initialize a growth unit runtime (pure domain model).
@@ -174,19 +173,19 @@ class UnitRuntime:
 
         # Hardware running state (set by GrowthService when starting/stopping)
         self._hardware_running = False
-        
+
         # Active plant reference (set by GrowthService after PlantService lookup)
         # PlantService is the single source of truth for plant collections
-        self.active_plant: Optional[PlantProfile] = None
-        
+        self.active_plant: PlantProfile | None = None
+
         # Unit settings
         self.settings = settings or UnitSettings()
-        
+
         # Events
         self.event_bus = EventBus().get_instance()
-        
+
         # Sensor data cache (updated by SensorPollingService)
-        self._latest_sensor_data: Dict[str, Any] = {}
+        self._latest_sensor_data: dict[str, Any] = {}
 
         # Metadata
         self.created_at = datetime.now()
@@ -195,29 +194,28 @@ class UnitRuntime:
         logger.info(f"UnitRuntime initialized: {self.unit_id} ({self.unit_name})")
 
     @property
-    def latest_sensor_data(self) -> Dict[str, Any]:
+    def latest_sensor_data(self) -> dict[str, Any]:
         """Get latest sensor readings for this unit."""
         return self._latest_sensor_data
 
     @latest_sensor_data.setter
-    def latest_sensor_data(self, data: Dict[str, Any]) -> None:
+    def latest_sensor_data(self, data: dict[str, Any]) -> None:
         """Update latest sensor readings."""
         self._latest_sensor_data = data or {}
 
-
     # ==================== Plant Management ====================
 
-    def get_active_plant(self) -> Optional[PlantProfile]:
+    def get_active_plant(self) -> PlantProfile | None:
         """
         Get the currently active plant for climate control.
-        
+
         Returns the active plant reference set by GrowthService.
         PlantService is the source of truth for plant data.
         """
         return self.active_plant
 
     # ==================== Settings Management ====================
-    
+
     def update_settings(self, **kwargs) -> bool:
         """
         Update unit settings (runtime + hardware only; persistence via GrowthService).
@@ -225,18 +223,18 @@ class UnitRuntime:
         for key, value in kwargs.items():
             if hasattr(self.settings, key):
                 setattr(self.settings, key, value)
-        
+
         self.event_bus.publish(
             RuntimeEvent.THRESHOLDS_UPDATE,
             ThresholdsUpdatePayload(unit_id=self.unit_id, thresholds=self.settings.to_dict()),
         )
 
         return True
-    
+
     # ==================== Hardware Coordination ====================
     # Hardware operations are now managed directly by GrowthService
     # through singleton hardware services (SensorManagementService, ActuatorManagementService)
-    
+
     # ==================== Status & Info ====================
 
     def is_hardware_running(self) -> bool:
@@ -255,14 +253,14 @@ class UnitRuntime:
     def set_hardware_running(self, running: bool) -> None:
         """Set the hardware running state (called by GrowthService)."""
         self._hardware_running = running
-    
-    def get_status(self) -> Dict[str, Any]:
+
+    def get_status(self) -> dict[str, Any]:
         """
         Get comprehensive status of this unit.
-        
+
         NOTE: plant_count and plants are from local cache.
         For authoritative plant data, use PlantService.list_plants(unit_id).
-        
+
         Returns:
             Dictionary with unit details, settings, hardware status.
             NOTE: For plant data, use PlantService.list_plants(unit_id).
@@ -278,15 +276,15 @@ class UnitRuntime:
             "active_plant": self.active_plant.plant_name if self.active_plant else None,
             "active_plant_id": self.active_plant.id if self.active_plant else None,
             "hardware_running": self.is_hardware_running(),
-            "created_at": self.created_at.isoformat()
+            "created_at": self.created_at.isoformat(),
         }
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary (same as get_status for now)"""
         return self.get_status()
-    
+
     # ==================== Private Methods ====================
-    
+
     def __repr__(self) -> str:
         """String representation for debugging"""
         status = "ACTIVE" if self.is_active else "INACTIVE"

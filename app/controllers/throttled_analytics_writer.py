@@ -14,9 +14,9 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
-from typing import Any, Callable, Dict, List, Optional, Set
+from typing import Any
 
-from app.controllers.throttle_config import ThrottleConfig, DEFAULT_THROTTLE_CONFIG
+from app.controllers.throttle_config import DEFAULT_THROTTLE_CONFIG, ThrottleConfig
 from app.utils.event_bus import EventBus
 from app.utils.time import utc_now
 
@@ -26,13 +26,13 @@ logger = logging.getLogger(__name__)
 class ThrottledAnalyticsWriter(ABC):
     """
     Base class for controllers that write throttled sensor data to analytics.
-    
+
     Provides common functionality:
     - Unit-based event filtering
     - Metric throttling (time-based and change-based)
     - Live reading cache management
     - Event subscription lifecycle management
-    
+
     Subclasses must implement:
     - _get_managed_metrics(): Return set of metric names this controller manages
     - _subscribe_to_events(): Subscribe to relevant EventBus events
@@ -40,22 +40,22 @@ class ThrottledAnalyticsWriter(ABC):
     """
 
     # Metrics managed by this controller (override in subclass)
-    MANAGED_METRICS: Set[str] = set()
+    MANAGED_METRICS: set[str] = set()
 
     def __init__(
         self,
         *,
         unit_id: int,
-        event_bus: Optional[EventBus] = None,
-        throttle_config: Optional[ThrottleConfig] = None,
+        event_bus: EventBus | None = None,
+        throttle_config: ThrottleConfig | None = None,
     ) -> None:
         self.unit_id = int(unit_id)
         self.event_bus = event_bus or EventBus.get_instance()
         self.throttle_config = throttle_config or DEFAULT_THROTTLE_CONFIG
-        
+
         # Dynamically create throttle state for managed metrics
         self._init_throttle_state()
-        
+
         # Lifecycle state
         self._subscribed = False
 
@@ -70,7 +70,7 @@ class ThrottledAnalyticsWriter(ABC):
             setattr(self, f"latest_reading_{metric}", None)
 
     @abstractmethod
-    def _get_managed_metrics(self) -> Set[str]:
+    def _get_managed_metrics(self) -> set[str]:
         """Return set of metric names managed by this controller."""
         ...
 
@@ -98,7 +98,7 @@ class ThrottledAnalyticsWriter(ABC):
             self._subscribed = False
             logger.info("%s stopped for unit %s", self.__class__.__name__, self.unit_id)
 
-    def _is_for_this_unit(self, data: Dict[str, Any]) -> bool:
+    def _is_for_this_unit(self, data: dict[str, Any]) -> bool:
         """Return True if an incoming sensor event targets this controller's unit."""
         try:
             event_unit_id = data.get("unit_id")
@@ -112,7 +112,7 @@ class ThrottledAnalyticsWriter(ABC):
         if hasattr(self, attr_name):
             setattr(self, attr_name, value)
 
-    def _get_latest_reading(self, metric: str) -> Optional[float]:
+    def _get_latest_reading(self, metric: str) -> float | None:
         """Get the latest reading for a metric."""
         return getattr(self, f"latest_reading_{metric}", None)
 
@@ -122,7 +122,7 @@ class ThrottledAnalyticsWriter(ABC):
         Returns True if data SHOULD be stored, False if throttled.
         """
         now = utc_now()
-        last_insert: Optional[datetime] = getattr(self, f"last_{metric}_insert", None)
+        last_insert: datetime | None = getattr(self, f"last_{metric}_insert", None)
 
         # 1. Check time interval
         interval_mins = getattr(self.throttle_config, f"{metric}_interval_minutes", 5)
@@ -132,7 +132,7 @@ class ThrottledAnalyticsWriter(ABC):
             return time_elapsed
 
         # 2. Check for significant change relative to last stored baseline
-        baseline_val: Optional[float] = getattr(self, f"last_stored_{metric}", None)
+        baseline_val: float | None = getattr(self, f"last_stored_{metric}", None)
 
         # Fallback to latest_reading for first run
         if baseline_val is None:
@@ -186,8 +186,8 @@ class ThrottledAnalyticsWriter(ABC):
 
     def _filter_throttled_metrics(
         self,
-        metrics: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        metrics: dict[str, Any],
+    ) -> dict[str, Any]:
         """
         Filter metrics based on throttling rules.
         Returns only metrics that should be stored.
@@ -208,11 +208,11 @@ class ThrottledAnalyticsWriter(ABC):
 
         return result
 
-    def get_throttle_config(self) -> Dict[str, Any]:
+    def get_throttle_config(self) -> dict[str, Any]:
         """Get current throttle configuration."""
         return self.throttle_config.to_dict()
 
-    def update_throttle_config(self, config_dict: Dict[str, Any]) -> None:
+    def update_throttle_config(self, config_dict: dict[str, Any]) -> None:
         """Update throttle configuration at runtime."""
         current = self.throttle_config.to_dict()
 

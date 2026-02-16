@@ -51,13 +51,13 @@ try:
     from flask import Flask
     app = Flask(__name__)
     app.config['SECRET_KEY'] = 'test-key'
-    
+
     @app.route('/')
     def hello():
         return "SYSGrow Backend is working!"
-    
+
     print("✅ Basic Flask app creation successful")
-    
+
     # Test SQLite
     import sqlite3
     conn = sqlite3.connect(':memory:')
@@ -68,7 +68,7 @@ try:
     result = cursor.fetchone()
     conn.close()
     print("✅ SQLite database operations working")
-    
+
 except Exception as e:
     print(f"❌ Flask/SQLite test failed: {e}")
 

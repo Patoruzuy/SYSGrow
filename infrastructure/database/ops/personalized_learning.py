@@ -1,9 +1,10 @@
 """Database operations for personalized learning profiles."""
+
 from __future__ import annotations
 
 import logging
 import sqlite3
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from app.utils.time import iso_now
 
@@ -23,17 +24,17 @@ class PersonalizedLearningOperations:
         cultivar: str,
         strain: str,
         pot_size_liters: float,
-        temperature_target: Optional[float],
-        humidity_target: Optional[float],
-        co2_target: Optional[float],
-        voc_target: Optional[float],
-        lux_target: Optional[float],
-        air_quality_target: Optional[float],
-        soil_moisture_target: Optional[float],
-        confidence: Optional[float],
-        source: Optional[str],
-        created_at_utc: Optional[str] = None,
-        updated_at_utc: Optional[str] = None,
+        temperature_target: float | None,
+        humidity_target: float | None,
+        co2_target: float | None,
+        voc_target: float | None,
+        lux_target: float | None,
+        air_quality_target: float | None,
+        soil_moisture_target: float | None,
+        confidence: float | None,
+        source: str | None,
+        created_at_utc: str | None = None,
+        updated_at_utc: str | None = None,
     ) -> bool:
         """Insert or update a plant condition profile."""
         stamp = updated_at_utc or iso_now()
@@ -106,7 +107,7 @@ class PersonalizedLearningOperations:
             logger.error("Failed to upsert condition profile: %s", exc)
             return False
 
-    def get_condition_profile_by_key(self, profile_key: str) -> Optional[Dict[str, Any]]:
+    def get_condition_profile_by_key(self, profile_key: str) -> dict[str, Any] | None:
         """Fetch a plant condition profile by key."""
         try:
             db = self.get_db()
@@ -123,15 +124,15 @@ class PersonalizedLearningOperations:
         self,
         *,
         user_id: int,
-        plant_type: Optional[str] = None,
-        growth_stage: Optional[str] = None,
+        plant_type: str | None = None,
+        growth_stage: str | None = None,
         limit: int = 50,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """List condition profiles for a user with optional filters."""
         try:
             db = self.get_db()
             query = "SELECT * FROM PlantConditionProfile WHERE user_id = ?"
-            params: List[Any] = [user_id]
+            params: list[Any] = [user_id]
             if plant_type:
                 query += " AND plant_type = ?"
                 params.append(plant_type)
@@ -152,8 +153,8 @@ class PersonalizedLearningOperations:
         profile_key: str,
         rating_sum: float,
         rating_count: int,
-        confidence: Optional[float],
-        updated_at_utc: Optional[str] = None,
+        confidence: float | None,
+        updated_at_utc: str | None = None,
     ) -> bool:
         """Update rating aggregates for a profile."""
         stamp = updated_at_utc or iso_now()

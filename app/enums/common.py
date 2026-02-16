@@ -14,6 +14,7 @@ class RiskLevel(str, Enum):
     Risk/severity levels for assessments.
     Used by: disease_predictor, plant_health_monitor
     """
+
     MINIMAL = "minimal"
     LOW = "low"
     MODERATE = "moderate"
@@ -29,6 +30,7 @@ class HealthLevel(str, Enum):
     System/component health levels.
     Used by: system_health_service, health API, domain health tracking
     """
+
     HEALTHY = "healthy"
     WARNING = "warning"
     DEGRADED = "degraded"
@@ -45,6 +47,7 @@ class Priority(str, Enum):
     Priority levels for recommendations and actions.
     Used by: ML predictions, task scheduling, notifications
     """
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -59,6 +62,7 @@ class DriftRecommendation(str, Enum):
     Model drift action recommendations.
     Used by: drift_detector
     """
+
     OK = "ok"
     MONITOR = "monitor"
     RETRAIN = "retrain"
@@ -73,6 +77,7 @@ class TrainingDataType(str, Enum):
     ML training data categories.
     Used by: training_data_collector
     """
+
     DISEASE = "disease"
     CLIMATE = "climate"
     IRRIGATION = "irrigation"
@@ -87,6 +92,7 @@ class AnomalyType(str, Enum):
     Sensor anomaly classifications.
     Used by: anomaly_detection_service
     """
+
     SPIKE = "spike"
     DROP = "drop"
     STUCK = "stuck"
@@ -103,6 +109,7 @@ class AnomalySeverity(str, Enum):
     Anomaly severity levels for energy/sensor anomalies.
     Used by: energy analytics, anomaly detection
     """
+
     INFO = "info"
     MINOR = "minor"
     MAJOR = "major"
@@ -117,6 +124,7 @@ class RequestStatus(str, Enum):
     Workflow request states.
     Used by: irrigation_workflow_service
     """
+
     PENDING = "pending"
     APPROVED = "approved"
     REJECTED = "rejected"
@@ -133,6 +141,7 @@ class MQTTSource(str, Enum):
     MQTT message source types.
     Used by: mqtt_sensor_service
     """
+
     ESP32 = "esp32"
     ZIGBEE = "zigbee2mqtt"
     UNKNOWN = "unknown"
@@ -146,6 +155,7 @@ class DiseaseType(str, Enum):
     Disease type classification.
     Used by: disease_predictor, plant_health_monitor
     """
+
     FUNGAL = "fungal"
     BACTERIAL = "bacterial"
     VIRAL = "viral"
@@ -162,6 +172,7 @@ class PlantHealthStatus(str, Enum):
     Plant health status classification.
     Used by: plant_health_monitor
     """
+
     HEALTHY = "healthy"
     STRESSED = "stressed"
     DISEASED = "diseased"
@@ -178,6 +189,7 @@ class ControlStrategy(str, Enum):
     Control loop strategy types.
     Used by: control_logic
     """
+
     HEATING = "heating"
     COOLING = "cooling"
     HUMIDIFYING = "humidifying"
@@ -195,6 +207,7 @@ class SensorState(str, Enum):
     Sensor health states.
     Used by: sensor_polling_service
     """
+
     HEALTHY = "healthy"
     DEGRADED = "degraded"
     UNHEALTHY = "unhealthy"
@@ -209,6 +222,7 @@ class ConditionProfileMode(str, Enum):
     Condition profile modes.
     Used by: personalized_learning, profile selection flows
     """
+
     TEMPLATE = "template"
     ACTIVE = "active"
 
@@ -221,6 +235,7 @@ class ConditionProfileVisibility(str, Enum):
     Condition profile visibility states.
     Used by: personalized_learning sharing
     """
+
     PRIVATE = "private"
     LINK = "link"
     PUBLIC = "public"
@@ -234,6 +249,7 @@ class ConditionProfileTarget(str, Enum):
     Link targets for condition profiles.
     Used by: personalized_learning profile links
     """
+
     UNIT = "unit"
     PLANT = "plant"
 
@@ -246,6 +262,7 @@ class NotificationType(str, Enum):
     Notification type categories.
     Used by: notifications_service
     """
+
     LOW_BATTERY = "low_battery"
     PLANT_NEEDS_WATER = "plant_needs_water"
     IRRIGATION_CONFIRM = "irrigation_confirm"
@@ -270,6 +287,7 @@ class NotificationSeverity(str, Enum):
     Notification severity levels.
     Used by: notifications_service
     """
+
     INFO = "info"
     WARNING = "warning"
     CRITICAL = "critical"
@@ -283,6 +301,7 @@ class NotificationChannel(str, Enum):
     Notification delivery channels.
     Used by: notifications_service
     """
+
     EMAIL = "email"
     IN_APP = "in_app"
     BOTH = "both"
@@ -296,6 +315,7 @@ class IrrigationFeedback(str, Enum):
     Irrigation feedback response types.
     Used by: notifications_service, irrigation_workflow
     """
+
     TOO_LITTLE = "too_little"
     JUST_RIGHT = "just_right"
     TOO_MUCH = "too_much"
@@ -312,6 +332,7 @@ class SYSGrowEvent(str, Enum):
     SYSGrow ESP32-C6 device event types.
     Used by: mqtt_sensor_service, sysgrow_adapter
     """
+
     BRIDGE_INFO = "sysgrow.bridge.info"
     BRIDGE_HEALTH = "sysgrow.bridge.health"
     DEVICE_ONLINE = "sysgrow.device.online"

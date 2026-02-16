@@ -2,61 +2,59 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from app.config import AppConfig
-from app.services.ai.environmental_health_scorer import EnvironmentalLeafHealthScorer
-from app.services.ai.plant_health_scorer import PlantHealthScorer
-from app.services.application.notifications_service import NotificationsService
-from app.services.container_builder import ContainerBuilder
-from infrastructure.database.repositories.notifications import NotificationRepository
-from infrastructure.database.sqlite_handler import SQLiteDatabaseHandler
-from infrastructure.database.repositories.settings import SettingsRepository
-from infrastructure.database.repositories.growth import GrowthRepository
-from infrastructure.database.repositories.camera import CameraRepository
-from infrastructure.database.repositories.devices import DeviceRepository
-from infrastructure.database.repositories.analytics import AnalyticsRepository
-from infrastructure.database.repositories.ai import AIHealthDataRepository, AITrainingDataRepository
-from infrastructure.database.repositories.plant_journal import PlantJournalRepository
-from infrastructure.logging.audit import AuditLogger
-from app.services.application.activity_logger import ActivityLogger
-from app.services.application.alert_service import AlertService
 from app.hardware.mqtt.mqtt_broker_wrapper import MQTTClientWrapper
-from app.services.hardware.camera_service import CameraService
-from app.utils.event_bus import EventBus
-from app.workers.unified_scheduler import UnifiedScheduler
-from app.utils.plant_json_handler import PlantJsonHandler
-from app.services.application.auth_service import UserAuthManager
-from app.services.application.growth_service import GrowthService
-from app.services.application.device_health_service import DeviceHealthService
-from app.services.application.device_coordinator import DeviceCoordinator
-from app.services.application.zigbee_management_service import ZigbeeManagementService
-from app.services.application.analytics_service import AnalyticsService
-from app.services.application.settings_service import SettingsService
-from app.services.application.plant_service import PlantViewService
-from app.services.application.harvest_service import PlantHarvestService
-from app.services.application.plant_journal_service import PlantJournalService
-from app.services.application.irrigation_workflow_service import IrrigationWorkflowService
-from app.services.application.manual_irrigation_service import ManualIrrigationService
-from app.services.application.plant_irrigation_model_service import PlantIrrigationModelService
-from app.services.application.threshold_service import ThresholdService
-from app.services.utilities.system_health_service import SystemHealthService
-from app.services.utilities.anomaly_detection_service import AnomalyDetectionService
-from app.services.hardware import SensorManagementService, ActuatorManagementService
-from app.services.hardware.mqtt_sensor_service import MQTTSensorService
-from app.utils.emitters import EmitterService
 from app.hardware.sensors.processors import IDataProcessor
 from app.services.ai import (
-    ModelRegistry,
-    DiseasePredictor,
-    PlantHealthMonitor,
-    PlantGrowthPredictor,
-    ClimateOptimizer,
-    MLTrainerService,
-    ModelDriftDetectorService,
     ABTestingService,
     AutomatedRetrainingService,
+    ClimateOptimizer,
+    DiseasePredictor,
+    MLTrainerService,
+    ModelDriftDetectorService,
+    ModelRegistry,
+    PlantGrowthPredictor,
+    PlantHealthMonitor,
 )
+from app.services.ai.environmental_health_scorer import EnvironmentalLeafHealthScorer
+from app.services.ai.plant_health_scorer import PlantHealthScorer
+from app.services.application.activity_logger import ActivityLogger
+from app.services.application.alert_service import AlertService
+from app.services.application.analytics_service import AnalyticsService
+from app.services.application.auth_service import UserAuthManager
+from app.services.application.device_coordinator import DeviceCoordinator
+from app.services.application.device_health_service import DeviceHealthService
+from app.services.application.growth_service import GrowthService
+from app.services.application.harvest_service import PlantHarvestService
+from app.services.application.irrigation_workflow_service import IrrigationWorkflowService
+from app.services.application.manual_irrigation_service import ManualIrrigationService
+from app.services.application.notifications_service import NotificationsService
+from app.services.application.plant_irrigation_model_service import PlantIrrigationModelService
+from app.services.application.plant_journal_service import PlantJournalService
+from app.services.application.plant_service import PlantViewService
+from app.services.application.settings_service import SettingsService
+from app.services.application.threshold_service import ThresholdService
+from app.services.application.zigbee_management_service import ZigbeeManagementService
+from app.services.container_builder import ContainerBuilder
+from app.services.hardware import ActuatorManagementService, SensorManagementService
+from app.services.hardware.camera_service import CameraService
+from app.services.hardware.mqtt_sensor_service import MQTTSensorService
+from app.services.utilities.anomaly_detection_service import AnomalyDetectionService
+from app.services.utilities.system_health_service import SystemHealthService
+from app.utils.emitters import EmitterService
+from app.utils.plant_json_handler import PlantJsonHandler
+from app.workers.unified_scheduler import UnifiedScheduler
+from infrastructure.database.repositories.ai import AIHealthDataRepository, AITrainingDataRepository
+from infrastructure.database.repositories.analytics import AnalyticsRepository
+from infrastructure.database.repositories.devices import DeviceRepository
+from infrastructure.database.repositories.growth import GrowthRepository
+from infrastructure.database.repositories.notifications import NotificationRepository
+from infrastructure.database.repositories.plant_journal import PlantJournalRepository
+from infrastructure.database.repositories.settings import SettingsRepository
+from infrastructure.database.sqlite_handler import SQLiteDatabaseHandler
+from infrastructure.logging.audit import AuditLogger
 
 if TYPE_CHECKING:
     from app.services.ai.continuous_monitor import ContinuousMonitoringService
@@ -65,6 +63,7 @@ if TYPE_CHECKING:
 
 
 logger = logging.getLogger(__name__)
+
 
 @dataclass
 class ServiceContainer:
@@ -100,15 +99,15 @@ class ServiceContainer:
     irrigation_workflow_service: IrrigationWorkflowService
     scheduler: UnifiedScheduler
     camera_service: CameraService
-    mqtt_client: Optional[MQTTClientWrapper]
-    zigbee_service: Optional[ZigbeeManagementService]
+    mqtt_client: MQTTClientWrapper | None
+    zigbee_service: ZigbeeManagementService | None
     # Health monitoring services
     anomaly_detection_service: AnomalyDetectionService
     system_health_service: SystemHealthService  # Now handles both sensor and infrastructure health
     # Hardware management services (singleton, memory-first)
     sensor_management_service: SensorManagementService
     actuator_management_service: ActuatorManagementService
-    mqtt_sensor_service: Optional[MQTTSensorService]
+    mqtt_sensor_service: MQTTSensorService | None
     # Shared utilities
     emitter_service: EmitterService
     sensor_processor: IDataProcessor
@@ -123,11 +122,11 @@ class ServiceContainer:
     # Phase 2 AI Services
     ml_trainer: MLTrainerService
     drift_detector: ModelDriftDetectorService
-    continuous_monitor: Optional[ContinuousMonitoringService]
+    continuous_monitor: ContinuousMonitoringService | None
     ab_testing: ABTestingService
-    automated_retraining: Optional[AutomatedRetrainingService]
-    personalized_learning: Optional[PersonalizedLearningService]
-    training_data_collector: Optional[TrainingDataCollector]
+    automated_retraining: AutomatedRetrainingService | None
+    personalized_learning: PersonalizedLearningService | None
+    training_data_collector: TrainingDataCollector | None
 
     @classmethod
     def build(cls, config: AppConfig, *, start_coordinator: bool = False) -> "ServiceContainer":
@@ -161,11 +160,11 @@ class ServiceContainer:
             self.activity_logger.log_activity(
                 activity_type=ActivityLogger.SYSTEM_SHUTDOWN,
                 description="Smart Agriculture System shutting down",
-                severity=ActivityLogger.INFO
+                severity=ActivityLogger.INFO,
             )
         except Exception as e:
             logger.warning(f"Failed to log shutdown activity: {e}")
-        
+
         # Stop device coordinator event subscriptions
         self.device_coordinator.stop()
 
@@ -175,7 +174,7 @@ class ServiceContainer:
             logger.info("✓ UnifiedScheduler stopped")
         except Exception as e:
             logger.warning(f"Failed to stop UnifiedScheduler: {e}")
-        
+
         # Stop continuous monitoring if enabled
         if self.continuous_monitor is not None:
             try:
@@ -183,10 +182,10 @@ class ServiceContainer:
                 logger.info("✓ Continuous monitoring stopped")
             except Exception as e:
                 logger.warning(f"Failed to stop continuous monitoring: {e}")
-        
+
         # Shutdown health monitoring
         self.system_health_service.shutdown()
-        
+
         # Stop MQTT sensor service
         if self.mqtt_sensor_service is not None:
             try:
@@ -194,7 +193,7 @@ class ServiceContainer:
                 logger.info("✓ MQTTSensorService stopped")
             except Exception as e:
                 logger.warning(f"Failed to stop MQTTSensorService: {e}")
-        
+
         # Stop all unit runtimes (includes per-unit hardware managers and actuator managers)
         self.growth_service.shutdown()
 

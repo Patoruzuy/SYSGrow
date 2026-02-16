@@ -650,6 +650,152 @@ class MLDashboard {
     }
 
     // =========================================================================
+    // Phase C — ML Readiness
+    // =========================================================================
+
+    /**
+     * Get the active unit ID from page context.
+     * Falls back to unit 1 when the dashboard has no unit context.
+     */
+    _getActiveUnitId() {
+        return parseInt(document.body.dataset.activeUnitId, 10) || 1;
+    }
+
+    async loadMLReadinessSection() {
+        const unitId = this._getActiveUnitId();
+        try {
+            const data = await this.dataService.getIrrigationReadiness(unitId);
+            this.uiManager.renderMLReadiness(data);
+        } catch (error) {
+            console.error('Failed to load ML readiness:', error);
+        }
+    }
+
+    async checkAllReadiness() {
+        this.uiManager.showAlert('info', 'Checking readiness for all units…');
+        try {
+            const result = await this.dataService.checkAllReadiness();
+            const count = result?.units_checked || 0;
+            this.uiManager.showAlert('success', `Checked ${count} unit(s). Refreshing…`);
+            await this.loadMLReadinessSection();
+        } catch (error) {
+            console.error('Check-all readiness failed:', error);
+            this.uiManager.showAlert('danger', 'Failed to check readiness for all units.');
+        }
+    }
+
+    async activateReadinessModel(modelName) {
+        const unitId = this._getActiveUnitId();
+        if (!confirm(`Activate ${modelName} for unit ${unitId}?`)) return;
+
+        try {
+            const result = await this.dataService.activateMLModel(unitId, modelName);
+            if (result?.activated) {
+                this.uiManager.showAlert('success', `${modelName} activated for unit ${unitId}.`);
+            } else {
+                this.uiManager.showAlert('warning', result?.message || 'Activation returned unexpected result.');
+            }
+            await this.loadMLReadinessSection();
+        } catch (error) {
+            console.error('Activate readiness model failed:', error);
+            this.uiManager.showAlert('danger', `Failed to activate ${modelName}.`);
+        }
+    }
+
+    async deactivateReadinessModel(modelName) {
+        const unitId = this._getActiveUnitId();
+        if (!confirm(`Deactivate ${modelName} for unit ${unitId}?`)) return;
+
+        try {
+            const result = await this.dataService.deactivateMLModel(unitId, modelName);
+            if (result?.deactivated) {
+                this.uiManager.showAlert('info', `${modelName} deactivated for unit ${unitId}.`);
+            } else {
+                this.uiManager.showAlert('warning', result?.message || 'Deactivation returned unexpected result.');
+            }
+            await this.loadMLReadinessSection();
+        } catch (error) {
+            console.error('Deactivate readiness model failed:', error);
+            this.uiManager.showAlert('danger', `Failed to deactivate ${modelName}.`);
+        }
+    }
+
+    // =========================================================================
+    // Phase C — Irrigation ML Overview
+    // =========================================================================
+
+    async loadIrrigationMLSection() {
+        const unitId = this._getActiveUnitId();
+        try {
+            const [requestsData, configData] = await Promise.all([
+                this.dataService.getIrrigationRequests(),
+                this.dataService.getIrrigationConfig(unitId)
+            ]);
+            this.uiManager.renderIrrigationOverview(requestsData, configData);
+        } catch (error) {
+            console.error('Failed to load irrigation ML overview:', error);
+        }
+    }
+
+    // =========================================================================
+    // Phase C — A/B Testing
+    // =========================================================================
+
+    async loadABTestingSection() {
+        try {
+            const data = await this.dataService.getABTests();
+            this.uiManager.renderABTests(data);
+        } catch (error) {
+            console.error('Failed to load A/B tests:', error);
+        }
+    }
+
+    async analyzeABTest(testId) {
+        this.uiManager.showAlert('info', 'Analyzing A/B test…');
+        try {
+            const data = await this.dataService.getABTestAnalysis(testId);
+            this.uiManager.renderABTestAnalysis(data);
+        } catch (error) {
+            console.error('A/B test analysis failed:', error);
+            this.uiManager.showAlert('danger', 'Failed to analyze A/B test.');
+        }
+    }
+
+    async completeABTest(testId) {
+        if (!confirm('Complete this A/B test and deploy the winner?')) return;
+
+        try {
+            const result = await this.dataService.completeABTest(testId);
+            if (result?.success !== false) {
+                this.uiManager.showAlert('success', 'A/B test completed. Winner deployed.');
+            } else {
+                this.uiManager.showAlert('warning', result?.message || 'Completion returned unexpected result.');
+            }
+            await this.loadABTestingSection();
+        } catch (error) {
+            console.error('Complete A/B test failed:', error);
+            this.uiManager.showAlert('danger', 'Failed to complete A/B test.');
+        }
+    }
+
+    async cancelABTest(testId) {
+        if (!confirm('Cancel this A/B test? Results will be discarded.')) return;
+
+        try {
+            const result = await this.dataService.cancelABTest(testId);
+            if (result?.success !== false) {
+                this.uiManager.showAlert('info', 'A/B test cancelled.');
+            } else {
+                this.uiManager.showAlert('warning', result?.message || 'Cancellation returned unexpected result.');
+            }
+            await this.loadABTestingSection();
+        } catch (error) {
+            console.error('Cancel A/B test failed:', error);
+            this.uiManager.showAlert('danger', 'Failed to cancel A/B test.');
+        }
+    }
+
+    // =========================================================================
     // Cleanup
     // =========================================================================
 

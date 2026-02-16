@@ -4,13 +4,14 @@ Plant irrigation model service.
 Estimates dry-down rate from moisture readings, excluding watering windows,
 and provides simple predictions for next irrigation timing.
 """
+
 from __future__ import annotations
 
 import logging
 import os
 import statistics
 from datetime import timedelta
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from app.utils.time import coerce_datetime, iso_now, utc_now
 
@@ -29,22 +30,16 @@ class PlantIrrigationModelService:
         self._repo = irrigation_repo
         self._analytics = analytics_repo
 
-        self._lookback_hours = int(
-            os.getenv("SYSGROW_IRRIGATION_DRYDOWN_LOOKBACK_HOURS", "72")
-        )
-        self._min_samples = int(
-            os.getenv("SYSGROW_IRRIGATION_DRYDOWN_MIN_SAMPLES", "4")
-        )
-        self._max_gap_hours = float(
-            os.getenv("SYSGROW_IRRIGATION_DRYDOWN_MAX_GAP_HOURS", "24")
-        )
+        self._lookback_hours = int(os.getenv("SYSGROW_IRRIGATION_DRYDOWN_LOOKBACK_HOURS", "72"))
+        self._min_samples = int(os.getenv("SYSGROW_IRRIGATION_DRYDOWN_MIN_SAMPLES", "4"))
+        self._max_gap_hours = float(os.getenv("SYSGROW_IRRIGATION_DRYDOWN_MAX_GAP_HOURS", "24"))
 
     def update_drydown_model(
         self,
         plant_id: int,
         *,
-        lookback_hours: Optional[int] = None,
-    ) -> Dict[str, Any]:
+        lookback_hours: int | None = None,
+    ) -> dict[str, Any]:
         """Compute dry-down rate for a plant and persist the model."""
         lookback = int(lookback_hours or self._lookback_hours)
         end_dt = utc_now()
@@ -114,8 +109,8 @@ class PlantIrrigationModelService:
         plant_id: int,
         threshold: float,
         now_moisture: float,
-        drydown_rate: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        drydown_rate: float | None = None,
+    ) -> dict[str, Any]:
         """Predict when the plant will hit the threshold based on dry-down."""
         if drydown_rate is None:
             model = self._repo.get_plant_irrigation_model(plant_id)
@@ -152,9 +147,9 @@ class PlantIrrigationModelService:
         *,
         start_ts: str,
         end_ts: str,
-    ) -> List[Tuple[Any, Any]]:
+    ) -> list[tuple[Any, Any]]:
         """Collect watering windows to exclude from dry-down slope fitting."""
-        windows: List[Tuple[Any, Any]] = []
+        windows: list[tuple[Any, Any]] = []
 
         manual_logs = self._repo.get_manual_logs_for_plant(
             plant_id,
@@ -187,11 +182,11 @@ class PlantIrrigationModelService:
 
     def _compute_slopes(
         self,
-        readings: List[Dict[str, Any]],
-        watering_windows: List[Tuple[Any, Any]],
-    ) -> List[float]:
+        readings: list[dict[str, Any]],
+        watering_windows: list[tuple[Any, Any]],
+    ) -> list[float]:
         """Compute dry-down slopes excluding watering windows."""
-        slopes: List[float] = []
+        slopes: list[float] = []
         for prev, curr in zip(readings, readings[1:]):
             prev_ts = coerce_datetime(prev.get("timestamp"))
             curr_ts = coerce_datetime(curr.get("timestamp"))
@@ -220,7 +215,7 @@ class PlantIrrigationModelService:
     def _overlaps_watering_window(
         start: Any,
         end: Any,
-        windows: List[Tuple[Any, Any]],
+        windows: list[tuple[Any, Any]],
     ) -> bool:
         """Check if a time range overlaps any watering window."""
         for win_start, win_end in windows:

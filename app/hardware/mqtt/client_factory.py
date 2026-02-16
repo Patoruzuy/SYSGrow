@@ -5,9 +5,10 @@ The 2.x releases add a callback API version flag; we prefer the legacy
 v3.1.1 callback signature for existing handlers while remaining compatible
 with older installations that do not expose the enum.
 """
+
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any
 
 import paho.mqtt.client as mqtt
 
@@ -21,7 +22,7 @@ def create_mqtt_client(client_id: str = "", **kwargs: Any) -> mqtt.Client:
         client_id: Optional client identifier.
         kwargs: Extra keyword arguments forwarded to the client constructor.
     """
-    client_kwargs: Dict[str, Any] = {"client_id": client_id or ""}
+    client_kwargs: dict[str, Any] = {"client_id": client_id or ""}
 
     # Keep MQTT v3.1.1 protocol by default for broker compatibility.
     client_kwargs["protocol"] = kwargs.pop("protocol", getattr(mqtt, "MQTTv311", 4))

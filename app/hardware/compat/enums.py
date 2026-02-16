@@ -4,17 +4,16 @@ Lightweight enum adapters to bridge app-level enums and infrastructure enums.
 These helpers avoid invasive refactors by converting via the `.value` strings.
 Usage is optional and can be adopted incrementally where cross-layer mapping is needed.
 """
+
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from app.enums.device import ActuatorType as AppActuatorType
-    from app.enums.device import Protocol as AppProtocol
+    from app.enums.device import ActuatorType as AppActuatorType, Protocol as AppProtocol
 else:
     try:
-        from app.enums.device import ActuatorType as AppActuatorType
-        from app.enums.device import Protocol as AppProtocol
+        from app.enums.device import ActuatorType as AppActuatorType, Protocol as AppProtocol
     except Exception:  # pragma: no cover
         AppActuatorType = None  # type: ignore
         AppProtocol = None  # type: ignore
@@ -35,7 +34,7 @@ def app_to_infra_actuator_type(value: str | "AppActuatorType") -> InfraActuatorT
     return InfraActuatorType.UNKNOWN
 
 
-def infra_to_app_actuator_type(value: str | InfraActuatorType) -> Optional["AppActuatorType"]:
+def infra_to_app_actuator_type(value: str | InfraActuatorType) -> "AppActuatorType" | None:
     """Map infrastructure ActuatorType to app ActuatorType by value (if available)."""
     if AppActuatorType is None:
         return None
@@ -55,7 +54,7 @@ def app_to_infra_protocol(value: str | "AppProtocol") -> InfraProtocol:
     return InfraProtocol.GPIO
 
 
-def infra_to_app_protocol(value: str | InfraProtocol) -> Optional["AppProtocol"]:
+def infra_to_app_protocol(value: str | InfraProtocol) -> "AppProtocol" | None:
     if AppProtocol is None:
         return None
     s = value.value if hasattr(value, "value") else str(value)
@@ -63,4 +62,3 @@ def infra_to_app_protocol(value: str | InfraProtocol) -> Optional["AppProtocol"]
         if member.value == s or member.name.lower() == s.lower():
             return member
     return None
-

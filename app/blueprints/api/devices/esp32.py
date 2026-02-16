@@ -13,17 +13,18 @@ Individual device operations (identify, rename, remove, restart) are available v
 
 All routes are registered under /api/devices prefix.
 """
+
 from __future__ import annotations
 
 import logging
-from flask import request
 
-from . import devices_api
 from app.blueprints.api._common import (
-    success as _success,
     fail as _fail,
     get_json as _json,
+    success as _success,
 )
+
+from . import devices_api
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,7 @@ def _get_sysgrow_adapter(friendly_name: str = None):
         SYSGrowAdapter instance or None if MQTT unavailable
     """
     from flask import current_app
+
     from app.hardware.adapters.sensors import SYSGrowAdapter
 
     container = current_app.config.get("CONTAINER")
@@ -95,16 +97,18 @@ def sysgrow_permit_join():
         else:
             transaction_id = adapter.disable_ble_pairing()
 
-        return _success({
-            "command": "permit_join",
-            "value": enable,
-            "time": timeout,
-            "status": "sent",
-            "transaction_id": transaction_id
-        })
+        return _success(
+            {
+                "command": "permit_join",
+                "value": enable,
+                "time": timeout,
+                "status": "sent",
+                "transaction_id": transaction_id,
+            }
+        )
     except Exception as exc:
         logger.error(f"Failed to send permit_join command: {exc}")
-        return _fail(f"Failed to send permit_join command: {str(exc)}", 500)
+        return _fail(f"Failed to send permit_join command: {exc!s}", 500)
 
 
 @devices_api.get("/v2/sysgrow/health")
@@ -127,13 +131,10 @@ def sysgrow_health_check():
             return _fail("MQTT client not available", 503)
 
         success = adapter.request_health_check()
-        return _success({
-            "command": "health_check",
-            "status": "sent" if success else "failed"
-        })
+        return _success({"command": "health_check", "status": "sent" if success else "failed"})
     except Exception as exc:
         logger.error(f"Failed to send health check request: {exc}")
-        return _fail(f"Failed to send health check request: {str(exc)}", 500)
+        return _fail(f"Failed to send health check request: {exc!s}", 500)
 
 
 @devices_api.post("/v2/sysgrow/restart-all")
@@ -158,13 +159,10 @@ def sysgrow_restart_all():
 
         success = adapter._publish("sysgrow/bridge/request/restart", {})
 
-        return _success({
-            "command": "restart_all",
-            "status": "sent" if success else "failed"
-        })
+        return _success({"command": "restart_all", "status": "sent" if success else "failed"})
     except Exception as exc:
         logger.error(f"Failed to send restart command: {exc}")
-        return _fail(f"Failed to send restart command: {str(exc)}", 500)
+        return _fail(f"Failed to send restart command: {exc!s}", 500)
 
 
 @devices_api.post("/v2/sysgrow/ota-update")
@@ -199,13 +197,15 @@ def sysgrow_ota_update():
             return _fail("MQTT client not available", 503)
 
         transaction_id = adapter.start_ota_update(firmware_url=firmware_url)
-        return _success({
-            "command": "ota_update",
-            "id": device_id,
-            "url": firmware_url,
-            "status": "sent",
-            "transaction_id": transaction_id
-        })
+        return _success(
+            {
+                "command": "ota_update",
+                "id": device_id,
+                "url": firmware_url,
+                "status": "sent",
+                "transaction_id": transaction_id,
+            }
+        )
     except Exception as exc:
         logger.error(f"Failed to send OTA update command: {exc}")
-        return _fail(f"Failed to send OTA update command: {str(exc)}", 500)
+        return _fail(f"Failed to send OTA update command: {exc!s}", 500)

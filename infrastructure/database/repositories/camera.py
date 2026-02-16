@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 from infrastructure.database.ops.camera import CameraOperations
 
@@ -11,7 +11,7 @@ class CameraRepository:
     def __init__(self, backend: CameraOperations) -> None:
         self._backend = backend
 
-    def get_unit_camera_config(self, unit_id: int) -> Optional[Dict[str, Any]]:
+    def get_unit_camera_config(self, unit_id: int) -> dict[str, Any] | None:
         return self._backend.get_unit_camera_config(unit_id)
 
     def save_unit_camera_config(
@@ -19,18 +19,18 @@ class CameraRepository:
         *,
         unit_id: int,
         camera_type: str,
-        ip_address: Optional[str] = None,
-        port: Optional[int] = None,
-        device_index: Optional[int] = None,
-        resolution: Optional[str] = None,
-        stream_url: Optional[str] = None,
-        username: Optional[str] = None,
-        password: Optional[str] = None,
-        quality: Optional[int] = None,
-        brightness: Optional[int] = None,
-        contrast: Optional[int] = None,
-        saturation: Optional[int] = None,
-        flip: Optional[int] = None,
+        ip_address: str | None = None,
+        port: int | None = None,
+        device_index: int | None = None,
+        resolution: str | None = None,
+        stream_url: str | None = None,
+        username: str | None = None,
+        password: str | None = None,
+        quality: int | None = None,
+        brightness: int | None = None,
+        contrast: int | None = None,
+        saturation: int | None = None,
+        flip: int | None = None,
     ) -> bool:
         return self._backend.save_unit_camera_config(
             unit_id=unit_id,
@@ -51,4 +51,3 @@ class CameraRepository:
 
     def is_unit_camera_enabled(self, unit_id: int) -> bool:
         return self._backend.is_unit_camera_enabled(unit_id)
-

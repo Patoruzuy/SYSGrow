@@ -13,19 +13,19 @@ Centralized schedule entity supporting:
 Author: Sebastian Gomez
 Date: January 2026
 """
+
 from __future__ import annotations
 
 import datetime
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 from zoneinfo import ZoneInfo
 
 from app.enums import (
-    ScheduleType,
-    ScheduleState,
     PhotoperiodSource,
-    DayOfWeek,
+    ScheduleState,
+    ScheduleType,
 )
 
 logger = logging.getLogger(__name__)
@@ -34,10 +34,10 @@ logger = logging.getLogger(__name__)
 @dataclass
 class SunTimesConfig:
     """Configuration for sun-based photoperiod scheduling.
-    
+
     This is a placeholder for future integration with a sun times API
     that calculates sunrise, sunset, dawn, dusk based on location.
-    
+
     Attributes:
         latitude: User's latitude for sun calculations
         longitude: User's longitude for sun calculations
@@ -46,14 +46,15 @@ class SunTimesConfig:
         dusk_offset_minutes: Minutes after sunset to end (positive = later)
         use_civil_twilight: Use civil twilight instead of actual sunrise/sunset
     """
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
-    timezone: Optional[str] = None
+
+    latitude: float | None = None
+    longitude: float | None = None
+    timezone: str | None = None
     dawn_offset_minutes: int = 0
     dusk_offset_minutes: int = 0
     use_civil_twilight: bool = False
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> dict[str, Any]:
         return {
             "latitude": self.latitude,
             "longitude": self.longitude,
@@ -62,9 +63,9 @@ class SunTimesConfig:
             "dusk_offset_minutes": self.dusk_offset_minutes,
             "use_civil_twilight": self.use_civil_twilight,
         }
-    
+
     @staticmethod
-    def from_dict(data: Optional[Dict[str, Any]]) -> Optional["SunTimesConfig"]:
+    def from_dict(data: dict[str, Any] | None) -> "SunTimesConfig" | None:
         if not data:
             return None
         return SunTimesConfig(
@@ -75,7 +76,7 @@ class SunTimesConfig:
             dusk_offset_minutes=data.get("dusk_offset_minutes", 0),
             use_civil_twilight=data.get("use_civil_twilight", False),
         )
-    
+
     def is_configured(self) -> bool:
         """Check if sun times config has valid coordinates."""
         return self.latitude is not None and self.longitude is not None
@@ -84,7 +85,7 @@ class SunTimesConfig:
 @dataclass
 class PhotoperiodConfig:
     """Configuration for photoperiod-aware light schedules.
-    
+
     Attributes:
         source: How to determine day/night (schedule, sensor, sun_api, hybrid)
         sensor_threshold: Lux threshold above which is considered "day"
@@ -94,15 +95,16 @@ class PhotoperiodConfig:
         min_light_hours: Minimum light hours to maintain (for supplemental lighting)
         max_light_hours: Maximum light hours allowed
     """
+
     source: PhotoperiodSource = PhotoperiodSource.SCHEDULE
     sensor_threshold: float = 100.0
     sensor_tolerance: float = 10.0
     prefer_sensor: bool = False
-    sun_times: Optional[SunTimesConfig] = None
-    min_light_hours: Optional[float] = None
-    max_light_hours: Optional[float] = None
-    
-    def to_dict(self) -> Dict[str, Any]:
+    sun_times: SunTimesConfig | None = None
+    min_light_hours: float | None = None
+    max_light_hours: float | None = None
+
+    def to_dict(self) -> dict[str, Any]:
         return {
             "source": self.source.value,
             "sensor_threshold": self.sensor_threshold,
@@ -112,9 +114,9 @@ class PhotoperiodConfig:
             "min_light_hours": self.min_light_hours,
             "max_light_hours": self.max_light_hours,
         }
-    
+
     @staticmethod
-    def from_dict(data: Optional[Dict[str, Any]]) -> Optional["PhotoperiodConfig"]:
+    def from_dict(data: dict[str, Any] | None) -> "PhotoperiodConfig" | None:
         if not data:
             return None
         return PhotoperiodConfig(
@@ -132,7 +134,7 @@ class PhotoperiodConfig:
 class Schedule:
     """
     Centralized schedule entity for device control.
-    
+
     Supports:
     - Multiple schedules per device type (e.g., fan cycles every 2 hours)
     - Enable/disable without deletion
@@ -140,7 +142,7 @@ class Schedule:
     - Photoperiod integration for light schedules
     - Optional actuator linking
     - Priority for conflict resolution
-    
+
     Attributes:
         schedule_id: Unique identifier (None for new schedules)
         unit_id: Growth unit this schedule belongs to
@@ -162,38 +164,39 @@ class Schedule:
         created_at: Creation timestamp
         updated_at: Last update timestamp
     """
+
     # Identity
-    schedule_id: Optional[int] = None
+    schedule_id: int | None = None
     unit_id: int = 0
     name: str = ""
-    
+
     # Device targeting
     device_type: str = ""
-    actuator_id: Optional[int] = None
-    
+    actuator_id: int | None = None
+
     # Schedule type
     schedule_type: ScheduleType = ScheduleType.SIMPLE
-    interval_minutes: Optional[int] = None
-    duration_minutes: Optional[int] = None
-    
+    interval_minutes: int | None = None
+    duration_minutes: int | None = None
+
     # Time configuration
     start_time: str = "08:00"
     end_time: str = "20:00"
-    days_of_week: List[int] = field(default_factory=lambda: [0, 1, 2, 3, 4, 5, 6])
-    
+    days_of_week: list[int] = field(default_factory=lambda: [0, 1, 2, 3, 4, 5, 6])
+
     # Control parameters
     enabled: bool = True
     state_when_active: ScheduleState = ScheduleState.ON
-    value: Optional[float] = None
-    
+    value: float | None = None
+
     # Photoperiod (for light schedules)
-    photoperiod: Optional[PhotoperiodConfig] = None
-    
+    photoperiod: PhotoperiodConfig | None = None
+
     # Priority for conflict resolution
     priority: int = 0
-    
+
     # Metadata
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
     created_at: datetime.datetime = field(default_factory=datetime.datetime.now)
     updated_at: datetime.datetime = field(default_factory=datetime.datetime.now)
 
@@ -207,7 +210,7 @@ class Schedule:
     def validate(self) -> bool:
         """
         Validate the schedule configuration.
-        
+
         Returns:
             bool: True if valid, False otherwise.
         """
@@ -249,31 +252,31 @@ class Schedule:
 
     def is_active_at(
         self,
-        check_time: Optional[datetime.datetime] = None,
+        check_time: datetime.datetime | None = None,
         *,
-        timezone: Optional[str] = None,
+        timezone: str | None = None,
     ) -> bool:
         """
         Check if schedule should be active at given time.
-        
+
         Handles:
         - Schedules that span midnight
         - Days of week filtering
         - Enabled/disabled state
-        
+
         Args:
             check_time: Time to check (defaults to now)
             timezone: Optional IANA timezone string for local evaluation
-            
+
         Returns:
             True if schedule should be active, False otherwise
         """
         if not self.enabled:
             return False
-            
+
         now = self._normalize_check_time(check_time, timezone)
         weekday = now.weekday()  # 0=Monday
-        
+
         minutes_since_start = self._minutes_since_start(now)
         if minutes_since_start is None:
             return False
@@ -290,7 +293,7 @@ class Schedule:
 
         return True
 
-    def _minutes_since_start(self, now: datetime.datetime) -> Optional[int]:
+    def _minutes_since_start(self, now: datetime.datetime) -> int | None:
         """Return minutes since schedule start if within window; else None."""
         weekday = now.weekday()  # 0=Monday
 
@@ -327,7 +330,7 @@ class Schedule:
         return (24 * 60 - start_minutes) + now_minutes
 
     @staticmethod
-    def _resolve_timezone(timezone: Optional[str]) -> Optional[ZoneInfo]:
+    def _resolve_timezone(timezone: str | None) -> ZoneInfo | None:
         if not timezone:
             return None
         try:
@@ -339,8 +342,8 @@ class Schedule:
     @classmethod
     def _normalize_check_time(
         cls,
-        check_time: Optional[datetime.datetime],
-        timezone: Optional[str],
+        check_time: datetime.datetime | None,
+        timezone: str | None,
     ) -> datetime.datetime:
         tz = cls._resolve_timezone(timezone)
         if check_time is None:
@@ -358,16 +361,16 @@ class Schedule:
             end = self._parse_time(self.end_time)
         except ValueError:
             return 0.0
-        
+
         start_minutes = start.hour * 60 + start.minute
         end_minutes = end.hour * 60 + end.minute
-        
+
         if end_minutes < start_minutes:
             end_minutes += 24 * 60  # Add 24 hours for cross-midnight
-        
+
         return (end_minutes - start_minutes) / 60.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert schedule to dictionary for serialization."""
         return {
             "schedule_id": self.schedule_id,
@@ -392,20 +395,20 @@ class Schedule:
         }
 
     @staticmethod
-    def from_dict(data: Dict[str, Any]) -> "Schedule":
+    def from_dict(data: dict[str, Any]) -> "Schedule":
         """Create Schedule from dictionary."""
         created_at = data.get("created_at")
         if isinstance(created_at, str):
             created_at = datetime.datetime.fromisoformat(created_at)
         elif created_at is None:
             created_at = datetime.datetime.now()
-            
+
         updated_at = data.get("updated_at")
         if isinstance(updated_at, str):
             updated_at = datetime.datetime.fromisoformat(updated_at)
         elif updated_at is None:
             updated_at = datetime.datetime.now()
-        
+
         return Schedule(
             schedule_id=data.get("schedule_id"),
             unit_id=data.get("unit_id", 0),
@@ -439,7 +442,7 @@ class Schedule:
     ) -> "Schedule":
         """
         Create Schedule from legacy DeviceSchedule format.
-        
+
         This helps migrate from the old device_schedules JSON column.
         """
         return cls(

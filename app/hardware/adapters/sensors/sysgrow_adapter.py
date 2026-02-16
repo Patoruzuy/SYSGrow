@@ -19,22 +19,22 @@ Version: 1.0.0
 
 import json
 import logging
-import time
 import uuid
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from enum import Enum
-from typing import Any, Callable, Dict, List, Optional
-from threading import Lock
 from collections import deque
+from dataclasses import dataclass
+from datetime import datetime
+from enum import Enum
+from threading import Lock
+from typing import Any, Callable
 
-from .base_adapter import ISensorAdapter, AdapterError
+from .base_adapter import AdapterError, ISensorAdapter
 
 logger = logging.getLogger(__name__)
 
 
 class DeviceAvailability(Enum):
     """Device availability states."""
+
     ONLINE = "online"
     OFFLINE = "offline"
     UNKNOWN = "unknown"
@@ -42,6 +42,7 @@ class DeviceAvailability(Enum):
 
 class CommandStatus(Enum):
     """Command execution status."""
+
     PENDING = "pending"
     SENT = "sent"
     ACKNOWLEDGED = "acknowledged"
@@ -53,14 +54,15 @@ class CommandStatus(Enum):
 @dataclass
 class PendingCommand:
     """Represents a command waiting for response."""
+
     transaction_id: str
     command: str
-    payload: Dict[str, Any]
+    payload: dict[str, Any]
     sent_at: datetime
     timeout_seconds: int = 30
-    callback: Optional[Callable[[str, Dict], None]] = None
+    callback: Callable[[str, dict], None] | None = None
     status: CommandStatus = CommandStatus.PENDING
-    response: Optional[Dict[str, Any]] = None
+    response: dict[str, Any] | None = None
 
     def is_expired(self) -> bool:
         """Check if command has timed out."""
@@ -70,16 +72,17 @@ class PendingCommand:
 @dataclass
 class SYSGrowDeviceState:
     """Cached state for a SYSGrow device."""
+
     friendly_name: str
     availability: DeviceAvailability = DeviceAvailability.UNKNOWN
-    last_seen: Optional[datetime] = None
-    last_data: Optional[Dict[str, Any]] = None
-    firmware_version: Optional[str] = None
-    device_type: Optional[str] = None
-    mac_address: Optional[str] = None
-    rssi: Optional[int] = None
-    uptime: Optional[int] = None
-    sensors_status: Optional[Dict[str, str]] = None
+    last_seen: datetime | None = None
+    last_data: dict[str, Any] | None = None
+    firmware_version: str | None = None
+    device_type: str | None = None
+    mac_address: str | None = None
+    rssi: int | None = None
+    uptime: int | None = None
+    sensors_status: dict[str, str] | None = None
 
 
 class SYSGrowAdapter(ISensorAdapter):
@@ -107,7 +110,7 @@ class SYSGrowAdapter(ISensorAdapter):
         timeout: int = 120,
         command_timeout: int = 30,
         max_queue_size: int = 100,
-        primary_metrics: Optional[List[str]] = None,
+        primary_metrics: list[str] | None = None,
     ):
         """
         Initialize SYSGrow adapter.
@@ -135,12 +138,12 @@ class SYSGrowAdapter(ISensorAdapter):
         self._state_lock = Lock()
 
         # Command tracking
-        self._pending_commands: Dict[str, PendingCommand] = {}
+        self._pending_commands: dict[str, PendingCommand] = {}
         self._command_queue: deque = deque(maxlen=max_queue_size)
         self._command_lock = Lock()
 
         # Availability callbacks
-        self._availability_callbacks: List[Callable[[str, DeviceAvailability], None]] = []
+        self._availability_callbacks: list[Callable[[str, DeviceAvailability], None]] = []
 
         # Subscribe to device topics
         self._subscribed = False
@@ -190,10 +193,7 @@ class SYSGrowAdapter(ISensorAdapter):
                 logger.error("Failed to subscribe to %s: %s", topic, e)
 
         self._subscribed = True
-        logger.info(
-            "SYSGrow adapter initialized for device '%s' (sensor_id=%d)",
-            self.friendly_name, self.sensor_id
-        )
+        logger.info("SYSGrow adapter initialized for device '%s' (sensor_id=%d)", self.friendly_name, self.sensor_id)
 
     def _unsubscribe_from_topics(self) -> None:
         """Unsubscribe from all device topics."""
@@ -245,7 +245,7 @@ class SYSGrowAdapter(ISensorAdapter):
                 "SYSGrow '%s' state update: temp=%.1f, hum=%.1f",
                 self.friendly_name,
                 payload.get("temperature", 0),
-                payload.get("humidity", 0)
+                payload.get("humidity", 0),
             )
 
         except json.JSONDecodeError as e:
@@ -257,10 +257,7 @@ class SYSGrowAdapter(ISensorAdapter):
         """Handle device availability message."""
         try:
             status = msg.payload.decode().strip().lower()
-            new_availability = (
-                DeviceAvailability.ONLINE if status == "online"
-                else DeviceAvailability.OFFLINE
-            )
+            new_availability = DeviceAvailability.ONLINE if status == "online" else DeviceAvailability.OFFLINE
 
             with self._state_lock:
                 old_availability = self._state.availability
@@ -271,7 +268,9 @@ class SYSGrowAdapter(ISensorAdapter):
 
             logger.info(
                 "SYSGrow '%s' availability: %s -> %s",
-                self.friendly_name, old_availability.value, new_availability.value
+                self.friendly_name,
+                old_availability.value,
+                new_availability.value,
             )
 
             # Notify callbacks
@@ -305,10 +304,7 @@ class SYSGrowAdapter(ISensorAdapter):
             transaction_id = payload.get("transaction")
             status = payload.get("status", "unknown")
 
-            logger.debug(
-                "Bridge response for '%s': status=%s, transaction=%s",
-                command, status, transaction_id
-            )
+            logger.debug("Bridge response for '%s': status=%s, transaction=%s", command, status, transaction_id)
 
             # Match to pending command
             if transaction_id:
@@ -316,10 +312,7 @@ class SYSGrowAdapter(ISensorAdapter):
                     if transaction_id in self._pending_commands:
                         cmd = self._pending_commands[transaction_id]
                         cmd.response = payload
-                        cmd.status = (
-                            CommandStatus.COMPLETED if status == "ok"
-                            else CommandStatus.FAILED
-                        )
+                        cmd.status = CommandStatus.COMPLETED if status == "ok" else CommandStatus.FAILED
 
                         # Execute callback
                         if cmd.callback:
@@ -340,7 +333,7 @@ class SYSGrowAdapter(ISensorAdapter):
     # ISensorAdapter Implementation
     # =========================================================================
 
-    def read(self) -> Dict[str, Any]:
+    def read(self) -> dict[str, Any]:
         """
         Read cached sensor data from SYSGrow device.
 
@@ -352,21 +345,17 @@ class SYSGrowAdapter(ISensorAdapter):
         """
         with self._state_lock:
             if self._state.last_data is None:
-                raise AdapterError(
-                    f"No data received from SYSGrow device '{self.friendly_name}'"
-                )
+                raise AdapterError(f"No data received from SYSGrow device '{self.friendly_name}'")
 
             # Check if data is stale
             if self._state.last_seen:
                 age = (datetime.now() - self._state.last_seen).total_seconds()
                 if age > self.timeout:
-                    raise AdapterError(
-                        f"SYSGrow data stale (age: {age:.1f}s, timeout: {self.timeout}s)"
-                    )
+                    raise AdapterError(f"SYSGrow data stale (age: {age:.1f}s, timeout: {self.timeout}s)")
 
             return self._state.last_data.copy()
 
-    def configure(self, config: Dict[str, Any]) -> None:
+    def configure(self, config: dict[str, Any]) -> None:
         """
         Reconfigure SYSGrow adapter.
 
@@ -417,13 +406,13 @@ class SYSGrowAdapter(ISensorAdapter):
     # ISensorAdapter Optional Methods (Standard Interface)
     # =========================================================================
 
-    def send_command(self, command: Dict[str, Any]) -> bool:
+    def send_command(self, command: dict[str, Any]) -> bool:
         """
         Send command to device (ISensorAdapter interface).
-        
+
         Args:
             command: Command dictionary
-            
+
         Returns:
             True if command sent successfully
         """
@@ -433,19 +422,19 @@ class SYSGrowAdapter(ISensorAdapter):
     def identify(self, duration: int = 10) -> bool:
         """
         Trigger device identification (flash LED).
-        
+
         Args:
             duration: Duration in seconds
-            
+
         Returns:
             True if command sent
         """
         return self._publish(self._get_set_topic(), {"identify": duration})
 
-    def get_state(self) -> Optional[Dict[str, Any]]:
+    def get_state(self) -> dict[str, Any] | None:
         """
         Get current device state (ISensorAdapter interface).
-        
+
         Returns:
             State dictionary
         """
@@ -462,12 +451,12 @@ class SYSGrowAdapter(ISensorAdapter):
     def rename(self, new_name: str) -> bool:
         """
         Rename device on network (ISensorAdapter interface).
-        
+
         Delegates to rename_via_bridge for consistency with Zigbee2MQTT.
-        
+
         Args:
             new_name: New friendly name
-            
+
         Returns:
             True if rename command sent
         """
@@ -483,9 +472,9 @@ class SYSGrowAdapter(ISensorAdapter):
     def remove_from_network(self) -> bool:
         """
         Remove device from network (ISensorAdapter interface).
-        
+
         Delegates to remove_device bridge command.
-        
+
         Returns:
             True if remove command sent
         """
@@ -527,11 +516,11 @@ class SYSGrowAdapter(ISensorAdapter):
     def _send_command(
         self,
         command: str,
-        payload: Dict[str, Any],
-        topic: Optional[str] = None,
-        callback: Optional[Callable[[str, Dict], None]] = None,
+        payload: dict[str, Any],
+        topic: str | None = None,
+        callback: Callable[[str, dict], None] | None = None,
         queue_if_offline: bool = True,
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Send command to device with tracking.
 
@@ -554,25 +543,26 @@ class SYSGrowAdapter(ISensorAdapter):
         if not self.is_available():
             if queue_if_offline:
                 with self._command_lock:
-                    self._command_queue.append(PendingCommand(
-                        transaction_id=transaction_id,
-                        command=command,
-                        payload=payload,
-                        sent_at=datetime.now(),
-                        timeout_seconds=self.command_timeout,
-                        callback=callback,
-                        status=CommandStatus.PENDING,
-                    ))
+                    self._command_queue.append(
+                        PendingCommand(
+                            transaction_id=transaction_id,
+                            command=command,
+                            payload=payload,
+                            sent_at=datetime.now(),
+                            timeout_seconds=self.command_timeout,
+                            callback=callback,
+                            status=CommandStatus.PENDING,
+                        )
+                    )
                 logger.info(
                     "Command '%s' queued for offline device '%s' (queue size: %d)",
-                    command, self.friendly_name, len(self._command_queue)
+                    command,
+                    self.friendly_name,
+                    len(self._command_queue),
                 )
                 return transaction_id
             else:
-                logger.warning(
-                    "Device '%s' offline, command '%s' not sent",
-                    self.friendly_name, command
-                )
+                logger.warning("Device '%s' offline, command '%s' not sent", self.friendly_name, command)
                 return None
 
         # Send command
@@ -588,10 +578,7 @@ class SYSGrowAdapter(ISensorAdapter):
                     callback=callback,
                     status=CommandStatus.SENT,
                 )
-            logger.debug(
-                "Command '%s' sent to '%s' (transaction: %s)",
-                command, self.friendly_name, transaction_id
-            )
+            logger.debug("Command '%s' sent to '%s' (transaction: %s)", command, self.friendly_name, transaction_id)
             return transaction_id
 
         return None
@@ -604,10 +591,7 @@ class SYSGrowAdapter(ISensorAdapter):
 
                 # Skip expired commands
                 if cmd.is_expired():
-                    logger.warning(
-                        "Queued command '%s' expired, discarding",
-                        cmd.command
-                    )
+                    logger.warning("Queued command '%s' expired, discarding", cmd.command)
                     if cmd.callback:
                         try:
                             cmd.callback("timeout", {})
@@ -623,25 +607,16 @@ class SYSGrowAdapter(ISensorAdapter):
                     cmd.status = CommandStatus.SENT
                     cmd.sent_at = datetime.now()
                     self._pending_commands[cmd.transaction_id] = cmd
-                    logger.info(
-                        "Queued command '%s' sent to '%s'",
-                        cmd.command, self.friendly_name
-                    )
+                    logger.info("Queued command '%s' sent to '%s'", cmd.command, self.friendly_name)
 
     def cleanup_expired_commands(self) -> None:
         """Remove expired pending commands (call periodically)."""
         with self._command_lock:
-            expired = [
-                tid for tid, cmd in self._pending_commands.items()
-                if cmd.is_expired()
-            ]
+            expired = [tid for tid, cmd in self._pending_commands.items() if cmd.is_expired()]
             for tid in expired:
                 cmd = self._pending_commands.pop(tid)
                 cmd.status = CommandStatus.TIMEOUT
-                logger.warning(
-                    "Command '%s' timed out (transaction: %s)",
-                    cmd.command, tid
-                )
+                logger.warning("Command '%s' timed out (transaction: %s)", cmd.command, tid)
                 if cmd.callback:
                     try:
                         cmd.callback("timeout", {})
@@ -661,11 +636,7 @@ class SYSGrowAdapter(ISensorAdapter):
         """
         return self._publish(self._get_get_topic(), "")
 
-    def set_polling_interval(
-        self,
-        interval_ms: int,
-        callback: Optional[Callable] = None
-    ) -> Optional[str]:
+    def set_polling_interval(self, interval_ms: int, callback: Callable | None = None) -> str | None:
         """
         Set sensor polling interval.
 
@@ -683,11 +654,7 @@ class SYSGrowAdapter(ISensorAdapter):
             callback=callback,
         )
 
-    def set_friendly_name(
-        self,
-        new_name: str,
-        callback: Optional[Callable] = None
-    ) -> Optional[str]:
+    def set_friendly_name(self, new_name: str, callback: Callable | None = None) -> str | None:
         """
         Change device friendly name.
 
@@ -706,10 +673,10 @@ class SYSGrowAdapter(ISensorAdapter):
 
     def set_calibration(
         self,
-        temperature_offset: Optional[float] = None,
-        humidity_offset: Optional[float] = None,
-        callback: Optional[Callable] = None
-    ) -> Optional[str]:
+        temperature_offset: float | None = None,
+        humidity_offset: float | None = None,
+        callback: Callable | None = None,
+    ) -> str | None:
         """
         Set sensor calibration offsets.
 
@@ -735,21 +702,21 @@ class SYSGrowAdapter(ISensorAdapter):
     def set_calibration_offset(self, sensor_type: str, offset: float) -> None:
         """
         Set calibration offset (ISensorAdapter-compatible interface).
-        
+
         This provides a Zigbee2MQTT-compatible interface for calibration.
-        
+
         Args:
             sensor_type: Type of sensor ('temperature', 'humidity')
             offset: Calibration offset value
         """
-        if sensor_type == 'temperature':
+        if sensor_type == "temperature":
             self.set_calibration(temperature_offset=offset)
-        elif sensor_type == 'humidity':
+        elif sensor_type == "humidity":
             self.set_calibration(humidity_offset=offset)
         else:
             logger.warning(f"SYSGrow: Unknown sensor type for calibration: {sensor_type}")
 
-    def restart_device(self, callback: Optional[Callable] = None) -> Optional[str]:
+    def restart_device(self, callback: Callable | None = None) -> str | None:
         """
         Restart the device.
 
@@ -766,7 +733,7 @@ class SYSGrowAdapter(ISensorAdapter):
             queue_if_offline=False,  # No point queueing restart
         )
 
-    def factory_reset(self, callback: Optional[Callable] = None) -> Optional[str]:
+    def factory_reset(self, callback: Callable | None = None) -> str | None:
         """
         Factory reset the device (clears all configuration).
 
@@ -787,11 +754,7 @@ class SYSGrowAdapter(ISensorAdapter):
     # Bridge Commands
     # =========================================================================
 
-    def enable_ble_pairing(
-        self,
-        timeout_seconds: int = 30,
-        callback: Optional[Callable] = None
-    ) -> Optional[str]:
+    def enable_ble_pairing(self, timeout_seconds: int = 30, callback: Callable | None = None) -> str | None:
         """
         Enable BLE pairing mode on device.
 
@@ -810,7 +773,7 @@ class SYSGrowAdapter(ISensorAdapter):
             callback=callback,
         )
 
-    def disable_ble_pairing(self, callback: Optional[Callable] = None) -> Optional[str]:
+    def disable_ble_pairing(self, callback: Callable | None = None) -> str | None:
         """
         Disable BLE pairing mode.
 
@@ -827,11 +790,7 @@ class SYSGrowAdapter(ISensorAdapter):
             callback=callback,
         )
 
-    def rename_via_bridge(
-        self,
-        new_name: str,
-        callback: Optional[Callable] = None
-    ) -> Optional[str]:
+    def rename_via_bridge(self, new_name: str, callback: Callable | None = None) -> str | None:
         """
         Rename device via bridge command.
 
@@ -849,11 +808,7 @@ class SYSGrowAdapter(ISensorAdapter):
             callback=callback,
         )
 
-    def remove_device(
-        self,
-        force: bool = False,
-        callback: Optional[Callable] = None
-    ) -> Optional[str]:
+    def remove_device(self, force: bool = False, callback: Callable | None = None) -> str | None:
         """
         Remove/factory reset device via bridge.
 
@@ -871,11 +826,7 @@ class SYSGrowAdapter(ISensorAdapter):
             callback=callback,
         )
 
-    def start_ota_update(
-        self,
-        firmware_url: str,
-        callback: Optional[Callable] = None
-    ) -> Optional[str]:
+    def start_ota_update(self, firmware_url: str, callback: Callable | None = None) -> str | None:
         """
         Start OTA firmware update.
 
@@ -911,17 +862,17 @@ class SYSGrowAdapter(ISensorAdapter):
         with self._state_lock:
             return self._state.availability
 
-    def get_last_seen(self) -> Optional[datetime]:
+    def get_last_seen(self) -> datetime | None:
         """Get last seen timestamp."""
         with self._state_lock:
             return self._state.last_seen
 
-    def get_firmware_version(self) -> Optional[str]:
+    def get_firmware_version(self) -> str | None:
         """Get device firmware version."""
         with self._state_lock:
             return self._state.firmware_version
 
-    def get_device_info(self) -> Dict[str, Any]:
+    def get_device_info(self) -> dict[str, Any]:
         """Get device information."""
         with self._state_lock:
             return {
@@ -950,10 +901,7 @@ class SYSGrowAdapter(ISensorAdapter):
     # Callbacks
     # =========================================================================
 
-    def on_availability_change(
-        self,
-        callback: Callable[[str, DeviceAvailability], None]
-    ) -> None:
+    def on_availability_change(self, callback: Callable[[str, DeviceAvailability], None]) -> None:
         """
         Register availability change callback.
 
@@ -962,10 +910,7 @@ class SYSGrowAdapter(ISensorAdapter):
         """
         self._availability_callbacks.append(callback)
 
-    def remove_availability_callback(
-        self,
-        callback: Callable[[str, DeviceAvailability], None]
-    ) -> None:
+    def remove_availability_callback(self, callback: Callable[[str, DeviceAvailability], None]) -> None:
         """Remove availability callback."""
         if callback in self._availability_callbacks:
             self._availability_callbacks.remove(callback)

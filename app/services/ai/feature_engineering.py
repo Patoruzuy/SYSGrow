@@ -27,9 +27,9 @@ Date: December 2025
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Optional, Any, Tuple, TYPE_CHECKING
 from dataclasses import dataclass
 from datetime import datetime
+from typing import TYPE_CHECKING, Any
 
 # ML libraries lazy loaded in methods for faster startup
 # import pandas as pd
@@ -46,7 +46,7 @@ if TYPE_CHECKING:
 class FeatureSet:
     """
     Definition of a feature set with metadata.
-    
+
     Attributes:
         name: Feature set name (e.g., 'disease_prediction_v1')
         version: Feature set version
@@ -56,14 +56,14 @@ class FeatureSet:
 
     name: str
     version: str
-    features: List[str]
+    features: list[str]
     description: str
 
 
 class FeatureEngineer:
     """
     Feature engineering utilities for ML models.
-    
+
     Provides consistent feature transformations for:
     - Disease prediction
     - Climate optimization
@@ -276,7 +276,7 @@ class FeatureEngineer:
     def create_disease_features(
         sensor_data,
         growth_stage: str,
-        current_time: Optional[datetime] = None,
+        current_time: datetime | None = None,
     ):
         """
         Create features for disease prediction.
@@ -289,8 +289,8 @@ class FeatureEngineer:
         Returns:
             DataFrame with engineered features
         """
-        import pandas as pd  # Lazy load
         import numpy as np  # Lazy load
+        import pandas as pd  # Lazy load
 
         if current_time is None:
             current_time = datetime.now()
@@ -318,9 +318,7 @@ class FeatureEngineer:
             features["soil_moisture_std_24h"] = sensor_data["soil_moisture"].std()
 
             # Interaction features
-            features["temp_humidity_interaction"] = (
-                features["temp_mean_24h"] * features["humidity_mean_24h"]
-            )
+            features["temp_humidity_interaction"] = features["temp_mean_24h"] * features["humidity_mean_24h"]
 
             # Vapor Pressure Deficit (VPD) - important for disease risk
             from app.utils.psychrometrics import calculate_vpd_kpa
@@ -367,9 +365,9 @@ class FeatureEngineer:
         sensor_data,
         growth_stage: str,
         plant_age_days: int,
-        current_time: Optional[datetime] = None,
+        current_time: datetime | None = None,
         *,
-        light_schedule: Optional[Dict[str, Any]] = None,
+        light_schedule: dict[str, Any] | None = None,
         lux_threshold: float = 100.0,
     ):
         """
@@ -462,11 +460,11 @@ class FeatureEngineer:
 
     @staticmethod
     def create_irrigation_features(
-        current_conditions: Dict[str, float],
-        irrigation_history: List[Dict[str, Any]],
-        user_preferences: Dict[str, Any],
-        plant_info: Dict[str, Any],
-        current_time: Optional[datetime] = None,
+        current_conditions: dict[str, float],
+        irrigation_history: list[dict[str, Any]],
+        user_preferences: dict[str, Any],
+        plant_info: dict[str, Any],
+        current_time: datetime | None = None,
     ):
         """
         Create features for irrigation prediction models.
@@ -481,8 +479,8 @@ class FeatureEngineer:
         Returns:
             DataFrame with engineered features
         """
-        import pandas as pd  # Lazy load
         import numpy as np  # Lazy load
+        import pandas as pd  # Lazy load
 
         from app.utils.time import coerce_datetime, utc_now
 
@@ -500,9 +498,7 @@ class FeatureEngineer:
             current_conditions.get("soil_moisture_threshold", 50.0),
         )
         features["soil_moisture_current"] = soil_moisture
-        features["soil_moisture_threshold_ratio"] = (
-            soil_moisture / threshold if threshold > 0 else 1.0
-        )
+        features["soil_moisture_threshold_ratio"] = soil_moisture / threshold if threshold > 0 else 1.0
         features["soil_moisture_threshold"] = threshold
         features["soil_moisture_to_threshold"] = (
             float(threshold) - float(soil_moisture) if threshold is not None else 0.0
@@ -518,14 +514,13 @@ class FeatureEngineer:
         stale_seconds = current_conditions.get("stale_seconds")
         if stale_seconds is None:
             stale_seconds = current_conditions.get("stale_reading_seconds")
-        features["stale_reading_minutes"] = (
-            float(stale_seconds) / 60.0 if stale_seconds is not None else 0.0
-        )
+        features["stale_reading_minutes"] = float(stale_seconds) / 60.0 if stale_seconds is not None else 0.0
 
         # Historical features
         history = irrigation_history or []
         if history:
-            def _parse_ts(record: Dict[str, Any]) -> Optional[datetime]:
+
+            def _parse_ts(record: dict[str, Any]) -> datetime | None:
                 for key in ("executed_at_utc", "executed_at", "triggered_at_utc", "detected_at", "created_at_utc"):
                     raw = record.get(key)
                     if raw:
@@ -543,10 +538,7 @@ class FeatureEngineer:
                 reverse=True,
             )
 
-            completed = [
-                r for r in history
-                if (r.get("execution_status") in (None, "completed"))
-            ]
+            completed = [r for r in history if (r.get("execution_status") in (None, "completed"))]
             if not completed:
                 completed = history
 
@@ -568,26 +560,14 @@ class FeatureEngineer:
                 for r in completed
                 if r.get("actual_duration_s") or r.get("execution_duration_seconds")
             ]
-            features["avg_irrigation_duration"] = (
-                sum(durations) / len(durations) if durations else 120.0
-            )
-            features["avg_actual_duration_s"] = (
-                sum(durations) / len(durations) if durations else 0.0
-            )
+            features["avg_irrigation_duration"] = sum(durations) / len(durations) if durations else 120.0
+            features["avg_actual_duration_s"] = sum(durations) / len(durations) if durations else 0.0
 
-            planned = [
-                r.get("planned_duration_s")
-                for r in completed
-                if r.get("planned_duration_s") is not None
-            ]
-            features["avg_planned_duration_s"] = (
-                sum(planned) / len(planned) if planned else 0.0
-            )
+            planned = [r.get("planned_duration_s") for r in completed if r.get("planned_duration_s") is not None]
+            features["avg_planned_duration_s"] = sum(planned) / len(planned) if planned else 0.0
 
             estimated_volumes = [
-                r.get("estimated_volume_ml")
-                for r in completed
-                if r.get("estimated_volume_ml") is not None
+                r.get("estimated_volume_ml") for r in completed if r.get("estimated_volume_ml") is not None
             ]
             features["avg_estimated_volume_ml"] = (
                 sum(estimated_volumes) / len(estimated_volumes) if estimated_volumes else 0.0
@@ -614,23 +594,11 @@ class FeatureEngineer:
                 else:
                     features["moisture_depletion_rate_per_hour"] = 0.5
 
-            deltas = [
-                r.get("delta_moisture")
-                for r in completed
-                if r.get("delta_moisture") is not None
-            ]
-            features["avg_delta_moisture"] = (
-                sum(deltas) / len(deltas) if deltas else 0.0
-            )
+            deltas = [r.get("delta_moisture") for r in completed if r.get("delta_moisture") is not None]
+            features["avg_delta_moisture"] = sum(deltas) / len(deltas) if deltas else 0.0
 
-            delays = [
-                r.get("post_moisture_delay_s")
-                for r in completed
-                if r.get("post_moisture_delay_s") is not None
-            ]
-            features["avg_post_delay_s"] = (
-                sum(delays) / len(delays) if delays else 0.0
-            )
+            delays = [r.get("post_moisture_delay_s") for r in completed if r.get("post_moisture_delay_s") is not None]
+            features["avg_post_delay_s"] = sum(delays) / len(delays) if delays else 0.0
 
             last_completed = completed[0] if completed else history[0]
             features["last_post_moisture"] = last_completed.get("post_moisture") or 0.0
@@ -638,9 +606,7 @@ class FeatureEngineer:
 
             total = len(history)
             completed_count = len(completed)
-            features["execution_success_rate"] = (
-                completed_count / total if total > 0 else 0.0
-            )
+            features["execution_success_rate"] = completed_count / total if total > 0 else 0.0
 
             trigger_gaps = []
             for record in completed:
@@ -653,9 +619,7 @@ class FeatureEngineer:
                 except (TypeError, ValueError):
                     continue
                 trigger_gaps.append(gap)
-            features["trigger_gap_mean"] = (
-                sum(trigger_gaps) / len(trigger_gaps) if trigger_gaps else 0.0
-            )
+            features["trigger_gap_mean"] = sum(trigger_gaps) / len(trigger_gaps) if trigger_gaps else 0.0
             features["trigger_gap_last"] = trigger_gaps[0] if trigger_gaps else 0.0
         else:
             features["hours_since_last_irrigation"] = 48.0
@@ -728,9 +692,7 @@ class FeatureEngineer:
         return pd.DataFrame([features])
 
     @staticmethod
-    def validate_features(
-        features, expected_features: List[str]
-    ) -> bool:
+    def validate_features(features, expected_features: list[str]) -> bool:
         """
         Validate that all expected features are present.
 
@@ -759,11 +721,11 @@ class FeatureEngineer:
     def get_feature_set(name: str, version: str = "v1") -> FeatureSet:
         """
         Get feature set definition.
-        
+
         Args:
             name: Feature set name ('disease', 'climate')
             version: Version of feature set
-            
+
         Returns:
             FeatureSet with metadata
         """
@@ -802,7 +764,7 @@ class FeatureEngineer:
             raise ValueError(f"Unknown feature set: {name} version {version}")
 
     @staticmethod
-    def get_irrigation_model_features(model_name: str) -> List[str]:
+    def get_irrigation_model_features(model_name: str) -> list[str]:
         """
         Get canonical feature list for an irrigation ML model.
 
@@ -819,9 +781,7 @@ class FeatureEngineer:
         return list(features)
 
     @staticmethod
-    def align_features(
-        features, expected_features: List[str]
-    ):
+    def align_features(features, expected_features: list[str]):
         """
         Ensure features match expected order and fill missing values.
 
@@ -845,7 +805,7 @@ class FeatureEngineer:
 class EnvironmentalFeatureExtractor:
     """
     Advanced environmental feature extractor for sophisticated ML models.
-    
+
     Extracts domain-specific agricultural features including:
     - VPD (Vapor Pressure Deficit): Critical for disease prediction
     - DIF (Day-Night temperature difference): Affects stem elongation
@@ -854,21 +814,21 @@ class EnvironmentalFeatureExtractor:
     - Thermal time (GDD): Plant development tracking
     - Risk indicators: Environmental stress detection
     """
-    
+
     def __init__(self):
         """Initialize feature extractor with caching."""
         self.features_cache = {}
-    
+
     def extract_all_features(
         self,
         sensor_df,
-        plant_type: Optional[str] = None,
+        plant_type: str | None = None,
         *,
-        plant_profile: Optional["PlantProfile"] = None,
-        unit_settings: Optional["UnitSettings"] = None,
+        plant_profile: "PlantProfile" | None = None,
+        unit_settings: "UnitSettings" | None = None,
         lux_threshold: float = 100.0,
         prefer_lux: bool = False,
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """
         Extract comprehensive environmental features from sensor data.
 
@@ -881,14 +841,13 @@ class EnvironmentalFeatureExtractor:
             Dictionary of extracted features with descriptive names
         """
         import pandas as pd  # Lazy load
-        import numpy as np  # Lazy load
 
         features = {}
 
         if sensor_df.empty:
             logger.warning("Empty sensor data, returning default features")
             return self._get_default_features()
-        
+
         try:
             schedule_start = "06:00"
             schedule_end = "18:00"
@@ -903,6 +862,7 @@ class EnvironmentalFeatureExtractor:
                 schedule_enabled = bool(getattr(light_schedule, "enabled", True))
 
             from app.domain.sensors.fields import SensorField
+
             lux_series = None
             # Prioritize standard 'lux' field, then common aliases
             for candidate in (SensorField.LUX.value, "light_lux", "illuminance", "light"):
@@ -912,42 +872,36 @@ class EnvironmentalFeatureExtractor:
 
             lux_values = None
             if lux_series is not None:
-                lux_values = [
-                    None if pd.isna(value) else float(value)
-                    for value in lux_series.tolist()
-                ]
+                lux_values = [None if pd.isna(value) else float(value) for value in lux_series.tolist()]
 
             # Basic statistics
-            if 'temperature' in sensor_df.columns:
-                features['temp_mean'] = sensor_df['temperature'].mean()
-                features['temp_std'] = sensor_df['temperature'].std()
-                features['temp_min'] = sensor_df['temperature'].min()
-                features['temp_max'] = sensor_df['temperature'].max()
-                features['temp_range'] = features['temp_max'] - features['temp_min']
-            
-            if 'humidity' in sensor_df.columns:
-                features['humidity_mean'] = sensor_df['humidity'].mean()
-                features['humidity_std'] = sensor_df['humidity'].std()
-                features['humidity_min'] = sensor_df['humidity'].min()
-                features['humidity_max'] = sensor_df['humidity'].max()
-            
+            if "temperature" in sensor_df.columns:
+                features["temp_mean"] = sensor_df["temperature"].mean()
+                features["temp_std"] = sensor_df["temperature"].std()
+                features["temp_min"] = sensor_df["temperature"].min()
+                features["temp_max"] = sensor_df["temperature"].max()
+                features["temp_range"] = features["temp_max"] - features["temp_min"]
+
+            if "humidity" in sensor_df.columns:
+                features["humidity_mean"] = sensor_df["humidity"].mean()
+                features["humidity_std"] = sensor_df["humidity"].std()
+                features["humidity_min"] = sensor_df["humidity"].min()
+                features["humidity_max"] = sensor_df["humidity"].max()
+
             # VPD calculation (critical for disease risk)
-            if 'temperature' in sensor_df.columns and 'humidity' in sensor_df.columns:
-                vpd_series = self.calculate_vpd(
-                    sensor_df['temperature'],
-                    sensor_df['humidity']
-                )
-                features['vpd_mean'] = vpd_series.mean()
-                features['vpd_std'] = vpd_series.std()
-                features['vpd_max'] = vpd_series.max()
-                features['vpd_stress_hours'] = (vpd_series > 1.5).sum()  # Hours above stress threshold
-            
+            if "temperature" in sensor_df.columns and "humidity" in sensor_df.columns:
+                vpd_series = self.calculate_vpd(sensor_df["temperature"], sensor_df["humidity"])
+                features["vpd_mean"] = vpd_series.mean()
+                features["vpd_std"] = vpd_series.std()
+                features["vpd_max"] = vpd_series.max()
+                features["vpd_stress_hours"] = (vpd_series > 1.5).sum()  # Hours above stress threshold
+
             # DIF calculation (affects plant morphology)
-            if 'temperature' in sensor_df.columns:
+            if "temperature" in sensor_df.columns:
                 from app.utils.psychrometrics import calculate_dif_c
 
                 dif = calculate_dif_c(
-                    sensor_df['temperature'],
+                    sensor_df["temperature"],
                     day_start=schedule_start,
                     day_end=schedule_end,
                     lux_values=lux_values,
@@ -955,29 +909,29 @@ class EnvironmentalFeatureExtractor:
                     prefer_sensor=prefer_lux,
                     schedule_enabled=schedule_enabled,
                 )
-                features['dif'] = dif
-                features['dif_category'] = self._categorize_dif(dif)
-            
+                features["dif"] = dif
+                features["dif_category"] = self._categorize_dif(dif)
+
             # Rolling window features (temporal patterns)
             rolling_features = self.extract_rolling_features(sensor_df)
             features.update(rolling_features)
-            
+
             # Trend detection
-            if 'temperature' in sensor_df.columns:
-                temp_trend = self.detect_trend(sensor_df['temperature'])
-                features['temp_trend'] = temp_trend
-            
-            if 'humidity' in sensor_df.columns:
-                humidity_trend = self.detect_trend(sensor_df['humidity'])
-                features['humidity_trend'] = humidity_trend
-            
+            if "temperature" in sensor_df.columns:
+                temp_trend = self.detect_trend(sensor_df["temperature"])
+                features["temp_trend"] = temp_trend
+
+            if "humidity" in sensor_df.columns:
+                humidity_trend = self.detect_trend(sensor_df["humidity"])
+                features["humidity_trend"] = humidity_trend
+
             # Anomaly detection
             anomalies = self.detect_anomalies(sensor_df)
-            features['anomaly_count'] = len(anomalies)
-            features['has_anomalies'] = 1.0 if len(anomalies) > 0 else 0.0
-            
+            features["anomaly_count"] = len(anomalies)
+            features["has_anomalies"] = 1.0 if len(anomalies) > 0 else 0.0
+
             # Thermal time (growing degree days)
-            if 'temperature' in sensor_df.columns:
+            if "temperature" in sensor_df.columns:
                 from app.domain.agronomics import calculate_gdd_degree_days, infer_gdd_base_temp_c
 
                 base_temp_c = None
@@ -997,11 +951,11 @@ class EnvironmentalFeatureExtractor:
                     base_temp_c = float(self._legacy_gdd_base_temp_c(plant_type))
 
                 if base_temp_c is not None:
-                    features['growing_degree_days'] = calculate_gdd_degree_days(
-                        sensor_df['temperature'],
+                    features["growing_degree_days"] = calculate_gdd_degree_days(
+                        sensor_df["temperature"],
                         base_temp_c=float(base_temp_c),
                     )
-                    features['gdd_base_temp_c'] = float(base_temp_c)
+                    features["gdd_base_temp_c"] = float(base_temp_c)
 
             # Photoperiod / light hours (schedule, sensor, and correlation)
             stage_light_hours = None
@@ -1029,7 +983,9 @@ class EnvironmentalFeatureExtractor:
                     features["light_hours_24h"] = float(schedule_hours or photoperiod.schedule_duration_hours())
                 else:
                     features["light_hours_24h"] = float(
-                        sensor_hours if sensor_hours is not None else (stage_light_hours or photoperiod.schedule_duration_hours())
+                        sensor_hours
+                        if sensor_hours is not None
+                        else (stage_light_hours or photoperiod.schedule_duration_hours())
                     )
 
                 if schedule_hours is not None:
@@ -1053,29 +1009,25 @@ class EnvironmentalFeatureExtractor:
                     features["light_hours_24h"] = float(stage_light_hours)
                 else:
                     features["light_hours_24h"] = float(photoperiod.schedule_duration_hours())
-            
+
             # Stability metrics
-            if 'temperature' in sensor_df.columns:
-                features['temp_stability'] = self._calculate_stability(sensor_df['temperature'])
-            
-            if 'humidity' in sensor_df.columns:
-                features['humidity_stability'] = self._calculate_stability(sensor_df['humidity'])
-            
+            if "temperature" in sensor_df.columns:
+                features["temp_stability"] = self._calculate_stability(sensor_df["temperature"])
+
+            if "humidity" in sensor_df.columns:
+                features["humidity_stability"] = self._calculate_stability(sensor_df["humidity"])
+
             # Risk indicators
             risk_indicators = self.calculate_risk_indicators(sensor_df)
             features.update(risk_indicators)
-            
+
             return features
-            
+
         except Exception as e:
             logger.error(f"Error extracting features: {e}", exc_info=True)
             return self._get_default_features()
-    
-    def calculate_vpd(
-        self,
-        temperature,
-        relative_humidity
-    ):
+
+    def calculate_vpd(self, temperature, relative_humidity):
         """
         Calculate Vapor Pressure Deficit (VPD) in kPa.
 
@@ -1099,13 +1051,8 @@ class EnvironmentalFeatureExtractor:
         from app.utils.psychrometrics import calculate_vpd_kpa
 
         return calculate_vpd_kpa(temperature, relative_humidity)
-    
-    def calculate_dif(
-        self,
-        temperature,
-        day_start_hour: int = 6,
-        day_end_hour: int = 18
-    ) -> float:
+
+    def calculate_dif(self, temperature, day_start_hour: int = 6, day_end_hour: int = 18) -> float:
         """
         Calculate DIF (Day-Night temperature difference).
 
@@ -1153,56 +1100,48 @@ class EnvironmentalFeatureExtractor:
             return float(default)
 
         return float(base_temps.get(str(plant_type).lower(), default))
-    
-    def extract_rolling_features(
-        self,
-        sensor_df,
-        windows: Optional[List[str]] = None
-    ) -> Dict[str, float]:
+
+    def extract_rolling_features(self, sensor_df, windows: list[str] | None = None) -> dict[str, float]:
         """
         Extract rolling window statistics for temporal patterns.
-        
+
         Args:
             sensor_df: Sensor data with datetime index
             windows: List of window sizes (e.g., ['6H', '24H', '7D'])
-            
+
         Returns:
             Dictionary of rolling statistics
         """
         if windows is None:
-            windows = ['6H', '24H']
-        
+            windows = ["6H", "24H"]
+
         features = {}
-        
+
         try:
             for window in windows:
-                window_label = window.replace('H', 'h').replace('D', 'd')
-                
-                if 'temperature' in sensor_df.columns:
-                    rolling = sensor_df['temperature'].rolling(window=window, min_periods=1)
-                    features[f'temp_rolling_mean_{window_label}'] = rolling.mean().iloc[-1]
-                    features[f'temp_rolling_std_{window_label}'] = rolling.std().iloc[-1]
-                
-                if 'humidity' in sensor_df.columns:
-                    rolling = sensor_df['humidity'].rolling(window=window, min_periods=1)
-                    features[f'humidity_rolling_mean_{window_label}'] = rolling.mean().iloc[-1]
-                    features[f'humidity_rolling_std_{window_label}'] = rolling.std().iloc[-1]
-                
-                if 'soil_moisture' in sensor_df.columns:
-                    rolling = sensor_df['soil_moisture'].rolling(window=window, min_periods=1)
-                    features[f'moisture_rolling_mean_{window_label}'] = rolling.mean().iloc[-1]
-            
+                window_label = window.replace("H", "h").replace("D", "d")
+
+                if "temperature" in sensor_df.columns:
+                    rolling = sensor_df["temperature"].rolling(window=window, min_periods=1)
+                    features[f"temp_rolling_mean_{window_label}"] = rolling.mean().iloc[-1]
+                    features[f"temp_rolling_std_{window_label}"] = rolling.std().iloc[-1]
+
+                if "humidity" in sensor_df.columns:
+                    rolling = sensor_df["humidity"].rolling(window=window, min_periods=1)
+                    features[f"humidity_rolling_mean_{window_label}"] = rolling.mean().iloc[-1]
+                    features[f"humidity_rolling_std_{window_label}"] = rolling.std().iloc[-1]
+
+                if "soil_moisture" in sensor_df.columns:
+                    rolling = sensor_df["soil_moisture"].rolling(window=window, min_periods=1)
+                    features[f"moisture_rolling_mean_{window_label}"] = rolling.mean().iloc[-1]
+
             return features
-            
+
         except Exception as e:
             logger.warning(f"Error extracting rolling features: {e}")
             return {}
-    
-    def detect_trend(
-        self,
-        series,
-        window: int = 24
-    ) -> float:
+
+    def detect_trend(self, series, window: int = 24) -> float:
         """
         Detect trend in time series using linear regression.
 
@@ -1229,16 +1168,12 @@ class EnvironmentalFeatureExtractor:
                 return float(slope)
             else:
                 return 0.0
-                
+
         except Exception as e:
             logger.warning(f"Error detecting trend: {e}")
             return 0.0
-    
-    def detect_anomalies(
-        self,
-        sensor_df,
-        std_threshold: float = 3.0
-    ) -> List[Dict[str, Any]]:
+
+    def detect_anomalies(self, sensor_df, std_threshold: float = 3.0) -> list[dict[str, Any]]:
         """
         Detect anomalies using Z-score method.
 
@@ -1257,7 +1192,7 @@ class EnvironmentalFeatureExtractor:
         anomalies = []
 
         try:
-            for column in ['temperature', 'humidity', 'soil_moisture']:
+            for column in ["temperature", "humidity", "soil_moisture"]:
                 if column not in sensor_df.columns:
                     continue
 
@@ -1271,35 +1206,32 @@ class EnvironmentalFeatureExtractor:
                 # Calculate z-scores
                 z_scores = np.abs((series - mean) / std)
                 anomaly_mask = z_scores > std_threshold
-                
+
                 if anomaly_mask.any():
                     anomaly_indices = sensor_df[anomaly_mask].index
                     for idx in anomaly_indices:
-                        anomalies.append({
-                            'timestamp': idx,
-                            'sensor': column,
-                            'value': series[idx],
-                            'z_score': float(z_scores[idx]),
-                            'deviation': float(series[idx] - mean)
-                        })
-            
+                        anomalies.append(
+                            {
+                                "timestamp": idx,
+                                "sensor": column,
+                                "value": series[idx],
+                                "z_score": float(z_scores[idx]),
+                                "deviation": float(series[idx] - mean),
+                            }
+                        )
+
             return anomalies
-            
+
         except Exception as e:
             logger.warning(f"Error detecting anomalies: {e}")
             return []
-    
-    def calculate_growing_degree_days(
-        self,
-        temperature,
-        plant_type: str,
-        base_temp: Optional[float] = None
-    ) -> float:
+
+    def calculate_growing_degree_days(self, temperature, plant_type: str, base_temp: float | None = None) -> float:
         """
         Calculate Growing Degree Days (GDD) / Thermal Time.
-        
+
         GDD = Σ (Daily Avg Temp - Base Temp) for temps above base
-        
+
         Base temperatures by plant type:
         - Tomato: 10°C
         - Lettuce: 4°C
@@ -1307,12 +1239,12 @@ class EnvironmentalFeatureExtractor:
         - Cucumber: 12°C
         - Basil: 10°C
         - Spinach: 4°C
-        
+
         Args:
             temperature: Temperature series
             plant_type: Plant type (case-insensitive)
             base_temp: Optional base temperature override
-            
+
         Returns:
             Accumulated GDD in degree-days
         """
@@ -1335,85 +1267,87 @@ class EnvironmentalFeatureExtractor:
             base_temp_c=float(base_temp),
             interval_hours=interval_hours,
         )
-    
+
     def calculate_risk_indicators(
         self,
         sensor_df,
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """
         Calculate environmental risk indicators.
-        
+
         Identifies conditions that increase disease, pest, or stress risk.
-        
+
         Returns:
             Dictionary with risk indicator features
         """
         risks = {}
-        
+
         try:
             # High humidity risk (fungal diseases)
-            if 'humidity' in sensor_df.columns:
-                high_humidity_hours = (sensor_df['humidity'] > 85).sum()
-                risks['high_humidity_hours'] = float(high_humidity_hours)
-                risks['fungal_risk_score'] = min(high_humidity_hours / 24.0, 1.0)
-            
+            if "humidity" in sensor_df.columns:
+                high_humidity_hours = (sensor_df["humidity"] > 85).sum()
+                risks["high_humidity_hours"] = float(high_humidity_hours)
+                risks["fungal_risk_score"] = min(high_humidity_hours / 24.0, 1.0)
+
             # Temperature extremes
-            if 'temperature' in sensor_df.columns:
-                cold_stress_hours = (sensor_df['temperature'] < 10).sum()
-                heat_stress_hours = (sensor_df['temperature'] > 35).sum()
-                risks['cold_stress_hours'] = float(cold_stress_hours)
-                risks['heat_stress_hours'] = float(heat_stress_hours)
-            
+            if "temperature" in sensor_df.columns:
+                cold_stress_hours = (sensor_df["temperature"] < 10).sum()
+                heat_stress_hours = (sensor_df["temperature"] > 35).sum()
+                risks["cold_stress_hours"] = float(cold_stress_hours)
+                risks["heat_stress_hours"] = float(heat_stress_hours)
+
             # Moisture extremes
-            if 'soil_moisture' in sensor_df.columns:
-                dry_stress_hours = (sensor_df['soil_moisture'] < 30).sum()
-                wet_stress_hours = (sensor_df['soil_moisture'] > 90).sum()
-                risks['dry_stress_hours'] = float(dry_stress_hours)
-                risks['wet_stress_hours'] = float(wet_stress_hours)
-            
+            if "soil_moisture" in sensor_df.columns:
+                dry_stress_hours = (sensor_df["soil_moisture"] < 30).sum()
+                wet_stress_hours = (sensor_df["soil_moisture"] > 90).sum()
+                risks["dry_stress_hours"] = float(dry_stress_hours)
+                risks["wet_stress_hours"] = float(wet_stress_hours)
+
             # Combined stress score
-            total_stress = sum([
-                risks.get('cold_stress_hours', 0),
-                risks.get('heat_stress_hours', 0),
-                risks.get('dry_stress_hours', 0),
-                risks.get('wet_stress_hours', 0),
-                risks.get('high_humidity_hours', 0)
-            ])
-            risks['total_stress_score'] = min(total_stress / 48.0, 1.0)
-            
+            total_stress = sum(
+                [
+                    risks.get("cold_stress_hours", 0),
+                    risks.get("heat_stress_hours", 0),
+                    risks.get("dry_stress_hours", 0),
+                    risks.get("wet_stress_hours", 0),
+                    risks.get("high_humidity_hours", 0),
+                ]
+            )
+            risks["total_stress_score"] = min(total_stress / 48.0, 1.0)
+
             return risks
-            
+
         except Exception as e:
             logger.warning(f"Error calculating risk indicators: {e}")
             return {}
-    
+
     def _calculate_stability(self, series) -> float:
         """
         Calculate stability score (inverse of coefficient of variation).
-        
+
         Higher score = more stable conditions
         Lower score = more variable conditions
         """
         try:
             mean = series.mean()
             std = series.std()
-            
+
             if mean == 0:
                 return 0.0
-            
+
             cv = std / mean  # Coefficient of variation
             stability = 1.0 / (1.0 + cv)  # Normalize to 0-1
-            
+
             return float(stability)
-            
+
         except Exception as e:
             logger.warning(f"Error calculating stability: {e}")
             return 0.5
-    
+
     def _categorize_dif(self, dif: float) -> float:
         """
         Categorize DIF into numeric categories.
-        
+
         Returns:
             -1.0 for negative DIF, 0.0 for zero DIF, 1.0 for positive DIF
         """
@@ -1423,29 +1357,29 @@ class EnvironmentalFeatureExtractor:
             return 1.0
         else:
             return 0.0
-    
-    def _get_default_features(self) -> Dict[str, float]:
+
+    def _get_default_features(self) -> dict[str, float]:
         """Return default feature values when data is unavailable."""
         return {
-            'temp_mean': 20.0,
-            'temp_std': 2.0,
-            'temp_min': 18.0,
-            'temp_max': 22.0,
-            'temp_range': 4.0,
-            'humidity_mean': 60.0,
-            'humidity_std': 10.0,
-            'vpd_mean': 1.0,
-            'vpd_std': 0.2,
-            'dif': 2.0,
-            'growing_degree_days': 0.0,
-            'gdd_base_temp_c': 10.0,
-            'light_hours_24h': 16.0,
-            'temp_trend': 0.0,
-            'humidity_trend': 0.0,
-            'anomaly_count': 0.0,
-            'has_anomalies': 0.0,
-            'temp_stability': 0.8,
-            'humidity_stability': 0.7
+            "temp_mean": 20.0,
+            "temp_std": 2.0,
+            "temp_min": 18.0,
+            "temp_max": 22.0,
+            "temp_range": 4.0,
+            "humidity_mean": 60.0,
+            "humidity_std": 10.0,
+            "vpd_mean": 1.0,
+            "vpd_std": 0.2,
+            "dif": 2.0,
+            "growing_degree_days": 0.0,
+            "gdd_base_temp_c": 10.0,
+            "light_hours_24h": 16.0,
+            "temp_trend": 0.0,
+            "humidity_trend": 0.0,
+            "anomaly_count": 0.0,
+            "has_anomalies": 0.0,
+            "temp_stability": 0.8,
+            "humidity_stability": 0.7,
         }
 
 
@@ -1485,12 +1419,12 @@ class PlantHealthFeatureExtractor:
 
     def extract_features(
         self,
-        plant_metrics: Dict[str, float],
-        env_metrics: Dict[str, float],
-        historical_data: Optional[Any] = None,
-        plant_profile: Optional[Any] = None,
-        thresholds: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, float]:
+        plant_metrics: dict[str, float],
+        env_metrics: dict[str, float],
+        historical_data: Any | None = None,
+        plant_profile: Any | None = None,
+        thresholds: dict[str, Any] | None = None,
+    ) -> dict[str, float]:
         """
         Extract features for a single prediction.
 
@@ -1504,7 +1438,6 @@ class PlantHealthFeatureExtractor:
         Returns:
             Dictionary of feature values aligned with PLANT_HEALTH_FEATURES_V1
         """
-        import numpy as np  # Lazy load
 
         features = {}
 
@@ -1531,15 +1464,11 @@ class PlantHealthFeatureExtractor:
             features["humidity_std_24h"] = 5.0
 
         # Deviation features (|current - optimal|)
-        features.update(self._calculate_deviations(
-            plant_metrics, env_metrics, thresholds
-        ))
+        features.update(self._calculate_deviations(plant_metrics, env_metrics, thresholds))
 
         # Stress indicators
         if historical_data is not None and not historical_data.empty:
-            features.update(self._calculate_stress_indicators(
-                historical_data, thresholds
-            ))
+            features.update(self._calculate_stress_indicators(historical_data, thresholds))
         else:
             features["hours_below_moisture_threshold"] = 0.0
             features["hours_above_temp_threshold"] = 0.0
@@ -1555,7 +1484,7 @@ class PlantHealthFeatureExtractor:
 
     def extract_training_features(
         self,
-        training_samples: List[Dict[str, Any]],
+        training_samples: list[dict[str, Any]],
     ) -> Any:
         """
         Extract features for training dataset.
@@ -1588,9 +1517,7 @@ class PlantHealthFeatureExtractor:
             if historical_data and isinstance(historical_data, list):
                 historical_data = pd.DataFrame(historical_data)
                 if "timestamp" in historical_data.columns:
-                    historical_data["timestamp"] = pd.to_datetime(
-                        historical_data["timestamp"]
-                    )
+                    historical_data["timestamp"] = pd.to_datetime(historical_data["timestamp"])
                     historical_data = historical_data.set_index("timestamp")
 
             # Extract features for this sample
@@ -1623,7 +1550,7 @@ class PlantHealthFeatureExtractor:
     def _extract_24h_statistics(
         self,
         historical_data: Any,
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """Extract 24-hour rolling statistics from historical data."""
         stats = {}
 
@@ -1664,10 +1591,10 @@ class PlantHealthFeatureExtractor:
 
     def _calculate_deviations(
         self,
-        plant_metrics: Dict[str, float],
-        env_metrics: Dict[str, float],
-        thresholds: Optional[Dict[str, Any]],
-    ) -> Dict[str, float]:
+        plant_metrics: dict[str, float],
+        env_metrics: dict[str, float],
+        thresholds: dict[str, Any] | None,
+    ) -> dict[str, float]:
         """Calculate deviation from optimal values."""
         deviations = {}
 
@@ -1693,42 +1620,30 @@ class PlantHealthFeatureExtractor:
 
         # Calculate deviations
         soil_moisture = plant_metrics.get("soil_moisture", 60.0)
-        deviations["soil_moisture_deviation"] = abs(
-            soil_moisture - optimal["soil_moisture"]["optimal"]
-        )
+        deviations["soil_moisture_deviation"] = abs(soil_moisture - optimal["soil_moisture"]["optimal"])
 
         temperature = env_metrics.get("temperature", 24.0)
-        deviations["temperature_deviation"] = abs(
-            temperature - optimal["temperature"]["optimal"]
-        )
+        deviations["temperature_deviation"] = abs(temperature - optimal["temperature"]["optimal"])
 
         humidity = env_metrics.get("humidity", 60.0)
-        deviations["humidity_deviation"] = abs(
-            humidity - optimal["humidity"]["optimal"]
-        )
+        deviations["humidity_deviation"] = abs(humidity - optimal["humidity"]["optimal"])
 
         vpd = env_metrics.get("vpd", 1.0)
-        deviations["vpd_deviation"] = abs(
-            vpd - optimal["vpd"]["optimal"]
-        )
+        deviations["vpd_deviation"] = abs(vpd - optimal["vpd"]["optimal"])
 
         ph = plant_metrics.get("ph", 6.5)
-        deviations["ph_deviation"] = abs(
-            ph - optimal["ph"]["optimal"]
-        )
+        deviations["ph_deviation"] = abs(ph - optimal["ph"]["optimal"])
 
         ec = plant_metrics.get("ec", 1.5)
-        deviations["ec_deviation"] = abs(
-            ec - optimal["ec"]["optimal"]
-        )
+        deviations["ec_deviation"] = abs(ec - optimal["ec"]["optimal"])
 
         return deviations
 
     def _calculate_stress_indicators(
         self,
         historical_data: Any,
-        thresholds: Optional[Dict[str, Any]],
-    ) -> Dict[str, float]:
+        thresholds: dict[str, Any] | None,
+    ) -> dict[str, float]:
         """Calculate stress indicator features from historical data."""
         indicators = {
             "hours_below_moisture_threshold": 0.0,
@@ -1795,8 +1710,8 @@ class PlantHealthFeatureExtractor:
 
     def _extract_plant_context(
         self,
-        plant_profile: Optional[Any],
-    ) -> Dict[str, float]:
+        plant_profile: Any | None,
+    ) -> dict[str, float]:
         """Extract plant context features."""
         context = {
             "growth_stage_encoded": 2.0,  # Default: vegetative
@@ -1824,9 +1739,7 @@ class PlantHealthFeatureExtractor:
             # Encode growth stage
             if growth_stage:
                 stage_lower = str(growth_stage).lower()
-                context["growth_stage_encoded"] = float(
-                    self.GROWTH_STAGE_ENCODING.get(stage_lower, 2)
-                )
+                context["growth_stage_encoded"] = float(self.GROWTH_STAGE_ENCODING.get(stage_lower, 2))
 
             context["days_in_stage"] = float(days_in_stage or 14)
             context["plant_age_days"] = float(plant_age or 30)
@@ -1838,8 +1751,8 @@ class PlantHealthFeatureExtractor:
 
     def _extract_temporal_features(
         self,
-        observation_date: Optional[datetime] = None,
-    ) -> Dict[str, float]:
+        observation_date: datetime | None = None,
+    ) -> dict[str, float]:
         """Extract temporal features with cyclical encoding."""
         import numpy as np  # Lazy load
 
@@ -1847,9 +1760,7 @@ class PlantHealthFeatureExtractor:
             observation_date = datetime.now()
         elif isinstance(observation_date, str):
             try:
-                observation_date = datetime.fromisoformat(
-                    observation_date.replace("Z", "+00:00")
-                )
+                observation_date = datetime.fromisoformat(observation_date.replace("Z", "+00:00"))
             except ValueError:
                 observation_date = datetime.now()
 
@@ -1875,7 +1786,7 @@ class PlantHealthFeatureExtractor:
 
         return features
 
-    def get_feature_names(self) -> List[str]:
+    def get_feature_names(self) -> list[str]:
         """Return list of feature names in order."""
         return FeatureEngineer.PLANT_HEALTH_FEATURES_V1.copy()
 

@@ -6,22 +6,23 @@ Handles growth-stage transitions, threshold proposals, and condition profiles.
 Extracted from PlantViewService to reduce its scope (audit item #8).
 PlantViewService delegates stage/threshold operations to this class.
 """
+
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from app.enums.events import PlantEvent
-from app.enums.common import ConditionProfileMode, ConditionProfileTarget
-from app.schemas.events import PlantStageUpdatePayload
 from app.constants import THRESHOLD_UPDATE_TOLERANCE
+from app.enums.common import ConditionProfileMode, ConditionProfileTarget
+from app.enums.events import PlantEvent
+from app.schemas.events import PlantStageUpdatePayload
 from app.services.application.threshold_service import THRESHOLD_KEYS
 
 if TYPE_CHECKING:
     from app.domain.plant_profile import PlantProfile
-    from app.services.application.threshold_service import ThresholdService
-    from app.services.application.notifications_service import NotificationsService
     from app.services.application.activity_logger import ActivityLogger
+    from app.services.application.notifications_service import NotificationsService
+    from app.services.application.threshold_service import ThresholdService
     from app.utils.event_bus import EventBus
 
 logger = logging.getLogger(__name__)
@@ -41,10 +42,10 @@ class PlantStageManager:
     def __init__(
         self,
         plant_repo: Any,
-        event_bus: 'EventBus',
-        threshold_service: Optional['ThresholdService'] = None,
-        notifications_service: Optional['NotificationsService'] = None,
-        activity_logger: Optional['ActivityLogger'] = None,
+        event_bus: "EventBus",
+        threshold_service: "ThresholdService" | None = None,
+        notifications_service: "NotificationsService" | None = None,
+        activity_logger: "ActivityLogger" | None = None,
     ):
         self.plant_repo = plant_repo
         self.event_bus = event_bus
@@ -56,7 +57,7 @@ class PlantStageManager:
 
     def update_plant_stage(
         self,
-        plant: 'PlantProfile',
+        plant: "PlantProfile",
         new_stage: str,
         days_in_stage: int = 0,
         *,
@@ -101,6 +102,7 @@ class PlantStageManager:
 
             if self.activity_logger:
                 from app.services.application.activity_logger import ActivityLogger
+
                 self.activity_logger.log_activity(
                     activity_type=ActivityLogger.PLANT_UPDATED,
                     description=f"Updated {plant_type} plant '{plant_name}' to unit {unit_id}",
@@ -137,11 +139,11 @@ class PlantStageManager:
 
     def _propose_stage_thresholds(
         self,
-        plant: 'PlantProfile',
+        plant: "PlantProfile",
         old_stage: str,
         new_stage: str,
         *,
-        seed_overrides: Optional[Dict[str, float]] = None,
+        seed_overrides: dict[str, float] | None = None,
         force: bool = False,
     ) -> None:
         """
@@ -150,9 +152,7 @@ class PlantStageManager:
         Sends notification with Apply/Keep Current/Customize options.
         """
         if not self.threshold_service or not self.notifications_service:
-            logger.debug(
-                "Threshold proposal skipped - threshold_service or notifications_service not available"
-            )
+            logger.debug("Threshold proposal skipped - threshold_service or notifications_service not available")
             return
 
         try:
@@ -180,7 +180,7 @@ class PlantStageManager:
                 logger.debug("No current thresholds for unit %s, using generic", plant.unit_id)
                 current_env = self.threshold_service.generic_thresholds.to_settings_dict()
 
-            threshold_comparison: Dict[str, Dict[str, float]] = {}
+            threshold_comparison: dict[str, dict[str, float]] = {}
             for key in THRESHOLD_KEYS:
                 proposed_value = proposed_map.get(key)
                 if proposed_value is None:
@@ -240,16 +240,16 @@ class PlantStageManager:
 
     def _send_threshold_proposal_notification(
         self,
-        plant: 'PlantProfile',
+        plant: "PlantProfile",
         old_stage: str,
         new_stage: str,
-        comparison: Dict[str, Dict[str, float]],
+        comparison: dict[str, dict[str, float]],
         proposed_thresholds: Any,
     ) -> None:
         """
         Send notification for threshold proposal with action buttons.
         """
-        from app.enums import NotificationType, NotificationSeverity
+        from app.enums import NotificationSeverity, NotificationType
 
         user_id = self._get_unit_owner(plant.unit_id)
         if not user_id:
@@ -265,21 +265,17 @@ class PlantStageManager:
             "lux_threshold": ("Light", "lux", 0),
             "air_quality_threshold": ("Air Quality", "AQI", 0),
         }
-        changes: List[str] = []
+        changes: list[str] = []
         for param, values in comparison.items():
             diff = values["proposed"] - values["current"]
             if abs(diff) > 0.5:
                 direction = "↑" if diff > 0 else "↓"
-                name, unit, precision = metric_meta.get(
-                    param, (param.replace("_", " ").title(), "", 1)
-                )
+                name, unit, precision = metric_meta.get(param, (param.replace("_", " ").title(), "", 1))
                 fmt = f"{{:.{precision}f}}"
                 current_str = fmt.format(values["current"])
                 proposed_str = fmt.format(values["proposed"])
                 suffix = f" {unit}" if unit else ""
-                changes.append(
-                    f"{name}: {current_str}{suffix} → {proposed_str}{suffix} {direction}"
-                )
+                changes.append(f"{name}: {current_str}{suffix} → {proposed_str}{suffix} {direction}")
 
         if not changes:
             return
@@ -320,8 +316,8 @@ class PlantStageManager:
         self,
         plant_id: int,
         threshold: float,
-        plant: Optional['PlantProfile'] = None,
-        unit_id: Optional[int] = None,
+        plant: "PlantProfile" | None = None,
+        unit_id: int | None = None,
     ) -> bool:
         """
         Update the per-plant soil moisture threshold override.
@@ -393,12 +389,12 @@ class PlantStageManager:
         *,
         plant_id: int,
         profile_id: str,
-        plant: Optional['PlantProfile'] = None,
-        unit_id: Optional[int] = None,
-        mode: Optional[ConditionProfileMode] = None,
-        name: Optional[str] = None,
-        user_id: Optional[int] = None,
-    ) -> Optional[Dict[str, Any]]:
+        plant: "PlantProfile" | None = None,
+        unit_id: int | None = None,
+        mode: ConditionProfileMode | None = None,
+        name: str | None = None,
+        user_id: int | None = None,
+    ) -> dict[str, Any] | None:
         """
         Apply a condition profile to an existing plant.
 
@@ -492,10 +488,10 @@ class PlantStageManager:
         unit_id: int,
         plant_type: str,
         growth_stage: str,
-        plant_variety: Optional[str],
-        strain_variety: Optional[str],
-        pot_size_liters: Optional[float],
-    ) -> Dict[str, float]:
+        plant_variety: str | None,
+        strain_variety: str | None,
+        pot_size_liters: float | None,
+    ) -> dict[str, float]:
         """Fetch the latest stored overrides for a matching plant context."""
         user_id = self._get_unit_owner(unit_id)
         if not user_id:
@@ -523,7 +519,7 @@ class PlantStageManager:
             "air_quality_threshold": row.get("air_quality_threshold_override"),
             "soil_moisture_threshold": row.get("soil_moisture_threshold_override"),
         }
-        overrides: Dict[str, float] = {}
+        overrides: dict[str, float] = {}
         for key, value in mapping.items():
             if value is None:
                 continue
@@ -535,13 +531,13 @@ class PlantStageManager:
 
     # ==================== Helpers ====================
 
-    def _get_unit_owner(self, unit_id: int) -> Optional[int]:
+    def _get_unit_owner(self, unit_id: int) -> int | None:
         """
         Get the owner user_id for a unit.
 
         Uses the unit_repo injected via set_unit_repo().
         """
-        if not hasattr(self, '_unit_repo') or self._unit_repo is None:
+        if not hasattr(self, "_unit_repo") or self._unit_repo is None:
             return None
         try:
             unit = self._unit_repo.get_unit(unit_id)
@@ -568,7 +564,7 @@ class PlantStageManager:
     @property
     def journal_service(self):
         """Journal service for recording stage-related entries."""
-        return getattr(self, '_journal_service', None)
+        return getattr(self, "_journal_service", None)
 
     @journal_service.setter
     def journal_service(self, service) -> None:
@@ -581,8 +577,8 @@ class PlantStageManager:
         plant_id: int,
         plant: Any,
         extend_days: int,
-        reason: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        reason: str | None = None,
+    ) -> dict[str, Any]:
         """
         Extend the current growth stage by a number of days (max 5).
 
@@ -601,9 +597,7 @@ class PlantStageManager:
         if extend_days < 1 or extend_days > 5:
             raise ValueError("Extension must be between 1 and 5 days")
 
-        plant_dict = plant if isinstance(plant, dict) else (
-            plant.to_dict() if hasattr(plant, 'to_dict') else {}
-        )
+        plant_dict = plant if isinstance(plant, dict) else (plant.to_dict() if hasattr(plant, "to_dict") else {})
 
         current_stage = plant_dict.get("current_stage") or getattr(plant, "current_stage", None)
         days_in_stage = plant_dict.get("days_in_stage", 0) or getattr(plant, "days_in_stage", 0)
@@ -616,7 +610,7 @@ class PlantStageManager:
 
         # Update the stage with new days_in_stage (effectively same stage, more days)
         try:
-            profile = plant if hasattr(plant, 'plant_id') else None
+            profile = plant if hasattr(plant, "plant_id") else None
             if profile:
                 self.update_plant_stage(
                     plant=profile,
@@ -651,7 +645,6 @@ class PlantStageManager:
         }
 
         logger.info(
-            f"Extended stage '{current_stage}' for plant {plant_id} "
-            f"by {extend_days} days → {new_days} total days"
+            f"Extended stage '{current_stage}' for plant {plant_id} by {extend_days} days → {new_days} total days"
         )
         return result

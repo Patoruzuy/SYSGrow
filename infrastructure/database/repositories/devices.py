@@ -1,19 +1,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any
 
+from infrastructure.database.decorators import invalidates_caches, repository_cache
 from infrastructure.database.ops.devices import DeviceOperations
-from infrastructure.database.decorators import (
-    repository_cache,
-    invalidates_caches
-)
 
 
 @dataclass(frozen=True)
 class FriendlyNameLookup:
     sensor_id: int
-    unit_id: Optional[int] = None
+    unit_id: int | None = None
 
 
 class DeviceRepository:
@@ -32,8 +29,8 @@ class DeviceRepository:
         actuator_type: str,
         protocol: str,
         model: str = "Generic",
-        config_data: Optional[Dict[str, Any]] = None,
-    ) -> Optional[int]:
+        config_data: dict[str, Any] | None = None,
+    ) -> int | None:
         return self._backend.insert_actuator(
             unit_id=unit_id,
             name=name,
@@ -47,14 +44,14 @@ class DeviceRepository:
     def delete_actuator(self, actuator_id: int) -> None:
         self._backend.remove_actuator(actuator_id)
 
-    @repository_cache(maxsize=128, invalidate_on=['create_actuator', 'delete_actuator'])
+    @repository_cache(maxsize=128, invalidate_on=["create_actuator", "delete_actuator"])
     def list_actuator_configs(
         self,
-        unit_id: Optional[int] = None,
+        unit_id: int | None = None,
         *,
-        limit: Optional[int] = None,
-        offset: Optional[int] = None,
-    ) -> List[Dict[str, Any]]:
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> list[dict[str, Any]]:
         """
         List actuator configurations with pagination.
 
@@ -71,9 +68,9 @@ class DeviceRepository:
     def list_actuators(
         self,
         *,
-        limit: Optional[int] = None,
-        offset: Optional[int] = None,
-    ) -> List[Dict[str, Any]]:
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> list[dict[str, Any]]:
         """
         List all actuators with pagination.
 
@@ -99,8 +96,8 @@ class DeviceRepository:
         sensor_type: str,
         protocol: str,
         model: str,
-        config_data: Optional[Dict[str, Any]] = None,
-    ) -> Optional[int]:
+        config_data: dict[str, Any] | None = None,
+    ) -> int | None:
         """Create sensor with new schema."""
         return self._backend.insert_sensor(
             unit_id=unit_id,
@@ -116,7 +113,7 @@ class DeviceRepository:
         self,
         *,
         sensor_id: int,
-        config_data: Dict[str, Any],
+        config_data: dict[str, Any],
     ) -> bool:
         """Update sensor config_data (upsert pattern)."""
         return self._backend.update_sensor_config(
@@ -129,10 +126,10 @@ class DeviceRepository:
         self,
         *,
         sensor_id: int,
-        name: Optional[str] = None,
-        sensor_type: Optional[str] = None,
-        protocol: Optional[str] = None,
-        model: Optional[str] = None,
+        name: str | None = None,
+        sensor_type: str | None = None,
+        protocol: str | None = None,
+        model: str | None = None,
     ) -> bool:
         """Update base sensor fields (name/type/protocol/model)."""
         return self._backend.update_sensor_fields(
@@ -147,14 +144,14 @@ class DeviceRepository:
     def delete_sensor(self, sensor_id: int) -> None:
         self._backend.remove_sensor(sensor_id)
 
-    @repository_cache(maxsize=128, invalidate_on=['create_sensor', 'delete_sensor'])
+    @repository_cache(maxsize=128, invalidate_on=["create_sensor", "delete_sensor"])
     def list_sensor_configs(
         self,
-        unit_id: Optional[int] = None,
+        unit_id: int | None = None,
         *,
-        limit: Optional[int] = None,
-        offset: Optional[int] = None,
-    ) -> List[Dict[str, Any]]:
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> list[dict[str, Any]]:
         """
         Get sensor configs with pagination, optionally filtered by unit.
 
@@ -166,7 +163,7 @@ class DeviceRepository:
         Returns:
             List of sensor configuration dictionaries
         """
-        kwargs: Dict[str, Any] = {}
+        kwargs: dict[str, Any] = {}
         if unit_id is not None:
             kwargs["unit_id"] = unit_id
         if limit is not None:
@@ -178,9 +175,9 @@ class DeviceRepository:
     def list_sensors(
         self,
         *,
-        limit: Optional[int] = None,
-        offset: Optional[int] = None,
-    ) -> List[Dict[str, Any]]:
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> list[dict[str, Any]]:
         """
         List all sensors with pagination.
 
@@ -193,7 +190,7 @@ class DeviceRepository:
         """
         return self._backend.get_all_sensors(limit=limit, offset=offset)
 
-    def get_by_friendly_name(self, friendly_name: str) -> Optional[FriendlyNameLookup]:
+    def get_by_friendly_name(self, friendly_name: str) -> FriendlyNameLookup | None:
         """
         Resolve a Zigbee2MQTT friendly_name to a registered sensor.
 
@@ -257,17 +254,17 @@ class DeviceRepository:
     def find_sensor_by_id(self, sensor_id: int):
         return self._backend.get_sensor_by_id(sensor_id)
 
-    def find_sensor_config_by_id(self, sensor_id: int) -> Optional[Dict[str, Any]]:
+    def find_sensor_config_by_id(self, sensor_id: int) -> dict[str, Any] | None:
         return self._backend.get_sensor_config_by_id(sensor_id)
 
-    def find_actuator_config_by_id(self, actuator_id: int) -> Optional[Dict[str, Any]]:
+    def find_actuator_config_by_id(self, actuator_id: int) -> dict[str, Any] | None:
         return self._backend.get_actuator_config_by_id(actuator_id)
 
-    def get_actuator_config_by_id(self, actuator_id: int) -> Optional[Dict[str, Any]]:
+    def get_actuator_config_by_id(self, actuator_id: int) -> dict[str, Any] | None:
         """Backward-compatible alias for actuator config lookup."""
         return self._backend.get_actuator_config_by_id(actuator_id)
 
-    def find_sensors_by_model(self, sensor_model: str) -> List[Any]:
+    def find_sensors_by_model(self, sensor_model: str) -> list[Any]:
         return self._backend.get_sensors_by_model(sensor_model)
 
     # Sensor Readings ----------------------------------------------------------
@@ -275,9 +272,9 @@ class DeviceRepository:
         self,
         *,
         sensor_id: int,
-        reading_data: Dict[str, Any],
+        reading_data: dict[str, Any],
         quality_score: float = 1.0,
-    ) -> Optional[int]:
+    ) -> int | None:
         """Record sensor reading with JSON data."""
         return self._backend.insert_sensor_reading(
             sensor_id=sensor_id,
@@ -292,7 +289,7 @@ class DeviceRepository:
         measured_value: float,
         reference_value: float,
         calibration_type: str = "linear",
-    ) -> Optional[int]:
+    ) -> int | None:
         """Save calibration point."""
         return self._backend.save_calibration(
             sensor_id=sensor_id,
@@ -301,7 +298,7 @@ class DeviceRepository:
             calibration_type=calibration_type,
         )
 
-    def get_calibrations(self, sensor_id: int) -> List[Dict[str, Any]]:
+    def get_calibrations(self, sensor_id: int) -> list[dict[str, Any]]:
         """Get all calibration points for a sensor."""
         return self._backend.get_calibrations(sensor_id)
 
@@ -311,9 +308,9 @@ class DeviceRepository:
         actuator_id: int,
         state: str,
         *,
-        value: Optional[float] = None,
-        timestamp: Optional[str] = None,
-    ) -> Optional[int]:
+        value: float | None = None,
+        timestamp: str | None = None,
+    ) -> int | None:
         """Persist an actuator state transition to the database."""
         return self._backend.save_actuator_state(
             actuator_id=actuator_id,
@@ -331,7 +328,7 @@ class DeviceRepository:
         error_rate: float,
         total_readings: int = 0,
         failed_readings: int = 0,
-    ) -> Optional[int]:
+    ) -> int | None:
         """Save health monitoring snapshot."""
         return self._backend.save_health_snapshot(
             sensor_id=sensor_id,
@@ -342,13 +339,11 @@ class DeviceRepository:
             failed_readings=failed_readings,
         )
 
-    def get_health_history(self, sensor_id: int, limit: int = 100) -> List[Dict[str, Any]]:
+    def get_health_history(self, sensor_id: int, limit: int = 100) -> list[dict[str, Any]]:
         """Get health history for a sensor."""
         return self._backend.get_health_history(sensor_id, limit)
 
-    def get_latest_health_batch(
-        self, sensor_ids: List[int]
-    ) -> Dict[int, Dict[str, Any]]:
+    def get_latest_health_batch(self, sensor_ids: list[int]) -> dict[int, dict[str, Any]]:
         """Get most recent health snapshot for each sensor in a single query.
 
         Returns a dict mapping sensor_id → latest health row.
@@ -363,7 +358,7 @@ class DeviceRepository:
         mean_value: float,
         std_deviation: float,
         z_score: float,
-    ) -> Optional[int]:
+    ) -> int | None:
         """Log detected anomaly."""
         return self._backend.log_anomaly(
             sensor_id=sensor_id,
@@ -373,16 +368,16 @@ class DeviceRepository:
             z_score=z_score,
         )
 
-    def get_anomalies(self, sensor_id: int, limit: int = 100) -> List[Dict[str, Any]]:
+    def get_anomalies(self, sensor_id: int, limit: int = 100) -> list[dict[str, Any]]:
         """Get anomalies for a sensor."""
         return self._backend.get_anomalies(sensor_id, limit)
 
     def count_anomalies_for_sensors(
         self,
-        sensor_ids: List[int],
+        sensor_ids: list[int],
         *,
-        start: Optional[str] = None,
-        end: Optional[str] = None,
+        start: str | None = None,
+        end: str | None = None,
     ) -> int:
         """Count anomalies for a set of sensors, optionally within a datetime range."""
         return self._backend.count_anomalies_for_sensors(sensor_ids, start=start, end=end)
@@ -396,7 +391,7 @@ class DeviceRepository:
         total_operations: int = 0,
         failed_operations: int = 0,
         average_response_time: float = 0.0,
-    ) -> Optional[int]:
+    ) -> int | None:
         """Save actuator health monitoring snapshot."""
         return self._backend.save_actuator_health_snapshot(
             actuator_id=actuator_id,
@@ -407,7 +402,7 @@ class DeviceRepository:
             average_response_time=average_response_time,
         )
 
-    def get_actuator_health_history(self, actuator_id: int, limit: int = 100) -> List[Dict[str, Any]]:
+    def get_actuator_health_history(self, actuator_id: int, limit: int = 100) -> list[dict[str, Any]]:
         """Get health history for an actuator."""
         return self._backend.get_actuator_health_history(actuator_id, limit)
 
@@ -417,8 +412,8 @@ class DeviceRepository:
         actuator_id: int,
         anomaly_type: str,
         severity: str,
-        details: Optional[Dict[str, Any]] = None,
-    ) -> Optional[int]:
+        details: dict[str, Any] | None = None,
+    ) -> int | None:
         """Log detected actuator anomaly."""
         return self._backend.log_actuator_anomaly(
             actuator_id=actuator_id,
@@ -427,7 +422,7 @@ class DeviceRepository:
             details=details,
         )
 
-    def get_actuator_anomalies(self, actuator_id: int, limit: int = 100) -> List[Dict[str, Any]]:
+    def get_actuator_anomalies(self, actuator_id: int, limit: int = 100) -> list[dict[str, Any]]:
         """Get anomalies for an actuator."""
         return self._backend.get_actuator_anomalies(actuator_id, limit)
 
@@ -440,14 +435,14 @@ class DeviceRepository:
         self,
         actuator_id: int,
         power_watts: float,
-        voltage: Optional[float] = None,
-        current: Optional[float] = None,
-        energy_kwh: Optional[float] = None,
-        power_factor: Optional[float] = None,
-        frequency: Optional[float] = None,
-        temperature: Optional[float] = None,
+        voltage: float | None = None,
+        current: float | None = None,
+        energy_kwh: float | None = None,
+        power_factor: float | None = None,
+        frequency: float | None = None,
+        temperature: float | None = None,
         is_estimated: bool = False,
-    ) -> Optional[int]:
+    ) -> int | None:
         """Save actuator power reading."""
         return self._backend.save_actuator_power_reading(
             actuator_id=actuator_id,
@@ -462,11 +457,8 @@ class DeviceRepository:
         )
 
     def get_actuator_power_readings(
-        self, 
-        actuator_id: int, 
-        limit: int = 1000,
-        hours: Optional[int] = None
-    ) -> List[Dict[str, Any]]:
+        self, actuator_id: int, limit: int = 1000, hours: int | None = None
+    ) -> list[dict[str, Any]]:
         """Get power readings for an actuator."""
         return self._backend.get_actuator_power_readings(actuator_id, limit, hours)
 
@@ -476,31 +468,27 @@ class DeviceRepository:
         actuator_id: int,
         *,
         limit: int = 100,
-        since: Optional[str] = None,
-        until: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
-        return self._backend.get_actuator_state_history(
-            actuator_id, limit=limit, since=since, until=until
-        )
+        since: str | None = None,
+        until: str | None = None,
+    ) -> list[dict[str, Any]]:
+        return self._backend.get_actuator_state_history(actuator_id, limit=limit, since=since, until=until)
 
     def get_unit_actuator_state_history(
         self,
         unit_id: int,
         *,
         limit: int = 100,
-        since: Optional[str] = None,
-        until: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
-        return self._backend.get_unit_actuator_state_history(
-            unit_id, limit=limit, since=since, until=until
-        )
+        since: str | None = None,
+        until: str | None = None,
+    ) -> list[dict[str, Any]]:
+        return self._backend.get_unit_actuator_state_history(unit_id, limit=limit, since=since, until=until)
 
     def get_recent_actuator_state(
         self,
         *,
         limit: int = 100,
-        unit_id: Optional[int] = None,
-    ) -> List[Dict[str, Any]]:
+        unit_id: int | None = None,
+    ) -> list[dict[str, Any]]:
         return self._backend.get_recent_actuator_state(limit=limit, unit_id=unit_id)
 
     def prune_actuator_state_history(self, days: int) -> int:
@@ -517,14 +505,14 @@ class DeviceRepository:
         *,
         connection_type: str,
         status: str,
-        endpoint: Optional[str] = None,
-        broker: Optional[str] = None,
-        port: Optional[int] = None,
-        unit_id: Optional[int] = None,
-        device_id: Optional[str] = None,
-        details: Optional[str] = None,
-        timestamp: Optional[str] = None,
-    ) -> Optional[int]:
+        endpoint: str | None = None,
+        broker: str | None = None,
+        port: int | None = None,
+        unit_id: int | None = None,
+        device_id: str | None = None,
+        details: str | None = None,
+        timestamp: str | None = None,
+    ) -> int | None:
         if endpoint is None and broker:
             endpoint = f"{broker}:{port}" if port else broker
         return self._backend.save_connectivity_event(
@@ -541,11 +529,11 @@ class DeviceRepository:
     def get_connectivity_history(
         self,
         *,
-        connection_type: Optional[str] = None,
+        connection_type: str | None = None,
         limit: int = 100,
-        since: Optional[str] = None,
-        until: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+        since: str | None = None,
+        until: str | None = None,
+    ) -> list[dict[str, Any]]:
         return self._backend.get_connectivity_history(
             connection_type=connection_type,
             limit=limit,
@@ -558,8 +546,8 @@ class DeviceRepository:
         self,
         actuator_id: int,
         calibration_type: str,
-        calibration_data: Dict[str, Any],
-    ) -> Optional[int]:
+        calibration_data: dict[str, Any],
+    ) -> int | None:
         """Save actuator calibration (power profile, PWM curve, etc.)."""
         return self._backend.save_actuator_calibration(
             actuator_id=actuator_id,
@@ -567,7 +555,7 @@ class DeviceRepository:
             calibration_data=calibration_data,
         )
 
-    def get_actuator_calibrations(self, actuator_id: int) -> List[Dict[str, Any]]:
+    def get_actuator_calibrations(self, actuator_id: int) -> list[dict[str, Any]]:
         """Get all calibrations for an actuator."""
         return self._backend.get_actuator_calibrations(actuator_id)
 
@@ -591,9 +579,7 @@ class DeviceRepository:
         Returns:
             Number of summary records created
         """
-        return self._backend.aggregate_sensor_readings_for_period(
-            period_start, period_end, granularity
-        )
+        return self._backend.aggregate_sensor_readings_for_period(period_start, period_end, granularity)
 
     def aggregate_readings_by_days_old(self, days_threshold: int) -> int:
         """
@@ -612,11 +598,11 @@ class DeviceRepository:
     def get_sensor_summaries_for_unit(
         self,
         unit_id: int,
-        start_date: Optional[str] = None,
-        end_date: Optional[str] = None,
-        sensor_type: Optional[str] = None,
+        start_date: str | None = None,
+        end_date: str | None = None,
+        sensor_type: str | None = None,
         limit: int = 1000,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Get aggregated sensor summaries for a unit (used in harvest reports).
 
@@ -630,16 +616,14 @@ class DeviceRepository:
         Returns:
             List of summary records
         """
-        return self._backend.get_sensor_summaries_for_unit(
-            unit_id, start_date, end_date, sensor_type, limit
-        )
+        return self._backend.get_sensor_summaries_for_unit(unit_id, start_date, end_date, sensor_type, limit)
 
     def get_sensor_summary_stats_for_harvest(
         self,
         unit_id: int,
         start_date: str,
         end_date: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Get aggregated statistics for a harvest report.
 
@@ -653,6 +637,4 @@ class DeviceRepository:
         Returns:
             Dict with stats grouped by sensor_type
         """
-        return self._backend.get_sensor_summary_stats_for_harvest(
-            unit_id, start_date, end_date
-        )
+        return self._backend.get_sensor_summary_stats_for_harvest(unit_id, start_date, end_date)

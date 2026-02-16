@@ -12,30 +12,32 @@ Extended journal operations:
 
 These endpoints complement journal.py with full CRUD and analytics.
 """
+
 from __future__ import annotations
 
-import json
 import logging
-from datetime import date, datetime, timedelta
+from datetime import date
+
 from flask import request
 
-from . import plants_api
 from app.blueprints.api._common import (
-    success as _success,
     fail as _fail,
     get_container,
-    get_plant_service as _plant_service,
     get_plant_journal_service as _journal_service,
+    get_plant_service as _plant_service,
     get_user_id,
+    success as _success,
 )
 from app.schemas.plants import (
-    WateringEntryRequest,
-    PruningEntryRequest,
-    TransplantEntryRequest,
     EnvironmentalAdjustmentRequest,
+    PruningEntryRequest,
     StageExtensionRequest,
+    TransplantEntryRequest,
     UpdateJournalEntryRequest,
+    WateringEntryRequest,
 )
+
+from . import plants_api
 
 logger = logging.getLogger("plants_api.journal_extended")
 
@@ -298,12 +300,14 @@ def get_watering_history(plant_id: int):
         entries = _journal_service().repo.get_watering_history(plant_id, days=days)
         frequency = _journal_service().repo.get_watering_frequency(plant_id, days=days)
 
-        return _success({
-            "plant_id": plant_id,
-            "entries": entries,
-            "frequency": frequency,
-            "count": len(entries),
-        })
+        return _success(
+            {
+                "plant_id": plant_id,
+                "entries": entries,
+                "frequency": frequency,
+                "count": len(entries),
+            }
+        )
 
     except Exception as e:
         logger.exception(f"Error getting watering history for plant {plant_id}: {e}")
@@ -316,11 +320,13 @@ def get_stage_timeline(plant_id: int):
     try:
         timeline = _journal_service().repo.get_stage_timeline(plant_id)
 
-        return _success({
-            "plant_id": plant_id,
-            "timeline": timeline,
-            "count": len(timeline),
-        })
+        return _success(
+            {
+                "plant_id": plant_id,
+                "timeline": timeline,
+                "count": len(timeline),
+            }
+        )
 
     except Exception as e:
         logger.exception(f"Error getting stage timeline for plant {plant_id}: {e}")
@@ -384,7 +390,7 @@ def extend_plant_stage(plant_id: int):
         return _success(result)
 
     except ValueError as e:
-        return _fail(str(e), 400)
+        return safe_error(e, 400)
     except Exception as e:
         logger.exception(f"Error extending stage for plant {plant_id}: {e}")
         return _fail("Failed to extend stage", 500)
@@ -409,7 +415,7 @@ def get_plant_detail_unified(plant_id: int):
         if not plant:
             return _fail(f"Plant {plant_id} not found", 404)
 
-        plant_dict = plant.to_dict() if hasattr(plant, 'to_dict') else (plant if isinstance(plant, dict) else {})
+        plant_dict = plant.to_dict() if hasattr(plant, "to_dict") else (plant if isinstance(plant, dict) else {})
         unit_id = plant_dict.get("unit_id")
 
         # Journal summary
@@ -439,7 +445,10 @@ def get_plant_detail_unified(plant_id: int):
         is_active = False
         try:
             active = plant_service.get_active_plant(unit_id)
-            if active and (getattr(active, 'plant_id', None) == plant_id or (isinstance(active, dict) and active.get('plant_id') == plant_id)):
+            if active and (
+                getattr(active, "plant_id", None) == plant_id
+                or (isinstance(active, dict) and active.get("plant_id") == plant_id)
+            ):
                 is_active = True
         except Exception:
             pass
@@ -455,7 +464,7 @@ def get_plant_detail_unified(plant_id: int):
         predictions = {}
         try:
             container = get_container()
-            if hasattr(container, 'personalized_learning') and container.personalized_learning:
+            if hasattr(container, "personalized_learning") and container.personalized_learning:
                 predictions = container.personalized_learning.get_personalized_recommendations(
                     unit_id=unit_id,
                     plant_type=plant_dict.get("plant_type", ""),
@@ -465,16 +474,18 @@ def get_plant_detail_unified(plant_id: int):
         except Exception:
             pass
 
-        return _success({
-            "plant": plant_dict,
-            "journal_summary": journal_summary,
-            "recent_entries": recent_entries.get("items", []),
-            "watering_frequency": watering_freq,
-            "linked_sensors": linked_sensors if isinstance(linked_sensors, list) else [],
-            "linked_actuators": linked_actuators if isinstance(linked_actuators, list) else [],
-            "stage_info": stage_info,
-            "predictions": predictions,
-        })
+        return _success(
+            {
+                "plant": plant_dict,
+                "journal_summary": journal_summary,
+                "recent_entries": recent_entries.get("items", []),
+                "watering_frequency": watering_freq,
+                "linked_sensors": linked_sensors if isinstance(linked_sensors, list) else [],
+                "linked_actuators": linked_actuators if isinstance(linked_actuators, list) else [],
+                "stage_info": stage_info,
+                "predictions": predictions,
+            }
+        )
 
     except Exception as e:
         logger.exception(f"Error getting plant detail for {plant_id}: {e}")

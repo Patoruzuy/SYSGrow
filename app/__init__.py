@@ -2,44 +2,47 @@ from __future__ import annotations
 
 import logging
 from datetime import timedelta
-from typing import Any
 from pathlib import Path
+from typing import Any
 
-from flask import Flask
+from flask import Flask, request
 
-from app.config import load_config, setup_logging
-from app.extensions import init_extensions, socketio
-from app.security.csrf import CSRFMiddleware
-from app.middleware.health_tracking import init_health_tracking
-from app.middleware.response_validation import init_response_validation
-from app.middleware.rate_limiting import init_rate_limiting
-from app.blueprints.auth.routes import auth_bp
-from app.blueprints.ui.routes import ui_bp
-from app.blueprints.api.devices import devices_api
+from app.blueprints.api.blog import blog_api
 from app.blueprints.api.dashboard import dashboard_api
-from app.blueprints.api.plants import plants_api
-from app.blueprints.api.plants.disease import disease_bp
-from app.blueprints.api.settings import settings_api
+from app.blueprints.api.devices import devices_api
 from app.blueprints.api.growth import growth_api
 from app.blueprints.api.harvest_routes import harvest_bp
 from app.blueprints.api.help import help_api
-from app.blueprints.api.blog import blog_api
 
 # Import new consolidated ML/AI endpoints
 from app.blueprints.api.ml_ai import (
+    ab_testing_bp,
+    analysis_bp,
+    analytics_bp,
     base_bp,
-    predictions_bp,
+    continuous_bp,
     models_bp,
     monitoring_bp,
-    analytics_bp,
-    retraining_bp,
-    analysis_bp,
-    readiness_bp,
-    ab_testing_bp,
-    continuous_bp,
     personalized_bp,
+    predictions_bp,
+    readiness_bp,
+    retraining_bp,
     training_data_bp,
 )
+from app.blueprints.api.plants import plants_api
+from app.blueprints.api.plants.disease import disease_bp
+from app.blueprints.api.settings import settings_api
+from app.blueprints.auth.routes import auth_bp
+from app.blueprints.ui.routes import ui_bp
+from app.config import load_config, setup_logging
+from app.extensions import init_extensions, socketio
+from app.middleware.health_tracking import init_health_tracking
+from app.middleware.rate_limiting import init_rate_limiting
+from app.middleware.api_auth import init_api_write_protection
+from app.middleware.response_validation import init_response_validation
+from app.middleware.security_headers import init_security_headers
+from app.security.csrf import CSRFMiddleware
+from app.security.login_limiter import LoginLimiter
 
 # Import health API
 try:
@@ -71,20 +74,25 @@ def create_app(config_overrides: dict[str, Any] | None = None, *, bootstrap_runt
     setup_logging(debug=config.DEBUG)
 
     base_path = Path(__file__).resolve().parent.parent
-    flask_app = Flask(__name__, static_folder=str(base_path / 'static'), template_folder=str(base_path / 'templates'))
+    flask_app = Flask(__name__, static_folder=str(base_path / "static"), template_folder=str(base_path / "templates"))
     flask_app.config.update(config.as_flask_config())
 
     # Session configuration for "Remember Me" functionality
-    flask_app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(
-        days=config.session_lifetime_remember_days
-    )
-    flask_app.config['SESSION_COOKIE_HTTPONLY'] = True
-    flask_app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+    flask_app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=config.session_lifetime_remember_days)
+    flask_app.config["SESSION_COOKIE_HTTPONLY"] = True
+    flask_app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+    flask_app.config["SESSION_COOKIE_SECURE"] = config.environment == "production"
+
+    # Non-permanent session timeout (applies when "Remember Me" is NOT checked)
+    flask_app.config["SESSION_TIMEOUT_MINUTES"] = config.session_lifetime_default_minutes
+
+    # Reject request bodies larger than configured limit (default 16 MB)
+    flask_app.config["MAX_CONTENT_LENGTH"] = config.max_upload_mb * 1024 * 1024
 
     # Disable template caching for development
-    flask_app.config['TEMPLATES_AUTO_RELOAD'] = True
+    flask_app.config["TEMPLATES_AUTO_RELOAD"] = True
     flask_app.jinja_env.auto_reload = True
-    flask_app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+    flask_app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
 
     # Initialize Socket.IO BEFORE building ServiceContainer (EmitterService needs it)
     init_extensions(flask_app, config.socketio_cors_origins)
@@ -93,7 +101,7 @@ def create_app(config_overrides: dict[str, Any] | None = None, *, bootstrap_runt
 
     container = ServiceContainer.build(config, start_coordinator=bootstrap_runtime)
     flask_app.config["CONTAINER"] = container
-    
+
     # Initialize health tracking middleware
     init_health_tracking(flask_app, container.system_health_service)
 
@@ -106,6 +114,18 @@ def create_app(config_overrides: dict[str, Any] | None = None, *, bootstrap_runt
     limiter.config.default_limit = config.rate_limit_default_limit
     limiter.config.default_window = config.rate_limit_default_window_seconds
     limiter.config.burst_limit = config.rate_limit_burst
+
+    # Initialize security response headers (X-Frame-Options, CSP, nosniff, etc.)
+    init_security_headers(flask_app, enable_hsts=getattr(config, "enable_hsts", False))
+
+    # Enforce authentication on all API write endpoints (POST/PUT/DELETE/PATCH)
+    init_api_write_protection(flask_app)
+
+    # Login brute-force protection (IP-based, in-memory)
+    flask_app.config["LOGIN_LIMITER"] = LoginLimiter(
+        max_attempts=config.login_max_attempts,
+        lockout_minutes=config.login_lockout_minutes,
+    )
 
     CSRFMiddleware(
         exempt_endpoints={"auth.login", "auth.register"},
@@ -137,6 +157,22 @@ def create_app(config_overrides: dict[str, Any] | None = None, *, bootstrap_runt
         },
     ).init_app(flask_app)
 
+    # Global JSON error handler — catches any unhandled exception on /api/
+    # routes and returns a generic message instead of leaking stack traces.
+    @flask_app.errorhandler(Exception)
+    def _handle_unhandled(exc):  # noqa: ANN001, ANN202
+        if not request.path.startswith("/api/"):
+            raise exc  # Let Flask's default HTML error pages handle UI routes
+        from app.utils.http import safe_error
+
+        return safe_error(exc, 500, context="unhandled")
+
+    @flask_app.errorhandler(413)
+    def _handle_too_large(_exc):  # noqa: ANN001, ANN202
+        from app.utils.http import error_response
+
+        return error_response("Request payload too large", 413)
+
     # Register core blueprints
     flask_app.register_blueprint(auth_bp, url_prefix="/auth")
     flask_app.register_blueprint(harvest_bp)
@@ -161,7 +197,7 @@ def create_app(config_overrides: dict[str, Any] | None = None, *, bootstrap_runt
     flask_app.register_blueprint(continuous_bp)  # /api/ml/continuous
     flask_app.register_blueprint(personalized_bp)  # /api/ml/personalized
     flask_app.register_blueprint(training_data_bp)  # /api/ml/training-data
-    
+
     # Register health API if available
     if health_api:
         flask_app.register_blueprint(health_api)  # Already has /api/health prefix
@@ -172,12 +208,13 @@ def create_app(config_overrides: dict[str, Any] | None = None, *, bootstrap_runt
 
     # Register Socket.IO event handlers (must be after socketio init)
     from app.socketio import register_handlers
+
     register_handlers()
-    
+
     # List all registered blueprints
     for bp_name, bp in flask_app.blueprints.items():
         logging.info(f" Registered blueprint: {bp_name}")
-    
+
     # Register analytics API if available
     if analytics_api is not None:
         flask_app.register_blueprint(analytics_api)  # Already has /api/analytics prefix
@@ -194,7 +231,7 @@ def create_app(config_overrides: dict[str, Any] | None = None, *, bootstrap_runt
     logger = logging.getLogger(__name__)
     logger.info("SYSGrow application initialized successfully.")
     logging.getLogger("werkzeug").setLevel(logging.INFO)
-    
+
     return flask_app
 
 

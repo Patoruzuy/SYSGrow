@@ -17,10 +17,11 @@ Architecture:
 Author: Architecture Refactoring Team
 Date: December 2025
 """
+
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from app.domain.plant_profile import PlantProfile
 from app.domain.unit_runtime import UnitRuntime, UnitSettings
@@ -53,10 +54,10 @@ class UnitRuntimeFactory:
 
     def __init__(
         self,
-        plant_handler: 'PlantJsonHandler',
-        plant_service: Optional['PlantViewService'] = None,
+        plant_handler: "PlantJsonHandler",
+        plant_service: "PlantViewService" | None = None,
         # DEPRECATED: threshold_service accepted for backward compat but ignored.
-        threshold_service: Optional[Any] = None,
+        threshold_service: Any | None = None,
     ):
         """
         Initialize the factory with required dependencies.
@@ -75,14 +76,14 @@ class UnitRuntimeFactory:
 
     def create_runtime(
         self,
-        unit_data: Dict[str, Any],
+        unit_data: dict[str, Any],
     ) -> UnitRuntime:
         """
         Create a UnitRuntime instance from database data.
 
         Creates the runtime WITHOUT loading plants. Plant loading is now the
         responsibility of PlantService, called by GrowthService after runtime creation.
-        
+
         This separation ensures:
         - PlantService is the single source of truth for plant data
         - UnitRuntime is a pure domain model without DB dependencies
@@ -100,8 +101,8 @@ class UnitRuntimeFactory:
         """
         try:
             # Validate required fields
-            unit_id = unit_data['unit_id']
-            unit_name = unit_data['name']
+            unit_id = unit_data["unit_id"]
+            unit_name = unit_data["name"]
 
             logger.debug(f"Creating runtime for unit {unit_id} ({unit_name})")
 
@@ -113,16 +114,13 @@ class UnitRuntimeFactory:
             runtime = UnitRuntime(
                 unit_id=unit_id,
                 unit_name=unit_name,
-                location=unit_data.get('location', 'Indoor'),
-                user_id=unit_data.get('user_id', 1),
+                location=unit_data.get("location", "Indoor"),
+                user_id=unit_data.get("user_id", 1),
                 settings=settings,
-                custom_image=unit_data.get('custom_image'),
+                custom_image=unit_data.get("custom_image"),
             )
 
-            logger.info(
-                f"Created runtime for unit {unit_id} ({unit_name}) "
-                f"(plants to be loaded by PlantService)"
-            )
+            logger.info(f"Created runtime for unit {unit_id} ({unit_name}) (plants to be loaded by PlantService)")
 
             return runtime
 
@@ -136,16 +134,16 @@ class UnitRuntimeFactory:
     def create_plant_profile(self, **kwargs: Any) -> PlantProfile:
         """
         Create PlantProfile instances via PlantService.
-        
+
         PlantService is the single source of truth for PlantProfile creation.
         This factory delegates all plant creation to PlantService.
-        
+
         Args:
             **kwargs: Plant attributes passed to PlantService.create_plant_profile()
-            
+
         Returns:
             PlantProfile instance
-            
+
         Raises:
             RuntimeError: If PlantService is not wired (required dependency)
         """

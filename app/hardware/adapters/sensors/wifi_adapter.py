@@ -18,17 +18,17 @@ Version: 1.0.0
 """
 
 import logging
-import json
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 try:
     import requests
+
     REQUESTS_AVAILABLE = True
 except ImportError:
     REQUESTS_AVAILABLE = False
 
-from .base_adapter import ISensorAdapter, AdapterError
+from .base_adapter import AdapterError, ISensorAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +60,7 @@ class WiFiAdapter(ISensorAdapter):
         http_port: int = DEFAULT_HTTP_PORT,
         timeout: int = DEFAULT_TIMEOUT,
         http_timeout: int = DEFAULT_HTTP_TIMEOUT,
-        primary_metrics: Optional[List[str]] = None,
+        primary_metrics: list[str] | None = None,
     ):
         """
         Initialize WiFi sensor adapter.
@@ -82,19 +82,16 @@ class WiFiAdapter(ISensorAdapter):
         self.http_timeout = http_timeout
 
         # Cached data
-        self._last_data: Optional[Dict[str, Any]] = None
-        self._last_update: Optional[datetime] = None
+        self._last_data: dict[str, Any] | None = None
+        self._last_update: datetime | None = None
 
-        logger.info(
-            "WiFi adapter initialized for sensor %d at %s:%d",
-            sensor_id, ip_address, http_port
-        )
+        logger.info("WiFi adapter initialized for sensor %d at %s:%d", sensor_id, ip_address, http_port)
 
     # =========================================================================
     # ISensorAdapter Implementation
     # =========================================================================
 
-    def read(self) -> Dict[str, Any]:
+    def read(self) -> dict[str, Any]:
         """
         Read cached sensor data.
 
@@ -105,21 +102,17 @@ class WiFiAdapter(ISensorAdapter):
             AdapterError: If no recent data available
         """
         if self._last_data is None:
-            raise AdapterError(
-                f"No data received from WiFi device at {self.ip_address}"
-            )
+            raise AdapterError(f"No data received from WiFi device at {self.ip_address}")
 
         # Check if data is stale
         if self._last_update:
             age = (datetime.now() - self._last_update).total_seconds()
             if age > self.timeout:
-                raise AdapterError(
-                    f"WiFi data stale (age: {age:.1f}s, timeout: {self.timeout}s)"
-                )
+                raise AdapterError(f"WiFi data stale (age: {age:.1f}s, timeout: {self.timeout}s)")
 
         return self._last_data.copy()
 
-    def configure(self, config: Dict[str, Any]) -> None:
+    def configure(self, config: dict[str, Any]) -> None:
         """
         Reconfigure WiFi adapter.
 
@@ -182,7 +175,7 @@ class WiFiAdapter(ISensorAdapter):
         """
         return self.send_command("/api/identify", {"duration": duration})
 
-    def get_state(self) -> Optional[Dict[str, Any]]:
+    def get_state(self) -> dict[str, Any] | None:
         """
         Get current device state (ISensorAdapter interface).
 
@@ -227,7 +220,7 @@ class WiFiAdapter(ISensorAdapter):
     # Passive Data Reception
     # =========================================================================
 
-    def update_data(self, data: Dict[str, Any]) -> None:
+    def update_data(self, data: dict[str, Any]) -> None:
         """
         Update cached sensor data (called by WiFiSensorService).
 
@@ -238,16 +231,13 @@ class WiFiAdapter(ISensorAdapter):
         """
         self._last_data = data
         self._last_update = datetime.now()
-        logger.debug(
-            "WiFi adapter received data from %s: %d fields",
-            self.ip_address, len(data)
-        )
+        logger.debug("WiFi adapter received data from %s: %d fields", self.ip_address, len(data))
 
-    def get_last_update(self) -> Optional[datetime]:
+    def get_last_update(self) -> datetime | None:
         """Get timestamp of last data update."""
         return self._last_update
 
-    def get_data_age(self) -> Optional[float]:
+    def get_data_age(self) -> float | None:
         """
         Get age of cached data in seconds.
 
@@ -266,12 +256,7 @@ class WiFiAdapter(ISensorAdapter):
         """Get base URL for device HTTP API."""
         return f"http://{self.ip_address}:{self.http_port}"
 
-    def send_command(
-        self,
-        endpoint: str,
-        params: Optional[Dict[str, Any]] = None,
-        method: str = "POST"
-    ) -> bool:
+    def send_command(self, endpoint: str, params: dict[str, Any] | None = None, method: str = "POST") -> bool:
         """
         Send HTTP command to device.
 
@@ -291,26 +276,15 @@ class WiFiAdapter(ISensorAdapter):
 
         try:
             if method.upper() == "POST":
-                response = requests.post(
-                    url,
-                    json=params or {},
-                    timeout=self.http_timeout
-                )
+                response = requests.post(url, json=params or {}, timeout=self.http_timeout)
             else:
-                response = requests.get(
-                    url,
-                    params=params,
-                    timeout=self.http_timeout
-                )
+                response = requests.get(url, params=params, timeout=self.http_timeout)
 
             if response.status_code == 200:
                 logger.debug("Command sent to %s: %s", self.ip_address, endpoint)
                 return True
             else:
-                logger.warning(
-                    "Command failed (%d): %s %s",
-                    response.status_code, self.ip_address, endpoint
-                )
+                logger.warning("Command failed (%d): %s %s", response.status_code, self.ip_address, endpoint)
                 return False
 
         except requests.exceptions.Timeout:
@@ -345,11 +319,7 @@ class WiFiAdapter(ISensorAdapter):
         interval_ms = max(5000, min(3600000, interval_ms))
         return self.send_command("/api/set", {"polling_interval": interval_ms})
 
-    def set_calibration(
-        self,
-        temperature_offset: Optional[float] = None,
-        humidity_offset: Optional[float] = None
-    ) -> bool:
+    def set_calibration(self, temperature_offset: float | None = None, humidity_offset: float | None = None) -> bool:
         """
         Set sensor calibration offsets.
 
@@ -380,7 +350,7 @@ class WiFiAdapter(ISensorAdapter):
         """
         return self.send_command("/api/restart", {"restart": True})
 
-    def get_device_info(self) -> Optional[Dict[str, Any]]:
+    def get_device_info(self) -> dict[str, Any] | None:
         """
         Get device information via HTTP.
 
@@ -405,7 +375,7 @@ class WiFiAdapter(ISensorAdapter):
     # Status
     # =========================================================================
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """
         Get adapter status information.
 

@@ -5,35 +5,36 @@ Growth Units CRUD Operations
 Endpoints for creating, reading, updating, and deleting growth units.
 Also includes plant management endpoints that operate on units.
 """
+
 from __future__ import annotations
 
-from flask import jsonify, request, session
-from typing import Any, Optional
-from app.schemas.growth import (
-    CreateUnitPayload,
-    UpdateUnitPayload,
-    CreateGrowthUnitRequest,
-    UpdateGrowthUnitRequest,
-    GrowthUnitResponse,
-)
-from app.security.auth import api_login_required
-from app.services.application.plant_service import PlantViewService
 import logging
+from typing import Any
 
+from flask import request
 from pydantic import ValidationError
-from infrastructure.utils.structured_fields import normalize_dimensions
-from . import growth_api
+
 from app.blueprints.api._common import (
-    get_user_id,
-    success as _success,
     fail as _fail,
     get_container as _container,
     get_growth_service as _service,
-    get_plant_service as _plant_service,
     get_scheduling_service as _scheduling_service,
+    get_user_id,
+    success as _success,
 )
-from app.enums.common import ConditionProfileMode, ConditionProfileTarget
 from app.domain.schedules import Schedule
+from app.enums.common import ConditionProfileMode, ConditionProfileTarget
+from app.schemas.growth import (
+    CreateGrowthUnitRequest,
+    CreateUnitPayload,
+    GrowthUnitResponse,
+    UpdateGrowthUnitRequest,
+    UpdateUnitPayload,
+)
+from app.security.auth import api_login_required
+from infrastructure.utils.structured_fields import normalize_device_schedules, normalize_dimensions
+
+from . import growth_api
 
 logger = logging.getLogger("growth_api.units")
 
@@ -71,10 +72,10 @@ def _apply_condition_profile_to_unit(
     *,
     unit_id: int,
     user_id: int,
-    profile_id: Optional[str],
-    mode: Optional[ConditionProfileMode],
-    name: Optional[str],
-) -> Optional[dict[str, Any]]:
+    profile_id: str | None,
+    mode: ConditionProfileMode | None,
+    name: str | None,
+) -> dict[str, Any] | None:
     if not profile_id:
         return None
     container = _container()
@@ -127,7 +128,7 @@ def _create_unit_device_schedules(
     *,
     unit_id: int,
     user_id: int,
-    device_schedules: Optional[dict[str, Any]],
+    device_schedules: dict[str, Any] | None,
 ) -> None:
     if not device_schedules:
         return
@@ -171,6 +172,7 @@ def _create_unit_device_schedules(
 # GROWTH UNIT CRUD OPERATIONS
 # ============================================================================
 
+
 @growth_api.get("/v2/units")
 def list_units():
     """
@@ -185,15 +187,15 @@ def list_units():
         units = _service().list_units(user_id=user_id)
 
         # Enrich units with camera status
-        camera_service = getattr(_container(), 'camera_service', None)
+        camera_service = getattr(_container(), "camera_service", None)
         if camera_service:
             for unit in units:
-                unit_id = unit.get('unit_id')
+                unit_id = unit.get("unit_id")
                 if unit_id:
                     camera_settings = camera_service.load_camera_settings(unit_id)
-                    unit['camera_enabled'] = camera_settings is not None
-                    unit['camera_active'] = camera_service.is_camera_running(unit_id)
-        
+                    unit["camera_enabled"] = camera_settings is not None
+                    unit["camera_active"] = camera_service.is_camera_running(unit_id)
+
         typed_units: list[GrowthUnitResponse] = []
         for unit in units:
             typed_units.append(_unit_to_response(unit))
@@ -280,7 +282,7 @@ def create_unit():
                 name=getattr(typed, "condition_profile_name", None),
             )
         except ValueError as exc:
-            return _fail(str(exc), 400)
+            return safe_error(exc, 400)
 
         created = _service().get_unit(unit_id)
         if not created:
@@ -304,12 +306,12 @@ def get_unit(unit_id: int):
     logger.info(f"Getting growth unit {unit_id}")
     try:
         unit = _service().get_unit(unit_id)
-        
+
         if not unit:
             return _fail(f"Growth unit {unit_id} not found", 404)
-        
+
         return _success(unit)
-        
+
     except Exception as e:
         logger.exception(f"Error getting unit {unit_id}: {e}")
         return _fail("Failed to get growth unit", 500)
@@ -351,15 +353,15 @@ def update_unit(unit_id: int):
         }
 
         unit = _service().update_unit(unit_id, **unit_kwargs)
-        
+
         if not unit:
             return _fail(f"Growth unit {unit_id} not found or update failed", 404)
-        
+
         return _success({"message": "Growth unit updated successfully", "unit": unit})
-        
+
     except ValueError as e:
         logger.warning(f"Validation error updating unit: {e}")
-        return _fail(str(e), 400)
+        return safe_error(e, 400)
     except Exception as e:
         logger.exception(f"Error updating unit {unit_id}: {e}")
         return _fail("Failed to update growth unit", 500)
@@ -373,11 +375,11 @@ def delete_unit(unit_id: int):
     try:
         if not _service().get_unit(unit_id):
             return _fail(f"Growth unit {unit_id} not found", 404)
-        
+
         _service().delete_unit(unit_id)
-        
+
         return _success({"message": "Growth unit removed successfully"})
-        
+
     except Exception as e:
         logger.exception(f"Error deleting unit {unit_id}: {e}")
         return _fail("Failed to delete growth unit", 500)

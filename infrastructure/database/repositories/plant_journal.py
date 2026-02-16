@@ -13,8 +13,7 @@ Provides unified access to:
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Optional, Any
-from datetime import datetime, timedelta
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +24,7 @@ class PlantJournalRepository:
     def __init__(self, database_handler):
         """
         Initialize repository.
-        
+
         Args:
             database_handler: Database handler instance
         """
@@ -42,7 +41,7 @@ class PlantJournalRepository:
                     plant_id INTEGER NOT NULL,
                     unit_id INTEGER,        -- Unit ID for context
                     entry_type TEXT NOT NULL,  -- 'observation', 'nutrient', 'treatment', 'note', 'watering'
-                    
+
                     -- Observation fields
                     observation_type TEXT,  -- 'health', 'growth', 'pest', 'disease', 'general'
                     health_status TEXT,     -- 'healthy', 'stressed', 'diseased', etc.
@@ -53,18 +52,18 @@ class PlantJournalRepository:
                     environmental_factors TEXT,  -- JSON dict of environmental conditions
                     plant_type TEXT,        -- Plant species/type
                     growth_stage TEXT,      -- Growth stage during observation
-                    
+
                     -- Nutrient fields
                     nutrient_type TEXT,     -- 'nitrogen', 'phosphorus', 'potassium', 'calcium', 'custom'
                     nutrient_name TEXT,     -- Specific product name
                     amount REAL,            -- Amount applied
                     unit TEXT,              -- 'ml', 'g', 'tsp', etc.
-                    
+
                     -- Treatment fields
                     treatment_type TEXT,    -- 'fungicide', 'pesticide', 'pruning', etc.
                     treatment_name TEXT,    -- Product or action name
                     treatment_applied TEXT, -- Treatment that was applied (for observations)
-                    
+
                     -- Common fields
                     notes TEXT,
                     image_path TEXT,
@@ -72,7 +71,7 @@ class PlantJournalRepository:
                     observation_date TIMESTAMP,  -- Custom observation date
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     extra_data TEXT,  -- JSON blob for type-specific fields (Phase 7+)
-                    
+
                     FOREIGN KEY (plant_id) REFERENCES Plant(plant_id) ON DELETE CASCADE
                 )
             """)
@@ -84,15 +83,15 @@ class PlantJournalRepository:
                 logger.info("Added extra_data column to plant_journal table")
             except Exception:
                 pass  # Column already exists
-            
+
             # Create indexes for common queries
             conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_journal_plant 
+                CREATE INDEX IF NOT EXISTS idx_journal_plant
                 ON plant_journal(plant_id, created_at DESC)
             """)
-            
+
             conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_journal_type 
+                CREATE INDEX IF NOT EXISTS idx_journal_type
                 ON plant_journal(entry_type, created_at DESC)
             """)
 
@@ -105,7 +104,7 @@ class PlantJournalRepository:
                 CREATE INDEX IF NOT EXISTS idx_journal_health
                 ON plant_journal(plant_id, health_status)
             """)
-            
+
             conn.commit()
 
     # ========================================================================
@@ -116,24 +115,24 @@ class PlantJournalRepository:
         self,
         plant_id: int,
         observation_type: str,
-        unit_id: Optional[int] = None,
-        health_status: Optional[str] = None,
-        severity_level: Optional[int] = None,
-        symptoms: Optional[str] = None,
-        disease_type: Optional[str] = None,
-        affected_parts: Optional[str] = None,
-        environmental_factors: Optional[str] = None,
-        treatment_applied: Optional[str] = None,
-        plant_type: Optional[str] = None,
-        growth_stage: Optional[str] = None,
+        unit_id: int | None = None,
+        health_status: str | None = None,
+        severity_level: int | None = None,
+        symptoms: str | None = None,
+        disease_type: str | None = None,
+        affected_parts: str | None = None,
+        environmental_factors: str | None = None,
+        treatment_applied: str | None = None,
+        plant_type: str | None = None,
+        growth_stage: str | None = None,
         notes: str = "",
-        image_path: Optional[str] = None,
-        user_id: Optional[int] = None,
-        observation_date: Optional[str] = None
-    ) -> Optional[int]:
+        image_path: str | None = None,
+        user_id: int | None = None,
+        observation_date: str | None = None,
+    ) -> int | None:
         """
         Create a plant observation entry.
-        
+
         Args:
             plant_id: Plant ID
             observation_type: Type of observation
@@ -151,13 +150,14 @@ class PlantJournalRepository:
             image_path: Path to observation image
             user_id: User who made observation
             observation_date: Custom observation date (ISO format)
-            
+
         Returns:
             entry_id if successful, None otherwise
         """
         try:
             with self.db.connection() as conn:
-                cursor = conn.execute("""
+                cursor = conn.execute(
+                    """
                     INSERT INTO plant_journal (
                         plant_id, unit_id, entry_type, observation_type, health_status,
                         severity_level, symptoms, disease_type, affected_parts,
@@ -165,12 +165,26 @@ class PlantJournalRepository:
                         notes, image_path, user_id, observation_date
                     )
                     VALUES (?, ?, 'observation', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    plant_id, unit_id, observation_type, health_status,
-                    severity_level, symptoms, disease_type, affected_parts,
-                    environmental_factors, treatment_applied, plant_type, growth_stage,
-                    notes, image_path, user_id, observation_date
-                ))
+                """,
+                    (
+                        plant_id,
+                        unit_id,
+                        observation_type,
+                        health_status,
+                        severity_level,
+                        symptoms,
+                        disease_type,
+                        affected_parts,
+                        environmental_factors,
+                        treatment_applied,
+                        plant_type,
+                        growth_stage,
+                        notes,
+                        image_path,
+                        user_id,
+                        observation_date,
+                    ),
+                )
                 conn.commit()
                 return cursor.lastrowid
         except Exception as e:
@@ -185,11 +199,11 @@ class PlantJournalRepository:
         amount: float,
         unit: str = "ml",
         notes: str = "",
-        user_id: Optional[int] = None
-    ) -> Optional[int]:
+        user_id: int | None = None,
+    ) -> int | None:
         """
         Create a nutrient application entry.
-        
+
         Args:
             plant_id: Plant ID
             nutrient_type: Type of nutrient (N/P/K/etc)
@@ -198,22 +212,22 @@ class PlantJournalRepository:
             unit: Unit of measurement
             notes: Additional notes
             user_id: User who applied nutrient
-            
+
         Returns:
             entry_id if successful, None otherwise
         """
         try:
             with self.db.connection() as conn:
-                cursor = conn.execute("""
+                cursor = conn.execute(
+                    """
                     INSERT INTO plant_journal (
                         plant_id, entry_type, nutrient_type, nutrient_name,
                         amount, unit, notes, user_id
                     )
                     VALUES (?, 'nutrient', ?, ?, ?, ?, ?, ?)
-                """, (
-                    plant_id, nutrient_type, nutrient_name,
-                    amount, unit, notes, user_id
-                ))
+                """,
+                    (plant_id, nutrient_type, nutrient_name, amount, unit, notes, user_id),
+                )
                 conn.commit()
                 return cursor.lastrowid
         except Exception as e:
@@ -221,35 +235,33 @@ class PlantJournalRepository:
             return None
 
     def create_treatment_entry(
-        self,
-        plant_id: int,
-        treatment_type: str,
-        treatment_name: str,
-        notes: str = "",
-        user_id: Optional[int] = None
-    ) -> Optional[int]:
+        self, plant_id: int, treatment_type: str, treatment_name: str, notes: str = "", user_id: int | None = None
+    ) -> int | None:
         """
         Create a treatment entry.
-        
+
         Args:
             plant_id: Plant ID
             treatment_type: Type of treatment
             treatment_name: Product/action name
             notes: Additional notes
             user_id: User who applied treatment
-            
+
         Returns:
             entry_id if successful, None otherwise
         """
         try:
             with self.db.connection() as conn:
-                cursor = conn.execute("""
+                cursor = conn.execute(
+                    """
                     INSERT INTO plant_journal (
                         plant_id, entry_type, treatment_type, treatment_name,
                         notes, user_id
                     )
                     VALUES (?, 'treatment', ?, ?, ?, ?)
-                """, (plant_id, treatment_type, treatment_name, notes, user_id))
+                """,
+                    (plant_id, treatment_type, treatment_name, notes, user_id),
+                )
                 conn.commit()
                 return cursor.lastrowid
         except Exception as e:
@@ -257,32 +269,31 @@ class PlantJournalRepository:
             return None
 
     def create_note(
-        self,
-        plant_id: int,
-        notes: str,
-        image_path: Optional[str] = None,
-        user_id: Optional[int] = None
-    ) -> Optional[int]:
+        self, plant_id: int, notes: str, image_path: str | None = None, user_id: int | None = None
+    ) -> int | None:
         """
         Create a general note entry.
-        
+
         Args:
             plant_id: Plant ID
             notes: Note text
             image_path: Optional image
             user_id: User who created note
-            
+
         Returns:
             entry_id if successful, None otherwise
         """
         try:
             with self.db.connection() as conn:
-                cursor = conn.execute("""
+                cursor = conn.execute(
+                    """
                     INSERT INTO plant_journal (
                         plant_id, entry_type, notes, image_path, user_id
                     )
                     VALUES (?, 'note', ?, ?, ?)
-                """, (plant_id, notes, image_path, user_id))
+                """,
+                    (plant_id, notes, image_path, user_id),
+                )
                 conn.commit()
                 return cursor.lastrowid
         except Exception as e:
@@ -295,22 +306,22 @@ class PlantJournalRepository:
 
     def get_entries(
         self,
-        plant_id: Optional[int] = None,
-        unit_id: Optional[int] = None,
-        entry_type: Optional[str] = None,
+        plant_id: int | None = None,
+        unit_id: int | None = None,
+        entry_type: str | None = None,
         limit: int = 100,
-        days: Optional[int] = None
-    ) -> List[Dict[str, Any]]:
+        days: int | None = None,
+    ) -> list[dict[str, Any]]:
         """
         Get journal entries with filters.
-        
+
         Args:
             plant_id: Filter by plant ID
             unit_id: Filter by unit ID (gets all plants in unit)
             entry_type: Filter by type
             limit: Max entries to return
             days: Only entries from last N days
-            
+
         Returns:
             List of journal entries
         """
@@ -337,7 +348,7 @@ class PlantJournalRepository:
 
             if days is not None:
                 query += " AND created_at >= datetime('now', ?)"
-                params.append(f'-{days} days')
+                params.append(f"-{days} days")
 
             query += " ORDER BY created_at DESC LIMIT ?"
             params.append(limit)
@@ -351,19 +362,16 @@ class PlantJournalRepository:
             return []
 
     def get_nutrient_history(
-        self,
-        plant_id: int,
-        nutrient_type: Optional[str] = None,
-        days: int = 90
-    ) -> List[Dict[str, Any]]:
+        self, plant_id: int, nutrient_type: str | None = None, days: int = 90
+    ) -> list[dict[str, Any]]:
         """
         Get nutrient application history for a plant.
-        
+
         Args:
             plant_id: Plant ID
             nutrient_type: Filter by nutrient type
             days: Look back period
-            
+
         Returns:
             List of nutrient entries
         """
@@ -375,7 +383,7 @@ class PlantJournalRepository:
                 AND entry_type = 'nutrient'
                 AND created_at >= datetime('now', ?)
             """
-            params = [plant_id, f'-{days} days']
+            params = [plant_id, f"-{days} days"]
 
             if nutrient_type:
                 query += " AND nutrient_type = ?"
@@ -392,19 +400,16 @@ class PlantJournalRepository:
             return []
 
     def get_health_observations(
-        self,
-        plant_id: int,
-        days: int = 30,
-        health_status: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+        self, plant_id: int, days: int = 30, health_status: str | None = None
+    ) -> list[dict[str, Any]]:
         """
         Get health observations for a plant.
-        
+
         Args:
             plant_id: Plant ID
             days: Look back period
             health_status: Filter by health status
-            
+
         Returns:
             List of health observations
         """
@@ -417,7 +422,7 @@ class PlantJournalRepository:
                 AND observation_type = 'health'
                 AND created_at >= datetime('now', ?)
             """
-            params = [plant_id, f'-{days} days']
+            params = [plant_id, f"-{days} days"]
 
             if health_status:
                 query += " AND health_status = ?"
@@ -433,24 +438,27 @@ class PlantJournalRepository:
             logger.error(f"Failed to get health observations: {e}")
             return []
 
-    def get_entry_by_id(self, entry_id: int) -> Optional[Dict[str, Any]]:
+    def get_entry_by_id(self, entry_id: int) -> dict[str, Any] | None:
         """
         Get a specific journal entry.
-        
+
         Args:
             entry_id: Entry ID
-            
+
         Returns:
             Entry data or None
         """
         try:
             with self.db.connection() as conn:
-                cursor = conn.execute("""
+                cursor = conn.execute(
+                    """
                     SELECT j.*, p.name as plant_name, p.unit_id, p.plant_type
                     FROM plant_journal j
                     JOIN Plant p ON j.plant_id = p.plant_id
                     WHERE j.entry_id = ?
-                """, (entry_id,))
+                """,
+                    (entry_id,),
+                )
                 row = cursor.fetchone()
                 return dict(row) if row else None
 
@@ -462,18 +470,14 @@ class PlantJournalRepository:
     # UPDATE Operations
     # ========================================================================
 
-    def update_entry(
-        self,
-        entry_id: int,
-        updates: Dict[str, Any]
-    ) -> bool:
+    def update_entry(self, entry_id: int, updates: dict[str, Any]) -> bool:
         """
         Update a journal entry.
-        
+
         Args:
             entry_id: Entry ID
             updates: Dictionary of fields to update
-            
+
         Returns:
             True if successful
         """
@@ -481,16 +485,19 @@ class PlantJournalRepository:
             if not updates:
                 return False
 
-            set_clause = ", ".join(f"{k} = ?" for k in updates.keys())
+            set_clause = ", ".join(f"{k} = ?" for k in updates)
             values = list(updates.values())
             values.append(entry_id)
 
             with self.db.connection() as conn:
-                conn.execute(f"""
+                conn.execute(
+                    f"""
                     UPDATE plant_journal
                     SET {set_clause}
                     WHERE entry_id = ?
-                """, values)
+                """,
+                    values,
+                )
                 conn.commit()
                 return True
 
@@ -505,10 +512,10 @@ class PlantJournalRepository:
     def delete_entry(self, entry_id: int) -> bool:
         """
         Delete a journal entry.
-        
+
         Args:
             entry_id: Entry ID
-            
+
         Returns:
             True if successful
         """
@@ -526,49 +533,41 @@ class PlantJournalRepository:
     # Analytics for AI
     # ========================================================================
 
-    def get_nutrient_timeline(
-        self,
-        plant_id: int,
-        days: int = 90
-    ) -> Dict[str, List[Dict[str, Any]]]:
+    def get_nutrient_timeline(self, plant_id: int, days: int = 90) -> dict[str, list[dict[str, Any]]]:
         """
         Get nutrient application timeline grouped by type.
-        
+
         Args:
             plant_id: Plant ID
             days: Look back period
-            
+
         Returns:
             Dictionary mapping nutrient_type to list of applications
         """
         try:
             nutrients = self.get_nutrient_history(plant_id, days=days)
-            
+
             timeline = {}
             for entry in nutrients:
-                nutrient_type = entry.get('nutrient_type', 'unknown')
+                nutrient_type = entry.get("nutrient_type", "unknown")
                 if nutrient_type not in timeline:
                     timeline[nutrient_type] = []
                 timeline[nutrient_type].append(entry)
-            
+
             return timeline
 
         except Exception as e:
             logger.error(f"Failed to get nutrient timeline: {e}")
             return {}
 
-    def correlate_nutrients_with_health(
-        self,
-        plant_id: int,
-        days: int = 60
-    ) -> Dict[str, Any]:
+    def correlate_nutrients_with_health(self, plant_id: int, days: int = 60) -> dict[str, Any]:
         """
         Correlate nutrient applications with health observations.
-        
+
         Args:
             plant_id: Plant ID
             days: Look back period
-            
+
         Returns:
             Dictionary with correlation data for AI analysis
         """
@@ -581,47 +580,35 @@ class PlantJournalRepository:
                 "period_days": days,
                 "total_nutrient_applications": len(nutrients),
                 "total_health_observations": len(health_obs),
-                "nutrients_by_type": self._group_by_field(nutrients, 'nutrient_type'),
-                "health_by_status": self._group_by_field(health_obs, 'health_status'),
-                "timeline": self._merge_timelines(nutrients, health_obs)
+                "nutrients_by_type": self._group_by_field(nutrients, "nutrient_type"),
+                "health_by_status": self._group_by_field(health_obs, "health_status"),
+                "timeline": self._merge_timelines(nutrients, health_obs),
             }
 
         except Exception as e:
             logger.error(f"Failed to correlate data: {e}")
             return {}
 
-    def _group_by_field(self, entries: List[Dict], field: str) -> Dict[str, int]:
+    def _group_by_field(self, entries: list[dict], field: str) -> dict[str, int]:
         """Group entries by a field and count."""
         counts = {}
         for entry in entries:
-            value = entry.get(field, 'unknown')
+            value = entry.get(field, "unknown")
             counts[value] = counts.get(value, 0) + 1
         return counts
 
-    def _merge_timelines(
-        self,
-        nutrients: List[Dict],
-        health_obs: List[Dict]
-    ) -> List[Dict[str, Any]]:
+    def _merge_timelines(self, nutrients: list[dict], health_obs: list[dict]) -> list[dict[str, Any]]:
         """Merge nutrient and health timelines chronologically."""
         combined = []
-        
+
         for entry in nutrients:
-            combined.append({
-                'type': 'nutrient',
-                'timestamp': entry.get('created_at'),
-                'data': entry
-            })
-        
+            combined.append({"type": "nutrient", "timestamp": entry.get("created_at"), "data": entry})
+
         for entry in health_obs:
-            combined.append({
-                'type': 'health',
-                'timestamp': entry.get('created_at'),
-                'data': entry
-            })
-        
+            combined.append({"type": "health", "timestamp": entry.get("created_at"), "data": entry})
+
         # Sort by timestamp descending
-        combined.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+        combined.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
 
         return combined
 
@@ -633,7 +620,7 @@ class PlantJournalRepository:
         self,
         plant_id: int,
         days: int = 90,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Get watering history for a plant.
 
@@ -654,15 +641,16 @@ class PlantJournalRepository:
                 ORDER BY created_at DESC
             """
             with self.db.connection() as conn:
-                cursor = conn.execute(query, [plant_id, f'-{days} days'])
+                cursor = conn.execute(query, [plant_id, f"-{days} days"])
                 rows = [dict(row) for row in cursor.fetchall()]
 
             # Parse extra_data JSON for each row
             import json
+
             for row in rows:
-                if row.get('extra_data'):
+                if row.get("extra_data"):
                     try:
-                        row['extra_data'] = json.loads(row['extra_data'])
+                        row["extra_data"] = json.loads(row["extra_data"])
                     except (json.JSONDecodeError, TypeError):
                         pass
             return rows
@@ -670,7 +658,7 @@ class PlantJournalRepository:
             logger.error(f"Failed to get watering history: {e}")
             return []
 
-    def get_stage_timeline(self, plant_id: int) -> List[Dict[str, Any]]:
+    def get_stage_timeline(self, plant_id: int) -> list[dict[str, Any]]:
         """
         Get the stage change timeline for a plant, ordered chronologically.
 
@@ -694,7 +682,7 @@ class PlantJournalRepository:
             logger.error(f"Failed to get stage timeline: {e}")
             return []
 
-    def get_journal_summary(self, plant_id: int) -> Dict[str, Any]:
+    def get_journal_summary(self, plant_id: int) -> dict[str, Any]:
         """
         Get aggregate journal summary for a plant.
 
@@ -704,66 +692,84 @@ class PlantJournalRepository:
         try:
             with self.db.connection() as conn:
                 # Total and per-type counts
-                cursor = conn.execute("""
+                cursor = conn.execute(
+                    """
                     SELECT entry_type, COUNT(*) as cnt
                     FROM plant_journal
                     WHERE plant_id = ?
                     GROUP BY entry_type
-                """, [plant_id])
+                """,
+                    [plant_id],
+                )
                 entries_by_type = {}
                 total = 0
                 for row in cursor.fetchall():
-                    entries_by_type[row['entry_type']] = row['cnt']
-                    total += row['cnt']
+                    entries_by_type[row["entry_type"]] = row["cnt"]
+                    total += row["cnt"]
 
                 # Last watering
-                cursor = conn.execute("""
+                cursor = conn.execute(
+                    """
                     SELECT created_at FROM plant_journal
                     WHERE plant_id = ? AND entry_type = 'watering'
                     ORDER BY created_at DESC LIMIT 1
-                """, [plant_id])
+                """,
+                    [plant_id],
+                )
                 row = cursor.fetchone()
-                last_watering = dict(row)['created_at'] if row else None
+                last_watering = dict(row)["created_at"] if row else None
 
                 # Last observation
-                cursor = conn.execute("""
+                cursor = conn.execute(
+                    """
                     SELECT created_at FROM plant_journal
                     WHERE plant_id = ? AND entry_type = 'observation'
                     ORDER BY created_at DESC LIMIT 1
-                """, [plant_id])
+                """,
+                    [plant_id],
+                )
                 row = cursor.fetchone()
-                last_observation = dict(row)['created_at'] if row else None
+                last_observation = dict(row)["created_at"] if row else None
 
                 # Last nutrient
-                cursor = conn.execute("""
+                cursor = conn.execute(
+                    """
                     SELECT created_at FROM plant_journal
                     WHERE plant_id = ? AND entry_type = 'nutrient'
                     ORDER BY created_at DESC LIMIT 1
-                """, [plant_id])
+                """,
+                    [plant_id],
+                )
                 row = cursor.fetchone()
-                last_nutrient = dict(row)['created_at'] if row else None
+                last_nutrient = dict(row)["created_at"] if row else None
 
                 # 30-day counts
-                cursor = conn.execute("""
+                cursor = conn.execute(
+                    """
                     SELECT
                         SUM(CASE WHEN entry_type = 'watering' THEN 1 ELSE 0 END) as watering_30d,
                         SUM(CASE WHEN entry_type = 'observation' THEN 1 ELSE 0 END) as observation_30d
                     FROM plant_journal
                     WHERE plant_id = ?
                       AND created_at >= datetime('now', '-30 days')
-                """, [plant_id])
+                """,
+                    [plant_id],
+                )
                 counts = cursor.fetchone()
-                watering_30d = (dict(counts)['watering_30d'] or 0) if counts else 0
-                observation_30d = (dict(counts)['observation_30d'] or 0) if counts else 0
+                watering_30d = (dict(counts)["watering_30d"] or 0) if counts else 0
+                observation_30d = (dict(counts)["observation_30d"] or 0) if counts else 0
 
                 # Health trend: last 5 health observations
-                cursor = conn.execute("""
+                cursor = conn.execute(
+                    """
                     SELECT health_status FROM plant_journal
                     WHERE plant_id = ? AND entry_type = 'observation'
                       AND observation_type = 'health' AND health_status IS NOT NULL
                     ORDER BY created_at DESC LIMIT 5
-                """, [plant_id])
-                recent_health = [dict(r)['health_status'] for r in cursor.fetchall()]
+                """,
+                    [plant_id],
+                )
+                recent_health = [dict(r)["health_status"] for r in cursor.fetchall()]
                 health_trend = self._compute_health_trend(recent_health)
 
                 return {
@@ -781,7 +787,7 @@ class PlantJournalRepository:
             logger.error(f"Failed to get journal summary: {e}")
             return {"plant_id": plant_id, "total_entries": 0, "entries_by_type": {}}
 
-    def get_watering_frequency(self, plant_id: int, days: int = 30) -> Dict[str, Any]:
+    def get_watering_frequency(self, plant_id: int, days: int = 30) -> dict[str, Any]:
         """
         Calculate average watering frequency for a plant.
 
@@ -798,8 +804,8 @@ class PlantJournalRepository:
                 ORDER BY created_at ASC
             """
             with self.db.connection() as conn:
-                cursor = conn.execute(query, [plant_id, f'-{days} days'])
-                rows = [dict(r)['created_at'] for r in cursor.fetchall()]
+                cursor = conn.execute(query, [plant_id, f"-{days} days"])
+                rows = [dict(r)["created_at"] for r in cursor.fetchall()]
 
             if len(rows) < 2:
                 return {
@@ -809,10 +815,11 @@ class PlantJournalRepository:
                 }
 
             from datetime import datetime as dt
+
             dates = []
             for ts in rows:
                 try:
-                    dates.append(dt.fromisoformat(ts.replace('Z', '+00:00')))
+                    dates.append(dt.fromisoformat(ts.replace("Z", "+00:00")))
                 except Exception:
                     pass
 
@@ -823,7 +830,7 @@ class PlantJournalRepository:
                     "period_days": days,
                 }
 
-            intervals = [(dates[i+1] - dates[i]).total_seconds() / 86400 for i in range(len(dates)-1)]
+            intervals = [(dates[i + 1] - dates[i]).total_seconds() / 86400 for i in range(len(dates) - 1)]
             avg_interval = sum(intervals) / len(intervals)
 
             return {
@@ -840,8 +847,8 @@ class PlantJournalRepository:
         plant_id: int,
         page: int = 1,
         per_page: int = 20,
-        entry_type: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        entry_type: str | None = None,
+    ) -> dict[str, Any]:
         """
         Get paginated journal entries.
 
@@ -877,15 +884,16 @@ class PlantJournalRepository:
 
             with self.db.connection() as conn:
                 cursor = conn.execute(count_query, params)
-                total_count = dict(cursor.fetchone())['cnt']
+                total_count = dict(cursor.fetchone())["cnt"]
 
                 cursor = conn.execute(data_query, params + [per_page, offset])
                 items = [dict(row) for row in cursor.fetchall()]
 
             # Parse extra_data and JSON fields
             import json
+
             for item in items:
-                for field in ('extra_data', 'symptoms', 'affected_parts', 'environmental_factors'):
+                for field in ("extra_data", "symptoms", "affected_parts", "environmental_factors"):
                     if item.get(field) and isinstance(item[field], str):
                         try:
                             item[field] = json.loads(item[field])
@@ -893,6 +901,7 @@ class PlantJournalRepository:
                             pass
 
             import math
+
             total_pages = math.ceil(total_count / per_page) if per_page > 0 else 0
 
             return {
@@ -913,7 +922,7 @@ class PlantJournalRepository:
             }
 
     @staticmethod
-    def _compute_health_trend(recent_statuses: List[str]) -> Optional[str]:
+    def _compute_health_trend(recent_statuses: list[str]) -> str | None:
         """Compute health trend from recent health statuses."""
         if not recent_statuses:
             return None
@@ -938,19 +947,19 @@ class PlantJournalRepository:
     def create_watering_entry(
         self,
         plant_id: int,
-        amount_ml: Optional[float] = None,
+        amount_ml: float | None = None,
         method: str = "manual",
         source: str = "user",
-        ph_level: Optional[float] = None,
-        ec_level: Optional[float] = None,
+        ph_level: float | None = None,
+        ec_level: float | None = None,
         notes: str = "",
-        user_id: Optional[int] = None,
+        user_id: int | None = None,
         *,
-        unit_id: Optional[int] = None,
-        amount: Optional[float] = None,
+        unit_id: int | None = None,
+        amount: float | None = None,
         unit: str = "ml",
-        observation_date: Optional[str] = None,
-    ) -> Optional[int]:
+        observation_date: str | None = None,
+    ) -> int | None:
         """
         Record a watering event.
 
@@ -969,7 +978,7 @@ class PlantJournalRepository:
         """
         try:
             normalized_unit = (unit or "ml").strip().lower()
-            normalized_amount_ml: Optional[float]
+            normalized_amount_ml: float | None
 
             if amount is not None:
                 if normalized_unit in ("l", "liter", "liters"):
@@ -984,26 +993,40 @@ class PlantJournalRepository:
             stored_unit = normalized_unit if amount is not None else "ml"
 
             import json
-            extra_data = json.dumps({
-                "amount_ml": normalized_amount_ml,
-                "method": method,
-                "source": source,
-                "ph_level": ph_level,
-                "ec_level": ec_level,
-            })
+
+            extra_data = json.dumps(
+                {
+                    "amount_ml": normalized_amount_ml,
+                    "method": method,
+                    "source": source,
+                    "ph_level": ph_level,
+                    "ec_level": ec_level,
+                }
+            )
 
             with self.db.connection() as conn:
-                cursor = conn.execute("""
+                cursor = conn.execute(
+                    """
                     INSERT INTO plant_journal (
                         plant_id, unit_id, entry_type, observation_type,
                         treatment_type, treatment_name, amount, unit,
                         notes, user_id, observation_date, extra_data
                     )
                     VALUES (?, ?, 'watering', 'watering', ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    plant_id, unit_id, method, source, normalized_amount_ml, stored_unit,
-                    notes, user_id, observation_date, extra_data
-                ))
+                """,
+                    (
+                        plant_id,
+                        unit_id,
+                        method,
+                        source,
+                        normalized_amount_ml,
+                        stored_unit,
+                        notes,
+                        user_id,
+                        observation_date,
+                        extra_data,
+                    ),
+                )
                 conn.commit()
                 return cursor.lastrowid
         except Exception as e:
@@ -1014,11 +1037,11 @@ class PlantJournalRepository:
         self,
         plant_id: int,
         pruning_type: str,
-        parts_removed: Optional[List[str]] = None,
+        parts_removed: list[str] | None = None,
         notes: str = "",
-        image_path: Optional[str] = None,
-        user_id: Optional[int] = None
-    ) -> Optional[int]:
+        image_path: str | None = None,
+        user_id: int | None = None,
+    ) -> int | None:
         """
         Record a pruning/training event.
 
@@ -1035,19 +1058,20 @@ class PlantJournalRepository:
         """
         try:
             import json
+
             parts_json = json.dumps(parts_removed) if parts_removed else None
 
             with self.db.connection() as conn:
-                cursor = conn.execute("""
+                cursor = conn.execute(
+                    """
                     INSERT INTO plant_journal (
                         plant_id, entry_type, treatment_type, treatment_name,
                         affected_parts, notes, image_path, user_id
                     )
                     VALUES (?, 'pruning', ?, ?, ?, ?, ?, ?)
-                """, (
-                    plant_id, pruning_type, pruning_type, parts_json,
-                    notes, image_path, user_id
-                ))
+                """,
+                    (plant_id, pruning_type, pruning_type, parts_json, notes, image_path, user_id),
+                )
                 conn.commit()
                 return cursor.lastrowid
         except Exception as e:
@@ -1061,8 +1085,8 @@ class PlantJournalRepository:
         to_stage: str,
         trigger: str = "manual",
         notes: str = "",
-        user_id: Optional[int] = None
-    ) -> Optional[int]:
+        user_id: int | None = None,
+    ) -> int | None:
         """
         Record a growth stage transition.
 
@@ -1079,15 +1103,16 @@ class PlantJournalRepository:
         """
         try:
             with self.db.connection() as conn:
-                cursor = conn.execute("""
+                cursor = conn.execute(
+                    """
                     INSERT INTO plant_journal (
                         plant_id, entry_type, observation_type, growth_stage,
                         treatment_type, notes, user_id
                     )
                     VALUES (?, 'stage_change', ?, ?, ?, ?, ?)
-                """, (
-                    plant_id, from_stage, to_stage, trigger, notes, user_id
-                ))
+                """,
+                    (plant_id, from_stage, to_stage, trigger, notes, user_id),
+                )
                 conn.commit()
                 return cursor.lastrowid
         except Exception as e:
@@ -1098,12 +1123,12 @@ class PlantJournalRepository:
         self,
         plant_id: int,
         harvest_type: str,
-        weight_grams: Optional[float] = None,
-        quality_rating: Optional[int] = None,
+        weight_grams: float | None = None,
+        quality_rating: int | None = None,
         notes: str = "",
-        image_path: Optional[str] = None,
-        user_id: Optional[int] = None
-    ) -> Optional[int]:
+        image_path: str | None = None,
+        user_id: int | None = None,
+    ) -> int | None:
         """
         Record a harvest event.
 
@@ -1121,23 +1146,26 @@ class PlantJournalRepository:
         """
         try:
             import json
-            extra_data = json.dumps({
-                "harvest_type": harvest_type,
-                "weight_grams": weight_grams,
-                "quality_rating": quality_rating,
-            })
+
+            extra_data = json.dumps(
+                {
+                    "harvest_type": harvest_type,
+                    "weight_grams": weight_grams,
+                    "quality_rating": quality_rating,
+                }
+            )
 
             with self.db.connection() as conn:
-                cursor = conn.execute("""
+                cursor = conn.execute(
+                    """
                     INSERT INTO plant_journal (
                         plant_id, entry_type, treatment_type, amount,
                         severity_level, notes, image_path, user_id, extra_data
                     )
                     VALUES (?, 'harvest', ?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    plant_id, harvest_type, weight_grams, quality_rating,
-                    notes, image_path, user_id, extra_data
-                ))
+                """,
+                    (plant_id, harvest_type, weight_grams, quality_rating, notes, image_path, user_id, extra_data),
+                )
                 conn.commit()
                 return cursor.lastrowid
         except Exception as e:
@@ -1151,8 +1179,8 @@ class PlantJournalRepository:
         old_value: str,
         new_value: str,
         reason: str = "",
-        user_id: Optional[int] = None
-    ) -> Optional[int]:
+        user_id: int | None = None,
+    ) -> int | None:
         """
         Record an environmental control adjustment.
 
@@ -1169,23 +1197,26 @@ class PlantJournalRepository:
         """
         try:
             import json
-            extra_data = json.dumps({
-                "adjustment_type": adjustment_type,
-                "old_value": old_value,
-                "new_value": new_value,
-            })
+
+            extra_data = json.dumps(
+                {
+                    "adjustment_type": adjustment_type,
+                    "old_value": old_value,
+                    "new_value": new_value,
+                }
+            )
 
             with self.db.connection() as conn:
-                cursor = conn.execute("""
+                cursor = conn.execute(
+                    """
                     INSERT INTO plant_journal (
                         plant_id, entry_type, treatment_type,
                         notes, user_id, extra_data
                     )
                     VALUES (?, 'environmental_adjustment', ?, ?, ?, ?)
-                """, (
-                    plant_id, adjustment_type,
-                    reason, user_id, extra_data
-                ))
+                """,
+                    (plant_id, adjustment_type, reason, user_id, extra_data),
+                )
                 conn.commit()
                 return cursor.lastrowid
         except Exception as e:
@@ -1197,10 +1228,10 @@ class PlantJournalRepository:
         plant_id: int,
         from_container: str,
         to_container: str,
-        new_medium: Optional[str] = None,
+        new_medium: str | None = None,
         notes: str = "",
-        user_id: Optional[int] = None
-    ) -> Optional[int]:
+        user_id: int | None = None,
+    ) -> int | None:
         """
         Record a transplanting event.
 
@@ -1217,24 +1248,26 @@ class PlantJournalRepository:
         """
         try:
             import json
-            extra_data = json.dumps({
-                "from_container": from_container,
-                "to_container": to_container,
-                "new_medium": new_medium,
-            })
+
+            extra_data = json.dumps(
+                {
+                    "from_container": from_container,
+                    "to_container": to_container,
+                    "new_medium": new_medium,
+                }
+            )
 
             with self.db.connection() as conn:
-                cursor = conn.execute("""
+                cursor = conn.execute(
+                    """
                     INSERT INTO plant_journal (
                         plant_id, entry_type, treatment_type, treatment_name,
                         notes, user_id, extra_data
                     )
                     VALUES (?, 'transplant', 'transplant', ?, ?, ?, ?)
-                """, (
-                    plant_id,
-                    f"{from_container} -> {to_container}",
-                    notes, user_id, extra_data
-                ))
+                """,
+                    (plant_id, f"{from_container} -> {to_container}", notes, user_id, extra_data),
+                )
                 conn.commit()
                 return cursor.lastrowid
         except Exception as e:

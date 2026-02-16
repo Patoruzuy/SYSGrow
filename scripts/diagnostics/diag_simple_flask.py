@@ -2,22 +2,29 @@
 """
 Simple test to verify the Flask app works
 """
+import sys
+from pathlib import Path
+
+# Add repository root to path.
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 from app import create_app
 
 try:
     app = create_app()
     print("✅ App created successfully")
-    
+
     # Test device blueprint registration
     blueprints = [bp.name for bp in app.blueprints.values()]
     print(f"📋 Registered blueprints: {blueprints}")
-    
+
     if 'devices_api' in blueprints:
         print("✅ Devices API blueprint registered")
     else:
         print("❌ Devices API blueprint NOT registered")
-    
+
     # Test a simple route
     with app.test_client() as client:
         response = client.get('/api/devices/config/sensor_types')

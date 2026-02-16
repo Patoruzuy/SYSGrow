@@ -4,20 +4,22 @@ Plant-Actuator Linking
 
 Endpoints for linking plants to actuators (e.g., dedicated irrigation pumps).
 """
+
 from __future__ import annotations
 
 import logging
 
 from flask import request
 
-from app.utils.time import iso_now
-from . import plants_api
 from app.blueprints.api._common import (
     fail as _fail,
     get_growth_service as _growth_service,
     get_plant_service as _plant_service,
     success as _success,
 )
+from app.utils.time import iso_now
+
+from . import plants_api
 
 logger = logging.getLogger("plants_api.actuators")
 
@@ -25,6 +27,7 @@ logger = logging.getLogger("plants_api.actuators")
 # ============================================================================
 # PLANT-ACTUATOR LINKING
 # ============================================================================
+
 
 @plants_api.get("/units/<int:unit_id>/actuators/available")
 def get_available_actuators(unit_id: int):
@@ -69,16 +72,13 @@ def link_plant_to_actuator(plant_id: int, actuator_id: int):
                 {
                     "plant_id": plant_id,
                     "actuator_id": actuator_id,
-                    "message": (
-                        f"Actuator {actuator_id} linked to plant "
-                        f"'{plant.get('plant_name')}' successfully"
-                    ),
+                    "message": (f"Actuator {actuator_id} linked to plant '{plant.get('plant_name')}' successfully"),
                 }
             )
         return _fail(f"Failed to link actuator {actuator_id} to plant {plant_id}", 400)
     except ValueError as e:
         logger.warning("Validation error linking actuator: %s", e)
-        return _fail(str(e), 400)
+        return safe_error(e, 400)
     except Exception as e:
         logger.exception("Error linking plant %s to actuator %s: %s", plant_id, actuator_id, e)
         return _fail("Failed to link plant to actuator", 500)

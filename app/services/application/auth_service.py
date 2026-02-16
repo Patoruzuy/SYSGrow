@@ -7,13 +7,14 @@ Includes password recovery functionality with secure token generation.
 Moved from root auth_manager.py to app/services/auth.py for better organization.
 """
 
-import bcrypt
 import hashlib
 import logging
 import secrets
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Optional, Dict, Any, List
+from typing import Any
+
+import bcrypt
 
 from infrastructure.database.repositories.auth import AuthRepository
 from infrastructure.logging.audit import AuditLogger
@@ -36,10 +37,10 @@ class UserAuthManager:
     """
 
     database_handler: any
-    audit_logger: Optional[AuditLogger] = None
+    audit_logger: AuditLogger | None = None
     max_failed_attempts: int = 5
     # Optional injection for tests/composition; lazily initialized from database_handler.
-    auth_repo: Optional[AuthRepository] = field(default=None, repr=False)
+    auth_repo: AuthRepository | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
         if self.auth_repo is None and self.database_handler is not None:
@@ -128,7 +129,7 @@ class UserAuthManager:
 
     # --- Password Recovery Methods ---
 
-    def get_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+    def get_user_by_email(self, email: str) -> dict[str, Any] | None:
         """Get user by email address."""
         try:
             return self._repo().get_user_by_email(email)
@@ -136,7 +137,7 @@ class UserAuthManager:
             logging.error(f"Error fetching user by email: {e}")
             return None
 
-    def get_user_by_username_with_email(self, username: str) -> Optional[Dict[str, Any]]:
+    def get_user_by_username_with_email(self, username: str) -> dict[str, Any] | None:
         """Get user with email by username."""
         try:
             return self._repo().get_user_by_username_with_email(username)
@@ -155,7 +156,7 @@ class UserAuthManager:
             logging.error(f"Error updating user email: {e}")
             return False
 
-    def generate_reset_token(self, user_id: int) -> Optional[str]:
+    def generate_reset_token(self, user_id: int) -> str | None:
         """
         Generate a secure password reset token for a user.
 
@@ -185,7 +186,7 @@ class UserAuthManager:
             logging.error(f"Error generating reset token: {e}")
             return None
 
-    def validate_reset_token(self, token: str) -> Optional[Dict[str, Any]]:
+    def validate_reset_token(self, token: str) -> dict[str, Any] | None:
         """
         Validate a password reset token.
 
@@ -310,11 +311,11 @@ class UserAuthManager:
 
     def _generate_single_code(self) -> str:
         """Generate a single recovery code in XXXX-XXXX format."""
-        part1 = ''.join(secrets.choice(RECOVERY_CODE_CHARS) for _ in range(4))
-        part2 = ''.join(secrets.choice(RECOVERY_CODE_CHARS) for _ in range(4))
+        part1 = "".join(secrets.choice(RECOVERY_CODE_CHARS) for _ in range(4))
+        part2 = "".join(secrets.choice(RECOVERY_CODE_CHARS) for _ in range(4))
         return f"{part1}-{part2}"
 
-    def generate_recovery_codes(self, user_id: int) -> Optional[List[str]]:
+    def generate_recovery_codes(self, user_id: int) -> list[str] | None:
         """
         Generate new recovery codes for a user.
 
@@ -383,9 +384,7 @@ class UserAuthManager:
             logging.error(f"Error validating recovery code: {e}")
             return False
 
-    def reset_password_with_recovery_code(
-        self, user_id: int, code: str, new_password: str
-    ) -> bool:
+    def reset_password_with_recovery_code(self, user_id: int, code: str, new_password: str) -> bool:
         """
         Reset a user's password using a valid recovery code.
 
@@ -445,7 +444,7 @@ class UserAuthManager:
             logging.error(f"Error getting recovery code count: {e}")
             return 0
 
-    def get_user_by_id(self, user_id: int) -> Optional[Dict[str, Any]]:
+    def get_user_by_id(self, user_id: int) -> dict[str, Any] | None:
         """Get user by ID."""
         try:
             return self._repo().get_user_by_id(user_id)

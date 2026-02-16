@@ -5,56 +5,37 @@ Growth Schemas
 Pydantic models for growth unit and plant request/response validation.
 """
 
-from typing import Dict, List, Optional, Any
-from datetime import datetime, date
-from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict, AliasChoices
-from app.enums import (
-    LocationType,
-    PlantStage,
-    GrowthPhase,
-    ScheduleType,
-    ScheduleState,
-    PhotoperiodSource,
-    ConditionProfileMode,
-)
+from datetime import date, datetime
+from typing import Any
 
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from app.enums import (
+    ConditionProfileMode,
+    GrowthPhase,
+    LocationType,
+    PhotoperiodSource,
+    PlantStage,
+    ScheduleState,
+    ScheduleType,
+)
 
 # ============================================================================
 # Schedule Schemas (v3 - Unified Scheduling)
 # ============================================================================
 
+
 class PhotoperiodConfigSchema(BaseModel):
     """Photoperiod configuration for light schedules."""
-    source: PhotoperiodSource = Field(
-        default=PhotoperiodSource.SCHEDULE,
-        description="How to determine day/night"
-    )
-    sensor_threshold: float = Field(
-        default=100.0,
-        ge=0,
-        description="Lux threshold for day/night detection"
-    )
+
+    source: PhotoperiodSource = Field(default=PhotoperiodSource.SCHEDULE, description="How to determine day/night")
+    sensor_threshold: float = Field(default=100.0, ge=0, description="Lux threshold for day/night detection")
     sensor_tolerance: float = Field(
-        default=10.0,
-        ge=0,
-        description="Lux tolerance around threshold to avoid rapid toggling"
+        default=10.0, ge=0, description="Lux tolerance around threshold to avoid rapid toggling"
     )
-    prefer_sensor: bool = Field(
-        default=False,
-        description="Prefer sensor over schedule when available"
-    )
-    min_light_hours: Optional[float] = Field(
-        default=None,
-        ge=0,
-        le=24,
-        description="Minimum light hours to maintain"
-    )
-    max_light_hours: Optional[float] = Field(
-        default=None,
-        ge=0,
-        le=24,
-        description="Maximum light hours allowed"
-    )
+    prefer_sensor: bool = Field(default=False, description="Prefer sensor over schedule when available")
+    min_light_hours: float | None = Field(default=None, ge=0, le=24, description="Minimum light hours to maintain")
+    max_light_hours: float | None = Field(default=None, ge=0, le=24, description="Maximum light hours allowed")
 
     @field_validator("source", mode="before")
     @classmethod
@@ -66,26 +47,20 @@ class PhotoperiodConfigSchema(BaseModel):
 
 class ScheduleCreateSchema(BaseModel):
     """Schema for creating a new schedule."""
+
     name: str = Field(..., min_length=1, max_length=100, description="Schedule name")
     device_type: str = Field(..., min_length=1, max_length=50, description="Device type (light, fan, pump, etc.)")
-    actuator_id: Optional[int] = Field(default=None, description="Link to specific actuator")
+    actuator_id: int | None = Field(default=None, description="Link to specific actuator")
     schedule_type: ScheduleType = Field(default=ScheduleType.SIMPLE, description="Schedule type")
     start_time: str = Field(..., pattern=r"^\d{2}:\d{2}$", description="Start time HH:MM")
     end_time: str = Field(..., pattern=r"^\d{2}:\d{2}$", description="End time HH:MM")
-    interval_minutes: Optional[int] = Field(
-        default=None, ge=1, description="Interval minutes for repeating schedules"
-    )
-    duration_minutes: Optional[int] = Field(
-        default=None, ge=1, description="Duration minutes for repeating schedules"
-    )
-    days_of_week: List[int] = Field(
-        default=[0, 1, 2, 3, 4, 5, 6],
-        description="Days of week (0=Monday, 6=Sunday)"
-    )
+    interval_minutes: int | None = Field(default=None, ge=1, description="Interval minutes for repeating schedules")
+    duration_minutes: int | None = Field(default=None, ge=1, description="Duration minutes for repeating schedules")
+    days_of_week: list[int] = Field(default=[0, 1, 2, 3, 4, 5, 6], description="Days of week (0=Monday, 6=Sunday)")
     enabled: bool = Field(default=True, description="Whether schedule is active")
     state_when_active: ScheduleState = Field(default=ScheduleState.ON, description="State when active")
-    value: Optional[float] = Field(default=None, ge=0, le=100, description="Value for dimmers (0-100)")
-    photoperiod: Optional[PhotoperiodConfigSchema] = Field(default=None, description="Photoperiod config for lights")
+    value: float | None = Field(default=None, ge=0, le=100, description="Value for dimmers (0-100)")
+    photoperiod: PhotoperiodConfigSchema | None = Field(default=None, description="Photoperiod config for lights")
     priority: int = Field(default=0, ge=0, description="Priority (higher wins in conflicts)")
 
     @field_validator("schedule_type", mode="before")
@@ -137,20 +112,21 @@ class ScheduleCreateSchema(BaseModel):
 
 class ScheduleUpdateSchema(BaseModel):
     """Schema for updating an existing schedule (all fields optional)."""
-    name: Optional[str] = Field(default=None, min_length=1, max_length=100)
-    device_type: Optional[str] = Field(default=None, min_length=1, max_length=50)
-    actuator_id: Optional[int] = None
-    schedule_type: Optional[ScheduleType] = None
-    start_time: Optional[str] = Field(default=None, pattern=r"^\d{2}:\d{2}$")
-    end_time: Optional[str] = Field(default=None, pattern=r"^\d{2}:\d{2}$")
-    interval_minutes: Optional[int] = Field(default=None, ge=1)
-    duration_minutes: Optional[int] = Field(default=None, ge=1)
-    days_of_week: Optional[List[int]] = None
-    enabled: Optional[bool] = None
-    state_when_active: Optional[ScheduleState] = None
-    value: Optional[float] = Field(default=None, ge=0, le=100)
-    photoperiod: Optional[PhotoperiodConfigSchema] = None
-    priority: Optional[int] = Field(default=None, ge=0)
+
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    device_type: str | None = Field(default=None, min_length=1, max_length=50)
+    actuator_id: int | None = None
+    schedule_type: ScheduleType | None = None
+    start_time: str | None = Field(default=None, pattern=r"^\d{2}:\d{2}$")
+    end_time: str | None = Field(default=None, pattern=r"^\d{2}:\d{2}$")
+    interval_minutes: int | None = Field(default=None, ge=1)
+    duration_minutes: int | None = Field(default=None, ge=1)
+    days_of_week: list[int] | None = None
+    enabled: bool | None = None
+    state_when_active: ScheduleState | None = None
+    value: float | None = Field(default=None, ge=0, le=100)
+    photoperiod: PhotoperiodConfigSchema | None = None
+    priority: int | None = Field(default=None, ge=0)
 
     @field_validator("schedule_type", mode="before")
     @classmethod
@@ -185,41 +161,44 @@ class ScheduleUpdateSchema(BaseModel):
 
 class ScheduleResponseSchema(BaseModel):
     """Response schema for a schedule."""
+
     schedule_id: int
     unit_id: int
     name: str
     device_type: str
-    actuator_id: Optional[int]
+    actuator_id: int | None
     schedule_type: str
     start_time: str
     end_time: str
-    interval_minutes: Optional[int]
-    duration_minutes: Optional[int]
-    days_of_week: List[int]
+    interval_minutes: int | None
+    duration_minutes: int | None
+    days_of_week: list[int]
     enabled: bool
     state_when_active: str
-    value: Optional[float]
-    photoperiod: Optional[Dict[str, Any]]
+    value: float | None
+    photoperiod: dict[str, Any] | None
     priority: int
-    created_at: Optional[datetime]
-    updated_at: Optional[datetime]
+    created_at: datetime | None
+    updated_at: datetime | None
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class ScheduleListResponseSchema(BaseModel):
     """Response schema for list of schedules."""
-    schedules: List[ScheduleResponseSchema]
+
+    schedules: list[ScheduleResponseSchema]
     count: int
     unit_id: int
 
 
 class ScheduleSummarySchema(BaseModel):
     """Summary of schedules for a unit."""
+
     unit_id: int
     total_schedules: int
     enabled_schedules: int
-    by_device_type: Dict[str, Dict[str, int]]
+    by_device_type: dict[str, dict[str, int]]
     light_hours: float
 
 
@@ -227,17 +206,19 @@ class ScheduleSummarySchema(BaseModel):
 # Growth Unit Schemas
 # ============================================================================
 
+
 class ThresholdSettings(BaseModel):
     """Threshold settings for environmental controls"""
-    min_temp: Optional[float] = Field(default=None, description="Minimum temperature (°C)")
-    max_temp: Optional[float] = Field(default=None, description="Maximum temperature (°C)")
-    min_humidity: Optional[float] = Field(default=None, ge=0, le=100, description="Minimum humidity (%)")
-    max_humidity: Optional[float] = Field(default=None, ge=0, le=100, description="Maximum humidity (%)")
-    min_light: Optional[float] = Field(default=None, ge=0, description="Minimum light (lux)")
-    max_light: Optional[float] = Field(default=None, ge=0, description="Maximum light (lux)")
-    min_soil_moisture: Optional[float] = Field(default=None, ge=0, le=100, description="Minimum soil moisture (%)")
-    max_soil_moisture: Optional[float] = Field(default=None, ge=0, le=100, description="Maximum soil moisture (%)")
-    
+
+    min_temp: float | None = Field(default=None, description="Minimum temperature (°C)")
+    max_temp: float | None = Field(default=None, description="Maximum temperature (°C)")
+    min_humidity: float | None = Field(default=None, ge=0, le=100, description="Minimum humidity (%)")
+    max_humidity: float | None = Field(default=None, ge=0, le=100, description="Maximum humidity (%)")
+    min_light: float | None = Field(default=None, ge=0, description="Minimum light (lux)")
+    max_light: float | None = Field(default=None, ge=0, description="Maximum light (lux)")
+    min_soil_moisture: float | None = Field(default=None, ge=0, le=100, description="Minimum soil moisture (%)")
+    max_soil_moisture: float | None = Field(default=None, ge=0, le=100, description="Maximum soil moisture (%)")
+
     @model_validator(mode="after")
     def validate_ranges(self):
         """Ensure max values are greater than min values when both provided."""
@@ -246,7 +227,7 @@ class ThresholdSettings(BaseModel):
         if self.max_humidity is not None and self.min_humidity is not None and self.max_humidity <= self.min_humidity:
             raise ValueError("max_humidity must be greater than min_humidity")
         return self
-    
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -287,21 +268,21 @@ class UnitThresholdUpdateV2(BaseModel):
 
     temperature_threshold: float = Field(..., description="Target temperature (°C)")
     humidity_threshold: float = Field(..., ge=0, le=100, description="Target humidity (%)")
-    co2_threshold: Optional[float] = Field(default=None, ge=0, le=5000, description="Target CO₂ (ppm)")
-    voc_threshold: Optional[float] = Field(default=None, ge=0, le=10000, description="Target VOC (ppb)")
-    lux_threshold: Optional[float] = Field(
+    co2_threshold: float | None = Field(default=None, ge=0, le=5000, description="Target CO₂ (ppm)")
+    voc_threshold: float | None = Field(default=None, ge=0, le=10000, description="Target VOC (ppb)")
+    lux_threshold: float | None = Field(
         default=None,
         ge=0,
         le=100000,
         description="Target light intensity (lux)",
         validation_alias=AliasChoices("lux_threshold", "lux_threshold"),
     )
-    air_quality_threshold: Optional[float] = Field(
+    air_quality_threshold: float | None = Field(
         default=None,
         ge=0,
         le=500,
         description="Target Air Quality Index",
-        validation_alias=AliasChoices("air_quality_threshold", "aqi_threshold")
+        validation_alias=AliasChoices("air_quality_threshold", "aqi_threshold"),
     )
 
     model_config = ConfigDict(
@@ -320,19 +301,20 @@ class UnitThresholdUpdateV2(BaseModel):
 
 class CreateGrowthUnitRequest(BaseModel):
     """Request model for creating a new growth unit"""
+
     name: str = Field(..., min_length=1, max_length=100, description="Growth unit name")
     location: LocationType = Field(..., description="Location type")
-    timezone: Optional[str] = Field(default=None, max_length=100, description="Unit timezone (IANA)")
-    description: Optional[str] = Field(default=None, max_length=500, description="Unit description")
-    area_size: Optional[float] = Field(default=None, gt=0, description="Area size (square meters)")
-    thresholds: Optional[ThresholdSettings] = Field(default=None, description="Environmental thresholds")
-    condition_profile_id: Optional[str] = Field(default=None, description="Condition profile id")
-    condition_profile_mode: Optional[ConditionProfileMode] = Field(
+    timezone: str | None = Field(default=None, max_length=100, description="Unit timezone (IANA)")
+    description: str | None = Field(default=None, max_length=500, description="Unit description")
+    area_size: float | None = Field(default=None, gt=0, description="Area size (square meters)")
+    thresholds: ThresholdSettings | None = Field(default=None, description="Environmental thresholds")
+    condition_profile_id: str | None = Field(default=None, description="Condition profile id")
+    condition_profile_mode: ConditionProfileMode | None = Field(
         default=None,
         description="Condition profile mode (active/template)",
     )
-    condition_profile_name: Optional[str] = Field(default=None, description="Condition profile name for clone")
-    
+    condition_profile_name: str | None = Field(default=None, description="Condition profile name for clone")
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -376,14 +358,14 @@ class CreateUnitPayload(BaseModel):
 
     name: str = Field(..., min_length=1, max_length=100)
     location: str = Field(default="Indoor", min_length=1, max_length=100)
-    timezone: Optional[str] = Field(default=None, max_length=100)
-    dimensions: Optional[UnitDimensionsSchema] = None
-    device_schedules: Optional[Dict[str, DeviceScheduleInput]] = None
+    timezone: str | None = Field(default=None, max_length=100)
+    dimensions: UnitDimensionsSchema | None = None
+    device_schedules: dict[str, DeviceScheduleInput] | None = None
     camera_enabled: bool = False
-    custom_image: Optional[str] = None
-    condition_profile_id: Optional[str] = None
-    condition_profile_mode: Optional[ConditionProfileMode] = None
-    condition_profile_name: Optional[str] = None
+    custom_image: str | None = None
+    condition_profile_id: str | None = None
+    condition_profile_mode: ConditionProfileMode | None = None
+    condition_profile_name: str | None = None
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -391,9 +373,7 @@ class CreateUnitPayload(BaseModel):
                 "name": "Indoor Grow Tent 1",
                 "location": "Indoor",
                 "dimensions": {"width": 120.0, "height": 200.0, "depth": 60.0},
-                "device_schedules": {
-                    "light": {"start_time": "08:00", "end_time": "20:00", "enabled": True}
-                },
+                "device_schedules": {"light": {"start_time": "08:00", "end_time": "20:00", "enabled": True}},
                 "camera_enabled": True,
                 "custom_image": "/static/images/tent.png",
             }
@@ -404,26 +384,27 @@ class CreateUnitPayload(BaseModel):
 class UpdateUnitPayload(BaseModel):
     """Partial update payload for /api/v1/growth/units/<id>."""
 
-    name: Optional[str] = Field(default=None, min_length=1, max_length=100)
-    location: Optional[str] = Field(default=None, min_length=1, max_length=100)
-    timezone: Optional[str] = Field(default=None, max_length=100)
-    dimensions: Optional[UnitDimensionsSchema] = None
-    device_schedules: Optional[Dict[str, DeviceScheduleInput]] = None
-    camera_enabled: Optional[bool] = None
-    custom_image: Optional[str] = None
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    location: str | None = Field(default=None, min_length=1, max_length=100)
+    timezone: str | None = Field(default=None, max_length=100)
+    dimensions: UnitDimensionsSchema | None = None
+    device_schedules: dict[str, DeviceScheduleInput] | None = None
+    camera_enabled: bool | None = None
+    custom_image: str | None = None
 
 
 class UpdateGrowthUnitRequest(BaseModel):
     """Request model for updating an existing growth unit"""
-    name: Optional[str] = Field(default=None, min_length=1, max_length=100)
-    location: Optional[LocationType] = Field(default=None)
-    timezone: Optional[str] = Field(default=None, max_length=100)
-    description: Optional[str] = Field(default=None, max_length=500)
-    area_size: Optional[float] = Field(default=None, gt=0)
-    thresholds: Optional[ThresholdSettings] = Field(default=None)
-    active: Optional[bool] = Field(default=None)
+
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    location: LocationType | None = Field(default=None)
+    timezone: str | None = Field(default=None, max_length=100)
+    description: str | None = Field(default=None, max_length=500)
+    area_size: float | None = Field(default=None, gt=0)
+    thresholds: ThresholdSettings | None = Field(default=None)
+    active: bool | None = Field(default=None)
     # Note: light_mode removed - use PhotoperiodSource in schedule's photoperiod config instead
-    
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -437,22 +418,23 @@ class UpdateGrowthUnitRequest(BaseModel):
 
 class GrowthUnitResponse(BaseModel):
     """Response model for growth unit data"""
+
     id: int
     name: str
     location: str
-    description: Optional[str]
-    area_size: Optional[float]
+    description: str | None
+    area_size: float | None
     active: bool
     user_id: int
-    timezone: Optional[str] = None
-    thresholds: Optional[dict]
+    timezone: str | None = None
+    thresholds: dict | None
     plant_count: int = 0
     device_count: int = 0
     camera_enabled: bool = False
     camera_active: bool = False
     created_at: datetime
-    updated_at: Optional[datetime]
-    
+    updated_at: datetime | None
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -482,17 +464,19 @@ class GrowthUnitResponse(BaseModel):
 # Plant Schemas
 # ============================================================================
 
+
 class CreatePlantRequest(BaseModel):
     """Request model for creating a new plant"""
+
     name: str = Field(..., min_length=1, max_length=100, description="Plant name")
     species: str = Field(..., min_length=1, max_length=100, description="Plant species")
-    variety: Optional[str] = Field(default=None, max_length=100, description="Plant variety/strain")
+    variety: str | None = Field(default=None, max_length=100, description="Plant variety/strain")
     unit_id: int = Field(..., gt=0, description="Associated growth unit ID")
     stage: PlantStage = Field(default=PlantStage.SEED, description="Current plant stage")
     phase: GrowthPhase = Field(default=GrowthPhase.GERMINATION, description="Current growth phase")
-    planted_date: Optional[date] = Field(default=None, description="Date planted")
-    expected_harvest_date: Optional[date] = Field(default=None, description="Expected harvest date")
-    
+    planted_date: date | None = Field(default=None, description="Date planted")
+    expected_harvest_date: date | None = Field(default=None, description="Expected harvest date")
+
     @model_validator(mode="after")
     def validate_harvest_date(self):
         """Ensure harvest date is after planted date"""
@@ -500,7 +484,7 @@ class CreatePlantRequest(BaseModel):
             if self.expected_harvest_date <= self.planted_date:
                 raise ValueError("expected_harvest_date must be after planted_date")
         return self
-    
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -519,16 +503,17 @@ class CreatePlantRequest(BaseModel):
 
 class UpdatePlantRequest(BaseModel):
     """Request model for updating an existing plant"""
-    name: Optional[str] = Field(default=None, min_length=1, max_length=100)
-    species: Optional[str] = Field(default=None, min_length=1, max_length=100)
-    variety: Optional[str] = Field(default=None, max_length=100)
-    stage: Optional[PlantStage] = Field(default=None)
-    phase: Optional[GrowthPhase] = Field(default=None)
-    planted_date: Optional[date] = Field(default=None)
-    expected_harvest_date: Optional[date] = Field(default=None)
-    actual_harvest_date: Optional[date] = Field(default=None)
-    notes: Optional[str] = Field(default=None, max_length=1000)
-    
+
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    species: str | None = Field(default=None, min_length=1, max_length=100)
+    variety: str | None = Field(default=None, max_length=100)
+    stage: PlantStage | None = Field(default=None)
+    phase: GrowthPhase | None = Field(default=None)
+    planted_date: date | None = Field(default=None)
+    expected_harvest_date: date | None = Field(default=None)
+    actual_harvest_date: date | None = Field(default=None)
+    notes: str | None = Field(default=None, max_length=1000)
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -542,17 +527,17 @@ class UpdatePlantRequest(BaseModel):
 
 class PlantResponse(BaseModel):
     """Response model for plant data"""
+
     id: int
     name: str
     species: str
-    variety: Optional[str]
+    variety: str | None
     unit_id: int
     stage: str
     phase: str
-    planted_date: Optional[date]
-    expected_harvest_date: Optional[date]
-    actual_harvest_date: Optional[date]
-    notes: Optional[str]
+    planted_date: date | None
+    expected_harvest_date: date | None
+    actual_harvest_date: date | None
+    notes: str | None
     created_at: datetime
-    updated_at: Optional[datetime]
-    
+    updated_at: datetime | None

@@ -19,30 +19,30 @@ Structure:
 All endpoints use dependency injection via ServiceContainer.
 """
 
+from .ab_testing import ab_testing_bp
+from .analysis import analysis_bp
+from .analytics import analytics_bp
 from .base import base_bp
-from .predictions import predictions_bp
+from .continuous import continuous_bp
 from .models import models_bp
 from .monitoring import monitoring_bp
-from .analytics import analytics_bp
-from .retraining import retraining_bp
-from .analysis import analysis_bp
-from .readiness import readiness_bp
-from .ab_testing import ab_testing_bp
-from .continuous import continuous_bp
 from .personalized import personalized_bp
+from .predictions import predictions_bp
+from .readiness import readiness_bp
+from .retraining import retraining_bp
 from .training_data import training_data_bp
 
 __all__ = [
-    'base_bp',
-    'predictions_bp',
-    'models_bp', 
-    'monitoring_bp',
-    'analytics_bp',
-    'retraining_bp',
-    'analysis_bp',
-    'readiness_bp',
-    'ab_testing_bp',
-    'continuous_bp',
-    'personalized_bp',
-    'training_data_bp',
+    "ab_testing_bp",
+    "analysis_bp",
+    "analytics_bp",
+    "base_bp",
+    "continuous_bp",
+    "models_bp",
+    "monitoring_bp",
+    "personalized_bp",
+    "predictions_bp",
+    "readiness_bp",
+    "retraining_bp",
+    "training_data_bp",
 ]

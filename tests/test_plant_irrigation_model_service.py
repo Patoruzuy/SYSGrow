@@ -1,11 +1,11 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import Mock
 
 from app.services.application.plant_irrigation_model_service import PlantIrrigationModelService
 
 
 def test_update_drydown_model_computes_median_slope():
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     readings = [
         {"soil_moisture": 60.0, "timestamp": (now - timedelta(hours=4)).isoformat()},
         {"soil_moisture": 56.0, "timestamp": (now - timedelta(hours=2)).isoformat()},

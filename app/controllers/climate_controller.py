@@ -14,20 +14,20 @@ Updated: January 2026 - Moved to app.controllers package
 """
 
 import logging
-from typing import Any, Dict, TYPE_CHECKING, Optional
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 from functools import wraps
 from time import perf_counter
-from datetime import datetime, timedelta
+from typing import TYPE_CHECKING, Any
 
-from app.utils.time import iso_now, utc_now
+from app.controllers.throttle_config import DEFAULT_THROTTLE_CONFIG, ThrottleConfig
+from app.enums.events import RuntimeEvent, SensorEvent
 from app.utils.event_bus import EventBus
-from app.enums.events import SensorEvent, RuntimeEvent
-from app.controllers.throttle_config import ThrottleConfig, DEFAULT_THROTTLE_CONFIG
+from app.utils.time import iso_now, utc_now
 
 if TYPE_CHECKING:
-    from infrastructure.database.repositories.analytics import AnalyticsRepository
     from app.controllers.control_logic import ControlLogic
+    from infrastructure.database.repositories.analytics import AnalyticsRepository
 
 logger = logging.getLogger(__name__)
 
@@ -36,8 +36,8 @@ logger = logging.getLogger(__name__)
 class PerformanceMetric:
     count: int = 0
     total_ms: float = 0.0
-    min_ms: Optional[float] = None
-    max_ms: Optional[float] = None
+    min_ms: float | None = None
+    max_ms: float | None = None
 
     def record(self, elapsed_ms: float) -> None:
         self.count += 1
@@ -49,7 +49,7 @@ class PerformanceMetric:
     def avg_ms(self) -> float:
         return self.total_ms / self.count if self.count else 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "count": self.count,
             "total_ms": self.total_ms,
@@ -61,7 +61,7 @@ class PerformanceMetric:
 
 @dataclass
 class PerformanceMetrics:
-    metrics: Dict[str, PerformanceMetric] = field(default_factory=dict)
+    metrics: dict[str, PerformanceMetric] = field(default_factory=dict)
 
     def record(self, name: str, elapsed_ms: float) -> None:
         metric = self.metrics.get(name)
@@ -70,7 +70,7 @@ class PerformanceMetrics:
             self.metrics[name] = metric
         metric.record(elapsed_ms)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {name: metric.to_dict() for name, metric in self.metrics.items()}
 
 
@@ -85,19 +85,21 @@ def track_performance(name: str):
                 elapsed_ms = (perf_counter() - start) * 1000.0
                 if hasattr(self, "performance_metrics"):
                     self.performance_metrics.record(name, elapsed_ms)
+
         return wrapper
+
     return decorator
 
 
 class ClimateController:
     """
     ClimateController manages environmental factors in the grow tent.
-    
+
     Responsibilities:
     - Routing: Subscribers to EventBus and routes to ControlLogic.
     - Analytics: Filters and throttles sensor data for DB storage.
     - Health: Monitors loop frequency and sensor staleness.
-    
+
     Note:
         Plant sensors (soil_moisture, ph, ec) are handled by PlantSensorController.
         Irrigation is user-controlled via IrrigationWorkflowService, not PID-controlled.
@@ -109,8 +111,8 @@ class ClimateController:
         control_logic: "ControlLogic",
         polling_service: Any,
         analytics_repo: "AnalyticsRepository",
-        event_bus: Optional[EventBus] = None,
-        throttle_config: Optional[ThrottleConfig] = None,
+        event_bus: EventBus | None = None,
+        throttle_config: ThrottleConfig | None = None,
     ):
         """
         Initialize the ClimateController with dependency injection.
@@ -122,7 +124,7 @@ class ClimateController:
             analytics_repo: Analytics repository for storing sensor history
             event_bus: Optional EventBus instance (creates new if not provided)
             throttle_config: Optional throttle configuration (uses defaults if not provided)
-        
+
         Note:
             Primary sensor filtering is done by CompositeProcessor before events reach this service.
             Plant sensors (soil_moisture, ph, ec) are handled by PlantSensorController.
@@ -135,47 +137,47 @@ class ClimateController:
         self.throttle_config = throttle_config or DEFAULT_THROTTLE_CONFIG
 
         self.performance_metrics = PerformanceMetrics()
-        self._primary_log_last: Dict[str, datetime] = {}
-        
+        self._primary_log_last: dict[str, datetime] = {}
+
         # Throttling state tracking (per-metric intervals)
         # Note: soil_moisture, ph, ec are handled by PlantSensorController
-        self.last_temperature_insert: Optional[datetime] = None
-        self.last_humidity_insert: Optional[datetime] = None
-        self.last_co2_insert: Optional[datetime] = None
-        self.last_voc_insert: Optional[datetime] = None
-        self.last_air_quality_insert: Optional[datetime] = None
-        self.last_lux_insert: Optional[datetime] = None
-        self.last_pressure_insert: Optional[datetime] = None
+        self.last_temperature_insert: datetime | None = None
+        self.last_humidity_insert: datetime | None = None
+        self.last_co2_insert: datetime | None = None
+        self.last_voc_insert: datetime | None = None
+        self.last_air_quality_insert: datetime | None = None
+        self.last_lux_insert: datetime | None = None
+        self.last_pressure_insert: datetime | None = None
 
         # Persistence Baselines: The actual values last stored in the Database.
         # Note: soil_moisture, ph, ec are handled by PlantSensorController
-        self.last_stored_temperature: Optional[float] = None
-        self.last_stored_humidity: Optional[float] = None
-        self.last_stored_co2: Optional[float] = None
-        self.last_stored_voc: Optional[float] = None
-        self.last_stored_air_quality: Optional[float] = None
-        self.last_stored_lux: Optional[float] = None
-        self.last_stored_pressure: Optional[float] = None
-        
+        self.last_stored_temperature: float | None = None
+        self.last_stored_humidity: float | None = None
+        self.last_stored_co2: float | None = None
+        self.last_stored_voc: float | None = None
+        self.last_stored_air_quality: float | None = None
+        self.last_stored_lux: float | None = None
+        self.last_stored_pressure: float | None = None
+
         # Real-time Cache: The most recent received values (regardless of throttling).
         # Note: soil_moisture, ph, ec are handled by PlantSensorController
-        self.latest_reading_temperature: Optional[float] = None
-        self.latest_reading_humidity: Optional[float] = None
-        self.latest_reading_co2: Optional[float] = None
-        self.latest_reading_voc: Optional[float] = None
-        self.latest_reading_air_quality: Optional[float] = None
-        self.latest_reading_lux: Optional[float] = None
-        self.latest_reading_pressure: Optional[float] = None
-        
+        self.latest_reading_temperature: float | None = None
+        self.latest_reading_humidity: float | None = None
+        self.latest_reading_co2: float | None = None
+        self.latest_reading_voc: float | None = None
+        self.latest_reading_air_quality: float | None = None
+        self.latest_reading_lux: float | None = None
+        self.latest_reading_pressure: float | None = None
+
         # Health monitoring
-        self.sensor_update_counts: Dict[str, int] = {}
-        self.last_sensor_update: Dict[str, datetime] = {}
-        self.control_action_counts: Dict[str, int] = {}
+        self.sensor_update_counts: dict[str, int] = {}
+        self.last_sensor_update: dict[str, datetime] = {}
+        self.control_action_counts: dict[str, int] = {}
         self.started = False
 
         # Subscribe to relevant sensor update events
         self._subscribe_to_events()
-        self.last_thresholds_update: Dict[str, Any] | None = None
+        self.last_thresholds_update: dict[str, Any] | None = None
 
         logger.info("ClimateController initialized with dependency injection")
 
@@ -194,14 +196,14 @@ class ClimateController:
             sensor_id,
         )
 
-    def _is_for_this_unit(self, data: Dict[str, Any]) -> bool:
+    def _is_for_this_unit(self, data: dict[str, Any]) -> bool:
         """Return True if an incoming sensor event targets this controller's unit."""
         try:
             event_unit_id = data.get("unit_id")
             return event_unit_id is not None and int(event_unit_id) == int(self.unit_id)
         except Exception:
             return False
-    
+
     def _subscribe_to_events(self):
         """Subscribe to sensor update events."""
         self.event_bus.subscribe(SensorEvent.TEMPERATURE_UPDATE, self.on_temperature_update)
@@ -215,7 +217,7 @@ class ClimateController:
         logger.info("Subscribed to sensor update events")
 
     @track_performance("on_thresholds_update")
-    def on_thresholds_update(self, data: Dict[str, Any]) -> None:
+    def on_thresholds_update(self, data: dict[str, Any]) -> None:
         """Handle threshold updates (store/acknowledge)."""
         try:
             if not isinstance(data, dict) or not self._is_for_this_unit(data):
@@ -225,16 +227,16 @@ class ClimateController:
             if not isinstance(thresholds, dict):
                 return
 
-            updates: Dict[str, Any] = {}
+            updates: dict[str, Any] = {}
             threshold_mapping = {
                 "temperature_threshold": "temperature",
                 "humidity_threshold": "humidity",
                 "co2_threshold": "co2",
                 "voc_threshold": "voc",
                 "lux_threshold": "lux",
-                "air_quality_threshold": "air_quality"
+                "air_quality_threshold": "air_quality",
             }
-            
+
             for key, metric in threshold_mapping.items():
                 if key in thresholds:
                     updates[metric] = thresholds[key]
@@ -248,7 +250,7 @@ class ClimateController:
             logger.warning("Failed to process thresholds_update: %s", exc)
 
     @track_performance("on_temperature_update")
-    def on_temperature_update(self, data: Dict[str, Any]) -> None:
+    def on_temperature_update(self, data: dict[str, Any]) -> None:
         """Handle temperature/humidity sensor updates."""
         if not self._is_for_this_unit(data):
             return
@@ -260,20 +262,22 @@ class ClimateController:
         if temp is not None:
             self._log_primary_metric("temperature", sensor_id)
             self._track_sensor_update("temperature", sensor_id)
-            if self.control_logic.control_temperature({"unit_id": self.unit_id, "temperature": temp, "sensor_id": sensor_id}):
+            if self.control_logic.control_temperature(
+                {"unit_id": self.unit_id, "temperature": temp, "sensor_id": sensor_id}
+            ):
                 self._track_control_action("temperature")
 
         self._log_analytics_data(data, {"temperature", "humidity"})
 
     @track_performance("on_humidity_update")
-    def on_humidity_update(self, data: Dict[str, Any]) -> None:
+    def on_humidity_update(self, data: dict[str, Any]) -> None:
         """Handle humidity updates (often grouped with temp)."""
         if not self._is_for_this_unit(data):
             return
-        
+
         hum = data.get("humidity")
         sensor_id = data.get("sensor_id")
-        
+
         if hum is not None:
             self._log_primary_metric("humidity", sensor_id)
             self._track_sensor_update("humidity", sensor_id)
@@ -283,57 +287,57 @@ class ClimateController:
         self._log_analytics_data(data, {"humidity"})
 
     @track_performance("on_co2_update")
-    def on_co2_update(self, data: Dict[str, Any]) -> None:
+    def on_co2_update(self, data: dict[str, Any]) -> None:
         """Handle CO2/VOC updates."""
         if not self._is_for_this_unit(data):
             return
 
         co2 = data.get("co2")
         sensor_id = data.get("sensor_id")
-        
+
         if co2 is not None:
             self._log_primary_metric("co2", sensor_id)
             self._track_sensor_update("co2", sensor_id)
             if self.control_logic.control_co2({"unit_id": self.unit_id, "co2": co2, "sensor_id": sensor_id}):
                 self._track_control_action("co2")
-                
-        if data.get("voc") is not None: 
+
+        if data.get("voc") is not None:
             self._log_primary_metric("voc", sensor_id)
             self._track_sensor_update("voc", sensor_id)
 
         self._log_analytics_data(data, {"co2", "voc"})
 
     @track_performance("on_voc_update")
-    def on_voc_update(self, data: Dict[str, Any]) -> None:
+    def on_voc_update(self, data: dict[str, Any]) -> None:
         """Handle VOC updates."""
         self.on_co2_update(data)
 
     @track_performance("on_light_update")
-    def on_light_update(self, data: Dict[str, Any]) -> None:
+    def on_light_update(self, data: dict[str, Any]) -> None:
         """Handle light updates - writes directly to ledger."""
         if not self._is_for_this_unit(data):
             return
-            
+
         lux = data.get("lux")
         sensor_id = data.get("sensor_id")
-        
+
         if lux is not None:
             self._log_primary_metric("lux", sensor_id)
             self._track_sensor_update("lux", sensor_id)
             if self.control_logic.control_lux({"unit_id": self.unit_id, "lux": lux, "sensor_id": sensor_id}):
                 self._track_control_action("lux")
-            
+
             self._log_analytics_data(data, {"lux"})
 
     @track_performance("on_pressure_update")
-    def on_pressure_update(self, data: Dict[str, Any]) -> None:
+    def on_pressure_update(self, data: dict[str, Any]) -> None:
         """Handle pressure updates - writes directly to ledger."""
         if not self._is_for_this_unit(data):
             return
-        
+
         pressure = data.get("pressure")
         sensor_id = data.get("sensor_id")
-        
+
         if pressure is not None:
             self._log_primary_metric("pressure", sensor_id)
             self._track_sensor_update("pressure", sensor_id)
@@ -341,29 +345,29 @@ class ClimateController:
             self._log_analytics_data(data, {"pressure"})
 
     @track_performance("on_air_quality_update")
-    def on_air_quality_update(self, data: Dict[str, Any]) -> None:
+    def on_air_quality_update(self, data: dict[str, Any]) -> None:
         """Handle air quality index updates."""
         if self._is_for_this_unit(data) and data.get("air_quality") is not None:
             self._log_primary_metric("air_quality", data.get("sensor_id"))
             self._track_sensor_update("air_quality", data.get("sensor_id"))
             # TODO: Implement notification/alert/widget update for Air Quality thresholds
             self._log_analytics_data(data, {"air_quality"})
-    
+
     def _track_sensor_update(self, sensor_type: str, sensor_id: Any):
         """Track sensor update for health monitoring."""
         key = f"{sensor_type}_{sensor_id}"
         self.sensor_update_counts[key] = self.sensor_update_counts.get(key, 0) + 1
         self.last_sensor_update[key] = utc_now()
-    
+
     def _track_control_action(self, control_type: str):
         """Track control action for health monitoring."""
         self.control_action_counts[control_type] = self.control_action_counts.get(control_type, 0) + 1
 
     @track_performance("_log_analytics_data")
-    def _log_analytics_data(self, data: Dict[str, Any], metrics: set[str]) -> None:
+    def _log_analytics_data(self, data: dict[str, Any], metrics: set[str]) -> None:
         """
         Unified method to log sensor data to analytics repository with throttling.
-        
+
         Note: Primary sensor filtering is already done by CompositeProcessor._build_controller_events()
         before events reach this service. All metrics in the event payload are pre-filtered.
         """
@@ -379,7 +383,7 @@ class ClimateController:
             if k not in metrics:
                 continue
             savable_metrics[k] = v
-        
+
         if not savable_metrics:
             return
 
@@ -393,14 +397,12 @@ class ClimateController:
 
         # 3. Check Throttling (User Preference: Time vs Percentage)
         if self.throttle_config.throttling_enabled:
-            per_metric_store: Dict[str, bool] = {}
+            per_metric_store: dict[str, bool] = {}
             for metric, value in savable_metrics.items():
                 per_metric_store[metric] = self._should_store_metric(metric, value)
 
             savable_metrics = {
-                metric: value
-                for metric, value in savable_metrics.items()
-                if per_metric_store.get(metric)
+                metric: value for metric, value in savable_metrics.items() if per_metric_store.get(metric)
             }
 
             if not savable_metrics:
@@ -414,13 +416,11 @@ class ClimateController:
             logger.info("Storing analytics data (metrics=%s): %s", list(savable_metrics.keys()), savable_metrics)
             # THE LEDGER: Write raw sensor reading (Throttled Hardware Audit)
             self.analytics_repo.insert_sensor_reading(
-                sensor_id=sensor_id,
-                reading_data=savable_metrics,
-                timestamp=iso_now()
+                sensor_id=sensor_id, reading_data=savable_metrics, timestamp=iso_now()
             )
             for metric in savable_metrics.keys():
                 setattr(self, f"last_{metric}_insert", now)
-            
+
             # Update baseline values (Only when stored) to prevent baseline drift
             for metric, value in savable_metrics.items():
                 attr_name = f"last_stored_{metric}"
@@ -482,10 +482,10 @@ class ClimateController:
             "lux": "light_change_threshold_lux",
             "pressure": "pressure_change_threshold_hpa",
         }
-        
+
         threshold_attr = threshold_map.get(metric, f"{metric}_change_threshold")
         return getattr(self.throttle_config, threshold_attr, 0.1)
-    
+
     def start(self):
         """
         Start the polling service for all sensors.
@@ -500,7 +500,7 @@ class ClimateController:
                 logger.info("ClimateController started - sensor polling skipped (no pollable sensors)")
         else:
             logger.warning("ClimateController already started")
-    
+
     def stop(self):
         """Stop the climate controller."""
         if self.started:
@@ -509,52 +509,52 @@ class ClimateController:
             logger.info("ClimateController stopped")
         else:
             logger.warning("ClimateController already stopped")
-    
-    def get_throttle_config(self) -> Dict[str, Any]:
+
+    def get_throttle_config(self) -> dict[str, Any]:
         """Get current throttle configuration."""
         return self.throttle_config.to_dict()
-    
-    def update_throttle_config(self, config_dict: Dict[str, Any]) -> None:
+
+    def update_throttle_config(self, config_dict: dict[str, Any]) -> None:
         """Update throttle configuration at runtime."""
         current = self.throttle_config.to_dict()
-        
+
         # Deep merge simplistic implementation
         for key, value in config_dict.items():
             if isinstance(value, dict) and key in current:
                 current[key].update(value)
             else:
                 current[key] = value
-        
+
         self.throttle_config = ThrottleConfig.from_dict(current)
         logger.info(f"Throttle configuration updated for unit {self.unit_id}")
-    
-    def get_health_status(self) -> Dict[str, Any]:
+
+    def get_health_status(self) -> dict[str, Any]:
         """Get comprehensive health status of climate control system."""
         now = utc_now()
         stale_sensors = [
-            {'sensor': k, 'age': (now - v).total_seconds()}
+            {"sensor": k, "age": (now - v).total_seconds()}
             for k, v in self.last_sensor_update.items()
             if (now - v).total_seconds() > 300
         ]
-        
+
         return {
-            'unit_id': self.unit_id,
-            'started': self.started,
-            'stale_sensors': stale_sensors,
-            'control_metrics': self.control_logic.get_metrics(),
-            'performance_metrics': self.performance_metrics.to_dict(),
-            'last_stored': {
-                'temp': self.latest_reading_temperature,
-                'hum': self.latest_reading_humidity,
-                'co2': self.latest_reading_co2,
-                'lux': self.latest_reading_lux,
-            }
+            "unit_id": self.unit_id,
+            "started": self.started,
+            "stale_sensors": stale_sensors,
+            "control_metrics": self.control_logic.get_metrics(),
+            "performance_metrics": self.performance_metrics.to_dict(),
+            "last_stored": {
+                "temp": self.latest_reading_temperature,
+                "hum": self.latest_reading_humidity,
+                "co2": self.latest_reading_co2,
+                "lux": self.latest_reading_lux,
+            },
         }
-    
-    def get_status(self) -> Dict[str, Any]:
+
+    def get_status(self) -> dict[str, Any]:
         """Get full system status including sub-services."""
         return {
-            'controller': self.get_health_status(),
-            'logic': self.control_logic.get_status(),
-            'timestamp': iso_now()
+            "controller": self.get_health_status(),
+            "logic": self.control_logic.get_status(),
+            "timestamp": iso_now(),
         }

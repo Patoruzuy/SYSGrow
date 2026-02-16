@@ -21,9 +21,11 @@ def actuator_internal_error(error):
 
 
 # Import all route modules to register their endpoints
-from . import crud  # noqa: F401
-from . import control  # noqa: F401
-from . import energy  # noqa: F401
-from . import analytics  # noqa: F401
+from . import (
+    analytics,
+    control,
+    crud,
+    energy,
+)
 
-__all__ = ['crud', 'control', 'energy', 'analytics']
+__all__ = ["analytics", "control", "crud", "energy"]

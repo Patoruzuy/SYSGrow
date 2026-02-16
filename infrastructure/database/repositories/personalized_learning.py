@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from app.utils.time import iso_now
 
@@ -15,7 +15,7 @@ class PlantConditionProfileRepository:
         self._db = backend
 
     @staticmethod
-    def _normalize_text(value: Optional[str]) -> str:
+    def _normalize_text(value: str | None) -> str:
         if not value:
             return ""
         return str(value).strip().lower()
@@ -26,19 +26,21 @@ class PlantConditionProfileRepository:
         user_id: int,
         plant_type: str,
         growth_stage: str,
-        cultivar: Optional[str] = None,
-        strain: Optional[str] = None,
-        pot_size_liters: Optional[float] = None,
+        cultivar: str | None = None,
+        strain: str | None = None,
+        pot_size_liters: float | None = None,
     ) -> str:
         pot_value = float(pot_size_liters or 0.0)
-        return "|".join([
-            str(user_id),
-            self._normalize_text(plant_type),
-            self._normalize_text(growth_stage),
-            self._normalize_text(cultivar),
-            self._normalize_text(strain),
-            f"{pot_value:.2f}",
-        ])
+        return "|".join(
+            [
+                str(user_id),
+                self._normalize_text(plant_type),
+                self._normalize_text(growth_stage),
+                self._normalize_text(cultivar),
+                self._normalize_text(strain),
+                f"{pot_value:.2f}",
+            ]
+        )
 
     def get_profile(
         self,
@@ -46,10 +48,10 @@ class PlantConditionProfileRepository:
         user_id: int,
         plant_type: str,
         growth_stage: str,
-        cultivar: Optional[str] = None,
-        strain: Optional[str] = None,
-        pot_size_liters: Optional[float] = None,
-    ) -> Optional[Dict[str, Any]]:
+        cultivar: str | None = None,
+        strain: str | None = None,
+        pot_size_liters: float | None = None,
+    ) -> dict[str, Any] | None:
         key = self.build_profile_key(
             user_id=user_id,
             plant_type=plant_type,
@@ -64,10 +66,10 @@ class PlantConditionProfileRepository:
         self,
         *,
         user_id: int,
-        plant_type: Optional[str] = None,
-        growth_stage: Optional[str] = None,
+        plant_type: str | None = None,
+        growth_stage: str | None = None,
         limit: int = 50,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         return self._db.list_condition_profiles(
             user_id=user_id,
             plant_type=plant_type,
@@ -81,18 +83,18 @@ class PlantConditionProfileRepository:
         user_id: int,
         plant_type: str,
         growth_stage: str,
-        cultivar: Optional[str] = None,
-        strain: Optional[str] = None,
-        pot_size_liters: Optional[float] = None,
-        temperature_target: Optional[float] = None,
-        humidity_target: Optional[float] = None,
-        co2_target: Optional[float] = None,
-        voc_target: Optional[float] = None,
-        lux_target: Optional[float] = None,
-        air_quality_target: Optional[float] = None,
-        soil_moisture_target: Optional[float] = None,
-        confidence: Optional[float] = None,
-        source: Optional[str] = None,
+        cultivar: str | None = None,
+        strain: str | None = None,
+        pot_size_liters: float | None = None,
+        temperature_target: float | None = None,
+        humidity_target: float | None = None,
+        co2_target: float | None = None,
+        voc_target: float | None = None,
+        lux_target: float | None = None,
+        air_quality_target: float | None = None,
+        soil_moisture_target: float | None = None,
+        confidence: float | None = None,
+        source: str | None = None,
     ) -> bool:
         key = self.build_profile_key(
             user_id=user_id,
@@ -131,10 +133,10 @@ class PlantConditionProfileRepository:
         plant_type: str,
         growth_stage: str,
         rating: float,
-        cultivar: Optional[str] = None,
-        strain: Optional[str] = None,
-        pot_size_liters: Optional[float] = None,
-    ) -> Optional[Dict[str, Any]]:
+        cultivar: str | None = None,
+        strain: str | None = None,
+        pot_size_liters: float | None = None,
+    ) -> dict[str, Any] | None:
         profile = self.get_profile(
             user_id=user_id,
             plant_type=plant_type,

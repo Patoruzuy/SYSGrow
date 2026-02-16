@@ -5,24 +5,24 @@ Camera Settings Management
 Endpoints for managing camera configuration including type, IP address,
 USB settings, and image quality parameters.
 """
+
 from __future__ import annotations
 
-from flask import request
-
-from . import settings_api
 from app.blueprints.api._common import (
-    success as _success,
     fail as _fail,
     get_json as _json,
     get_settings_service as _service,
+    success as _success,
 )
+
+from . import settings_api
 
 
 @settings_api.get("/camera")
 def get_camera_settings():
     """
     Get current camera configuration.
-    
+
     Returns:
         - camera_type: Type of camera (ip, usb, pi)
         - ip_address: IP address for network cameras
@@ -45,7 +45,7 @@ def get_camera_settings():
 def update_camera_settings():
     """
     Update camera configuration.
-    
+
     Request Body:
         - camera_type (required): Camera type (ip, usb, pi)
         - ip_address (optional): IP address for network cameras

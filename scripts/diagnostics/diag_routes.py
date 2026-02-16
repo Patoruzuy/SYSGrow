@@ -4,7 +4,8 @@ Verify that all API routes use modern decorators
 import re
 from pathlib import Path
 
-api_path = Path("app/blueprints/api")
+REPO_ROOT = Path(__file__).resolve().parents[2]
+api_path = REPO_ROOT / "app" / "blueprints" / "api"
 api_files = list(api_path.glob("*.py"))
 
 print("=" * 70)
@@ -19,21 +20,21 @@ old_routes = 0
 for file in sorted(api_files):
     if file.name == "__init__.py":
         continue
-    
+
     content = file.read_text(encoding="utf-8")
-    
+
     # Count modern decorators (@api.get, @api.post, etc.)
     modern = len(re.findall(r'@\w+_api\.(get|post|put|delete|patch)\(', content))
-    
+
     # Count old-style decorators (@api.route(..., methods=[...]))
     old = len(re.findall(r'@\w+_api\.route\(.+methods=\[', content))
-    
+
     if modern > 0 or old > 0:
         total_files += 1
         total_routes += modern + old
         modern_routes += modern
         old_routes += old
-        
+
         status = "✓" if old == 0 else "⚠"
         print(f"\n{status} {file.name}")
         print(f"  Modern decorators: {modern}")

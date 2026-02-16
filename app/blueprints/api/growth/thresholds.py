@@ -5,30 +5,31 @@ Environment Threshold Management
 Endpoints for managing environmental sensor thresholds for growth units.
 Includes recommended thresholds based on plant type and growth stage.
 """
-from __future__ import annotations
-from typing import Optional
 
-from flask import jsonify, request, session
-from app.schemas.growth import (
-    UnitThresholdUpdate,
-    UnitThresholdUpdateV2,
-    ThresholdSettings,
-    GrowthUnitResponse,
-)
-from app.domain.environmental_thresholds import EnvironmentalThresholds
-from app.services.application.threshold_service import THRESHOLD_KEYS
-from app.enums.common import ConditionProfileMode, ConditionProfileTarget
+from __future__ import annotations
+
 import logging
 
+from flask import request, session
 from pydantic import ValidationError
-from . import growth_api
+
 from app.blueprints.api._common import (
-    success as _success,
     fail as _fail,
     get_container as _container,
     get_growth_service as _service,
     get_user_id,
+    success as _success,
 )
+from app.enums.common import ConditionProfileMode, ConditionProfileTarget
+from app.schemas.growth import (
+    GrowthUnitResponse,
+    ThresholdSettings,
+    UnitThresholdUpdate,
+    UnitThresholdUpdateV2,
+)
+from app.services.application.threshold_service import THRESHOLD_KEYS
+
+from . import growth_api
 
 logger = logging.getLogger("growth_api.thresholds")
 
@@ -37,10 +38,10 @@ def _apply_condition_profile_to_unit(
     *,
     unit_id: int,
     user_id: int,
-    profile_id: Optional[str],
-    mode: Optional[ConditionProfileMode],
-    name: Optional[str],
-) -> Optional[dict]:
+    profile_id: str | None,
+    mode: ConditionProfileMode | None,
+    name: str | None,
+) -> dict | None:
     if not profile_id:
         return None
     container = _container()
@@ -87,12 +88,14 @@ def _apply_condition_profile_to_unit(
 def _unit_to_response(unit: dict) -> GrowthUnitResponse:
     """Convert unit dict to typed response"""
     from .units import _unit_to_response as convert
+
     return convert(unit)
 
 
 # ============================================================================
 # THRESHOLD MANAGEMENT
 # ============================================================================
+
 
 @growth_api.get("/units/<int:unit_id>/thresholds")
 def get_thresholds(unit_id: int):
@@ -101,11 +104,11 @@ def get_thresholds(unit_id: int):
     try:
         if not _service().get_unit(unit_id):
             return _fail(f"Growth unit {unit_id} not found", 404)
-        
+
         data = _service().get_thresholds(unit_id)
-        
+
         return _success(data)
-        
+
     except Exception as e:
         logger.exception(f"Error getting thresholds for unit {unit_id}: {e}")
         return _fail("Failed to get thresholds", 500)
@@ -124,7 +127,7 @@ def set_thresholds(unit_id: int):
 
         if not _service().get_unit(unit_id):
             return _fail(f"Growth unit {unit_id} not found", 404)
-        
+
         unit = _service().set_thresholds(
             unit_id,
             temperature_threshold=payload.temperature_threshold,
@@ -138,7 +141,7 @@ def set_thresholds(unit_id: int):
                 "humidity_threshold": unit.get("humidity_threshold", payload.humidity_threshold),
             }
         )
-        
+
     except (TypeError, ValueError) as e:
         logger.warning(f"Validation error setting thresholds: {e}")
         return _fail("Threshold values must be numeric", 400)
@@ -248,7 +251,7 @@ def apply_condition_profile_to_unit(unit_id: int):
                 name=name,
             )
         except ValueError as exc:
-            return _fail(str(exc), 404)
+            return safe_error(exc, 404)
 
         return _success({"unit_id": unit_id, "condition_profile": profile})
     except Exception as e:
@@ -343,40 +346,41 @@ def get_recommended_thresholds():
 # THRESHOLD PROPOSAL HANDLING
 # ============================================================================
 
+
 @growth_api.post("/thresholds/proposal/respond")
 def respond_to_threshold_proposal():
     """
     Handle user response to a stage transition threshold proposal.
-    
+
     When a plant transitions to a new growth stage, the system sends a notification
     with proposed threshold changes. This endpoint handles the user's response.
-    
+
     Request body:
         - action: 'apply' | 'keep_current' | 'customize'
         - unit_id: Target unit ID
         - plant_id: Plant that triggered the proposal
         - proposed_thresholds: Dict of proposed values (only for 'apply')
         - custom_thresholds: Dict of custom values (only for 'customize')
-    
+
     Returns:
         - ok: Success status
         - applied_thresholds: The thresholds that were applied (if any)
     """
     raw = request.get_json() or {}
-    
+
     action = raw.get("action")
     unit_id = raw.get("unit_id")
     plant_id = raw.get("plant_id")
-    
+
     if not action:
         return _fail("Missing 'action' field", 400)
     if not unit_id:
         return _fail("Missing 'unit_id' field", 400)
-    
+
     valid_actions = {"apply", "keep_current", "customize", "delay_stage"}
     if action not in valid_actions:
         return _fail(f"Invalid action. Must be one of: {valid_actions}", 400)
-    
+
     try:
         container = _container()
         plant_service = getattr(container, "plant_service", None)
@@ -401,18 +405,17 @@ def respond_to_threshold_proposal():
                 if key in payload:
                     values[key] = _get_value(payload.get(key))
             return values
-        
+
         if action == "keep_current":
             # User wants to keep current thresholds - no DB update needed
-            logger.info(
-                "User chose to keep current thresholds for unit %s (plant %s)",
-                unit_id, plant_id
+            logger.info("User chose to keep current thresholds for unit %s (plant %s)", unit_id, plant_id)
+            return _success(
+                {
+                    "action": "keep_current",
+                    "message": "Current thresholds retained",
+                    "unit_id": unit_id,
+                }
             )
-            return _success({
-                "action": "keep_current",
-                "message": "Current thresholds retained",
-                "unit_id": unit_id,
-            })
         elif action == "delay_stage":
             if not plant_id:
                 return _fail("Missing plant_id for delay_stage action", 400)
@@ -428,14 +431,16 @@ def respond_to_threshold_proposal():
                 skip_threshold_proposal=True,
             )
             if ok:
-                return _success({
-                    "action": "delay_stage",
-                    "message": f"Plant stage reverted to {old_stage}",
-                    "unit_id": unit_id,
-                    "plant_id": plant_id,
-                })
+                return _success(
+                    {
+                        "action": "delay_stage",
+                        "message": f"Plant stage reverted to {old_stage}",
+                        "unit_id": unit_id,
+                        "plant_id": plant_id,
+                    }
+                )
             return _fail("Failed to delay stage change", 500)
-        
+
         elif action == "apply":
             proposed = raw.get("proposed_thresholds", {})
             if not proposed:
@@ -481,14 +486,16 @@ def respond_to_threshold_proposal():
                     return _fail("Failed to apply soil moisture threshold", 500)
                 applied["soil_moisture_threshold"] = soil_value
 
-            return _success({
-                "action": "apply",
-                "message": "Thresholds updated",
-                "unit_id": unit_id,
-                "plant_id": plant_id,
-                "applied_thresholds": applied,
-            })
-        
+            return _success(
+                {
+                    "action": "apply",
+                    "message": "Thresholds updated",
+                    "unit_id": unit_id,
+                    "plant_id": plant_id,
+                    "applied_thresholds": applied,
+                }
+            )
+
         elif action == "customize":
             custom = raw.get("custom_thresholds", {})
             if not custom:
@@ -535,14 +542,16 @@ def respond_to_threshold_proposal():
                     return _fail("Failed to apply soil moisture threshold", 500)
                 applied["soil_moisture_threshold"] = soil_threshold
 
-            return _success({
-                "action": "customize",
-                "message": "Custom thresholds applied",
-                "unit_id": unit_id,
-                "plant_id": plant_id,
-                "applied_thresholds": applied,
-            })
-    
+            return _success(
+                {
+                    "action": "customize",
+                    "message": "Custom thresholds applied",
+                    "unit_id": unit_id,
+                    "plant_id": plant_id,
+                    "applied_thresholds": applied,
+                }
+            )
+
     except Exception as e:
         logger.exception("Error responding to threshold proposal: %s", e)
         return _fail("Failed to process threshold proposal response", 500)

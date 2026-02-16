@@ -3,26 +3,29 @@ Irrigation Calculator Tests
 ===========================
 Tests for IrrigationCalculator domain service.
 """
-import pytest
-from unittest.mock import Mock, MagicMock
-from dataclasses import dataclass
 
-from app.domain.irrigation_calculator import (
-    IrrigationCalculator, 
-    IrrigationCalculation,
-    MLPrediction,
-)
+from dataclasses import dataclass
+from unittest.mock import Mock
+
+import pytest
+
 from app.constants import (
-    REFERENCE_POT_SIZE_LITERS,
     GROWTH_STAGE_VOLUME_MULTIPLIERS,
     PUMP_CALIBRATION_DEFAULTS,
+    REFERENCE_POT_SIZE_LITERS,
     GrowingMediumConfig,
+)
+from app.domain.irrigation_calculator import (
+    IrrigationCalculation,
+    IrrigationCalculator,
+    MLPrediction,
 )
 
 
 @dataclass
 class MockPlantProfile:
     """Mock PlantProfile for testing."""
+
     plant_id: int = 1
     plant_name: str = "Test Plant"
     plant_type: str = "tomato"
@@ -36,14 +39,14 @@ class MockPlantProfile:
 def mock_plant_service():
     """Create mock PlantViewService."""
     service = Mock()
-    
+
     # Mock plant_json_handler
     service.plant_json_handler = Mock()
     service.plant_json_handler.get_watering_schedule.return_value = {
         "amount_ml_per_plant": 150.0,
         "frequency": "daily",
     }
-    
+
     return service
 
 
@@ -65,7 +68,7 @@ class TestComputeWaterVolume:
             growth_stage="vegetative",
             plant_type="tomato",
         )
-        
+
         # Base 150ml * pot_factor 1.0 * soil_factor 1.0 * veg_factor 1.0
         assert volume == 150.0
         assert "base=150" in reasoning
@@ -80,7 +83,7 @@ class TestComputeWaterVolume:
             growth_stage="vegetative",
             plant_type="tomato",
         )
-        
+
         # Base 150ml * pot_factor 2.0 = 300ml
         assert volume == 300.0
         assert "pot_factor=2.00" in reasoning
@@ -94,7 +97,7 @@ class TestComputeWaterVolume:
             growth_stage="vegetative",
             plant_type="tomato",
         )
-        
+
         # Coco has 0.8 retention coefficient
         expected = 150.0 * GrowingMediumConfig.COCO_COIR.retention_coefficient
         assert volume == expected
@@ -108,7 +111,7 @@ class TestComputeWaterVolume:
             growth_stage="flowering",
             plant_type="tomato",
         )
-        
+
         stage_factor = GROWTH_STAGE_VOLUME_MULTIPLIERS.get("flowering", 1.0)
         expected = 150.0 * stage_factor
         assert volume == expected
@@ -123,7 +126,7 @@ class TestComputeWaterVolume:
             growth_stage="vegetative",
             plant_type="tomato",
         )
-        
+
         # pot_factor should be 1.0 when pot_size is 0
         assert volume == 150.0
 
@@ -136,7 +139,7 @@ class TestComputeWaterVolume:
             growth_stage="vegetative",
             plant_type="tomato",
         )
-        
+
         # Should use soil (retention=1.0)
         assert volume == 150.0
         assert "soil" in reasoning
@@ -150,7 +153,7 @@ class TestComputeWaterVolume:
             growth_stage="unknown_stage",
             plant_type="tomato",
         )
-        
+
         # Unknown stage should use 1.0 multiplier
         assert volume == 150.0
 
@@ -163,12 +166,12 @@ class TestComputeWaterVolume:
             growth_stage="flowering",
             plant_type="tomato",
         )
-        
+
         pot_factor = 15.0 / REFERENCE_POT_SIZE_LITERS  # 3.0
         medium_factor = GrowingMediumConfig.COCO_COIR.retention_coefficient  # 0.8
         stage_factor = GROWTH_STAGE_VOLUME_MULTIPLIERS.get("flowering", 1.0)
         expected = 150.0 * pot_factor * medium_factor * stage_factor
-        
+
         assert abs(volume - expected) < 0.01
 
 
@@ -181,7 +184,7 @@ class TestComputeDuration:
             volume_ml=100.0,
             flow_rate_ml_per_second=3.33,
         )
-        
+
         # 100 / 3.33 ≈ 30 seconds
         assert duration == 30
 
@@ -192,7 +195,7 @@ class TestComputeDuration:
             flow_rate_ml_per_second=10.0,  # Would be 1 second
             min_duration=5,
         )
-        
+
         assert duration == 5
 
     def test_respects_maximum_duration(self, calculator):
@@ -202,7 +205,7 @@ class TestComputeDuration:
             flow_rate_ml_per_second=1.0,  # Would be 10000 seconds
             max_duration=600,
         )
-        
+
         assert duration == 600
 
     def test_zero_flow_rate_returns_default(self, calculator):
@@ -211,7 +214,7 @@ class TestComputeDuration:
             volume_ml=100.0,
             flow_rate_ml_per_second=0.0,
         )
-        
+
         # Should return default calibration duration
         assert duration == PUMP_CALIBRATION_DEFAULTS["calibration_duration_seconds"]
 
@@ -221,7 +224,7 @@ class TestComputeDuration:
             volume_ml=100.0,
             flow_rate_ml_per_second=-1.0,
         )
-        
+
         assert duration == PUMP_CALIBRATION_DEFAULTS["calibration_duration_seconds"]
 
 
@@ -231,9 +234,9 @@ class TestCalculate:
     def test_plant_not_found_returns_defaults(self, calculator, mock_plant_service):
         """Test behavior when plant is not found."""
         mock_plant_service.get_plant.return_value = None
-        
+
         result = calculator.calculate(plant_id=999)
-        
+
         assert result.water_volume_ml == IrrigationCalculator.DEFAULT_BASE_ML
         assert result.confidence == 0.1
         assert "not found" in result.reasoning.lower()
@@ -248,9 +251,9 @@ class TestCalculate:
             plant_type="tomato",
         )
         mock_plant_service.get_plant.return_value = mock_plant
-        
+
         result = calculator.calculate(plant_id=1)
-        
+
         assert isinstance(result, IrrigationCalculation)
         assert result.plant_id == 1
         assert result.water_volume_ml > 0
@@ -260,20 +263,20 @@ class TestCalculate:
         """Test that calibrated pump increases confidence."""
         mock_plant = MockPlantProfile()
         mock_plant_service.get_plant.return_value = mock_plant
-        
+
         result_uncalibrated = calculator.calculate(plant_id=1, pump_flow_rate=None)
         result_calibrated = calculator.calculate(plant_id=1, pump_flow_rate=3.5)
-        
+
         assert result_calibrated.confidence > result_uncalibrated.confidence
 
     def test_uses_custom_flow_rate(self, calculator, mock_plant_service):
         """Test that custom flow rate is used in calculation."""
         mock_plant = MockPlantProfile()
         mock_plant_service.get_plant.return_value = mock_plant
-        
+
         custom_flow_rate = 5.0
         result = calculator.calculate(plant_id=1, pump_flow_rate=custom_flow_rate)
-        
+
         assert result.flow_rate_ml_per_second == custom_flow_rate
         assert "calibrated" in result.reasoning
 
@@ -285,25 +288,25 @@ class TestCalculateForPlant:
         """Test handling of plant with missing plant_type."""
         mock_plant = MockPlantProfile(plant_type=None)
         mock_plant_service.get_plant.return_value = mock_plant
-        
+
         result = calculator.calculate_for_plant(mock_plant)
-        
+
         assert result.plant_type == "default"
 
     def test_handles_missing_growth_stage(self, calculator, mock_plant_service):
         """Test handling of plant with missing growth stage."""
         mock_plant = MockPlantProfile(current_stage=None)
-        
+
         result = calculator.calculate_for_plant(mock_plant)
-        
+
         assert result.growth_stage == "vegetative"
 
     def test_handles_zero_pot_size(self, calculator, mock_plant_service):
         """Test handling of plant with zero pot size."""
         mock_plant = MockPlantProfile(pot_size_liters=0.0)
-        
+
         result = calculator.calculate_for_plant(mock_plant)
-        
+
         # Should use reference pot size as default
         assert result.pot_size_liters == REFERENCE_POT_SIZE_LITERS
 
@@ -318,7 +321,7 @@ class TestCalculateConfidence:
             has_pot_size=True,
             has_plant_type=True,
         )
-        
+
         assert confidence == 1.0
 
     def test_partial_confidence_without_calibration(self, calculator):
@@ -328,7 +331,7 @@ class TestCalculateConfidence:
             has_pot_size=True,
             has_plant_type=True,
         )
-        
+
         assert confidence == 0.5  # Missing 50% from calibration
 
     def test_minimum_confidence(self, calculator):
@@ -338,7 +341,7 @@ class TestCalculateConfidence:
             has_pot_size=False,
             has_plant_type=False,
         )
-        
+
         assert confidence == 0.0
 
 
@@ -352,7 +355,7 @@ class TestEstimateMoistureIncrease:
             pot_size_liters=5.0,  # 5000ml
             growing_medium="soil",
         )
-        
+
         # 500ml / 5000ml * 100 * 1.0 = 10%
         assert increase == 10.0
 
@@ -363,7 +366,7 @@ class TestEstimateMoistureIncrease:
             pot_size_liters=5.0,
             growing_medium="soil",
         )
-        
+
         assert increase == 50.0
 
     def test_zero_pot_size_returns_zero(self, calculator):
@@ -373,7 +376,7 @@ class TestEstimateMoistureIncrease:
             pot_size_liters=0.0,
             growing_medium="soil",
         )
-        
+
         assert increase == 0.0
 
     def test_medium_affects_retention(self, calculator):
@@ -383,13 +386,13 @@ class TestEstimateMoistureIncrease:
             pot_size_liters=5.0,
             growing_medium="soil",
         )
-        
+
         perlite_increase = calculator.estimate_moisture_increase(
             water_volume_ml=500.0,
             pot_size_liters=5.0,
             growing_medium="perlite",
         )
-        
+
         # Perlite has lower retention, so less moisture retained
         assert perlite_increase < soil_increase
 
@@ -411,9 +414,9 @@ class TestIrrigationCalculationDataclass:
             growth_stage="vegetative",
             plant_type="tomato",
         )
-        
+
         result = calc.to_dict()
-        
+
         assert result["water_volume_ml"] == 150.5
         assert result["duration_seconds"] == 30
         assert result["flow_rate_ml_per_second"] == 3.333
@@ -441,9 +444,9 @@ class TestIrrigationCalculationDataclass:
             ml_prediction=ml_pred,
             ml_adjusted=True,
         )
-        
+
         result = calc.to_dict()
-        
+
         assert result["ml_adjusted"] is True
         assert "ml_prediction" in result
         assert result["ml_prediction"]["predicted_volume_ml"] == 200.0
@@ -457,9 +460,9 @@ class TestMLIntegration:
         """Test ML calculation falls back when no predictor."""
         mock_plant = MockPlantProfile()
         mock_plant_service.get_plant.return_value = mock_plant
-        
+
         result = calculator.calculate_with_ml(plant_id=1)
-        
+
         assert result.ml_adjusted is False
         assert result.ml_prediction is None
 
@@ -469,17 +472,14 @@ class TestMLIntegration:
         ml_predictor = Mock()
         ml_predictor.predict_water_volume.return_value = 200.0
         ml_predictor.get_adjustment_factor.return_value = 1.0
-        
+
         calculator = IrrigationCalculator(mock_plant_service, ml_predictor=ml_predictor)
-        
+
         mock_plant = MockPlantProfile()
         mock_plant_service.get_plant.return_value = mock_plant
-        
-        result = calculator.calculate_with_ml(
-            plant_id=1,
-            environmental_data={"temperature": 25.0, "humidity": 60.0}
-        )
-        
+
+        result = calculator.calculate_with_ml(plant_id=1, environmental_data={"temperature": 25.0, "humidity": 60.0})
+
         assert result.ml_adjusted is True
         assert result.ml_prediction is not None
         ml_predictor.predict_water_volume.assert_called_once()
@@ -489,14 +489,14 @@ class TestMLIntegration:
         ml_predictor = Mock()
         ml_predictor.predict_water_volume.return_value = None  # No prediction
         ml_predictor.get_adjustment_factor.return_value = 1.0
-        
+
         calculator = IrrigationCalculator(mock_plant_service, ml_predictor=ml_predictor)
-        
+
         mock_plant = MockPlantProfile()
         mock_plant_service.get_plant.return_value = mock_plant
-        
+
         result = calculator.calculate_with_ml(plant_id=1)
-        
+
         # Should fall back to formula-based calculation
         assert result.ml_adjusted is False
 
@@ -504,9 +504,9 @@ class TestMLIntegration:
         """Test feedback recording calls callback."""
         callback = Mock()
         calculator = IrrigationCalculator(mock_plant_service, feedback_callback=callback)
-        
+
         calculator.record_feedback(plant_id=1, feedback_type="just_right", volume_ml=150.0)
-        
+
         callback.assert_called_once_with(1, "just_right", 150.0)
 
     def test_record_feedback_without_callback(self, calculator):
@@ -522,12 +522,12 @@ class TestGetRecommendations:
         """Test recommendation when moisture is below minimum."""
         mock_plant = MockPlantProfile(growing_medium="soil")
         mock_plant_service.get_plant.return_value = mock_plant
-        
+
         result = calculator.get_recommendations(
             plant_id=1,
             current_moisture=30.0,  # Below soil minimum of 40%
         )
-        
+
         assert result["action"] == "water_now"
         assert result["urgency"] in ("medium", "high")
 
@@ -535,12 +535,12 @@ class TestGetRecommendations:
         """Test recommendation when moisture is above maximum."""
         mock_plant = MockPlantProfile(growing_medium="soil")
         mock_plant_service.get_plant.return_value = mock_plant
-        
+
         result = calculator.get_recommendations(
             plant_id=1,
             current_moisture=80.0,  # Above soil maximum of 70%
         )
-        
+
         assert result["action"] == "wait"
         assert result["urgency"] == "low"
 
@@ -548,33 +548,33 @@ class TestGetRecommendations:
         """Test recommendation when moisture is optimal."""
         mock_plant = MockPlantProfile(growing_medium="soil")
         mock_plant_service.get_plant.return_value = mock_plant
-        
+
         result = calculator.get_recommendations(
             plant_id=1,
             current_moisture=55.0,  # Within soil range of 40-70%
         )
-        
+
         assert result["action"] == "monitor"
         assert result["in_range"] is True
 
     def test_plant_not_found(self, calculator, mock_plant_service):
         """Test recommendation when plant not found."""
         mock_plant_service.get_plant.return_value = None
-        
+
         result = calculator.get_recommendations(plant_id=999, current_moisture=50.0)
-        
+
         assert result["action"] == "unknown"
 
     def test_high_urgency_severe_deficit(self, calculator, mock_plant_service):
         """Test high urgency for severe moisture deficit."""
         mock_plant = MockPlantProfile(growing_medium="soil")
         mock_plant_service.get_plant.return_value = mock_plant
-        
+
         result = calculator.get_recommendations(
             plant_id=1,
             current_moisture=10.0,  # Very low, deficit > 20%
         )
-        
+
         assert result["urgency"] == "high"
 
 
@@ -590,9 +590,9 @@ class TestMLPredictionDataclass:
             model_version="v1.2",
             features_used=["temp", "humidity"],
         )
-        
+
         result = pred.to_dict()
-        
+
         assert result["predicted_volume_ml"] == 200.0
         assert result["adjustment_factor"] == 1.05
         assert result["confidence"] == 0.85
@@ -602,7 +602,7 @@ class TestMLPredictionDataclass:
     def test_default_values(self):
         """Test default values."""
         pred = MLPrediction()
-        
+
         assert pred.predicted_volume_ml is None
         assert pred.adjustment_factor == 1.0
         assert pred.confidence == 0.0
@@ -619,9 +619,9 @@ class TestMLWorkflowIntegration:
         # Phase 2: Returns actual prediction based on environmental data
         ml_predictor.predict_water_volume.return_value = 175.0  # ML suggests this
         ml_predictor.get_adjustment_factor.return_value = 1.05  # Slight increase from feedback
-        
+
         calculator = IrrigationCalculator(mock_plant_service, ml_predictor=ml_predictor)
-        
+
         mock_plant = MockPlantProfile(
             plant_type="tomato",
             pot_size_liters=10.0,
@@ -629,26 +629,26 @@ class TestMLWorkflowIntegration:
             current_stage="flowering",
         )
         mock_plant_service.get_plant.return_value = mock_plant
-        
+
         # Environmental data from irrigation request
         env_data = {
-            'temperature': 25.5,
-            'humidity': 65.0,
-            'vpd': 1.2,
-            'lux': 800.0,
-            'soil_moisture': 45.0,
+            "temperature": 25.5,
+            "humidity": 65.0,
+            "vpd": 1.2,
+            "lux": 800.0,
+            "soil_moisture": 45.0,
         }
-        
+
         result = calculator.calculate_with_ml(
             plant_id=1,
             pump_flow_rate=3.5,
             environmental_data=env_data,
         )
-        
+
         # Verify ML predictor was called with correct data
         ml_predictor.predict_water_volume.assert_called_once_with(1, env_data)
         ml_predictor.get_adjustment_factor.assert_called_once()
-        
+
         # Phase 2: ML provides prediction, so result should be ML-adjusted
         assert result.ml_adjusted is True
         assert result.ml_prediction is not None
@@ -663,22 +663,22 @@ class TestMLWorkflowIntegration:
         ml_predictor = Mock()
         ml_predictor.predict_water_volume.return_value = None  # No prediction without data
         ml_predictor.get_adjustment_factor.return_value = 1.0
-        
+
         calculator = IrrigationCalculator(mock_plant_service, ml_predictor=ml_predictor)
-        
+
         mock_plant = MockPlantProfile()
         mock_plant_service.get_plant.return_value = mock_plant
-        
+
         # No environmental data (sensors offline)
         result = calculator.calculate_with_ml(
             plant_id=1,
             pump_flow_rate=3.5,
             environmental_data=None,
         )
-        
+
         # Should still call ML predictor (it might use historical data)
         ml_predictor.predict_water_volume.assert_called_once_with(1, {})
-        
+
         # Should fall back to formula-based
         assert result.water_volume_ml > 0
         assert result.duration_seconds > 0
@@ -689,23 +689,23 @@ class TestMLWorkflowIntegration:
         # ML can work with partial data
         ml_predictor.predict_water_volume.return_value = 160.0
         ml_predictor.get_adjustment_factor.return_value = 1.0
-        
+
         calculator = IrrigationCalculator(mock_plant_service, ml_predictor=ml_predictor)
-        
+
         mock_plant = MockPlantProfile()
         mock_plant_service.get_plant.return_value = mock_plant
-        
+
         # Partial environmental data (humidity and VPD sensors offline)
         partial_env_data = {
-            'temperature': 24.0,
-            'soil_moisture': 48.0,
+            "temperature": 24.0,
+            "soil_moisture": 48.0,
         }
-        
+
         result = calculator.calculate_with_ml(
             plant_id=1,
             environmental_data=partial_env_data,
         )
-        
+
         # Should work with partial data
         ml_predictor.predict_water_volume.assert_called_once_with(1, partial_env_data)
         assert result.water_volume_ml > 0
@@ -716,22 +716,24 @@ class TestMLWorkflowIntegration:
         ml_predictor = Mock()
         ml_predictor.predict_water_volume.return_value = None  # No prediction
         ml_predictor.get_adjustment_factor.return_value = 1.1  # Only adjustment factor
-        ml_predictor.get_feedback_for_plant = Mock(return_value=[
-            {'feedback_response': 'too_little'},
-            {'feedback_response': 'just_right'},
-        ])
-        
+        ml_predictor.get_feedback_for_plant = Mock(
+            return_value=[
+                {"feedback_response": "too_little"},
+                {"feedback_response": "just_right"},
+            ]
+        )
+
         calculator = IrrigationCalculator(mock_plant_service, ml_predictor=ml_predictor)
         calculator.ML_CONFIDENCE_THRESHOLD = 0.7  # Standard threshold
-        
+
         mock_plant = MockPlantProfile()
         mock_plant_service.get_plant.return_value = mock_plant
-        
+
         result = calculator.calculate_with_ml(
             plant_id=1,
-            environmental_data={'temperature': 25.0},
+            environmental_data={"temperature": 25.0},
         )
-        
+
         # Adjustment factor should still apply to formula-based result
         assert result.ml_adjusted is True
         assert result.ml_prediction is not None
@@ -742,20 +744,22 @@ class TestMLWorkflowIntegration:
         ml_predictor = Mock()
         ml_predictor.predict_water_volume.return_value = None  # No direct prediction
         ml_predictor.get_adjustment_factor.return_value = 1.15  # +15% adjustment
-        ml_predictor.get_feedback_for_plant = Mock(return_value=[
-            {'feedback_response': 'too_little'},
-        ])
-        
+        ml_predictor.get_feedback_for_plant = Mock(
+            return_value=[
+                {"feedback_response": "too_little"},
+            ]
+        )
+
         calculator = IrrigationCalculator(mock_plant_service, ml_predictor=ml_predictor)
-        
+
         mock_plant = MockPlantProfile()
         mock_plant_service.get_plant.return_value = mock_plant
-        
+
         result = calculator.calculate_with_ml(
             plant_id=1,
-            environmental_data={'soil_moisture': 45.0},
+            environmental_data={"soil_moisture": 45.0},
         )
-        
+
         # Adjustment factor applied to formula volume
         assert result.ml_prediction is not None
         assert result.ml_prediction.adjustment_factor == 1.15
@@ -768,14 +772,16 @@ class TestMLWorkflowIntegration:
         # Phase 2: ML provides predictions
         ml_predictor.predict_water_volume.return_value = 185.0
         ml_predictor.get_adjustment_factor.return_value = 1.05
-        ml_predictor.get_feedback_for_plant = Mock(return_value=[
-            {'feedback_response': 'just_right'},
-            {'feedback_response': 'too_little'},
-            {'feedback_response': 'just_right'},
-        ])
-        
+        ml_predictor.get_feedback_for_plant = Mock(
+            return_value=[
+                {"feedback_response": "just_right"},
+                {"feedback_response": "too_little"},
+                {"feedback_response": "just_right"},
+            ]
+        )
+
         calculator = IrrigationCalculator(mock_plant_service, ml_predictor=ml_predictor)
-        
+
         mock_plant = MockPlantProfile(
             plant_id=42,
             plant_type="basil",
@@ -785,34 +791,34 @@ class TestMLWorkflowIntegration:
             unit_id=5,  # Add unit_id for feedback lookup
         )
         mock_plant_service.get_plant.return_value = mock_plant
-        
+
         # Simulate detection - sensor readings captured
         ml_context = {
-            'temperature': 23.5,
-            'humidity': 58.0,
-            'vpd': 1.15,
-            'lux': 650.0,
-            'soil_moisture': 42.0,
+            "temperature": 23.5,
+            "humidity": 58.0,
+            "vpd": 1.15,
+            "lux": 650.0,
+            "soil_moisture": 42.0,
         }
-        
+
         # Calculate irrigation with ML context
         calculation = calculator.calculate_with_ml(
             plant_id=42,
             pump_flow_rate=3.2,  # Calibrated pump
             environmental_data=ml_context,
         )
-        
+
         # Verify calculation produced valid results
         assert calculation.plant_id == 42
         assert calculation.water_volume_ml > 0
         assert calculation.duration_seconds > 0
         assert calculation.flow_rate_ml_per_second == 3.2
         assert calculation.confidence > 0.5  # Has calibrated pump
-        
+
         # Verify ML context was used
         assert calculation.ml_prediction is not None
-        assert 'temperature' in calculation.ml_prediction.features_used
-        
+        assert "temperature" in calculation.ml_prediction.features_used
+
         # Phase 2: ML provides predictions
         assert calculation.ml_adjusted is True
         assert calculation.ml_prediction.predicted_volume_ml == 185.0

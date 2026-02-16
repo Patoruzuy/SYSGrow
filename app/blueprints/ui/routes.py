@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import logging
-from urllib.parse import urlparse
 from datetime import datetime
+from urllib.parse import urlparse
+
 from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, session, url_for
 
-from app.utils.time import utc_now
+from app.blueprints.ui.helpers import get_unit_card_data
 from app.security.auth import login_required
-from app.blueprints.ui.helpers import determine_landing_page, get_unit_card_data
+from app.utils.time import utc_now
 
 ui_bp = Blueprint("ui", __name__)
 logger = logging.getLogger(__name__)
@@ -15,8 +16,10 @@ logger = logging.getLogger(__name__)
 # Track server start time for uptime
 _SERVER_START_TIME = utc_now()
 
+
 def _container():
     return current_app.config["CONTAINER"]
+
 
 @ui_bp.app_context_processor
 def inject_unit_context():
@@ -88,20 +91,16 @@ def _api_error(message: str, status: int = 400):
 
 def _render_page_with_units(template_name: str, **extra_context):
     """Helper to render pages with standard unit context and error handling.
-    
+
     Args:
         template_name: Template file name (e.g., 'plant_health.html')
         **extra_context: Additional context variables to pass to template
-        
+
     Returns:
         Rendered template with units, selected_unit_id, and extra context
     """
     selected_unit_id, units = _ensure_selected_unit()
-    context = {
-        'units': units,
-        'selected_unit_id': selected_unit_id,
-        **extra_context
-    }
+    context = {"units": units, "selected_unit_id": selected_unit_id, **extra_context}
     return render_template(template_name, **context)
 
 
@@ -112,16 +111,16 @@ def index():
     try:
         print("=" * 80)
         print("INDEX ROUTE CALLED")
-        
+
         # Get selected unit from session (should be set during login)
         selected_unit_id, units = _ensure_selected_unit()
         print(f"Selected unit: {selected_unit_id}, Units count: {len(units)}")
-        
+
         # If no units exist, redirect to a setup page or show empty state
         if not units:
             flash("Please create your first growth unit to get started.", "info")
             return redirect(url_for("ui.growth_units"))
-        
+
         selected_unit = None
         plants = []
         thresholds = {}
@@ -145,11 +144,12 @@ def index():
             selected_unit=selected_unit,
             plants=plants,
             thresholds=thresholds,
-            actuators=actuators
+            actuators=actuators,
         )
     except Exception as e:
         print(f"ERROR IN INDEX ROUTE: {e}")
         import traceback
+
         traceback.print_exc()
         raise
 
@@ -172,11 +172,11 @@ def device_state_history():
         actuator_service = container.actuator_management_service
 
         # Params
-        unit_id = request.args.get('unit_id', type=int)
-        actuator_id = request.args.get('actuator_id', type=int)
-        device_name = request.args.get('device_name', type=str)
-        page = request.args.get('page', default=1, type=int)
-        per_page = request.args.get('per_page', default=50, type=int)
+        unit_id = request.args.get("unit_id", type=int)
+        actuator_id = request.args.get("actuator_id", type=int)
+        device_name = request.args.get("device_name", type=str)
+        page = request.args.get("page", default=1, type=int)
+        per_page = request.args.get("per_page", default=50, type=int)
         page = max(page, 1)
         per_page = max(min(per_page, 200), 10)
 
@@ -217,7 +217,7 @@ def device_state_history():
 
         # Slice for current page
         start = (page - 1) * per_page
-        page_rows = rows[start:start + per_page]
+        page_rows = rows[start : start + per_page]
         has_next = len(rows) > start + per_page
         has_prev = page > 1
 
@@ -244,12 +244,12 @@ def device_state_history():
 def unit_selector():
     """Show unit selection page for users with multiple units."""
     user_id: int = session.get("user_id", 1)
-    
+
     growth_service = _container().growth_service
     plant_service = _container().plant_service
     growth_repo = _container().growth_repo
     units = growth_service.list_units(user_id=user_id)
-    
+
     # Enrich with card data for visual display
     unit_cards = []
     for unit in units:
@@ -260,7 +260,7 @@ def unit_selector():
             current_app.logger.error(f"Error getting card data for unit {unit['unit_id']}: {e}")
             # Use basic unit data as fallback
             unit_cards.append(unit)
-    
+
     return render_template("unit_selector.html", units=unit_cards)
 
 
@@ -278,25 +278,23 @@ def api_select_unit():
         unit_id = int(raw_unit_id)
     except (TypeError, ValueError):
         return _api_error("unit_id must be an integer")
-    
+
     # Verify user owns this unit
     user_id: int = session.get("user_id", 1)
     growth_service = _container().growth_service
-    
+
     try:
         unit = growth_service.get_unit(unit_id)
         if not unit:
             return _api_error("Unit not found", 404)
-        
+
         unit_owner_id = unit.get("user_id")
         if unit_owner_id is not None:
             try:
                 unit_owner_id = int(unit_owner_id)
                 current_user_id = int(user_id)
             except (TypeError, ValueError):
-                current_app.logger.warning(
-                    "Unable to validate ownership for unit %s; denying access", unit_id
-                )
+                current_app.logger.warning("Unable to validate ownership for unit %s; denying access", unit_id)
                 return _api_error("Unauthorized", 403)
             if unit_owner_id != current_user_id:
                 return _api_error("Unauthorized", 403)
@@ -362,17 +360,18 @@ def select_unit():
 
     return redirect(_safe_next(next_url) or url_for("ui.index"))
 
+
 @ui_bp.post("/growth-units")
 @login_required
 def create_growth_unit():
     name = request.form.get("name", "").strip()
     location = request.form.get("location", "Indoor")
     user_id = session.get("user_id", 1)
-    
+
     if not name:
         flash("Name is required to create a growth unit.", "error")
         return redirect(url_for("ui.index"))
-    
+
     unit = _container().growth_service.create_unit(name=name, location=location, user_id=user_id)
     session["selected_unit"] = unit["unit_id"]
     flash("Growth unit created successfully.", "success")
@@ -463,16 +462,16 @@ def notifications():
 def devices():
     """Device management page"""
     from app.defaults import SystemConfigDefaults
-    from app.enums import SensorType, SensorModel
-    
+    from app.enums import SensorModel, SensorType
+
     selected_unit_id, units = _ensure_selected_unit()
-    
+
     # Get available GPIO pins (excluding used ones)
     available_gpio_pins = SystemConfigDefaults.get_available_gpio_pins()
-    
+
     # Get ADS1115 channels for soil moisture sensors
     ads1115_channels = SystemConfigDefaults.get_adc_channels()
-    
+
     # Get current devices from database
     db = _container().database
 
@@ -511,57 +510,56 @@ def devices():
         SensorType.ENVIRONMENTAL.value: env_models,
         SensorType.PLANT.value: plant_models,
     }
-    
+
     # Get actuators and sensors for display
     db_actuators = []
     db_sensors = []
     available_actuators = []
-    
+
     try:
         # Get actuators from database filtered by selected unit
         with db.connection() as conn:
-            cursor = conn.execute(
-                "SELECT * FROM Actuator WHERE unit_id = ? ORDER BY actuator_id",
-                (selected_unit_id,)
-            )
+            cursor = conn.execute("SELECT * FROM Actuator WHERE unit_id = ? ORDER BY actuator_id", (selected_unit_id,))
             for row in cursor.fetchall():
                 actuator_data = dict(row)
-                db_actuators.append({
-                    'id': actuator_data['actuator_id'],
-                    'name': actuator_data['device'],
-                    'gpio': actuator_data['gpio'],
-                    'ip_address': actuator_data['ip_address']
-                })
-                available_actuators.append(actuator_data['device'])
-        
+                db_actuators.append(
+                    {
+                        "id": actuator_data["actuator_id"],
+                        "name": actuator_data["device"],
+                        "gpio": actuator_data["gpio"],
+                        "ip_address": actuator_data["ip_address"],
+                    }
+                )
+                available_actuators.append(actuator_data["device"])
+
         # Get sensors from database filtered by selected unit
         with db.connection() as conn:
-            cursor = conn.execute(
-                "SELECT * FROM Sensor WHERE unit_id = ? ORDER BY sensor_id",
-                (selected_unit_id,)
-            )
+            cursor = conn.execute("SELECT * FROM Sensor WHERE unit_id = ? ORDER BY sensor_id", (selected_unit_id,))
             for row in cursor.fetchall():
                 sensor_data = dict(row)
-                db_sensors.append({
-                    'sensor_id': sensor_data['sensor_id'],
-                    'name': sensor_data['name'],
-                    'sensor_type': sensor_data['sensor_type'],
-                    'sensor_model': sensor_data.get('model', 'Unknown'),  # Column is 'model' not 'sensor_model'
-                    'gpio': sensor_data.get('gpio'),
-                    'ip_address': sensor_data.get('ip_address')
-                })
-    
+                db_sensors.append(
+                    {
+                        "sensor_id": sensor_data["sensor_id"],
+                        "name": sensor_data["name"],
+                        "sensor_type": sensor_data["sensor_type"],
+                        "sensor_model": sensor_data.get("model", "Unknown"),  # Column is 'model' not 'sensor_model'
+                        "gpio": sensor_data.get("gpio"),
+                        "ip_address": sensor_data.get("ip_address"),
+                    }
+                )
+
     except Exception as e:
         # If there's an error, provide empty lists
         import logging
+
         logging.error(f"Error loading devices: {e}")
         db_actuators = []
         db_sensors = []
         available_actuators = []
-    
+
     return render_template(
-        "devices.html", 
-        units=units, 
+        "devices.html",
+        units=units,
         selected_unit_id=selected_unit_id,
         available_gpio_pins=available_gpio_pins,
         ads1115_channels=ads1115_channels,
@@ -581,7 +579,7 @@ def growth_units():
     try:
         units = _container().growth_service.list_units()
         return render_template("units.html", units=units)
-    except Exception as e:
+    except Exception:
         flash("Failed to load growth units.", "error")
         return render_template("units.html", units=[])
 
@@ -618,7 +616,7 @@ def fullscreen_camera():
 @login_required
 def sensor_analytics():
     """Unified sensor analytics and visualization dashboard.
-    
+
     Displays:
     - Time-series analysis with multi-metric support
     - Multi-sensor comparison charts
@@ -632,18 +630,21 @@ def sensor_analytics():
     selected_unit = None
     if selected_unit_id:
         selected_unit = _container().growth_service.get_unit(selected_unit_id)
-    return render_template("sensor_analytics.html", units=units, selected_unit_id=selected_unit_id, selected_unit=selected_unit)
+    return render_template(
+        "sensor_analytics.html", units=units, selected_unit_id=selected_unit_id, selected_unit=selected_unit
+    )
 
 
 # ============================================================================
 # Analytics & Health Routes
 # ============================================================================
 
+
 @ui_bp.route("/energy-analytics")
 @login_required
 def energy_analytics():
     """Energy analytics and cost tracking dashboard.
-     
+
     Displays:
     - Total energy consumption and costs
     - Energy consumption by actuator
@@ -658,7 +659,7 @@ def energy_analytics():
 @login_required
 def device_health():
     """Device health monitoring and diagnostics dashboard.
-    
+
     Displays:
     - Device health status (all sensors and actuators)
     - Anomaly detection alerts
@@ -673,12 +674,12 @@ def device_health():
         with db.connection() as conn:
             cursor = conn.execute("SELECT * FROM Actuator ORDER BY actuator_id")
             devices_summary["actuators"] = [dict(row) for row in cursor.fetchall()]
-            
+
             cursor = conn.execute("SELECT * FROM Sensor ORDER BY sensor_id")
             devices_summary["sensors"] = [dict(row) for row in cursor.fetchall()]
     except Exception as e:
         logger.error(f"Error loading device data: {e}")
-    
+
     return _render_page_with_units("device_health.html", devices_summary=devices_summary)
 
 
@@ -687,15 +688,11 @@ def device_health():
 @login_required
 def system_health():
     """Unified System Health & Status Dashboard.
-    
+
     Displays comprehensive system health, device status, and monitoring.
     """
     selected_unit_id, units = _ensure_selected_unit()
-    return render_template(
-        "system_health.html",
-        selected_unit_id=selected_unit_id,
-        units=units
-    )
+    return render_template("system_health.html", selected_unit_id=selected_unit_id, units=units)
 
 
 @ui_bp.route("/plants")
@@ -722,11 +719,7 @@ def plants_hub():
     All data loaded dynamically via Plants API endpoints.
     """
     selected_unit_id, units = _ensure_selected_unit()
-    return render_template(
-        "plants.html",
-        selected_unit_id=selected_unit_id,
-        units=units
-    )
+    return render_template("plants.html", selected_unit_id=selected_unit_id, units=units)
 
 
 @ui_bp.route("/plants/guide")
@@ -748,11 +741,7 @@ def plants_guide():
     Data loaded dynamically from /api/plants/guide/full endpoint.
     """
     selected_unit_id, units = _ensure_selected_unit()
-    return render_template(
-        "plants_guide.html",
-        selected_unit_id=selected_unit_id,
-        units=units
-    )
+    return render_template("plants_guide.html", selected_unit_id=selected_unit_id, units=units)
 
 
 @ui_bp.route("/plants/guide/<int:plant_id>")
@@ -773,12 +762,7 @@ def plant_detail(plant_id):
         plant_id: The ID of the plant from plants_info.json
     """
     selected_unit_id, units = _ensure_selected_unit()
-    return render_template(
-        "plant_detail.html",
-        plant_id=plant_id,
-        selected_unit_id=selected_unit_id,
-        units=units
-    )
+    return render_template("plant_detail.html", plant_id=plant_id, selected_unit_id=selected_unit_id, units=units)
 
 
 @ui_bp.route("/plants/<int:plant_id>/my-detail")
@@ -798,19 +782,14 @@ def my_plant_detail(plant_id):
         plant_id: The ID of the user's plant
     """
     selected_unit_id, units = _ensure_selected_unit()
-    return render_template(
-        "my_plant_detail.html",
-        plant_id=plant_id,
-        selected_unit_id=selected_unit_id,
-        units=units
-    )
+    return render_template("my_plant_detail.html", plant_id=plant_id, selected_unit_id=selected_unit_id, units=units)
 
 
 @ui_bp.route("/ml-dashboard")
 @login_required
 def ml_dashboard():
     """Machine Learning infrastructure dashboard.
-    
+
     Displays:
     - Registered ML models and their versions
     - Model drift detection and monitoring
@@ -826,32 +805,27 @@ def ml_dashboard():
 # System API Endpoints
 # ============================================================================
 
+
 @ui_bp.get("/api/system/uptime")
 def get_server_uptime():
     """Get server uptime information.
-    
+
     Returns:
         JSON with uptime_seconds and started_at timestamp
     """
     uptime = (datetime.utcnow() - _SERVER_START_TIME).total_seconds()
-    return jsonify({
-        "ok": True,
-        "data": {
-            "uptime_seconds": uptime,
-            "started_at": _SERVER_START_TIME.isoformat() + "Z"
-        }
-    })
+    return jsonify({"ok": True, "data": {"uptime_seconds": uptime, "started_at": _SERVER_START_TIME.isoformat() + "Z"}})
 
 
 @ui_bp.get("/api/system/activities")
 def get_recent_activities():
     """Get recent system activities.
-    
+
     Query Parameters:
         limit: Maximum number of activities (default: 50)
         activity_type: Filter by activity type
         severity: Filter by severity level (info, warning, error)
-    
+
     Returns:
         JSON with list of recent activities
     """
@@ -859,31 +833,16 @@ def get_recent_activities():
         limit = int(request.args.get("limit", 50))
         activity_type = request.args.get("activity_type")
         severity = request.args.get("severity")
-        
+
         activity_logger = _container().activity_logger
-        activities = activity_logger.get_recent_activities(
-            limit=limit,
-            activity_type=activity_type,
-            severity=severity
-        )
-        
-        response = jsonify({
-            "ok": True,
-            "data": {
-                "activities": activities,
-                "count": len(activities)
-            },
-            "error": None
-        })
+        activities = activity_logger.get_recent_activities(limit=limit, activity_type=activity_type, severity=severity)
+
+        response = jsonify({"ok": True, "data": {"activities": activities, "count": len(activities)}, "error": None})
         response.status_code = 200
         return response
     except Exception as e:
         logger.error(f"Error fetching activities: {e}")
-        response = jsonify({
-            "ok": False,
-            "data": None,
-            "error": {"message": "Failed to fetch activities"}
-        })
+        response = jsonify({"ok": False, "data": None, "error": {"message": "Failed to fetch activities"}})
         response.status_code = 500
         return response
 
@@ -891,12 +850,12 @@ def get_recent_activities():
 @ui_bp.get("/api/system/alerts")
 def get_active_alerts():
     """Get active system alerts.
-    
+
     Query Parameters:
         severity: Filter by severity level (info, warning, critical)
         unit_id: Filter by unit ID
         limit: Maximum number of alerts (default: 100)
-    
+
     Returns:
         JSON with list of active alerts and summary
     """
@@ -904,34 +863,20 @@ def get_active_alerts():
         severity = request.args.get("severity")
         unit_id = request.args.get("unit_id", type=int)
         limit = int(request.args.get("limit", 100))
-        
+
         alert_service = _container().alert_service
-        alerts = alert_service.get_active_alerts(
-            severity=severity,
-            unit_id=unit_id,
-            limit=limit
-        )
+        alerts = alert_service.get_active_alerts(severity=severity, unit_id=unit_id, limit=limit)
         summary = alert_service.get_alert_summary()
         print(f"Fetched {len(alerts)} alerts with summary: {summary}")
-        
-        response = jsonify({
-            "ok": True,
-            "data": {
-                "alerts": alerts,
-                "count": len(alerts),
-                "summary": summary
-            },
-            "error": None
-        })
+
+        response = jsonify(
+            {"ok": True, "data": {"alerts": alerts, "count": len(alerts), "summary": summary}, "error": None}
+        )
         response.status_code = 200
         return response
     except Exception as e:
         logger.error(f"Error fetching alerts: {e}")
-        response = jsonify({
-            "ok": False,
-            "data": None,
-            "error": {"message": "Failed to fetch alerts"}
-        })
+        response = jsonify({"ok": False, "data": None, "error": {"message": "Failed to fetch alerts"}})
         response.status_code = 500
         return response
 
@@ -939,42 +884,30 @@ def get_active_alerts():
 @ui_bp.post("/api/system/alerts/<int:alert_id>/acknowledge")
 def acknowledge_alert(alert_id: int):
     """Acknowledge an alert.
-    
+
     Args:
         alert_id: ID of the alert to acknowledge
-    
+
     Returns:
         JSON with success status
     """
     try:
         user_id = session.get("user_id")
-        
+
         alert_service = _container().alert_service
         success = alert_service.acknowledge_alert(alert_id, user_id)
-        
+
         if success:
-            response = jsonify({
-                "ok": True,
-                "data": {"message": "Alert acknowledged"},
-                "error": None
-            })
+            response = jsonify({"ok": True, "data": {"message": "Alert acknowledged"}, "error": None})
             response.status_code = 200
             return response
         else:
-            response = jsonify({
-                "ok": False,
-                "data": None,
-                "error": {"message": "Failed to acknowledge alert"}
-            })
+            response = jsonify({"ok": False, "data": None, "error": {"message": "Failed to acknowledge alert"}})
             response.status_code = 500
             return response
     except Exception as e:
         logger.error(f"Error acknowledging alert: {e}")
-        response = jsonify({
-            "ok": False,
-            "data": None,
-            "error": {"message": "Failed to acknowledge alert"}
-        })
+        response = jsonify({"ok": False, "data": None, "error": {"message": "Failed to acknowledge alert"}})
         response.status_code = 500
         return response
 
@@ -983,40 +916,28 @@ def acknowledge_alert(alert_id: int):
 @login_required
 def resolve_alert(alert_id: int):
     """Mark an alert as resolved.
-    
+
     Args:
         alert_id: ID of the alert to resolve
-    
+
     Returns:
         JSON with success status
     """
     try:
         alert_service = _container().alert_service
         success = alert_service.resolve_alert(alert_id)
-        
+
         if success:
-            response = jsonify({
-                "ok": True,
-                "data": {"message": "Alert resolved"},
-                "error": None
-            })
+            response = jsonify({"ok": True, "data": {"message": "Alert resolved"}, "error": None})
             response.status_code = 200
             return response
         else:
-            response = jsonify({
-                "ok": False,
-                "data": None,
-                "error": {"message": "Failed to resolve alert"}
-            })
+            response = jsonify({"ok": False, "data": None, "error": {"message": "Failed to resolve alert"}})
             response.status_code = 500
             return response
     except Exception as e:
         logger.error(f"Error resolving alert: {e}")
-        response = jsonify({
-            "ok": False,
-            "data": None,
-            "error": {"message": "Failed to resolve alert"}
-        })
+        response = jsonify({"ok": False, "data": None, "error": {"message": "Failed to resolve alert"}})
         response.status_code = 500
         return response
 
@@ -1025,40 +946,29 @@ def resolve_alert(alert_id: int):
 @login_required
 def clear_all_alerts():
     """Clear all active alerts.
-    
+
     Returns:
         JSON with success status and count of cleared alerts
     """
     try:
         alert_service = _container().alert_service
-        
+
         # Get all active alerts
         active_alerts = alert_service.get_active_alerts(limit=1000)
         count = 0
-        
+
         # Resolve each alert
         for alert in active_alerts:
-            alert_id = alert.get('alert_id')
+            alert_id = alert.get("alert_id")
             if alert_id and alert_service.resolve_alert(alert_id):
                 count += 1
-        
-        response = jsonify({
-            "ok": True,
-            "data": {
-                "message": f"Cleared {count} alerts",
-                "count": count
-            },
-            "error": None
-        })
+
+        response = jsonify({"ok": True, "data": {"message": f"Cleared {count} alerts", "count": count}, "error": None})
         response.status_code = 200
         return response
     except Exception as e:
         logger.error(f"Error clearing all alerts: {e}")
-        response = jsonify({
-            "ok": False,
-            "data": None,
-            "error": {"message": "Failed to clear alerts"}
-        })
+        response = jsonify({"ok": False, "data": None, "error": {"message": "Failed to clear alerts"}})
         response.status_code = 500
         return response
 
@@ -1076,16 +986,13 @@ def activity():
     - Pagination
     """
     selected_unit_id, units = _ensure_selected_unit()
-    return render_template(
-        "activity.html",
-        selected_unit_id=selected_unit_id,
-        units=units
-    )
+    return render_template("activity.html", selected_unit_id=selected_unit_id, units=units)
 
 
 # ============================================================================
 # Help & Documentation Routes (Public - No login required)
 # ============================================================================
+
 
 @ui_bp.route("/help")
 def help_page():
@@ -1121,6 +1028,7 @@ def help_article(category: str, article_id: str):
 # ============================================================================
 # Blog Routes (Public - No login required)
 # ============================================================================
+
 
 @ui_bp.route("/blog")
 def blog_page():

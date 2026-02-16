@@ -15,15 +15,17 @@ ML Refinement:
 - When user gives feedback (too_little/too_much), system adjusts flow_rate
 - Feedback adjusts by small increments (±5%) to converge on true rate
 """
-from dataclasses import dataclass, field
-from datetime import datetime
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+
 import json
 import logging
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import TYPE_CHECKING, Any
 
 from app.constants import PUMP_CALIBRATION_DEFAULTS
-from app.utils.time import iso_now, utc_now
 from app.domain.actuators.actuator_entity import ActuatorType
+from app.utils.time import iso_now, utc_now
+
 if TYPE_CHECKING:
     from app.services.hardware.actuator_management_service import ActuatorManagementService
     from infrastructure.database.repositories.devices import DeviceRepository
@@ -42,7 +44,7 @@ class CalibrationSession:
     start_time: datetime
     target_duration_seconds: int
     status: str  # "running", "awaiting_measurement", "completed", "cancelled"
-    unit_id: Optional[int] = None
+    unit_id: int | None = None
 
 
 @dataclass
@@ -56,7 +58,7 @@ class CalibrationResult:
     calibrated_at: str
     confidence: float  # 1.0 for manual, adjusted by ML feedback
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for API response."""
         return {
             "actuator_id": self.actuator_id,
@@ -79,7 +81,7 @@ class CalibrationHistoryEntry:
     confidence: float
     method: str  # "manual", "feedback_adjustment"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for storage."""
         return {
             "flow_rate_ml_per_second": round(self.flow_rate_ml_per_second, 3),
@@ -91,7 +93,7 @@ class CalibrationHistoryEntry:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "CalibrationHistoryEntry":
+    def from_dict(cls, data: dict[str, Any]) -> "CalibrationHistoryEntry":
         """Create from dictionary."""
         return cls(
             flow_rate_ml_per_second=data.get("flow_rate_ml_per_second", 0),
@@ -112,11 +114,11 @@ class PumpCalibrationData:
     calibration_duration_seconds: int
     calibrated_at: str
     calibration_confidence: float = 1.0
-    last_feedback_adjustment: Optional[str] = None
+    last_feedback_adjustment: str | None = None
     feedback_adjustments_count: int = 0
-    calibration_history: List[Dict[str, Any]] = field(default_factory=list)  # History of calibrations
+    calibration_history: list[dict[str, Any]] = field(default_factory=list)  # History of calibrations
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for storage."""
         return {
             "flow_rate_ml_per_second": self.flow_rate_ml_per_second,
@@ -130,7 +132,7 @@ class PumpCalibrationData:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "PumpCalibrationData":
+    def from_dict(cls, data: dict[str, Any]) -> "PumpCalibrationData":
         """Create from dictionary."""
         return cls(
             flow_rate_ml_per_second=data.get("flow_rate_ml_per_second", 0),
@@ -156,7 +158,7 @@ class PumpCalibrationData:
         if len(self.calibration_history) > max_entries:
             self.calibration_history = self.calibration_history[:max_entries]
 
-    def get_flow_rate_trend(self) -> Optional[Dict[str, Any]]:
+    def get_flow_rate_trend(self) -> dict[str, Any] | None:
         """
         Analyze calibration history to determine flow rate trend.
 
@@ -181,7 +183,7 @@ class PumpCalibrationData:
 
         # Calculate variance
         variance = sum((r - avg_rate) ** 2 for r in rates) / len(rates)
-        std_dev = variance ** 0.5
+        std_dev = variance**0.5
         if avg_rate <= 0:
             consistency = "unknown"
         else:
@@ -230,7 +232,7 @@ class PumpCalibrationService:
         """
         self._actuator_service = actuator_service
         self._device_repo = device_repo
-        self._active_sessions: Dict[int, CalibrationSession] = {}
+        self._active_sessions: dict[int, CalibrationSession] = {}
 
     def is_pump(self, actuator_type: str) -> bool:
         """Check if actuator type is a pump."""
@@ -239,8 +241,8 @@ class PumpCalibrationService:
     def start_calibration(
         self,
         actuator_id: int,
-        duration_seconds: Optional[int] = None,
-    ) -> Dict[str, Any]:
+        duration_seconds: int | None = None,
+    ) -> dict[str, Any]:
         """
         Start pump calibration by running pump for fixed duration.
 
@@ -387,7 +389,7 @@ class PumpCalibrationService:
             confidence=1.0,
         )
 
-    def cancel_calibration(self, actuator_id: int) -> Dict[str, Any]:
+    def cancel_calibration(self, actuator_id: int) -> dict[str, Any]:
         """
         Cancel an active calibration session.
 
@@ -412,7 +414,7 @@ class PumpCalibrationService:
         actuator_id: int,
         feedback: str,
         adjustment_factor: float = 0.05,
-    ) -> Optional[float]:
+    ) -> float | None:
         """
         Adjust flow rate based on irrigation feedback.
 
@@ -482,7 +484,7 @@ class PumpCalibrationService:
 
         return new_rate
 
-    def get_flow_rate(self, actuator_id: int) -> Optional[float]:
+    def get_flow_rate(self, actuator_id: int) -> float | None:
         """
         Get calibrated flow rate for an actuator.
 
@@ -495,7 +497,7 @@ class PumpCalibrationService:
         calibration = self.get_calibration_data(actuator_id)
         return calibration.flow_rate_ml_per_second if calibration else None
 
-    def get_calibration_data(self, actuator_id: int) -> Optional[PumpCalibrationData]:
+    def get_calibration_data(self, actuator_id: int) -> PumpCalibrationData | None:
         """
         Get full calibration data for an actuator.
 
@@ -526,11 +528,11 @@ class PumpCalibrationService:
         """Check if pump has been calibrated."""
         return self.get_flow_rate(actuator_id) is not None
 
-    def get_active_session(self, actuator_id: int) -> Optional[CalibrationSession]:
+    def get_active_session(self, actuator_id: int) -> CalibrationSession | None:
         """Get active calibration session if any."""
         return self._active_sessions.get(actuator_id)
 
-    def list_calibrated_pumps(self, unit_id: Optional[int] = None) -> List[Dict[str, Any]]:
+    def list_calibrated_pumps(self, unit_id: int | None = None) -> list[dict[str, Any]]:
         """
         List all calibrated pumps for a unit.
 
@@ -549,12 +551,14 @@ class PumpCalibrationService:
 
             calibration = self.get_calibration_data(actuator["actuator_id"])
             if calibration:
-                calibrated.append({
-                    "actuator_id": actuator["actuator_id"],
-                    "name": actuator.get("name"),
-                    "unit_id": actuator.get("unit_id"),
-                    "calibration": calibration.to_dict(),
-                })
+                calibrated.append(
+                    {
+                        "actuator_id": actuator["actuator_id"],
+                        "name": actuator.get("name"),
+                        "unit_id": actuator.get("unit_id"),
+                        "calibration": calibration.to_dict(),
+                    }
+                )
 
         return calibrated
 
@@ -589,6 +593,4 @@ class PumpCalibrationService:
         config.update(calibration.to_dict())
 
         # Update via repository - need to use backend directly
-        return self._device_repo._backend.update_actuator_config(
-            actuator_id, config
-        )
+        return self._device_repo._backend.update_actuator_config(actuator_id, config)

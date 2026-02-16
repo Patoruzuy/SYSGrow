@@ -16,13 +16,13 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Dict, List, Optional, Any, TYPE_CHECKING
 from datetime import datetime
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from infrastructure.database.repositories.plant_journal import PlantJournalRepository
     from app.services.ai.plant_health_monitor import PlantHealthMonitor
     from app.services.application.manual_irrigation_service import ManualIrrigationService
+    from infrastructure.database.repositories.plant_journal import PlantJournalRepository
 
 logger = logging.getLogger(__name__)
 
@@ -38,12 +38,12 @@ class PlantJournalService:
     def __init__(
         self,
         journal_repo: "PlantJournalRepository",
-        health_monitor: Optional["PlantHealthMonitor"] = None,
-        manual_irrigation_service: Optional["ManualIrrigationService"] = None,
+        health_monitor: "PlantHealthMonitor" | None = None,
+        manual_irrigation_service: "ManualIrrigationService" | None = None,
     ):
         """
         Initialize service.
-        
+
         Args:
             journal_repo: Plant journal repository
             health_monitor: Optional plant health monitor for correlations
@@ -52,9 +52,7 @@ class PlantJournalService:
         self.health_monitor = health_monitor
         self.manual_irrigation_service = manual_irrigation_service
 
-    def set_manual_irrigation_service(
-        self, service: Optional["ManualIrrigationService"]
-    ) -> None:
+    def set_manual_irrigation_service(self, service: "ManualIrrigationService" | None) -> None:
         """Wire manual irrigation service after construction."""
         self.manual_irrigation_service = service
 
@@ -67,15 +65,15 @@ class PlantJournalService:
         plant_id: int,
         observation_type: str,
         notes: str,
-        health_status: Optional[str] = None,
-        severity_level: Optional[int] = None,
-        symptoms: Optional[List[str]] = None,
-        image_path: Optional[str] = None,
-        user_id: Optional[int] = None
-    ) -> Optional[int]:
+        health_status: str | None = None,
+        severity_level: int | None = None,
+        symptoms: list[str] | None = None,
+        image_path: str | None = None,
+        user_id: int | None = None,
+    ) -> int | None:
         """
         Record a plant observation.
-        
+
         Args:
             plant_id: Plant ID
             observation_type: Type (health, growth, pest, disease, general)
@@ -85,7 +83,7 @@ class PlantJournalService:
             symptoms: List of symptoms
             image_path: Path to observation image
             user_id: User who made observation
-            
+
         Returns:
             entry_id if successful
         """
@@ -101,7 +99,7 @@ class PlantJournalService:
                 symptoms=symptoms_json,
                 notes=notes,
                 image_path=image_path,
-                user_id=user_id
+                user_id=user_id,
             )
 
             if entry_id:
@@ -116,20 +114,20 @@ class PlantJournalService:
     def record_watering(
         self,
         plant_id: int,
-        unit_id: Optional[int] = None,
+        unit_id: int | None = None,
         *,
-        amount_ml: Optional[float] = None,
-        amount: Optional[float] = None,
+        amount_ml: float | None = None,
+        amount: float | None = None,
         unit: str = "ml",
         method: str = "manual",
         source: str = "user",
-        ph_level: Optional[float] = None,
-        ec_level: Optional[float] = None,
-        duration_seconds: Optional[int] = None,
+        ph_level: float | None = None,
+        ec_level: float | None = None,
+        duration_seconds: int | None = None,
         notes: str = "",
-        user_id: Optional[int] = None,
-        watered_at_utc: Optional[str] = None,
-    ) -> Optional[int]:
+        user_id: int | None = None,
+        watered_at_utc: str | None = None,
+    ) -> int | None:
         """
         Record a watering event (unified method).
 
@@ -175,12 +173,7 @@ class PlantJournalService:
                 logger.info("Recorded watering for plant %s: entry %s", plant_id, entry_id)
 
             # Forward to irrigation service if available
-            if (
-                entry_id
-                and self.manual_irrigation_service
-                and unit_id is not None
-                and user_id is not None
-            ):
+            if entry_id and self.manual_irrigation_service and unit_id is not None and user_id is not None:
                 resolved_ml = None
                 if amount_ml is not None:
                     resolved_ml = float(amount_ml)
@@ -209,26 +202,26 @@ class PlantJournalService:
         self,
         plant_id: int,
         health_status: str,
-        symptoms: List[str],
+        symptoms: list[str],
         severity_level: int,
-        unit_id: Optional[int] = None,
-        disease_type: Optional[str] = None,
-        affected_parts: Optional[List[str]] = None,
-        environmental_factors: Optional[Dict[str, Any]] = None,
-        treatment_applied: Optional[str] = None,
-        plant_type: Optional[str] = None,
-        growth_stage: Optional[str] = None,
+        unit_id: int | None = None,
+        disease_type: str | None = None,
+        affected_parts: list[str] | None = None,
+        environmental_factors: dict[str, Any] | None = None,
+        treatment_applied: str | None = None,
+        plant_type: str | None = None,
+        growth_stage: str | None = None,
         notes: str = "",
-        image_path: Optional[str] = None,
-        user_id: Optional[int] = None,
-        observation_date: Optional[str] = None
-    ) -> Optional[int]:
+        image_path: str | None = None,
+        user_id: int | None = None,
+        observation_date: str | None = None,
+    ) -> int | None:
         """
         Record a health-specific observation.
-        
+
         This is a convenience method for health observations that also
         triggers health monitoring analysis if available.
-        
+
         Args:
             plant_id: Plant ID
             health_status: Health status
@@ -245,7 +238,7 @@ class PlantJournalService:
             image_path: Path to observation image
             user_id: User who made observation
             observation_date: Custom observation date (ISO format)
-            
+
         Returns:
             entry_id if successful
         """
@@ -256,7 +249,7 @@ class PlantJournalService:
 
         return self.repo.create_observation(
             plant_id=plant_id,
-            observation_type='health',
+            observation_type="health",
             unit_id=unit_id,
             health_status=health_status,
             severity_level=severity_level,
@@ -270,7 +263,7 @@ class PlantJournalService:
             notes=notes,
             image_path=image_path,
             user_id=user_id,
-            observation_date=observation_date
+            observation_date=observation_date,
         )
 
     # ========================================================================
@@ -285,11 +278,11 @@ class PlantJournalService:
         amount: float,
         unit: str = "ml",
         notes: str = "",
-        user_id: Optional[int] = None
-    ) -> Optional[int]:
+        user_id: int | None = None,
+    ) -> int | None:
         """
         Record a nutrient application.
-        
+
         Args:
             plant_id: Plant ID
             nutrient_type: Type (nitrogen, phosphorus, potassium, calcium, etc.)
@@ -298,7 +291,7 @@ class PlantJournalService:
             unit: Unit (ml, g, tsp, etc.)
             notes: Additional notes
             user_id: User who applied nutrient
-            
+
         Returns:
             entry_id if successful
         """
@@ -310,7 +303,7 @@ class PlantJournalService:
                 amount=amount,
                 unit=unit,
                 notes=notes,
-                user_id=user_id
+                user_id=user_id,
             )
 
             if entry_id:
@@ -324,17 +317,17 @@ class PlantJournalService:
 
     def record_bulk_nutrient_application(
         self,
-        plant_ids: List[int],
+        plant_ids: list[int],
         nutrient_type: str,
         nutrient_name: str,
         amount: float,
         unit: str = "ml",
         notes: str = "",
-        user_id: Optional[int] = None
-    ) -> Dict[str, Any]:
+        user_id: int | None = None,
+    ) -> dict[str, Any]:
         """
         Record nutrient application for multiple plants.
-        
+
         Args:
             plant_ids: List of plant IDs
             nutrient_type: Type of nutrient
@@ -343,13 +336,13 @@ class PlantJournalService:
             unit: Unit of measurement
             notes: Additional notes
             user_id: User who applied nutrient
-            
+
         Returns:
             Dictionary with success count and created entry IDs
         """
         try:
             created_ids = []
-            
+
             for plant_id in plant_ids:
                 entry_id = self.record_nutrient_application(
                     plant_id=plant_id,
@@ -358,47 +351,34 @@ class PlantJournalService:
                     amount=amount,
                     unit=unit,
                     notes=notes,
-                    user_id=user_id
+                    user_id=user_id,
                 )
                 if entry_id:
                     created_ids.append(entry_id)
 
-            return {
-                "success": True,
-                "entries_created": len(created_ids),
-                "entry_ids": created_ids
-            }
+            return {"success": True, "entries_created": len(created_ids), "entry_ids": created_ids}
 
         except Exception as e:
             logger.error(f"Failed bulk nutrient application: {e}")
-            return {
-                "success": False,
-                "entries_created": 0,
-                "error": str(e)
-            }
+            return {"success": False, "entries_created": 0, "error": str(e)}
 
     # ========================================================================
     # Treatments
     # ========================================================================
 
     def record_treatment(
-        self,
-        plant_id: int,
-        treatment_type: str,
-        treatment_name: str,
-        notes: str = "",
-        user_id: Optional[int] = None
-    ) -> Optional[int]:
+        self, plant_id: int, treatment_type: str, treatment_name: str, notes: str = "", user_id: int | None = None
+    ) -> int | None:
         """
         Record a treatment application.
-        
+
         Args:
             plant_id: Plant ID
             treatment_type: Type (fungicide, pesticide, pruning, etc.)
             treatment_name: Product/action name
             notes: Additional notes
             user_id: User who applied treatment
-            
+
         Returns:
             entry_id if successful
         """
@@ -408,7 +388,7 @@ class PlantJournalService:
                 treatment_type=treatment_type,
                 treatment_name=treatment_name,
                 notes=notes,
-                user_id=user_id
+                user_id=user_id,
             )
 
             if entry_id:
@@ -425,31 +405,22 @@ class PlantJournalService:
     # ========================================================================
 
     def add_note(
-        self,
-        plant_id: int,
-        notes: str,
-        image_path: Optional[str] = None,
-        user_id: Optional[int] = None
-    ) -> Optional[int]:
+        self, plant_id: int, notes: str, image_path: str | None = None, user_id: int | None = None
+    ) -> int | None:
         """
         Add a general note to plant journal.
-        
+
         Args:
             plant_id: Plant ID
             notes: Note text
             image_path: Optional image
             user_id: User who created note
-            
+
         Returns:
             entry_id if successful
         """
         try:
-            entry_id = self.repo.create_note(
-                plant_id=plant_id,
-                notes=notes,
-                image_path=image_path,
-                user_id=user_id
-            )
+            entry_id = self.repo.create_note(plant_id=plant_id, notes=notes, image_path=image_path, user_id=user_id)
 
             if entry_id:
                 logger.info(f"Added note for plant {plant_id}")
@@ -466,93 +437,75 @@ class PlantJournalService:
 
     def get_journal(
         self,
-        plant_id: Optional[int] = None,
-        unit_id: Optional[int] = None,
-        entry_type: Optional[str] = None,
+        plant_id: int | None = None,
+        unit_id: int | None = None,
+        entry_type: str | None = None,
         limit: int = 100,
-        days: Optional[int] = None
-    ) -> List[Dict[str, Any]]:
+        days: int | None = None,
+    ) -> list[dict[str, Any]]:
         """
         Get journal entries with filters.
-        
+
         Args:
             plant_id: Filter by plant ID
             unit_id: Filter by unit ID
             entry_type: Filter by type (observation, nutrient, treatment, note)
             limit: Max entries
             days: Only last N days
-            
+
         Returns:
             List of journal entries
         """
         entries = self.repo.get_entries(
-            plant_id=plant_id,
-            unit_id=unit_id,
-            entry_type=entry_type,
-            limit=limit,
-            days=days
+            plant_id=plant_id, unit_id=unit_id, entry_type=entry_type, limit=limit, days=days
         )
 
         # Parse JSON fields
         for entry in entries:
-            if entry.get('symptoms'):
+            if entry.get("symptoms"):
                 try:
-                    entry['symptoms'] = json.loads(entry['symptoms'])
+                    entry["symptoms"] = json.loads(entry["symptoms"])
                 except (ValueError, TypeError):
                     pass
 
         return entries
 
     def get_nutrient_history(
-        self,
-        plant_id: int,
-        nutrient_type: Optional[str] = None,
-        days: int = 90
-    ) -> List[Dict[str, Any]]:
+        self, plant_id: int, nutrient_type: str | None = None, days: int = 90
+    ) -> list[dict[str, Any]]:
         """
         Get nutrient application history.
-        
+
         Args:
             plant_id: Plant ID
             nutrient_type: Filter by type
             days: Look back period
-            
+
         Returns:
             List of nutrient applications
         """
-        return self.repo.get_nutrient_history(
-            plant_id=plant_id,
-            nutrient_type=nutrient_type,
-            days=days
-        )
+        return self.repo.get_nutrient_history(plant_id=plant_id, nutrient_type=nutrient_type, days=days)
 
-    def get_health_timeline(
-        self,
-        plant_id: int,
-        days: int = 30
-    ) -> List[Dict[str, Any]]:
+    def get_health_timeline(self, plant_id: int, days: int = 30) -> list[dict[str, Any]]:
         """
         Get health observation timeline.
-        
+
         Args:
             plant_id: Plant ID
             days: Look back period
-            
+
         Returns:
             List of health observations
         """
-        observations = self.repo.get_health_observations(
-            plant_id=plant_id,
-            days=days
-        )
+        observations = self.repo.get_health_observations(plant_id=plant_id, days=days)
 
         # Parse symptoms
         for obs in observations:
-            if obs.get('symptoms'):
+            if obs.get("symptoms"):
                 try:
-                    obs['symptoms'] = json.loads(obs['symptoms'])
+                    obs["symptoms"] = json.loads(obs["symptoms"])
                 except (ValueError, TypeError):
-                    obs['symptoms'] = []
+                    obs["symptoms"] = []
 
         return observations
 
@@ -560,59 +513,53 @@ class PlantJournalService:
     # AI Analysis
     # ========================================================================
 
-    def analyze_nutrient_health_correlation(
-        self,
-        plant_id: int,
-        days: int = 60
-    ) -> Dict[str, Any]:
+    def analyze_nutrient_health_correlation(self, plant_id: int, days: int = 60) -> dict[str, Any]:
         """
         Analyze correlation between nutrients and health outcomes.
-        
+
         This method provides data for AI to learn which nutrients
         improve or worsen plant health.
-        
+
         Args:
             plant_id: Plant ID
             days: Analysis period
-            
+
         Returns:
             Correlation analysis data
         """
         try:
             # Get raw correlation data
-            correlation = self.repo.correlate_nutrients_with_health(
-                plant_id=plant_id,
-                days=days
-            )
+            correlation = self.repo.correlate_nutrients_with_health(plant_id=plant_id, days=days)
 
             # Enhance with analysis
-            timeline = correlation.get('timeline', [])
-            
+            timeline = correlation.get("timeline", [])
+
             # Find patterns: nutrients followed by health changes
             patterns = []
             for i in range(len(timeline) - 1):
-                if timeline[i]['type'] == 'nutrient':
+                if timeline[i]["type"] == "nutrient":
                     # Look for health observation within 7 days
-                    nutrient_entry = timeline[i]['data']
-                    
+                    nutrient_entry = timeline[i]["data"]
+
                     for j in range(i + 1, min(i + 10, len(timeline))):
-                        if timeline[j]['type'] == 'health':
-                            health_entry = timeline[j]['data']
-                            patterns.append({
-                                'nutrient_type': nutrient_entry.get('nutrient_type'),
-                                'nutrient_name': nutrient_entry.get('nutrient_name'),
-                                'amount': nutrient_entry.get('amount'),
-                                'health_status': health_entry.get('health_status'),
-                                'severity': health_entry.get('severity_level'),
-                                'days_after': self._calculate_days_between(
-                                    nutrient_entry.get('created_at'),
-                                    health_entry.get('created_at')
-                                )
-                            })
+                        if timeline[j]["type"] == "health":
+                            health_entry = timeline[j]["data"]
+                            patterns.append(
+                                {
+                                    "nutrient_type": nutrient_entry.get("nutrient_type"),
+                                    "nutrient_name": nutrient_entry.get("nutrient_name"),
+                                    "amount": nutrient_entry.get("amount"),
+                                    "health_status": health_entry.get("health_status"),
+                                    "severity": health_entry.get("severity_level"),
+                                    "days_after": self._calculate_days_between(
+                                        nutrient_entry.get("created_at"), health_entry.get("created_at")
+                                    ),
+                                }
+                            )
                             break
 
-            correlation['patterns'] = patterns
-            correlation['pattern_count'] = len(patterns)
+            correlation["patterns"] = patterns
+            correlation["pattern_count"] = len(patterns)
 
             return correlation
 
@@ -620,49 +567,48 @@ class PlantJournalService:
             logger.error(f"Failed to analyze correlation: {e}")
             return {}
 
-    def get_nutrient_recommendations(
-        self,
-        plant_id: int
-    ) -> Dict[str, Any]:
+    def get_nutrient_recommendations(self, plant_id: int) -> dict[str, Any]:
         """
         Get nutrient recommendations based on history and health.
-        
+
         Args:
             plant_id: Plant ID
-            
+
         Returns:
             Recommendations dictionary
         """
         try:
             # Get recent nutrient history
             recent_nutrients = self.get_nutrient_history(plant_id, days=30)
-            
+
             # Get recent health status
             recent_health = self.get_health_timeline(plant_id, days=7)
 
             # Calculate time since last application by type
             last_applications = {}
             for entry in recent_nutrients:
-                nutrient_type = entry.get('nutrient_type')
+                nutrient_type = entry.get("nutrient_type")
                 if nutrient_type not in last_applications:
-                    last_applications[nutrient_type] = entry.get('created_at')
+                    last_applications[nutrient_type] = entry.get("created_at")
 
             # Basic recommendations (can be enhanced with ML later)
             recommendations = {
                 "last_applications": last_applications,
-                "recent_health_status": recent_health[0].get('health_status') if recent_health else 'unknown',
-                "suggestions": []
+                "recent_health_status": recent_health[0].get("health_status") if recent_health else "unknown",
+                "suggestions": [],
             }
 
             # Simple rule-based suggestions
-            if recent_health and recent_health[0].get('health_status') == 'nutrient_deficiency':
-                symptoms = recent_health[0].get('symptoms', [])
-                if 'yellowing_leaves' in symptoms:
-                    recommendations['suggestions'].append({
-                        'type': 'nitrogen',
-                        'reason': 'Yellowing leaves may indicate nitrogen deficiency',
-                        'priority': 'high'
-                    })
+            if recent_health and recent_health[0].get("health_status") == "nutrient_deficiency":
+                symptoms = recent_health[0].get("symptoms", [])
+                if "yellowing_leaves" in symptoms:
+                    recommendations["suggestions"].append(
+                        {
+                            "type": "nitrogen",
+                            "reason": "Yellowing leaves may indicate nitrogen deficiency",
+                            "priority": "high",
+                        }
+                    )
 
             return recommendations
 
@@ -677,24 +623,20 @@ class PlantJournalService:
     def _calculate_days_between(self, date1: str, date2: str) -> int:
         """Calculate days between two ISO date strings."""
         try:
-            d1 = datetime.fromisoformat(date1.replace('Z', '+00:00'))
-            d2 = datetime.fromisoformat(date2.replace('Z', '+00:00'))
+            d1 = datetime.fromisoformat(date1.replace("Z", "+00:00"))
+            d2 = datetime.fromisoformat(date2.replace("Z", "+00:00"))
             return abs((d2 - d1).days)
         except Exception:
             return 0
 
-    def update_entry(
-        self,
-        entry_id: int,
-        updates: Dict[str, Any]
-    ) -> bool:
+    def update_entry(self, entry_id: int, updates: dict[str, Any]) -> bool:
         """
         Update a journal entry.
-        
+
         Args:
             entry_id: Entry ID
             updates: Fields to update
-            
+
         Returns:
             True if successful
         """
@@ -720,11 +662,11 @@ class PlantJournalService:
         self,
         plant_id: int,
         pruning_type: str,
-        parts_removed: Optional[List[str]] = None,
+        parts_removed: list[str] | None = None,
         notes: str = "",
-        image_path: Optional[str] = None,
-        user_id: Optional[int] = None
-    ) -> Optional[int]:
+        image_path: str | None = None,
+        user_id: int | None = None,
+    ) -> int | None:
         """
         Record a pruning/training event.
 
@@ -746,7 +688,7 @@ class PlantJournalService:
                 parts_removed=parts_removed,
                 notes=notes,
                 image_path=image_path,
-                user_id=user_id
+                user_id=user_id,
             )
 
             if entry_id:
@@ -765,8 +707,8 @@ class PlantJournalService:
         to_stage: str,
         trigger: str = "manual",
         notes: str = "",
-        user_id: Optional[int] = None
-    ) -> Optional[int]:
+        user_id: int | None = None,
+    ) -> int | None:
         """
         Record a growth stage transition.
 
@@ -788,7 +730,7 @@ class PlantJournalService:
                 to_stage=to_stage,
                 trigger=trigger,
                 notes=notes,
-                user_id=user_id
+                user_id=user_id,
             )
 
             if entry_id:
@@ -804,12 +746,12 @@ class PlantJournalService:
         self,
         plant_id: int,
         harvest_type: str,
-        weight_grams: Optional[float] = None,
-        quality_rating: Optional[int] = None,
+        weight_grams: float | None = None,
+        quality_rating: int | None = None,
         notes: str = "",
-        image_path: Optional[str] = None,
-        user_id: Optional[int] = None
-    ) -> Optional[int]:
+        image_path: str | None = None,
+        user_id: int | None = None,
+    ) -> int | None:
         """
         Record a harvest event.
 
@@ -833,13 +775,12 @@ class PlantJournalService:
                 quality_rating=quality_rating,
                 notes=notes,
                 image_path=image_path,
-                user_id=user_id
+                user_id=user_id,
             )
 
             if entry_id:
                 logger.info(
-                    f"Recorded harvest for plant {plant_id}: {harvest_type}, "
-                    f"{weight_grams}g, quality={quality_rating}"
+                    f"Recorded harvest for plant {plant_id}: {harvest_type}, {weight_grams}g, quality={quality_rating}"
                 )
 
             return entry_id
@@ -855,8 +796,8 @@ class PlantJournalService:
         old_value: str,
         new_value: str,
         reason: str = "",
-        user_id: Optional[int] = None
-    ) -> Optional[int]:
+        user_id: int | None = None,
+    ) -> int | None:
         """
         Record an environmental control adjustment.
 
@@ -878,7 +819,7 @@ class PlantJournalService:
                 old_value=old_value,
                 new_value=new_value,
                 reason=reason,
-                user_id=user_id
+                user_id=user_id,
             )
 
             if entry_id:
@@ -898,10 +839,10 @@ class PlantJournalService:
         plant_id: int,
         from_container: str,
         to_container: str,
-        new_medium: Optional[str] = None,
+        new_medium: str | None = None,
         notes: str = "",
-        user_id: Optional[int] = None
-    ) -> Optional[int]:
+        user_id: int | None = None,
+    ) -> int | None:
         """
         Record a transplanting event.
 
@@ -923,14 +864,11 @@ class PlantJournalService:
                 to_container=to_container,
                 new_medium=new_medium,
                 notes=notes,
-                user_id=user_id
+                user_id=user_id,
             )
 
             if entry_id:
-                logger.info(
-                    f"Recorded transplant for plant {plant_id}: "
-                    f"{from_container} -> {to_container}"
-                )
+                logger.info(f"Recorded transplant for plant {plant_id}: {from_container} -> {to_container}")
 
             return entry_id
 
@@ -949,9 +887,15 @@ class PlantJournalService:
         Subscribes to PlantEvent.PLANT_STAGE_UPDATE.
         """
         try:
-            plant_id = getattr(payload, "plant_id", None) or (payload.get("plant_id") if isinstance(payload, dict) else None)
-            new_stage = getattr(payload, "new_stage", None) or (payload.get("new_stage") if isinstance(payload, dict) else None)
-            days_in_stage = getattr(payload, "days_in_stage", 0) or (payload.get("days_in_stage", 0) if isinstance(payload, dict) else 0)
+            plant_id = getattr(payload, "plant_id", None) or (
+                payload.get("plant_id") if isinstance(payload, dict) else None
+            )
+            new_stage = getattr(payload, "new_stage", None) or (
+                payload.get("new_stage") if isinstance(payload, dict) else None
+            )
+            days_in_stage = getattr(payload, "days_in_stage", 0) or (
+                payload.get("days_in_stage", 0) if isinstance(payload, dict) else 0
+            )
 
             if not plant_id or not new_stage:
                 return
@@ -975,8 +919,12 @@ class PlantJournalService:
         Subscribes to PlantEvent.PLANT_ADDED.
         """
         try:
-            plant_id = getattr(payload, "plant_id", None) or (payload.get("plant_id") if isinstance(payload, dict) else None)
-            unit_id = getattr(payload, "unit_id", None) or (payload.get("unit_id") if isinstance(payload, dict) else None)
+            plant_id = getattr(payload, "plant_id", None) or (
+                payload.get("plant_id") if isinstance(payload, dict) else None
+            )
+            unit_id = getattr(payload, "unit_id", None) or (
+                payload.get("unit_id") if isinstance(payload, dict) else None
+            )
 
             if not plant_id:
                 return
@@ -997,8 +945,12 @@ class PlantJournalService:
         Subscribes to PlantEvent.PLANT_REMOVED.
         """
         try:
-            plant_id = getattr(payload, "plant_id", None) or (payload.get("plant_id") if isinstance(payload, dict) else None)
-            unit_id = getattr(payload, "unit_id", None) or (payload.get("unit_id") if isinstance(payload, dict) else None)
+            plant_id = getattr(payload, "plant_id", None) or (
+                payload.get("plant_id") if isinstance(payload, dict) else None
+            )
+            unit_id = getattr(payload, "unit_id", None) or (
+                payload.get("unit_id") if isinstance(payload, dict) else None
+            )
 
             if not plant_id:
                 return
@@ -1019,8 +971,12 @@ class PlantJournalService:
         Subscribes to PlantEvent.ACTIVE_PLANT_CHANGED.
         """
         try:
-            plant_id = getattr(payload, "plant_id", None) or (payload.get("plant_id") if isinstance(payload, dict) else None)
-            unit_id = getattr(payload, "unit_id", None) or (payload.get("unit_id") if isinstance(payload, dict) else None)
+            plant_id = getattr(payload, "plant_id", None) or (
+                payload.get("plant_id") if isinstance(payload, dict) else None
+            )
+            unit_id = getattr(payload, "unit_id", None) or (
+                payload.get("unit_id") if isinstance(payload, dict) else None
+            )
 
             if not plant_id:
                 return

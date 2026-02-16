@@ -102,11 +102,17 @@ def test_camera_settings_roundtrip(client):
 def test_device_schedule_roundtrip(client):
     """Test device schedules using the Growth API (replaces deprecated settings/light endpoint)."""
     unit_id = _create_unit(client)
-    
+
     # Set light schedule via Growth API (v3 requires a `name`)
     response = client.post(
         f"/api/growth/v3/units/{unit_id}/schedules",
-        json={"name": "Morning Light", "device_type": "light", "start_time": "08:00", "end_time": "20:00", "enabled": True}
+        json={
+            "name": "Morning Light",
+            "device_type": "light",
+            "start_time": "08:00",
+            "end_time": "20:00",
+            "enabled": True,
+        },
     )
     assert response.status_code in (200, 201)
 
@@ -117,7 +123,10 @@ def test_device_schedule_roundtrip(client):
     assert payload.get("ok") is True
     data = payload.get("data") or {}
     schedules = data.get("schedules") or []
-    assert any(s.get("device_type") == "light" and s.get("start_time") == "08:00" and s.get("end_time") == "20:00" for s in schedules)
+    assert any(
+        s.get("device_type") == "light" and s.get("start_time") == "08:00" and s.get("end_time") == "20:00"
+        for s in schedules
+    )
 
 
 def test_environment_thresholds_validation(client):

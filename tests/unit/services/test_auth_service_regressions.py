@@ -28,17 +28,13 @@ def test_reset_password_with_token_fails_when_repo_atomic_write_fails():
         audit_logger=audit_logger,
         auth_repo=repo,
     )
-    manager.validate_reset_token = Mock(
-        return_value={"user_id": 7, "username": "alice", "token_id": 21}
-    )
+    manager.validate_reset_token = Mock(return_value={"user_id": 7, "username": "alice", "token_id": 21})
     manager.hash_password = Mock(return_value="hashed-password")
 
     result = manager.reset_password_with_token("valid-token", "new-password")
 
     assert result is False
-    repo.use_reset_token_and_update_password.assert_called_once_with(
-        7, 21, "hashed-password", ANY
-    )
+    repo.use_reset_token_and_update_password.assert_called_once_with(7, 21, "hashed-password", ANY)
     # Regression guard: no partial-write two-call flow when atomic path exists.
     repo.update_password.assert_not_called()
     repo.mark_token_used.assert_not_called()

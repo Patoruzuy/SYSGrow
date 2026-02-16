@@ -28,14 +28,13 @@ Migration Status:
     Phase 4: Delete UnitRuntimeManager (pending)
 """
 
-from app.services.hardware.sensor_management_service import SensorManagementService
-from app.services.hardware.actuator_management_service import ActuatorManagementService
-
 # Climate controller now in app.controllers package
 from app.controllers import ClimateController
+from app.services.hardware.actuator_management_service import ActuatorManagementService
+from app.services.hardware.sensor_management_service import SensorManagementService
 
 __all__ = [
-    "SensorManagementService",
     "ActuatorManagementService",
     "ClimateController",
+    "SensorManagementService",
 ]

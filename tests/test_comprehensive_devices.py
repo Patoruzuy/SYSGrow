@@ -33,4 +33,3 @@ def test_devices_api():
 
             payload = _safe_json(response)
             assert payload.get("ok") is True
-

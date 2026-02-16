@@ -19,9 +19,12 @@ Broadcast Events:
 - retraining_scheduled
 - model_activated
 """
+
 import logging
-from flask import request, current_app
+
+from flask import current_app, request
 from flask_socketio import emit, join_room, leave_room
+
 from app.extensions import socketio
 from app.utils.emitters import SOCKETIO_NAMESPACE_SYSTEM
 
@@ -40,19 +43,20 @@ def _container():
 # /system (ml) NAMESPACE HANDLERS
 # =====================================
 
-@socketio.on('connect', namespace=SOCKETIO_NAMESPACE_SYSTEM)
+
+@socketio.on("connect", namespace=SOCKETIO_NAMESPACE_SYSTEM)
 def handle_ml_connect():
     """Handle ML namespace connection"""
     try:
         logger.info(f"Client {request.sid} connected to /system (ml) namespace")
         # Send immediate acknowledgment
-        emit('ml_connected', {'status': 'connected', 'sid': request.sid})
+        emit("ml_connected", {"status": "connected", "sid": request.sid})
     except Exception as e:
         logger.error(f"Error in ML connect handler: {e}", exc_info=True)
         return False  # Reject connection on error
 
 
-@socketio.on('disconnect', namespace=SOCKETIO_NAMESPACE_SYSTEM)
+@socketio.on("disconnect", namespace=SOCKETIO_NAMESPACE_SYSTEM)
 def handle_ml_disconnect():
     """Handle ML namespace disconnection"""
     try:
@@ -63,68 +67,67 @@ def handle_ml_disconnect():
         logger.error(f"Error in ML disconnect handler: {e}", exc_info=True)
 
 
-@socketio.on('ml_subscribe', namespace=SOCKETIO_NAMESPACE_SYSTEM)
+@socketio.on("ml_subscribe", namespace=SOCKETIO_NAMESPACE_SYSTEM)
 def handle_ml_subscribe():
     """Subscribe to ML infrastructure updates"""
     try:
         client_id = request.sid
         ml_subscribers.add(client_id)
-        join_room('ml_updates')
-        
+        join_room("ml_updates")
+
         logger.info(f"Client {client_id} subscribed to ML updates")
-        
+
         # Send initial state
-        emit("ml_status", {
-            "connected": True,
-            "subscribers": len(ml_subscribers),
-            "timestamp": None
-        })
+        emit("ml_status", {"connected": True, "subscribers": len(ml_subscribers), "timestamp": None})
     except Exception as e:
         logger.error(f"Error in ml_subscribe handler: {e}", exc_info=True)
-        emit('error', {'message': str(e)})
+        emit("error", {"message": str(e)})
 
 
-@socketio.on('ml_unsubscribe', namespace=SOCKETIO_NAMESPACE_SYSTEM)
+@socketio.on("ml_unsubscribe", namespace=SOCKETIO_NAMESPACE_SYSTEM)
 def handle_ml_unsubscribe():
     """Unsubscribe from ML infrastructure updates"""
     client_id = request.sid
     ml_subscribers.discard(client_id)
-    leave_room('ml_updates')
-    
+    leave_room("ml_updates")
+
     logger.info(f"Client {client_id} unsubscribed from ML updates")
 
 
-@socketio.on('request_drift_update', namespace=SOCKETIO_NAMESPACE_SYSTEM)
+@socketio.on("request_drift_update", namespace=SOCKETIO_NAMESPACE_SYSTEM)
 def handle_drift_request(data):
     """Client requests drift metrics for a specific model"""
-    model_name = data.get('model_name')
-    
+    model_name = data.get("model_name")
+
     if not model_name:
-        emit('error', {'message': 'model_name is required'})
+        emit("error", {"message": "model_name is required"})
         return
-    
+
     try:
         container = _container()
         if not container or not getattr(container, "drift_detector", None):
             emit("error", {"message": "ML services not available"})
             return
-        
+
         drift_metrics = container.drift_detector.check_drift(model_name)
         drift_status = drift_metrics.to_dict() if hasattr(drift_metrics, "to_dict") else drift_metrics
-        
-        emit('drift_update', {
-            'model_name': model_name,
-            'drift_detected': drift_status.get('drift_detected', False),
-            'metrics': drift_status,
-            'timestamp': None
-        })
-        
+
+        emit(
+            "drift_update",
+            {
+                "model_name": model_name,
+                "drift_detected": drift_status.get("drift_detected", False),
+                "metrics": drift_status,
+                "timestamp": None,
+            },
+        )
+
     except Exception as e:
         logger.error(f"Error fetching drift metrics: {e}")
-        emit('error', {'message': str(e)})
+        emit("error", {"message": str(e)})
 
 
-@socketio.on('request_training_status', namespace=SOCKETIO_NAMESPACE_SYSTEM)
+@socketio.on("request_training_status", namespace=SOCKETIO_NAMESPACE_SYSTEM)
 def handle_training_status_request(data):
     """Client requests current training status"""
     try:
@@ -133,32 +136,31 @@ def handle_training_status_request(data):
         if not registry:
             emit("error", {"message": "Model registry not available"})
             return
-        
+
         models = registry.list_models()
-        
-        emit('training_status', {
-            'models': models,
-            'timestamp': None
-        })
-        
+
+        emit("training_status", {"models": models, "timestamp": None})
+
     except Exception as e:
         logger.error(f"Error fetching training status: {e}")
-        emit('error', {'message': str(e)})
+        emit("error", {"message": str(e)})
 
 
 # =====================================
 # BROADCAST FUNCTIONS (called from ML services)
 # =====================================
 
+
 def broadcast_training_started(model_name, version):
     """Broadcast training start event to all subscribers"""
     try:
-        socketio.emit('training_started', {
-            'model_name': model_name,
-            'version': version,
-            'timestamp': None
-        }, namespace=SOCKETIO_NAMESPACE_SYSTEM, room='ml_updates')
-        
+        socketio.emit(
+            "training_started",
+            {"model_name": model_name, "version": version, "timestamp": None},
+            namespace=SOCKETIO_NAMESPACE_SYSTEM,
+            room="ml_updates",
+        )
+
         logger.info(f"Broadcasted training start: {model_name} v{version}")
     except Exception as e:
         logger.error(f"Error broadcasting training start: {e}")
@@ -201,13 +203,13 @@ def broadcast_training_progress(
 def broadcast_training_complete(model_name, version, metrics):
     """Broadcast training completion event"""
     try:
-        socketio.emit('training_complete', {
-            'model_name': model_name,
-            'version': version,
-            'metrics': metrics,
-            'timestamp': None
-        }, namespace=SOCKETIO_NAMESPACE_SYSTEM, room='ml_updates')
-        
+        socketio.emit(
+            "training_complete",
+            {"model_name": model_name, "version": version, "metrics": metrics, "timestamp": None},
+            namespace=SOCKETIO_NAMESPACE_SYSTEM,
+            room="ml_updates",
+        )
+
         logger.info(f"Broadcasted training complete: {model_name} v{version}")
     except Exception as e:
         logger.error(f"Error broadcasting training complete: {e}")
@@ -236,13 +238,13 @@ def broadcast_training_cancelled(model_name, version, message=None):
 def broadcast_training_failed(model_name, version, error):
     """Broadcast training failure event"""
     try:
-        socketio.emit('training_failed', {
-            'model_name': model_name,
-            'version': version,
-            'error': str(error),
-            'timestamp': None
-        }, namespace=SOCKETIO_NAMESPACE_SYSTEM, room='ml_updates')
-        
+        socketio.emit(
+            "training_failed",
+            {"model_name": model_name, "version": version, "error": str(error), "timestamp": None},
+            namespace=SOCKETIO_NAMESPACE_SYSTEM,
+            room="ml_updates",
+        )
+
         logger.error(f"Broadcasted training failure: {model_name} v{version} - {error}")
     except Exception as e:
         logger.error(f"Error broadcasting training failure: {e}")
@@ -251,13 +253,18 @@ def broadcast_training_failed(model_name, version, error):
 def broadcast_drift_detected(model_name, drift_metrics):
     """Broadcast drift detection event"""
     try:
-        socketio.emit('drift_detected', {
-            'model_name': model_name,
-            'metrics': drift_metrics,
-            'severity': 'warning' if drift_metrics.get('drift_detected') else 'info',
-            'timestamp': None
-        }, namespace=SOCKETIO_NAMESPACE_SYSTEM, room='ml_updates')
-        
+        socketio.emit(
+            "drift_detected",
+            {
+                "model_name": model_name,
+                "metrics": drift_metrics,
+                "severity": "warning" if drift_metrics.get("drift_detected") else "info",
+                "timestamp": None,
+            },
+            namespace=SOCKETIO_NAMESPACE_SYSTEM,
+            room="ml_updates",
+        )
+
         logger.warning(f"Broadcasted drift detected: {model_name}")
     except Exception as e:
         logger.error(f"Error broadcasting drift detection: {e}")
@@ -266,12 +273,13 @@ def broadcast_drift_detected(model_name, drift_metrics):
 def broadcast_retraining_scheduled(model_name, scheduled_time):
     """Broadcast retraining schedule event"""
     try:
-        socketio.emit('retraining_scheduled', {
-            'model_name': model_name,
-            'scheduled_time': scheduled_time,
-            'timestamp': None
-        }, namespace=SOCKETIO_NAMESPACE_SYSTEM, room='ml_updates')
-        
+        socketio.emit(
+            "retraining_scheduled",
+            {"model_name": model_name, "scheduled_time": scheduled_time, "timestamp": None},
+            namespace=SOCKETIO_NAMESPACE_SYSTEM,
+            room="ml_updates",
+        )
+
         logger.info(f"Broadcasted retraining scheduled: {model_name} at {scheduled_time}")
     except Exception as e:
         logger.error(f"Error broadcasting retraining schedule: {e}")
@@ -280,12 +288,13 @@ def broadcast_retraining_scheduled(model_name, scheduled_time):
 def broadcast_model_activated(model_name, version):
     """Broadcast model activation event"""
     try:
-        socketio.emit('model_activated', {
-            'model_name': model_name,
-            'version': version,
-            'timestamp': None
-        }, namespace=SOCKETIO_NAMESPACE_SYSTEM, room='ml_updates')
-        
+        socketio.emit(
+            "model_activated",
+            {"model_name": model_name, "version": version, "timestamp": None},
+            namespace=SOCKETIO_NAMESPACE_SYSTEM,
+            room="ml_updates",
+        )
+
         logger.info(f"Broadcasted model activated: {model_name} v{version}")
     except Exception as e:
         logger.error(f"Error broadcasting model activation: {e}")

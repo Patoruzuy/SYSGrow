@@ -3,23 +3,30 @@ Actuator CRUD Operations
 Handles creating, reading, and deleting actuators.
 """
 
+import logging
+
 from flask import request
 from pydantic import ValidationError
-import logging
+
+from app.schemas import CreateActuatorRequest
+
+from app.utils.http import safe_error
 
 from ...devices import devices_api
 from ..utils import (
-    _growth_service,
     _actuator_service,  # Direct hardware service access
-    _success, _fail, _actuator_to_response
+    _actuator_to_response,
+    _fail,
+    _growth_service,
+    _success,
 )
-from app.schemas import CreateActuatorRequest
 
 logger = logging.getLogger(__name__)
 
 # ======================== ACTUATOR CRUD ========================
 
-@devices_api.get('/v2/actuators')
+
+@devices_api.get("/v2/actuators")
 def get_all_actuators_():
     """
     Endpoint returning ActuatorResponse objects for all actuators.
@@ -32,10 +39,10 @@ def get_all_actuators_():
 
         return _success([a.model_dump() for a in typed])
     except Exception as e:
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
-@devices_api.get('/v2/actuators/unit/<int:unit_id>')
+@devices_api.get("/v2/actuators/unit/<int:unit_id>")
 def get_actuators_for_unit(unit_id: int):
     """Endpoint returning actuators for a specific unit."""
     try:
@@ -44,10 +51,10 @@ def get_actuators_for_unit(unit_id: int):
         typed = [_actuator_to_response(actuator) for actuator in actuators]
         return _success([a.model_dump() for a in typed])
     except Exception as e:
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
-@devices_api.post('/v2/actuators')
+@devices_api.post("/v2/actuators")
 def add_actuator_v2():
     """
     Typed actuator creation endpoint using CreateActuatorRequest.
@@ -94,41 +101,43 @@ def add_actuator_v2():
             201,
         )
     except ValueError as e:
-        return _fail(str(e), 400)
+        return safe_error(e, 400)
     except Exception as e:
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
-@devices_api.delete('/v2/actuators/<int:actuator_id>')
+@devices_api.delete("/v2/actuators/<int:actuator_id>")
 def remove_actuator(actuator_id: int):
     """
     Remove an actuator.
-    
+
     Query params:
         remove_from_zigbee: If true, also remove from Zigbee network (default: false)
     """
     try:
         from flask import request
-        remove_from_zigbee = request.args.get('remove_from_zigbee', 'false').lower() == 'true'
+
+        remove_from_zigbee = request.args.get("remove_from_zigbee", "false").lower() == "true"
         actuator_svc = _actuator_service()
         actuator_svc.delete_actuator(actuator_id, remove_from_zigbee=remove_from_zigbee)
         return _success({"actuator_id": actuator_id, "message": "Actuator removed"})
     except Exception as e:
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
 # ======================== DEVICE OPERATIONS ========================
 
-@devices_api.post('/v2/actuators/<int:actuator_id>/identify')
+
+@devices_api.post("/v2/actuators/<int:actuator_id>/identify")
 def identify_actuator(actuator_id: int):
     """
     Trigger identification on an actuator (e.g., flash LED).
-    
+
     Works with Zigbee2MQTT and other actuators that support identification.
-    
+
     Query params:
         duration: int - Duration in seconds (default: 10)
-    
+
     Returns:
         {
             "actuator_id": 42,
@@ -137,33 +146,31 @@ def identify_actuator(actuator_id: int):
         }
     """
     try:
-        duration = request.args.get('duration', 10, type=int)
-        
+        duration = request.args.get("duration", 10, type=int)
+
         actuator_svc = _actuator_service()
         success = actuator_svc.identify_actuator(actuator_id, duration)
-        
+
         if success:
-            return _success({
-                "actuator_id": actuator_id,
-                "success": True,
-                "message": f"Identification triggered for {duration}s"
-            })
+            return _success(
+                {"actuator_id": actuator_id, "success": True, "message": f"Identification triggered for {duration}s"}
+            )
         else:
             return _fail(f"Actuator {actuator_id} does not support identification", 400)
-            
+
     except Exception as e:
         logger.error(f"Error identifying actuator {actuator_id}: {e}")
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
-@devices_api.get('/v2/actuators/<int:actuator_id>/device-info')
+@devices_api.get("/v2/actuators/<int:actuator_id>/device-info")
 def get_actuator_device_info(actuator_id: int):
     """
     Get device information for an actuator.
-    
+
     Returns hardware-level information including capabilities,
     protocol details, and network information.
-    
+
     Returns:
         {
             "actuator_id": 42,
@@ -177,30 +184,30 @@ def get_actuator_device_info(actuator_id: int):
     try:
         actuator_svc = _actuator_service()
         info = actuator_svc.get_actuator_device_info(actuator_id)
-        
+
         if info:
             return _success(info)
         else:
             return _fail(f"Actuator {actuator_id} not found or has no device info", 404)
-            
+
     except Exception as e:
         logger.error(f"Error getting device info for actuator {actuator_id}: {e}")
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
-@devices_api.post('/v2/actuators/<int:actuator_id>/rename')
+@devices_api.post("/v2/actuators/<int:actuator_id>/rename")
 def rename_actuator_device(actuator_id: int):
     """
     Rename actuator device on its network (e.g., Zigbee2MQTT).
-    
+
     This renames the device at the network level. The database name
     should be updated separately using the update actuator endpoint.
-    
+
     Request body:
         {
             "new_name": "kitchen_plug"
         }
-    
+
     Returns:
         {
             "actuator_id": 42,
@@ -210,45 +217,44 @@ def rename_actuator_device(actuator_id: int):
     """
     try:
         data = request.get_json() if request.is_json else {}
-        new_name = data.get('new_name')
-        
+        new_name = data.get("new_name")
+
         if not new_name:
             return _fail("new_name is required", 400)
-        
+
         # Validate name
-        if not new_name.replace('_', '').replace('-', '').isalnum():
-            return _fail(
-                "Device name can only contain letters, numbers, underscores and hyphens",
-                400
-            )
-        
+        if not new_name.replace("_", "").replace("-", "").isalnum():
+            return _fail("Device name can only contain letters, numbers, underscores and hyphens", 400)
+
         actuator_svc = _actuator_service()
         success = actuator_svc.rename_actuator_device(actuator_id, new_name)
-        
+
         if success:
-            return _success({
-                "actuator_id": actuator_id,
-                "new_name": new_name,
-                "success": True,
-                "message": "Device renamed on network"
-            })
+            return _success(
+                {
+                    "actuator_id": actuator_id,
+                    "new_name": new_name,
+                    "success": True,
+                    "message": "Device renamed on network",
+                }
+            )
         else:
             return _fail(f"Actuator {actuator_id} does not support rename", 400)
-            
+
     except Exception as e:
         logger.error(f"Error renaming actuator {actuator_id}: {e}")
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
-@devices_api.post('/v2/actuators/<int:actuator_id>/remove-from-network')
+@devices_api.post("/v2/actuators/<int:actuator_id>/remove-from-network")
 def remove_actuator_from_network(actuator_id: int):
     """
     Remove actuator device from its network (e.g., Zigbee network).
-    
+
     This removes the device from the network level. The device will
     need to be re-paired to rejoin the network. This does NOT delete
     the actuator from the database.
-    
+
     Returns:
         {
             "actuator_id": 42,
@@ -259,33 +265,29 @@ def remove_actuator_from_network(actuator_id: int):
     try:
         actuator_svc = _actuator_service()
         success = actuator_svc.remove_actuator_from_network(actuator_id)
-        
+
         if success:
-            return _success({
-                "actuator_id": actuator_id,
-                "success": True,
-                "message": "Device removal initiated"
-            })
+            return _success({"actuator_id": actuator_id, "success": True, "message": "Device removal initiated"})
         else:
             return _fail(f"Actuator {actuator_id} does not support network removal", 400)
-            
+
     except Exception as e:
         logger.error(f"Error removing actuator {actuator_id} from network: {e}")
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
-@devices_api.post('/v2/actuators/<int:actuator_id>/command')
+@devices_api.post("/v2/actuators/<int:actuator_id>/command")
 def send_actuator_command(actuator_id: int):
     """
     Send a command to an actuator device.
-    
+
     This is a unified endpoint for sending protocol-specific commands
     to actuators. The adapter handles command translation.
-    
+
     Supported commands vary by adapter:
         - Zigbee2MQTT: state (on/off/toggle), brightness, color, identify
         - GPIO: state (on/off)
-    
+
     Request body:
         {
             "state": "on",           // Turn on/off/toggle
@@ -293,7 +295,7 @@ def send_actuator_command(actuator_id: int):
             "identify": 10,          // Flash LED for N seconds
             ...                      // Other protocol-specific params
         }
-    
+
     Returns:
         {
             "actuator_id": 42,
@@ -303,23 +305,20 @@ def send_actuator_command(actuator_id: int):
     """
     try:
         from flask import request
+
         data = request.get_json() if request.is_json else {}
-        
+
         if not data:
             return _fail("Request body is required", 400)
-        
+
         actuator_svc = _actuator_service()
         success = actuator_svc.send_command(actuator_id, data)
-        
+
         if success:
-            return _success({
-                "actuator_id": actuator_id,
-                "success": True,
-                "message": "Command sent successfully"
-            })
+            return _success({"actuator_id": actuator_id, "success": True, "message": "Command sent successfully"})
         else:
             return _fail(f"Actuator {actuator_id} does not support commands", 400)
-            
+
     except Exception as e:
         logger.error(f"Error sending command to actuator {actuator_id}: {e}")
-        return _fail(str(e), 500)
+        return safe_error(e, 500)

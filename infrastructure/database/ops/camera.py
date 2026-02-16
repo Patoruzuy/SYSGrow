@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import sqlite3
-from typing import Any, Dict, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 class CameraOperations:
     """Camera (per-unit) database operations."""
 
-    def get_unit_camera_config(self, unit_id: int) -> Optional[Dict[str, Any]]:
+    def get_unit_camera_config(self, unit_id: int) -> dict[str, Any] | None:
         """Return per-unit camera config row or None."""
         try:
             db = self.get_db()
@@ -40,18 +40,18 @@ class CameraOperations:
         *,
         unit_id: int,
         camera_type: str,
-        ip_address: Optional[str] = None,
-        port: Optional[int] = None,
-        device_index: Optional[int] = None,
-        resolution: Optional[str] = None,
-        stream_url: Optional[str] = None,
-        username: Optional[str] = None,
-        password: Optional[str] = None,
-        quality: Optional[int] = None,
-        brightness: Optional[int] = None,
-        contrast: Optional[int] = None,
-        saturation: Optional[int] = None,
-        flip: Optional[int] = None,
+        ip_address: str | None = None,
+        port: int | None = None,
+        device_index: int | None = None,
+        resolution: str | None = None,
+        stream_url: str | None = None,
+        username: str | None = None,
+        password: str | None = None,
+        quality: int | None = None,
+        brightness: int | None = None,
+        contrast: int | None = None,
+        saturation: int | None = None,
+        flip: int | None = None,
     ) -> bool:
         """
         Insert or update per-unit camera config.
@@ -165,4 +165,3 @@ class CameraOperations:
                 exc_info=True,
             )
             return False
-

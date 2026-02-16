@@ -8,10 +8,11 @@ Extracted from UserAuthManager to keep SQL in the infrastructure layer.
 Author: SYSGrow Team
 Date: February 2026
 """
+
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +46,7 @@ class AuthRepository:
             logger.error("create_user failed: %s", e)
             return False
 
-    def get_user_auth_by_username(self, username: str) -> Optional[Dict[str, Any]]:
+    def get_user_auth_by_username(self, username: str) -> dict[str, Any] | None:
         """Return ``{id, username, password_hash, email}`` or *None*."""
         try:
             with self._backend.connection() as db:
@@ -67,7 +68,7 @@ class AuthRepository:
             logger.error("get_user_auth_by_username failed: %s", e)
             return None
 
-    def get_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+    def get_user_by_email(self, email: str) -> dict[str, Any] | None:
         """Return ``{id, username, email}`` or *None*."""
         try:
             with self._backend.connection() as db:
@@ -83,7 +84,7 @@ class AuthRepository:
             logger.error("get_user_by_email failed: %s", e)
             return None
 
-    def get_user_by_username_with_email(self, username: str) -> Optional[Dict[str, Any]]:
+    def get_user_by_username_with_email(self, username: str) -> dict[str, Any] | None:
         """Return ``{id, username, email}`` or *None*."""
         try:
             with self._backend.connection() as db:
@@ -99,7 +100,7 @@ class AuthRepository:
             logger.error("get_user_by_username_with_email failed: %s", e)
             return None
 
-    def get_user_by_id(self, user_id: int) -> Optional[Dict[str, Any]]:
+    def get_user_by_id(self, user_id: int) -> dict[str, Any] | None:
         """Return ``{id, username, email}`` or *None*."""
         try:
             with self._backend.connection() as db:
@@ -156,7 +157,10 @@ class AuthRepository:
     # ------------------------------------------------------------------
 
     def create_reset_token(
-        self, user_id: int, token_hash: str, expires_at_iso: str,
+        self,
+        user_id: int,
+        token_hash: str,
+        expires_at_iso: str,
     ) -> bool:
         """Delete existing tokens for *user_id* and insert a new one."""
         try:
@@ -182,7 +186,7 @@ class AuthRepository:
             logger.error("create_reset_token failed: %s", e)
             return False
 
-    def find_reset_token(self, token_hash: str) -> Optional[Dict[str, Any]]:
+    def find_reset_token(self, token_hash: str) -> dict[str, Any] | None:
         """Return token row joined with Users, or *None*."""
         try:
             with self._backend.connection() as db:
@@ -305,7 +309,10 @@ class AuthRepository:
     # ------------------------------------------------------------------
 
     def replace_recovery_codes(
-        self, user_id: int, code_hashes: List[str], created_at_iso: str,
+        self,
+        user_id: int,
+        code_hashes: list[str],
+        created_at_iso: str,
     ) -> bool:
         """Delete old codes and insert fresh ones.  Returns *True* on success."""
         try:
@@ -333,8 +340,10 @@ class AuthRepository:
             return False
 
     def find_unused_recovery_code(
-        self, user_id: int, code_hash: str,
-    ) -> Optional[int]:
+        self,
+        user_id: int,
+        code_hash: str,
+    ) -> int | None:
         """Return the ``code_id`` if valid & unused, else *None*."""
         try:
             with self._backend.connection() as db:

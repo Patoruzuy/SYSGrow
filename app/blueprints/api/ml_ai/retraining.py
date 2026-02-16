@@ -5,16 +5,17 @@ Endpoints for managing automated model retraining.
 """
 
 import logging
+
 from flask import Blueprint, request
 from pydantic import ValidationError
-from app.services.ai import RetrainingTrigger
-from app.schemas import RetrainingJobRequest
 
 from app.blueprints.api._common import (
+    fail as _fail,
     get_container as _container,
     success as _success,
-    fail as _fail,
 )
+from app.schemas import RetrainingJobRequest
+from app.services.ai import RetrainingTrigger
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +27,7 @@ def _get_retraining_service():
     container = _container()
     if not container:
         return None
-    return getattr(container, 'automated_retraining', None)
+    return getattr(container, "automated_retraining", None)
 
 
 @retraining_bp.route("/jobs", methods=["GET"])
@@ -36,20 +37,15 @@ def get_jobs():
         retraining_service = _get_retraining_service()
 
         if not retraining_service:
-            return _success({
-                "jobs": [],
-                "message": "Automated retraining service is not enabled"
-            })
+            return _success({"jobs": [], "message": "Automated retraining service is not enabled"})
 
         jobs = retraining_service.get_jobs()
 
-        return _success({
-            "jobs": [job.to_dict() for job in jobs] if jobs else []
-        })
+        return _success({"jobs": [job.to_dict() for job in jobs] if jobs else []})
 
     except Exception as e:
         logger.error(f"Error getting retraining jobs: {e}", exc_info=True)
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
 @retraining_bp.route("/jobs", methods=["POST"])
@@ -81,17 +77,13 @@ def create_job():
             kwargs["schedule_day"] = body.schedule_day
         kwargs["enabled"] = body.enabled
 
-        job = retraining_service.add_job(
-            model_type=body.model_type,
-            schedule_type=body.schedule_type.value,
-            **kwargs
-        )
+        job = retraining_service.add_job(model_type=body.model_type, schedule_type=body.schedule_type.value, **kwargs)
 
         return _success({"job": job.to_dict()}, 201)
 
     except Exception as e:
         logger.error(f"Error creating retraining job: {e}", exc_info=True)
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
 @retraining_bp.route("/jobs/<job_id>", methods=["DELETE"])
@@ -112,7 +104,7 @@ def delete_job(job_id: str):
 
     except Exception as e:
         logger.error(f"Error deleting retraining job: {e}", exc_info=True)
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
 @retraining_bp.route("/jobs/<job_id>/enable", methods=["POST"])
@@ -133,7 +125,7 @@ def enable_job(job_id: str):
 
     except Exception as e:
         logger.error(f"Error enabling job: {e}", exc_info=True)
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
 @retraining_bp.route("/jobs/<job_id>/disable", methods=["POST"])
@@ -154,7 +146,7 @@ def disable_job(job_id: str):
 
     except Exception as e:
         logger.error(f"Error disabling job: {e}", exc_info=True)
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
 @retraining_bp.route("/jobs/<job_id>/run", methods=["POST"])
@@ -178,26 +170,26 @@ def run_job_now(job_id: str):
             return _fail(f"Job {job_id} not found", 404)
 
         # Trigger retraining for this job's model type
-        if hasattr(retraining_service, 'run_job_immediately'):
+        if hasattr(retraining_service, "run_job_immediately"):
             event = retraining_service.run_job_immediately(job_id)
         else:
             # Fallback: use trigger_retraining with the job's model type
-            event = retraining_service.trigger_retraining(
-                model_type=job.model_type,
-                trigger=RetrainingTrigger.MANUAL
-            )
+            event = retraining_service.trigger_retraining(model_type=job.model_type, trigger=RetrainingTrigger.MANUAL)
 
         if event:
-            return _success({
-                "message": f"Job {job_id} execution started",
-                "event": event.to_dict() if hasattr(event, 'to_dict') else {}
-            }, 202)
+            return _success(
+                {
+                    "message": f"Job {job_id} execution started",
+                    "event": event.to_dict() if hasattr(event, "to_dict") else {},
+                },
+                202,
+            )
         else:
             return _fail("Failed to start job execution", 500)
 
     except Exception as e:
         logger.error(f"Error running job {job_id}: {e}", exc_info=True)
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
 @retraining_bp.route("/jobs/<job_id>/pause", methods=["POST"])
@@ -209,7 +201,7 @@ def pause_job(job_id: str):
         if not retraining_service:
             return _fail("Automated retraining service is not enabled", 503)
 
-        if hasattr(retraining_service, 'pause_job'):
+        if hasattr(retraining_service, "pause_job"):
             success = retraining_service.pause_job(job_id)
         else:
             # Fallback: disable the job
@@ -222,7 +214,7 @@ def pause_job(job_id: str):
 
     except Exception as e:
         logger.error(f"Error pausing job {job_id}: {e}", exc_info=True)
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
 @retraining_bp.route("/jobs/<job_id>/resume", methods=["POST"])
@@ -234,7 +226,7 @@ def resume_job(job_id: str):
         if not retraining_service:
             return _fail("Automated retraining service is not enabled", 503)
 
-        if hasattr(retraining_service, 'resume_job'):
+        if hasattr(retraining_service, "resume_job"):
             success = retraining_service.resume_job(job_id)
         else:
             # Fallback: enable the job
@@ -247,7 +239,7 @@ def resume_job(job_id: str):
 
     except Exception as e:
         logger.error(f"Error resuming job {job_id}: {e}", exc_info=True)
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
 @retraining_bp.route("/trigger", methods=["POST"])
@@ -267,22 +259,22 @@ def trigger_retraining():
         if not model_type:
             return _fail("model_type or model_name is required", 400)
 
-        event = retraining_service.trigger_retraining(
-            model_type=model_type,
-            trigger=RetrainingTrigger.MANUAL
-        )
+        event = retraining_service.trigger_retraining(model_type=model_type, trigger=RetrainingTrigger.MANUAL)
 
         if event:
-            return _success({
-                "event": event.to_dict() if hasattr(event, 'to_dict') else {},
-                "version": event.new_version if hasattr(event, 'new_version') else None
-            }, 202)
+            return _success(
+                {
+                    "event": event.to_dict() if hasattr(event, "to_dict") else {},
+                    "version": event.new_version if hasattr(event, "new_version") else None,
+                },
+                202,
+            )
         else:
             return _fail("Failed to trigger retraining", 500)
 
     except Exception as e:
         logger.error(f"Error triggering retraining: {e}", exc_info=True)
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
 @retraining_bp.route("/events", methods=["GET"])
@@ -292,26 +284,18 @@ def get_events():
         retraining_service = _get_retraining_service()
 
         if not retraining_service:
-            return _success({
-                "events": [],
-                "message": "Automated retraining service is not enabled"
-            })
+            return _success({"events": [], "message": "Automated retraining service is not enabled"})
 
         model_type = request.args.get("model_type")
         limit = request.args.get("limit", default=100, type=int)
 
-        events = retraining_service.get_events(
-            model_type=model_type,
-            limit=limit
-        )
+        events = retraining_service.get_events(model_type=model_type, limit=limit)
 
-        return _success({
-            "events": [event.to_dict() for event in events] if events else []
-        })
+        return _success({"events": [event.to_dict() for event in events] if events else []})
 
     except Exception as e:
         logger.error(f"Error getting retraining events: {e}", exc_info=True)
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
 @retraining_bp.route("/scheduler/start", methods=["POST"])
@@ -329,7 +313,7 @@ def start_scheduler():
 
     except Exception as e:
         logger.error(f"Error starting scheduler: {e}", exc_info=True)
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
 @retraining_bp.route("/scheduler/stop", methods=["POST"])
@@ -347,7 +331,7 @@ def stop_scheduler():
 
     except Exception as e:
         logger.error(f"Error stopping scheduler: {e}", exc_info=True)
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
 @retraining_bp.route("/status", methods=["GET"])
@@ -357,16 +341,18 @@ def get_status():
         retraining_service = _get_retraining_service()
 
         if not retraining_service:
-            return _success({
-                "status": {
-                    "scheduler_running": False,
-                    "total_jobs": 0,
-                    "enabled_jobs": 0,
-                    "total_events": 0,
-                    "recent_failures": 0,
-                    "message": "Automated retraining service is not enabled"
+            return _success(
+                {
+                    "status": {
+                        "scheduler_running": False,
+                        "total_jobs": 0,
+                        "enabled_jobs": 0,
+                        "total_events": 0,
+                        "recent_failures": 0,
+                        "message": "Automated retraining service is not enabled",
+                    }
                 }
-            })
+            )
 
         status = retraining_service.get_status()
 
@@ -374,4 +360,4 @@ def get_status():
 
     except Exception as e:
         logger.error(f"Error getting retraining status: {e}", exc_info=True)
-        return _fail(str(e), 500)
+        return safe_error(e, 500)

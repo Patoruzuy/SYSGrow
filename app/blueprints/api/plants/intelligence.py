@@ -20,13 +20,13 @@ from datetime import datetime
 
 from flask import request
 
+from app.blueprints.api._common import (
+    fail as _fail,
+    success as _success,
+)
 from app.utils.time import iso_now
 
 from . import plants_api
-from app.blueprints.api._common import (
-    success as _success,
-    fail as _fail,
-)
 
 try:
     from integrations.smart_agriculture import SmartAgricultureManager
@@ -109,7 +109,9 @@ def get_watering_decision():
             except ValueError:
                 return handle_api_error("Invalid last_watered timestamp format")
 
-        result = agriculture_manager.get_watering_decision(plant_id=plant_id, moisture=moisture, last_watered=last_watered)
+        result = agriculture_manager.get_watering_decision(
+            plant_id=plant_id, moisture=moisture, last_watered=last_watered
+        )
 
         return _success({"decision": result, "timestamp": iso_now()})
 
@@ -400,4 +402,3 @@ def get_available_plants():
     except Exception as e:
         logger.error("Error getting available plants: %s", e, exc_info=True)
         return handle_api_error("Internal server error", 500)
-

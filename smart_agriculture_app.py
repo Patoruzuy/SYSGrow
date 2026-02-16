@@ -4,18 +4,16 @@ This module provides a minimal, robust CLI entrypoint used both in
 development and production. It prefers environment configuration and
 keeps startup behavior defensive (safe defaults, clear logging).
 """
+
 from __future__ import annotations
 
 import logging
 import os
-import sys
-import traceback
-from typing import Optional
 
 from app import create_app, socketio
 
 
-def build_app(secret: Optional[str] = None):
+def build_app(secret: str | None = None):
     """Create and return the Flask app.
 
     We call `create_app(bootstrap_runtime=True)` to ensure runtime

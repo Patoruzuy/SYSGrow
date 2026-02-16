@@ -29,7 +29,7 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from app.services.ai.llm_backends import LLMBackend
@@ -41,18 +41,19 @@ logger = logging.getLogger(__name__)
 # Data structures
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class DecisionQuery:
     """Everything the advisor needs to answer a grower's question."""
 
     question: str
-    unit_id: Optional[int] = None
-    plant_type: Optional[str] = None
-    growth_stage: Optional[str] = None
-    environmental_data: Optional[Dict[str, float]] = None
-    recent_symptoms: Optional[List[str]] = None
-    health_status: Optional[str] = None
-    additional_context: Optional[str] = None
+    unit_id: int | None = None
+    plant_type: str | None = None
+    growth_stage: str | None = None
+    environmental_data: dict[str, float] | None = None
+    recent_symptoms: list[str] | None = None
+    health_status: str | None = None
+    additional_context: str | None = None
 
 
 @dataclass
@@ -62,12 +63,12 @@ class DecisionResponse:
     answer: str
     confidence: float = 0.0
     reasoning: str = ""
-    suggested_actions: List[str] = field(default_factory=list)
+    suggested_actions: list[str] = field(default_factory=list)
     source: str = "llm"  # "llm" or "unavailable"
-    usage: Dict[str, int] = field(default_factory=dict)
+    usage: dict[str, int] = field(default_factory=dict)
     latency_ms: float = 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "answer": self.answer,
             "confidence": round(self.confidence, 2),
@@ -108,6 +109,7 @@ Respond ONLY with valid JSON. No markdown fences."""
 # Service
 # ---------------------------------------------------------------------------
 
+
 class LLMAdvisorService:
     """
     High-level advisory service for plant-care decisions.
@@ -128,7 +130,7 @@ class LLMAdvisorService:
 
     def __init__(
         self,
-        backend: Optional["LLMBackend"] = None,
+        backend: "LLMBackend" | None = None,
         max_tokens: int = 512,
         temperature: float = 0.3,
     ):
@@ -195,68 +197,70 @@ class LLMAdvisorService:
 
     def diagnose(
         self,
-        symptoms: List[str],
-        plant_type: Optional[str] = None,
-        environmental_data: Optional[Dict[str, float]] = None,
+        symptoms: list[str],
+        plant_type: str | None = None,
+        environmental_data: dict[str, float] | None = None,
     ) -> DecisionResponse:
         """
         Convenience: ask the LLM to diagnose plant symptoms.
         """
         symptom_text = ", ".join(symptoms) if symptoms else "none reported"
-        return self.ask(DecisionQuery(
-            question=(
-                f"Diagnose the following symptoms and suggest treatments: "
-                f"{symptom_text}"
-            ),
-            plant_type=plant_type,
-            recent_symptoms=symptoms,
-            environmental_data=environmental_data,
-        ))
+        return self.ask(
+            DecisionQuery(
+                question=(f"Diagnose the following symptoms and suggest treatments: {symptom_text}"),
+                plant_type=plant_type,
+                recent_symptoms=symptoms,
+                environmental_data=environmental_data,
+            )
+        )
 
     def should_irrigate(
         self,
-        plant_type: Optional[str] = None,
-        growth_stage: Optional[str] = None,
-        environmental_data: Optional[Dict[str, float]] = None,
-        additional_context: Optional[str] = None,
+        plant_type: str | None = None,
+        growth_stage: str | None = None,
+        environmental_data: dict[str, float] | None = None,
+        additional_context: str | None = None,
     ) -> DecisionResponse:
         """
         Convenience: ask whether the grower should irrigate now.
         """
-        return self.ask(DecisionQuery(
-            question="Based on the current sensor data, should I irrigate now?",
-            plant_type=plant_type,
-            growth_stage=growth_stage,
-            environmental_data=environmental_data,
-            additional_context=additional_context,
-        ))
+        return self.ask(
+            DecisionQuery(
+                question="Based on the current sensor data, should I irrigate now?",
+                plant_type=plant_type,
+                growth_stage=growth_stage,
+                environmental_data=environmental_data,
+                additional_context=additional_context,
+            )
+        )
 
     def care_plan(
         self,
         plant_type: str,
-        growth_stage: Optional[str] = None,
-        environmental_data: Optional[Dict[str, float]] = None,
-        health_status: Optional[str] = None,
+        growth_stage: str | None = None,
+        environmental_data: dict[str, float] | None = None,
+        health_status: str | None = None,
     ) -> DecisionResponse:
         """
         Convenience: generate a short-term care plan for a unit.
         """
-        return self.ask(DecisionQuery(
-            question=(
-                "Generate a concise 7-day care plan covering watering, "
-                "nutrition, and environment adjustments."
-            ),
-            plant_type=plant_type,
-            growth_stage=growth_stage,
-            environmental_data=environmental_data,
-            health_status=health_status,
-        ))
+        return self.ask(
+            DecisionQuery(
+                question=(
+                    "Generate a concise 7-day care plan covering watering, nutrition, and environment adjustments."
+                ),
+                plant_type=plant_type,
+                growth_stage=growth_stage,
+                environmental_data=environmental_data,
+                health_status=health_status,
+            )
+        )
 
     # -- internal -----------------------------------------------------------
 
     def _build_user_prompt(self, query: DecisionQuery) -> str:
         """Format a :class:`DecisionQuery` into a textual prompt."""
-        parts: List[str] = []
+        parts: list[str] = []
 
         if query.plant_type:
             stage = query.growth_stage or "unknown"
@@ -269,9 +273,7 @@ class LLMAdvisorService:
             parts.append(f"Symptoms: {', '.join(query.recent_symptoms)}")
 
         if query.environmental_data:
-            env_lines = [
-                f"  {k}: {v}" for k, v in query.environmental_data.items()
-            ]
+            env_lines = [f"  {k}: {v}" for k, v in query.environmental_data.items()]
             parts.append("Sensor data:\n" + "\n".join(env_lines))
 
         if query.additional_context:
@@ -287,10 +289,7 @@ class LLMAdvisorService:
         if cleaned.startswith("```"):
             lines = cleaned.split("\n")
             # Remove first and last fence lines
-            lines = [
-                ln for ln in lines
-                if not ln.strip().startswith("```")
-            ]
+            lines = [ln for ln in lines if not ln.strip().startswith("```")]
             cleaned = "\n".join(lines).strip()
 
         try:

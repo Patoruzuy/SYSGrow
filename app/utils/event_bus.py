@@ -6,19 +6,19 @@ Key invariants (enforced by call sites + tests):
   - Payloads are typed dataclasses / Pydantic models in app.schemas.events.
   - Subscribers always receive a plain dict payload.
 """
+
 import logging
-import os
 import threading
 import time
 from collections import defaultdict
 from dataclasses import asdict, is_dataclass
 from enum import Enum
 from queue import Full, Queue
-from typing import Any, Callable, Dict, Hashable, Iterable, Optional
+from typing import Any, Callable, Hashable, Iterable, Optional
 
-from app.config import load_config
 from pydantic import BaseModel
 
+from app.config import load_config
 from app.enums.events import EventType
 
 # Drop warning configuration
@@ -40,14 +40,14 @@ class EventBus:
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:
-                    instance = super(EventBus, cls).__new__(cls)
+                    instance = super().__new__(cls)
                     instance.subscribers = defaultdict(list)
                     instance._queue_size = load_config().eventbus_queue_size
                     instance._queue = Queue(maxsize=instance._queue_size)
                     instance._worker_pool_size = load_config().eventbus_worker_count
                     instance._workers_started = False
                     instance._dropped_events = 0
-                    instance._drops_by_event: Dict[str, int] = defaultdict(int)
+                    instance._drops_by_event: dict[str, int] = defaultdict(int)
                     instance._drops_since_last_warning = 0
                     instance._last_drop_warning_time = 0.0
                     cls._instance = instance
@@ -58,7 +58,7 @@ class EventBus:
         Initializes the EventBus if not already initialized.
         """
         if not hasattr(self, "subscribers"):
-            self.subscribers: Dict[Hashable, list[Callable[[Any], None]]] = defaultdict(list)
+            self.subscribers: dict[Hashable, list[Callable[[Any], None]]] = defaultdict(list)
         self.lock = threading.Lock()
         if not getattr(self, "_workers_started", False):
             self._start_workers()
@@ -158,9 +158,7 @@ class EventBus:
 
         if should_warn:
             # Build summary of top dropped events
-            top_drops = sorted(
-                self._drops_by_event.items(), key=lambda x: x[1], reverse=True
-            )[:5]
+            top_drops = sorted(self._drops_by_event.items(), key=lambda x: x[1], reverse=True)[:5]
             top_drops_str = ", ".join(f"{k}:{v}" for k, v in top_drops)
 
             logging.warning(
@@ -189,7 +187,7 @@ class EventBus:
 
         return decorator
 
-    def get_metrics(self) -> Dict[str, Any]:
+    def get_metrics(self) -> dict[str, Any]:
         """Return lightweight metrics for health endpoints/logging."""
         try:
             queue_depth = self._queue.qsize()
@@ -198,9 +196,7 @@ class EventBus:
 
         # Get top 5 dropped event types for diagnostics
         drops_by_event = getattr(self, "_drops_by_event", {})
-        top_dropped = dict(
-            sorted(drops_by_event.items(), key=lambda x: x[1], reverse=True)[:5]
-        )
+        top_dropped = dict(sorted(drops_by_event.items(), key=lambda x: x[1], reverse=True)[:5])
 
         return {
             "queue_depth": queue_depth,

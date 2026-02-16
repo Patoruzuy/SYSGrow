@@ -10,12 +10,13 @@ Provides:
 """
 
 import logging
-from flask import Blueprint, jsonify, request, session
+
+from flask import Blueprint, session
 
 from app.blueprints.api._common import (
+    fail as _fail,
     get_container as _container,
     success as _success,
-    fail as _fail,
 )
 
 logger = logging.getLogger(__name__)
@@ -27,9 +28,9 @@ readiness_bp = Blueprint("ml_readiness", __name__, url_prefix="/api/ml/readiness
 def get_irrigation_readiness(unit_id: int):
     """
     Get ML readiness status for irrigation models.
-    
+
     Returns progress toward model activation thresholds.
-    
+
     Response:
     {
         "ok": true,
@@ -58,36 +59,36 @@ def get_irrigation_readiness(unit_id: int):
     """
     try:
         container = _container()
-        
+
         # Get or create ML readiness monitor
-        ml_monitor = getattr(container, 'ml_readiness_monitor', None)
+        ml_monitor = getattr(container, "ml_readiness_monitor", None)
         if not ml_monitor:
             # Create on-the-fly if not in container
             from app.services.ai.ml_readiness_monitor import MLReadinessMonitorService
             from infrastructure.database.repositories.irrigation_ml import IrrigationMLRepository
-            
+
             ml_repo = IrrigationMLRepository(container.database)
             ml_monitor = MLReadinessMonitorService(
                 irrigation_ml_repo=ml_repo,
                 notifications_service=container.notifications_service,
             )
-        
+
         readiness = ml_monitor.check_irrigation_readiness(unit_id)
         return _success(readiness.to_dict())
-        
+
     except Exception as e:
         logger.error(f"Error checking irrigation readiness: {e}", exc_info=True)
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
 @readiness_bp.post("/irrigation/<int:unit_id>/activate/<string:model_name>")
 def activate_model(unit_id: int, model_name: str):
     """
     Activate an ML model for a unit.
-    
+
     Called when user approves model activation from notification
     or settings page.
-    
+
     Response:
     {
         "ok": true,
@@ -100,44 +101,46 @@ def activate_model(unit_id: int, model_name: str):
     """
     try:
         container = _container()
-        
+
         user_id = session.get("user_id")
         if not user_id:
             return _fail("User not authenticated", 401)
-        
+
         # Get or create ML readiness monitor
-        ml_monitor = getattr(container, 'ml_readiness_monitor', None)
+        ml_monitor = getattr(container, "ml_readiness_monitor", None)
         if not ml_monitor:
             from app.services.ai.ml_readiness_monitor import MLReadinessMonitorService
             from infrastructure.database.repositories.irrigation_ml import IrrigationMLRepository
-            
+
             ml_repo = IrrigationMLRepository(container.database)
             ml_monitor = MLReadinessMonitorService(
                 irrigation_ml_repo=ml_repo,
                 notifications_service=container.notifications_service,
             )
-        
+
         success = ml_monitor.activate_model(user_id, unit_id, model_name)
-        
+
         if success:
-            return _success({
-                "activated": True,
-                "model_name": model_name,
-                "unit_id": unit_id,
-            })
+            return _success(
+                {
+                    "activated": True,
+                    "model_name": model_name,
+                    "unit_id": unit_id,
+                }
+            )
         else:
             return _fail(f"Failed to activate model: {model_name}", 400)
-        
+
     except Exception as e:
         logger.error(f"Error activating model: {e}", exc_info=True)
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
 @readiness_bp.post("/irrigation/<int:unit_id>/deactivate/<string:model_name>")
 def deactivate_model(unit_id: int, model_name: str):
     """
     Deactivate an ML model for a unit.
-    
+
     Response:
     {
         "ok": true,
@@ -150,43 +153,45 @@ def deactivate_model(unit_id: int, model_name: str):
     """
     try:
         container = _container()
-        
+
         user_id = session.get("user_id")
         if not user_id:
             return _fail("User not authenticated", 401)
-        
-        ml_monitor = getattr(container, 'ml_readiness_monitor', None)
+
+        ml_monitor = getattr(container, "ml_readiness_monitor", None)
         if not ml_monitor:
             from app.services.ai.ml_readiness_monitor import MLReadinessMonitorService
             from infrastructure.database.repositories.irrigation_ml import IrrigationMLRepository
-            
+
             ml_repo = IrrigationMLRepository(container.database)
             ml_monitor = MLReadinessMonitorService(
                 irrigation_ml_repo=ml_repo,
                 notifications_service=container.notifications_service,
             )
-        
+
         success = ml_monitor.deactivate_model(user_id, unit_id, model_name)
-        
+
         if success:
-            return _success({
-                "deactivated": True,
-                "model_name": model_name,
-                "unit_id": unit_id,
-            })
+            return _success(
+                {
+                    "deactivated": True,
+                    "model_name": model_name,
+                    "unit_id": unit_id,
+                }
+            )
         else:
             return _fail(f"Failed to deactivate model: {model_name}", 400)
-        
+
     except Exception as e:
         logger.error(f"Error deactivating model: {e}", exc_info=True)
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
 @readiness_bp.get("/irrigation/<int:unit_id>/status")
 def get_activation_status(unit_id: int):
     """
     Get activation status of all ML models for a unit.
-    
+
     Response:
     {
         "ok": true,
@@ -200,34 +205,34 @@ def get_activation_status(unit_id: int):
     """
     try:
         container = _container()
-        
-        ml_monitor = getattr(container, 'ml_readiness_monitor', None)
+
+        ml_monitor = getattr(container, "ml_readiness_monitor", None)
         if not ml_monitor:
             from app.services.ai.ml_readiness_monitor import MLReadinessMonitorService
             from infrastructure.database.repositories.irrigation_ml import IrrigationMLRepository
-            
+
             ml_repo = IrrigationMLRepository(container.database)
             ml_monitor = MLReadinessMonitorService(
                 irrigation_ml_repo=ml_repo,
                 notifications_service=container.notifications_service,
             )
-        
+
         status = ml_monitor.get_activation_status(unit_id)
         return _success(status)
-        
+
     except Exception as e:
         logger.error(f"Error getting activation status: {e}", exc_info=True)
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
 @readiness_bp.post("/check-all")
 def check_all_units():
     """
     Manually trigger ML readiness check for all units.
-    
+
     This is normally run as a scheduled task, but can be
     triggered manually for testing.
-    
+
     Response:
     {
         "ok": true,
@@ -242,25 +247,27 @@ def check_all_units():
     """
     try:
         container = _container()
-        
-        ml_monitor = getattr(container, 'ml_readiness_monitor', None)
+
+        ml_monitor = getattr(container, "ml_readiness_monitor", None)
         if not ml_monitor:
             from app.services.ai.ml_readiness_monitor import MLReadinessMonitorService
             from infrastructure.database.repositories.irrigation_ml import IrrigationMLRepository
-            
+
             ml_repo = IrrigationMLRepository(container.database)
             ml_monitor = MLReadinessMonitorService(
                 irrigation_ml_repo=ml_repo,
                 notifications_service=container.notifications_service,
             )
-        
+
         results = ml_monitor.check_all_units()
-        
-        return _success({
-            "units_checked": len(results),
-            "notifications_sent": results,
-        })
-        
+
+        return _success(
+            {
+                "units_checked": len(results),
+                "notifications_sent": results,
+            }
+        )
+
     except Exception as e:
         logger.error(f"Error checking all units: {e}", exc_info=True)
-        return _fail(str(e), 500)
+        return safe_error(e, 500)

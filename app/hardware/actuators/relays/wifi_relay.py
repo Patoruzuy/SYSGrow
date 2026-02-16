@@ -1,11 +1,13 @@
-import os
-import requests
 import logging
+import os
 from logging.handlers import RotatingFileHandler
+
+import requests
+
 from app.enums.events import DeviceEvent
-from app.schemas.events import RelayStatePayload, ConnectivityStatePayload
-from datetime import datetime
+from app.schemas.events import ConnectivityStatePayload, RelayStatePayload
 from app.utils.time import iso_now
+
 from .relay_base import RelayBase
 
 # Module-level logger with rotation (prevents unbounded log file growth)
@@ -16,12 +18,13 @@ if not logger.handlers:
         "logs/devices.log",
         maxBytes=10 * 1024 * 1024,  # 10MB
         backupCount=3,
-        encoding="utf-8"
+        encoding="utf-8",
     )
     _handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
     logger.addHandler(_handler)
     logger.setLevel(logging.INFO)
     logger.propagate = False  # Don't duplicate to root logger
+
 
 class WiFiRelay(RelayBase):
     """
@@ -30,7 +33,7 @@ class WiFiRelay(RelayBase):
     Attributes:
         device (str): The name of the controlled device.
         ip (str): The IP address of the relay module.
-    
+
     Methods:
         turn_on(): Sends an HTTP request to turn on the relay.
         turn_off(): Sends an HTTP request to turn off the relay.
@@ -112,4 +115,4 @@ class WiFiRelay(RelayBase):
                 )
             except Exception:
                 pass
-            raise Exception(f"Error controlling relay at {url}: {e}") from e  
+            raise Exception(f"Error controlling relay at {url}: {e}") from e

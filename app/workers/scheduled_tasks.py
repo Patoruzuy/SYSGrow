@@ -22,32 +22,35 @@ Celery Migration:
 Author: SYSGrow Team
 Date: December 2024
 """
+
 from __future__ import annotations
 
 import logging
 import threading
-from datetime import datetime, date
-from zoneinfo import ZoneInfo
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import date, datetime
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any
+from zoneinfo import ZoneInfo
+
 from app.enums import ScheduleState
 
 if TYPE_CHECKING:
-    from app.workers.unified_scheduler import UnifiedScheduler
     from app.services.container import ServiceContainer
+    from app.workers.unified_scheduler import UnifiedScheduler
 
 logger = logging.getLogger(__name__)
 
 from app.utils.persistent_store import load_growth_last_runs, save_growth_last_runs
 
 # Per-unit locks to prevent concurrent growth runs for the same unit (in-process)
-_unit_locks: Dict[int, threading.Lock] = {}
+_unit_locks: dict[int, threading.Lock] = {}
 
 
 # ==================== Plant Namespace Tasks ====================
 
-def plant_grow_task(container: "ServiceContainer") -> Dict[str, Any]:
+
+def plant_grow_task(container: "ServiceContainer") -> dict[str, Any]:
     """
     Notify plant growth observers to advance plant growth.
 
@@ -65,7 +68,7 @@ def plant_grow_task(container: "ServiceContainer") -> Dict[str, Any]:
         "plants_processed": 0,
         "errors": [],
     }
-    #TODO: Consider batching updates for large numbers of plants, if performance becomes an issue.
+    # TODO: Consider batching updates for large numbers of plants, if performance becomes an issue.
     # This could involve bulk DB updates or queuing stage transitions. Record the date of last growth run. So,
     # only plants that haven't been processed today are updated.
     try:
@@ -121,7 +124,9 @@ def plant_grow_task(container: "ServiceContainer") -> Dict[str, Any]:
 
                         if workers and workers > 1:
                             futures = []
-                            with ThreadPoolExecutor(max_workers=workers, thread_name_prefix=f"grow_unit_{unit_id}") as ex:
+                            with ThreadPoolExecutor(
+                                max_workers=workers, thread_name_prefix=f"grow_unit_{unit_id}"
+                            ) as ex:
                                 for plant in plants:
                                     futures.append(ex.submit(_process_plant, plant))
 
@@ -146,10 +151,10 @@ def plant_grow_task(container: "ServiceContainer") -> Dict[str, Any]:
                                         f"Stage '{plant.current_stage}' - Day {plant.days_in_stage} (advanced {days_to_advance} day(s))"
                                     )
                                 except Exception as e:
-                                    results["errors"].append(f"Plant {plant.id}: {str(e)}")
+                                    results["errors"].append(f"Plant {plant.id}: {e!s}")
                                     logger.error(f"Error growing plant {plant.id}: {e}")
                     except Exception as e:
-                        results["errors"].append(f"Unit {unit_id} plant processing error: {str(e)}")
+                        results["errors"].append(f"Unit {unit_id} plant processing error: {e!s}")
                         logger.error(f"Error processing plants for unit {unit_id}: {e}")
 
                     # Persist last run date for this unit so restarts can detect missed days
@@ -157,7 +162,7 @@ def plant_grow_task(container: "ServiceContainer") -> Dict[str, Any]:
                     save_growth_last_runs(last_runs)
 
             except Exception as e:
-                results["errors"].append(f"Unit {unit_id}: {str(e)}")
+                results["errors"].append(f"Unit {unit_id}: {e!s}")
                 logger.error(f"Error processing unit {unit_id}: {e}")
 
         logger.info(f"Plant growth task complete: {results['plants_processed']} plants processed")
@@ -169,7 +174,7 @@ def plant_grow_task(container: "ServiceContainer") -> Dict[str, Any]:
     return results
 
 
-def plant_health_check_task(container: "ServiceContainer") -> Dict[str, Any]:
+def plant_health_check_task(container: "ServiceContainer") -> dict[str, Any]:
     """
     Run ML-based health analysis on all plants.
 
@@ -237,16 +242,15 @@ def plant_health_check_task(container: "ServiceContainer") -> Dict[str, Any]:
                             logger.debug(f"Health check for plant {plant.plant_name}: {status}")
 
                     except Exception as e:
-                        results["errors"].append(f"Plant {plant.id}: {str(e)}")
+                        results["errors"].append(f"Plant {plant.id}: {e!s}")
                         logger.error(f"Failed to check health for plant {plant.id}: {e}")
 
             except Exception as e:
-                results["errors"].append(f"Unit {unit_id}: {str(e)}")
+                results["errors"].append(f"Unit {unit_id}: {e!s}")
                 logger.error(f"Failed to check plants in unit {unit_id}: {e}")
 
         logger.info(
-            f"Plant health check complete: {results['plants_checked']} plants, "
-            f"{results['issues_found']} issues found"
+            f"Plant health check complete: {results['plants_checked']} plants, {results['issues_found']} issues found"
         )
 
     except Exception as e:
@@ -259,26 +263,26 @@ def plant_health_check_task(container: "ServiceContainer") -> Dict[str, Any]:
 # ==================== Actuator Namespace Tasks ====================
 
 # State tracking for schedule transitions (keyed by schedule_id)
-_schedule_last_state: Dict[int, bool] = {}
+_schedule_last_state: dict[int, bool] = {}
 # Effective actuator command state (keyed by actuator_id)
-_actuator_last_command: Dict[int, tuple[str, Optional[float]]] = {}
+_actuator_last_command: dict[int, tuple[str, float | None]] = {}
 # Last schedule that drove each actuator command
-_actuator_last_schedule: Dict[int, Optional[int]] = {}
+_actuator_last_schedule: dict[int, int | None] = {}
 
 
-def actuator_startup_sync_task(container: "ServiceContainer") -> Dict[str, Any]:
+def actuator_startup_sync_task(container: "ServiceContainer") -> dict[str, Any]:
     """
     Synchronize actuator states with active schedules at system startup.
-    
+
     This task runs once at startup to ensure actuators are in the correct
     state based on currently active schedules, rather than waiting for the
     next scheduled check.
-    
+
     Celery name: actuator.startup_sync
     """
     actuator_service = getattr(container, "actuator_management_service", None)
     growth_service = getattr(container, "growth_service", None)
-    
+
     global _actuator_last_command
     global _actuator_last_schedule
 
@@ -287,25 +291,23 @@ def actuator_startup_sync_task(container: "ServiceContainer") -> Dict[str, Any]:
         "actuators_synced": 0,
         "errors": [],
     }
-    
+
     if not actuator_service:
         return results
-    
+
     try:
         # ActuatorManagementService now contains scheduling_service directly
         scheduling_service = getattr(actuator_service, "scheduling_service", None)
         if not scheduling_service:
             return results
-        
+
         # Get all unit IDs
         unit_ids = _get_active_unit_ids(growth_service)
         if not unit_ids:
             return results
-        
+
         # Resolve per-unit timezones (if available)
-        unit_timezones = {
-            unit_id: _get_unit_timezone(growth_service, unit_id) for unit_id in unit_ids
-        }
+        unit_timezones = {unit_id: _get_unit_timezone(growth_service, unit_id) for unit_id in unit_ids}
 
         # Perform startup sync - actuator_service now has all manager methods
         sync_results = scheduling_service.sync_actuator_states_at_startup(
@@ -313,27 +315,27 @@ def actuator_startup_sync_task(container: "ServiceContainer") -> Dict[str, Any]:
             actuator_manager=actuator_service,
             unit_timezones=unit_timezones,
         )
-        
+
         # Initialize _schedule_last_state from service's execution state
         for schedule_id, was_active in scheduling_service._last_execution_state.items():
             _schedule_last_state[schedule_id] = was_active
         _actuator_last_command = {}
         _actuator_last_schedule = {}
-        
+
         results.update(sync_results)
         logger.info(
             f"Startup sync completed: {results['units_synced']} units, "
             f"{results['actuators_synced']} actuators synchronized"
         )
-        
+
     except Exception as e:
         logger.error(f"Startup sync failed: {e}", exc_info=True)
         results["errors"].append(str(e))
-    
+
     return results
 
 
-def actuator_schedule_check_task(container: "ServiceContainer") -> Dict[str, Any]:
+def actuator_schedule_check_task(container: "ServiceContainer") -> dict[str, Any]:
     """
     Check and execute actuator schedules from the centralized DeviceSchedules table.
 
@@ -391,9 +393,7 @@ def actuator_schedule_check_task(container: "ServiceContainer") -> Dict[str, Any
                 now = datetime.now(tz) if tz else datetime.now()
 
                 # Get enabled schedules for this unit
-                schedules = scheduling_service.get_schedules_for_unit(
-                    unit_id, enabled_only=True
-                )
+                schedules = scheduling_service.get_schedules_for_unit(unit_id, enabled_only=True)
 
                 if not schedules:
                     continue
@@ -402,9 +402,9 @@ def actuator_schedule_check_task(container: "ServiceContainer") -> Dict[str, Any
                 if any(s.device_type == "light" and s.photoperiod for s in schedules):
                     lux_reading = _get_lux_reading(analytics_service, unit_id)
 
-                schedule_by_id: Dict[int, Any] = {}
-                actuator_schedules: Dict[int, list] = {}
-                active_schedules_by_actuator: Dict[int, list] = {}
+                schedule_by_id: dict[int, Any] = {}
+                actuator_schedules: dict[int, list] = {}
+                active_schedules_by_actuator: dict[int, list] = {}
 
                 for schedule in schedules:
                     results["schedules_checked"] += 1
@@ -423,7 +423,7 @@ def actuator_schedule_check_task(container: "ServiceContainer") -> Dict[str, Any
                         )
                         was_active = scheduling_service.get_last_execution_state(schedule_key)
                         if was_active is None:
-                            was_active = _schedule_last_state.get(schedule_key, None)
+                            was_active = _schedule_last_state.get(schedule_key)
 
                         # Execution log for schedules without linked actuators
                         if not schedule.actuator_id:
@@ -462,7 +462,7 @@ def actuator_schedule_check_task(container: "ServiceContainer") -> Dict[str, Any
                     selected = scheduling_service.select_effective_schedule(active_for_actuator)
 
                     if selected is None:
-                        desired_command: tuple[str, Optional[float]] = ("off", None)
+                        desired_command: tuple[str, float | None] = ("off", None)
                     elif selected.value is not None:
                         desired_command = ("level", float(selected.value))
                     elif selected.state_when_active == ScheduleState.ON:
@@ -510,7 +510,7 @@ def actuator_schedule_check_task(container: "ServiceContainer") -> Dict[str, Any
                                 results["transitions"] += 1
                                 transition_ok = True
                             except Exception as e:
-                                results["errors"].append(f"Actuator {actuator_id} off: {str(e)}")
+                                results["errors"].append(f"Actuator {actuator_id} off: {e!s}")
                                 logger.error(
                                     "Failed to deactivate actuator %s without schedule context: %s",
                                     actuator_id,
@@ -560,7 +560,7 @@ def _get_active_unit_ids(growth_service) -> list:
         return []
 
 
-def _get_unit_timezone(growth_service, unit_id: int) -> Optional[str]:
+def _get_unit_timezone(growth_service, unit_id: int) -> str | None:
     """Resolve the timezone string for a unit (if configured)."""
     if not growth_service:
         return None
@@ -572,7 +572,7 @@ def _get_unit_timezone(growth_service, unit_id: int) -> Optional[str]:
         return None
 
 
-def _get_lux_reading(analytics_service, unit_id: int) -> Optional[float]:
+def _get_lux_reading(analytics_service, unit_id: int) -> float | None:
     """Get current lux reading for a unit from analytics service."""
     if not analytics_service:
         return None
@@ -610,14 +610,11 @@ def _handle_schedule_activation(
             if result.success:
                 results["transitions"] += 1
                 logger.info(
-                    f"Schedule {schedule.schedule_id} ({schedule.device_type}) activated "
-                    f"-> actuator {actuator_id}"
+                    f"Schedule {schedule.schedule_id} ({schedule.device_type}) activated -> actuator {actuator_id}"
                 )
                 return True
             else:
-                results["errors"].append(
-                    f"Actuator {actuator_id} on: {result.error_message}"
-                )
+                results["errors"].append(f"Actuator {actuator_id} on: {result.error_message}")
             return False
 
         if schedule.value is not None:
@@ -628,13 +625,10 @@ def _handle_schedule_activation(
             actuator_service.turn_off(actuator_id)
 
         results["transitions"] += 1
-        logger.info(
-            f"Schedule {schedule.schedule_id} ({schedule.device_type}) activated "
-            f"-> actuator {actuator_id}"
-        )
+        logger.info(f"Schedule {schedule.schedule_id} ({schedule.device_type}) activated -> actuator {actuator_id}")
         return True
     except Exception as e:
-        results["errors"].append(f"Actuator {actuator_id} on: {str(e)}")
+        results["errors"].append(f"Actuator {actuator_id} on: {e!s}")
         logger.error(f"Failed to activate schedule for actuator {actuator_id}: {e}")
         return False
 
@@ -662,27 +656,25 @@ def _handle_schedule_deactivation(
                 )
                 return True
             else:
-                results["errors"].append(
-                    f"Actuator {actuator_id} off: {result.error_message}"
-                )
+                results["errors"].append(f"Actuator {actuator_id} off: {result.error_message}")
             return False
 
         actuator_service.turn_off(actuator_id)
         results["transitions"] += 1
         logger.info(
-            f"Schedule {schedule.schedule_id} ({schedule.device_type}) deactivated "
-            f"-> actuator {actuator_id} OFF"
+            f"Schedule {schedule.schedule_id} ({schedule.device_type}) deactivated -> actuator {actuator_id} OFF"
         )
         return True
     except Exception as e:
-        results["errors"].append(f"Actuator {actuator_id} off: {str(e)}")
+        results["errors"].append(f"Actuator {actuator_id} off: {e!s}")
         logger.error(f"Failed to deactivate schedule for actuator {actuator_id}: {e}")
         return False
 
 
 # ==================== ML Namespace Tasks ====================
 
-def ml_drift_check_task(container: "ServiceContainer") -> Dict[str, Any]:
+
+def ml_drift_check_task(container: "ServiceContainer") -> dict[str, Any]:
     """
     Check for model drift and trigger retraining if needed.
 
@@ -713,7 +705,7 @@ def ml_drift_check_task(container: "ServiceContainer") -> Dict[str, Any]:
             results["drift_checks"] = len(retraining_service.jobs)
             results["retraining_triggered"] = len(drift_events)
         except Exception as e:
-            results["errors"].append(f"Drift check: {str(e)}")
+            results["errors"].append(f"Drift check: {e!s}")
             logger.error(f"Error checking drift triggers: {e}")
 
         # Check scheduled jobs
@@ -733,7 +725,7 @@ def ml_drift_check_task(container: "ServiceContainer") -> Dict[str, Any]:
                     )
                     results["scheduled_runs"] += 1
             except Exception as e:
-                results["errors"].append(f"Job {job.job_id}: {str(e)}")
+                results["errors"].append(f"Job {job.job_id}: {e!s}")
                 logger.error(f"Error triggering job {job.job_id}: {e}")
 
         if results["retraining_triggered"] > 0 or results["scheduled_runs"] > 0:
@@ -749,7 +741,7 @@ def ml_drift_check_task(container: "ServiceContainer") -> Dict[str, Any]:
     return results
 
 
-def ml_readiness_check_task(container: "ServiceContainer") -> Dict[str, Any]:
+def ml_readiness_check_task(container: "ServiceContainer") -> dict[str, Any]:
     """
     Check ML model readiness and notify users when models are ready.
 
@@ -770,31 +762,31 @@ def ml_readiness_check_task(container: "ServiceContainer") -> Dict[str, Any]:
     try:
         # Get or create ML readiness monitor
         ml_monitor = getattr(container, "ml_readiness_monitor", None)
-        
+
         if not ml_monitor:
             # Create on-the-fly if not in container
             from app.services.ai.ml_readiness_monitor import MLReadinessMonitorService
             from infrastructure.database.repositories.irrigation_ml import IrrigationMLRepository
-            
+
             database = getattr(container, "database", None)
             if not database:
                 return {"status": "database_not_available"}
-            
+
             notifications_service = getattr(container, "notifications_service", None)
             ml_repo = IrrigationMLRepository(database)
             ml_monitor = MLReadinessMonitorService(
                 irrigation_ml_repo=ml_repo,
                 notifications_service=notifications_service,
             )
-        
+
         # Check all units for ML readiness
         check_results = ml_monitor.check_all_units()
-        
+
         results["units_checked"] = len(check_results)
         for unit_id, models in check_results.items():
             results["notifications_sent"] += len(models)
             results["models_notified"][unit_id] = models
-        
+
         if results["notifications_sent"] > 0:
             logger.info(
                 f"ML readiness check: Sent {results['notifications_sent']} "
@@ -802,7 +794,7 @@ def ml_readiness_check_task(container: "ServiceContainer") -> Dict[str, Any]:
             )
         else:
             logger.debug("ML readiness check: No new models ready for activation")
-        
+
     except Exception as e:
         logger.error(f"ML readiness check failed: {e}", exc_info=True)
         results["errors"].append(str(e))
@@ -812,7 +804,8 @@ def ml_readiness_check_task(container: "ServiceContainer") -> Dict[str, Any]:
 
 # ==================== Plant Namespace Tasks (continued) ====================
 
-def plant_harvest_readiness_task(container: "ServiceContainer") -> Dict[str, Any]:
+
+def plant_harvest_readiness_task(container: "ServiceContainer") -> dict[str, Any]:
     """
     Check all plants for harvest readiness and send notifications.
 
@@ -884,12 +877,14 @@ def plant_harvest_readiness_task(container: "ServiceContainer") -> Dict[str, Any
                             harvest_weeks = default_periods.get(current_stage, 8)
 
                         # Calculate total days since planting
-                        total_days = sum([
-                            plant_dict.get("days_in_seedling") or 0,
-                            plant_dict.get("days_in_vegetative") or 0,
-                            plant_dict.get("days_in_flowering") or 0,
-                            plant_dict.get("days_in_fruiting") or 0,
-                        ])
+                        total_days = sum(
+                            [
+                                plant_dict.get("days_in_seedling") or 0,
+                                plant_dict.get("days_in_vegetative") or 0,
+                                plant_dict.get("days_in_flowering") or 0,
+                                plant_dict.get("days_in_fruiting") or 0,
+                            ]
+                        )
 
                         expected_harvest_days = harvest_weeks * 7
                         days_until_harvest = expected_harvest_days - total_days
@@ -909,7 +904,9 @@ def plant_harvest_readiness_task(container: "ServiceContainer") -> Dict[str, Any
                                     severity = "success"
                                 else:
                                     title = "Harvest Overdue"
-                                    message = f"{plant_name} is {abs(days_until_harvest)} days past optimal harvest time"
+                                    message = (
+                                        f"{plant_name} is {abs(days_until_harvest)} days past optimal harvest time"
+                                    )
                                     severity = "warning"
                                     results["overdue_plants"] += 1
 
@@ -930,11 +927,11 @@ def plant_harvest_readiness_task(container: "ServiceContainer") -> Dict[str, Any
                                     logger.warning(f"Failed to send harvest notification: {e}")
 
                     except Exception as e:
-                        results["errors"].append(f"Plant {plant_id}: {str(e)}")
+                        results["errors"].append(f"Plant {plant_id}: {e!s}")
                         logger.warning(f"Error checking harvest readiness for plant: {e}")
 
             except Exception as e:
-                results["errors"].append(f"Unit {unit_id}: {str(e)}")
+                results["errors"].append(f"Unit {unit_id}: {e!s}")
                 logger.warning(f"Error processing unit {unit_id}: {e}")
 
         if results["notifications_sent"] > 0:
@@ -952,7 +949,8 @@ def plant_harvest_readiness_task(container: "ServiceContainer") -> Dict[str, Any
 
 # ==================== Maintenance Namespace Tasks ====================
 
-def maintenance_aggregate_sensor_data_task(container: "ServiceContainer") -> Dict[str, Any]:
+
+def maintenance_aggregate_sensor_data_task(container: "ServiceContainer") -> dict[str, Any]:
     """
     Aggregate old sensor readings before they are pruned.
 
@@ -993,8 +991,7 @@ def maintenance_aggregate_sensor_data_task(container: "ServiceContainer") -> Dic
 
             if summaries > 0:
                 logger.info(
-                    f"Aggregated {summaries} sensor reading summaries "
-                    f"(data older than {aggregation_threshold} days)"
+                    f"Aggregated {summaries} sensor reading summaries (data older than {aggregation_threshold} days)"
                 )
             else:
                 logger.debug("No sensor readings needed aggregation")
@@ -1009,7 +1006,7 @@ def maintenance_aggregate_sensor_data_task(container: "ServiceContainer") -> Dic
     return results
 
 
-def maintenance_prune_state_history_task(container: "ServiceContainer") -> Dict[str, Any]:
+def maintenance_prune_state_history_task(container: "ServiceContainer") -> dict[str, Any]:
     """
     Prune old actuator state history entries.
 
@@ -1036,10 +1033,7 @@ def maintenance_prune_state_history_task(container: "ServiceContainer") -> Dict[
         if hasattr(device_repo, "prune_actuator_state_history"):
             deleted = device_repo.prune_actuator_state_history(results["prune_days"])
             results["deleted_rows"] = deleted or 0
-            logger.info(
-                f"Pruned {results['deleted_rows']} actuator state rows "
-                f"older than {results['prune_days']} days"
-            )
+            logger.info(f"Pruned {results['deleted_rows']} actuator state rows older than {results['prune_days']} days")
 
     except Exception as e:
         logger.error(f"State history prune failed: {e}", exc_info=True)
@@ -1048,7 +1042,7 @@ def maintenance_prune_state_history_task(container: "ServiceContainer") -> Dict[
     return results
 
 
-def maintenance_prune_old_data_task(container: "ServiceContainer") -> Dict[str, Any]:
+def maintenance_prune_old_data_task(container: "ServiceContainer") -> dict[str, Any]:
     """
     Prune old sensor readings and actuator state history to prevent database bloat.
 
@@ -1086,18 +1080,14 @@ def maintenance_prune_old_data_task(container: "ServiceContainer") -> Dict[str, 
             deleted = device_repo.prune_sensor_readings(sensor_retention_days)
             results["sensor_readings_deleted"] = deleted or 0
             if deleted:
-                logger.info(
-                    f"Pruned {deleted} sensor readings older than {sensor_retention_days} days"
-                )
+                logger.info(f"Pruned {deleted} sensor readings older than {sensor_retention_days} days")
 
         # Prune actuator state history
         if hasattr(device_repo, "prune_actuator_state_history"):
             deleted = device_repo.prune_actuator_state_history(actuator_retention_days)
             results["actuator_states_deleted"] = deleted or 0
             if deleted:
-                logger.info(
-                    f"Pruned {deleted} actuator state records older than {actuator_retention_days} days"
-                )
+                logger.info(f"Pruned {deleted} actuator state records older than {actuator_retention_days} days")
 
         # Note: VACUUM now runs as a separate scheduled task (maintenance.vacuum_database)
         # at 04:00 on Sundays to reclaim disk space after pruning
@@ -1116,7 +1106,7 @@ def maintenance_prune_old_data_task(container: "ServiceContainer") -> Dict[str, 
     return results
 
 
-def maintenance_purge_old_alerts_task(container: "ServiceContainer") -> Dict[str, Any]:
+def maintenance_purge_old_alerts_task(container: "ServiceContainer") -> dict[str, Any]:
     """
     Purge old alerts from the database.
 
@@ -1153,7 +1143,7 @@ def maintenance_purge_old_alerts_task(container: "ServiceContainer") -> Dict[str
     return results
 
 
-def maintenance_vacuum_database_task(container: "ServiceContainer") -> Dict[str, Any]:
+def maintenance_vacuum_database_task(container: "ServiceContainer") -> dict[str, Any]:
     """
     Run SQLite VACUUM to reclaim disk space after data pruning.
 
@@ -1177,6 +1167,7 @@ def maintenance_vacuum_database_task(container: "ServiceContainer") -> Dict[str,
 
     try:
         import os
+
         database = getattr(container, "database", None)
         config = getattr(container, "config", None)
 
@@ -1203,7 +1194,7 @@ def maintenance_vacuum_database_task(container: "ServiceContainer") -> Dict[str,
             results["vacuum_run"] = True
             logger.info("Database VACUUM completed successfully")
         except Exception as e:
-            results["errors"].append(f"vacuum_failed: {str(e)}")
+            results["errors"].append(f"vacuum_failed: {e!s}")
             logger.error(f"VACUUM failed: {e}")
             return results
 
@@ -1212,9 +1203,7 @@ def maintenance_vacuum_database_task(container: "ServiceContainer") -> Dict[str,
             if os.path.exists(db_path):
                 results["db_size_after_mb"] = round(os.path.getsize(db_path) / (1024 * 1024), 2)
                 if results["db_size_before_mb"] is not None:
-                    results["space_reclaimed_mb"] = round(
-                        results["db_size_before_mb"] - results["db_size_after_mb"], 2
-                    )
+                    results["space_reclaimed_mb"] = round(results["db_size_before_mb"] - results["db_size_after_mb"], 2)
                     if results["space_reclaimed_mb"] > 0:
                         logger.info(
                             f"VACUUM reclaimed {results['space_reclaimed_mb']} MB "
@@ -1230,7 +1219,7 @@ def maintenance_vacuum_database_task(container: "ServiceContainer") -> Dict[str,
     return results
 
 
-def maintenance_system_health_check_task(container: "ServiceContainer") -> Dict[str, Any]:
+def maintenance_system_health_check_task(container: "ServiceContainer") -> dict[str, Any]:
     """
     Perform system health checks and create alerts.
 
@@ -1260,7 +1249,7 @@ def maintenance_system_health_check_task(container: "ServiceContainer") -> Dict[
             system_health_service.refresh_storage_usage()
             results["storage_checked"] = True
         except Exception as e:
-            results["errors"].append(f"Storage check: {str(e)}")
+            results["errors"].append(f"Storage check: {e!s}")
             logger.warning(f"Storage check failed: {e}")
 
         # Check database health
@@ -1269,7 +1258,7 @@ def maintenance_system_health_check_task(container: "ServiceContainer") -> Dict[
                 system_health_service.check_database_health(database)
                 results["database_checked"] = True
             except Exception as e:
-                results["errors"].append(f"Database check: {str(e)}")
+                results["errors"].append(f"Database check: {e!s}")
                 logger.warning(f"Database check failed: {e}")
 
         # Check and create alerts
@@ -1283,7 +1272,7 @@ def maintenance_system_health_check_task(container: "ServiceContainer") -> Dict[
                 logger.debug("Health check complete - no issues detected")
 
         except Exception as e:
-            results["errors"].append(f"Alert check: {str(e)}")
+            results["errors"].append(f"Alert check: {e!s}")
             logger.warning(f"Alert check failed: {e}")
 
     except Exception as e:
@@ -1294,6 +1283,7 @@ def maintenance_system_health_check_task(container: "ServiceContainer") -> Dict[
 
 
 # ==================== Task Registration ====================
+
 
 def register_all_tasks(
     scheduler: "UnifiedScheduler",
@@ -1346,17 +1336,26 @@ def register_all_tasks(
         # Device health check (delegates to DeviceHealthService.check_all_devices_health_and_alert)
         scheduler.register_task(
             "device.health_check",
-            bind_noargs(lambda c: getattr(c, "device_health_service", None) and c.device_health_service.check_all_devices_health_and_alert()),
+            bind_noargs(
+                lambda c: (
+                    getattr(c, "device_health_service", None)
+                    and c.device_health_service.check_all_devices_health_and_alert()
+                )
+            ),
         )
         scheduler.register_task("ml.drift_check", bind_noargs(ml_drift_check_task))
         scheduler.register_task("ml.readiness_check", bind_noargs(ml_readiness_check_task))
-        scheduler.register_task("maintenance.aggregate_sensor_data", bind_noargs(maintenance_aggregate_sensor_data_task))
+        scheduler.register_task(
+            "maintenance.aggregate_sensor_data", bind_noargs(maintenance_aggregate_sensor_data_task)
+        )
         scheduler.register_task("maintenance.prune_state_history", bind_noargs(maintenance_prune_state_history_task))
         scheduler.register_task("maintenance.prune_old_data", bind_noargs(maintenance_prune_old_data_task))
         scheduler.register_task("maintenance.system_health_check", bind_noargs(maintenance_system_health_check_task))
         scheduler.register_task("maintenance.vacuum_database", bind_noargs(maintenance_vacuum_database_task))
         # Purge old alerts task
-        scheduler.register_task("maintenance.purge_old_alerts", bind_noargs(lambda c: maintenance_purge_old_alerts_task(c)))
+        scheduler.register_task(
+            "maintenance.purge_old_alerts", bind_noargs(lambda c: maintenance_purge_old_alerts_task(c))
+        )
     except Exception:
         # If AlertService not available at registration time, skip registration (will log at runtime)
         logger.debug("AlertService not available for task registration: maintenance.purge_old_alerts")
@@ -1397,7 +1396,7 @@ def schedule_default_jobs(scheduler: "UnifiedScheduler") -> None:
 
     # Actuator namespace - startup sync runs once at startup
     scheduler.run_now("actuator.startup_sync")
-    
+
     # Actuator namespace - schedule check every 30 seconds
     scheduler.schedule_interval(
         "actuator.schedule_check",

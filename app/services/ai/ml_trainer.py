@@ -15,10 +15,9 @@ from __future__ import annotations
 import logging
 import statistics
 import threading
-from typing import Dict, List, Optional, Any, TYPE_CHECKING
-from datetime import datetime, timedelta
 from dataclasses import dataclass
-from pathlib import Path
+from datetime import datetime, timedelta
+from typing import TYPE_CHECKING, Any
 
 from app.utils.time import iso_now
 
@@ -31,8 +30,8 @@ from app.utils.time import iso_now
 # from sklearn.metrics import mean_squared_error, accuracy_score, classification_report
 
 if TYPE_CHECKING:
-    from infrastructure.database.repositories.ai import AITrainingDataRepository
     from app.services.ai.model_registry import ModelRegistry
+    from infrastructure.database.repositories.ai import AITrainingDataRepository
 
 logger = logging.getLogger(__name__)
 
@@ -40,19 +39,19 @@ logger = logging.getLogger(__name__)
 @dataclass
 class TrainingMetrics:
     """Model training metrics."""
-    
+
     model_name: str
     model_type: str
     training_samples: int
     test_samples: int
     train_score: float
     test_score: float
-    cv_scores: List[float]
-    feature_importance: Dict[str, float]
+    cv_scores: list[float]
+    feature_importance: dict[str, float]
     training_time: float
     timestamp: datetime
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "model_name": self.model_name,
@@ -65,25 +64,21 @@ class TrainingMetrics:
             "cv_std": round(statistics.stdev(self.cv_scores), 4) if len(self.cv_scores) > 1 else 0.0,
             "feature_importance": self.feature_importance,
             "training_time_seconds": round(self.training_time, 2),
-            "timestamp": self.timestamp.isoformat()
+            "timestamp": self.timestamp.isoformat(),
         }
 
 
 class MLTrainerService:
     """
     Machine Learning training service.
-    
+
     Handles model training, evaluation, and deployment.
     """
-    
-    def __init__(
-        self,
-        training_data_repo: AITrainingDataRepository,
-        model_registry: ModelRegistry
-    ):
+
+    def __init__(self, training_data_repo: AITrainingDataRepository, model_registry: ModelRegistry):
         """
         Initialize ML trainer service.
-        
+
         Args:
             training_data_repo: Repository for training data access
             model_registry: Model registry for saving trained models
@@ -91,13 +86,13 @@ class MLTrainerService:
         self.training_data_repo = training_data_repo
         self.model_registry = model_registry
         self.logger = logging.getLogger(__name__)
-        
+
         # Training configuration
         self.min_training_samples = 100
         self.validation_split = 0.2
         self.cross_validation_folds = 5
         self.random_state = 42
-        
+
         # Feature configurations
         self.environmental_features = [
             "temperature",
@@ -106,15 +101,10 @@ class MLTrainerService:
             "co2",
             "lux",
         ]
-        
+
         self.climate_targets = ["temperature", "humidity", "soil_moisture"]
-    
-    def collect_training_data(
-        self,
-        model_type: str,
-        unit_id: Optional[int] = None,
-        days: int = 30
-    ):
+
+    def collect_training_data(self, model_type: str, unit_id: int | None = None, days: int = 30):
         """
         Collect and prepare training data.
 
@@ -131,37 +121,33 @@ class MLTrainerService:
         try:
             start_date = (datetime.now() - timedelta(days=days)).isoformat()
             end_date = iso_now()
-            
+
             # Collect training data from repository
             data_records = self.training_data_repo.get_training_data(
-                model_type=model_type,
-                start_date=start_date,
-                end_date=end_date,
-                unit_id=unit_id
+                model_type=model_type, start_date=start_date, end_date=end_date, unit_id=unit_id
             )
-            
+
             if not data_records:
                 self.logger.warning(f"No training data collected for {model_type}")
                 return pd.DataFrame()
-            
+
             # Convert to DataFrame
             df = pd.DataFrame(data_records)
-            
+
             # Clean and preprocess
             df = self._clean_data(df)
             df = self._engineer_features(df)
-            
+
             self.logger.info(f"Collected {len(df)} training samples for {model_type}")
             return df
-            
+
         except Exception as e:
             self.logger.error(f"Failed to collect training data: {e}", exc_info=True)
             return pd.DataFrame()
-    
+
     def _clean_data(self, df):
         """Clean and preprocess data."""
         import numpy as np  # Lazy load
-        import pandas as pd  # Lazy load
 
         try:
             # Remove rows with too many missing values (>30%)
@@ -172,7 +158,7 @@ class MLTrainerService:
             for col in numeric_columns:
                 if df[col].isnull().any():
                     df[col] = df[col].fillna(df[col].mean())
-            
+
             # Remove outliers using IQR method
             for col in self.environmental_features:
                 if col in df.columns:
@@ -182,44 +168,44 @@ class MLTrainerService:
                     lower = Q1 - 1.5 * IQR
                     upper = Q3 + 1.5 * IQR
                     df = df[(df[col] >= lower) & (df[col] <= upper)]
-            
+
             return df
-            
+
         except Exception as e:
             self.logger.warning(f"Error cleaning data: {e}")
             return df
-    
+
     def _engineer_features(self, df):
         """Create engineered features."""
         import pandas as pd  # Lazy load
 
         try:
             # Timestamp features
-            if 'timestamp' in df.columns:
-                df['timestamp'] = pd.to_datetime(df['timestamp'])
-                df['hour'] = df['timestamp'].dt.hour
-                df['day_of_week'] = df['timestamp'].dt.dayofweek
-                df['month'] = df['timestamp'].dt.month
-            
+            if "timestamp" in df.columns:
+                df["timestamp"] = pd.to_datetime(df["timestamp"])
+                df["hour"] = df["timestamp"].dt.hour
+                df["day_of_week"] = df["timestamp"].dt.dayofweek
+                df["month"] = df["timestamp"].dt.month
+
             # Interaction features
-            if 'temperature' in df.columns and 'humidity' in df.columns:
-                df['temp_humidity_interaction'] = df['temperature'] * df['humidity']
-            
+            if "temperature" in df.columns and "humidity" in df.columns:
+                df["temp_humidity_interaction"] = df["temperature"] * df["humidity"]
+
             return df
-            
+
         except Exception as e:
             self.logger.warning(f"Error engineering features: {e}")
             return df
-    
+
     def train_climate_model(
         self,
-        unit_id: Optional[int] = None,
+        unit_id: int | None = None,
         days: int = 30,
         save_model: bool = True,
         *,
-        cancel_event: Optional[threading.Event] = None,
-        progress_callback: Optional[callable] = None,
-    ) -> Dict[str, Any]:
+        cancel_event: threading.Event | None = None,
+        progress_callback: callable | None = None,
+    ) -> dict[str, Any]:
         """
         Train climate prediction model.
 
@@ -234,11 +220,8 @@ class MLTrainerService:
         # Lazy load ML libraries
         import numpy as np
         from sklearn.ensemble import RandomForestRegressor
-        from sklearn.metrics import mean_absolute_error
-        from sklearn.model_selection import train_test_split, cross_val_score
+        from sklearn.model_selection import cross_val_score, train_test_split
         from sklearn.preprocessing import StandardScaler
-        from sklearn.metrics import mean_absolute_error
-        from sklearn.metrics import mean_absolute_error
 
         start_time = datetime.now()
 
@@ -249,34 +232,33 @@ class MLTrainerService:
             if cancel_event is not None and cancel_event.is_set():
                 raise TrainingCancelled("Training cancelled")
 
-        def report_progress(progress: float, message: Optional[str] = None) -> None:
+        def report_progress(progress: float, message: str | None = None) -> None:
             if progress_callback:
                 progress_callback(float(progress), message)
-        
+
         try:
             check_cancel()
             report_progress(10, "Collecting training data...")
             # Collect training data
-            df = self.collect_training_data('climate', unit_id, days)
+            df = self.collect_training_data("climate", unit_id, days)
             check_cancel()
-            
+
             if len(df) < self.min_training_samples:
                 return {
                     "success": False,
-                    "error": f"Insufficient training data ({len(df)} < {self.min_training_samples})"
+                    "error": f"Insufficient training data ({len(df)} < {self.min_training_samples})",
                 }
 
             report_progress(15, "Preparing features...")
-            
+
             # Prepare features
             feature_columns = [
-                col for col in self.environmental_features + ['hour', 'day_of_week', 'month']
-                if col in df.columns
+                col for col in self.environmental_features + ["hour", "day_of_week", "month"] if col in df.columns
             ]
-            
+
             results = {}
             models_trained = 0
-            
+
             # Train a model for each climate target
             targets = [t for t in self.climate_targets if t in df.columns]
             total_targets = max(1, len(targets))
@@ -288,53 +270,43 @@ class MLTrainerService:
                 check_cancel()
                 progress_base = 15 + ((idx / total_targets) * 70)
                 report_progress(progress_base, f"Training target: {target}")
-                
+
                 try:
                     # Prepare data
                     X = df[feature_columns]
                     y = df[target]
-                    
+
                     # Split data
                     X_train, X_test, y_train, y_test = train_test_split(
-                        X, y,
-                        test_size=self.validation_split,
-                        random_state=self.random_state
+                        X, y, test_size=self.validation_split, random_state=self.random_state
                     )
-                    
+
                     # Scale features
                     scaler = StandardScaler()
                     X_train_scaled = scaler.fit_transform(X_train)
                     X_test_scaled = scaler.transform(X_test)
-                    
+
                     # Train model
                     model = RandomForestRegressor(
-                        n_estimators=100,
-                        max_depth=10,
-                        random_state=self.random_state,
-                        n_jobs=-1
+                        n_estimators=100, max_depth=10, random_state=self.random_state, n_jobs=-1
                     )
                     check_cancel()
                     model.fit(X_train_scaled, y_train)
-                    
+
                     # Evaluate
                     train_score = model.score(X_train_scaled, y_train)
                     test_score = model.score(X_test_scaled, y_test)
-                    
+
                     # Cross-validation
                     check_cancel()
                     cv_scores = cross_val_score(
-                        model, X_train_scaled, y_train,
-                        cv=self.cross_validation_folds,
-                        scoring='r2'
+                        model, X_train_scaled, y_train, cv=self.cross_validation_folds, scoring="r2"
                     )
                     check_cancel()
-                    
+
                     # Feature importance
-                    feature_importance = dict(zip(
-                        feature_columns,
-                        model.feature_importances_
-                    ))
-                    
+                    feature_importance = dict(zip(feature_columns, model.feature_importances_))
+
                     # Save model if requested
                     model_name = f"climate_{target}"
                     if save_model:
@@ -348,45 +320,42 @@ class MLTrainerService:
                             "cv_mean": float(np.mean(cv_scores)),
                             "cv_std": float(np.std(cv_scores)),
                             "training_samples": len(X_train),
-                            "feature_importance": {k: float(v) for k, v in feature_importance.items()}
+                            "feature_importance": {k: float(v) for k, v in feature_importance.items()},
                         }
-                        
+
                         self.model_registry.save_model(
-                            model_name=model_name,
-                            model=model,
-                            metadata=metadata,
-                            scaler=scaler
+                            model_name=model_name, model=model, metadata=metadata, scaler=scaler
                         )
-                    
+
                     # Store results
                     results[target] = {
                         "train_score": round(train_score, 4),
                         "test_score": round(test_score, 4),
                         "cv_mean": round(float(np.mean(cv_scores)), 4),
                         "cv_std": round(float(np.std(cv_scores)), 4),
-                        "feature_importance": {k: round(float(v), 4) for k, v in feature_importance.items()}
+                        "feature_importance": {k: round(float(v), 4) for k, v in feature_importance.items()},
                     }
-                    
+
                     models_trained += 1
                     progress_end = 15 + (((idx + 1) / total_targets) * 70)
                     report_progress(progress_end, f"Completed target: {target}")
-                    
+
                 except Exception as e:
                     self.logger.error(f"Failed to train {target} model: {e}")
                     results[target] = {"error": str(e)}
-            
+
             training_time = (datetime.now() - start_time).total_seconds()
             report_progress(90, "Training run finished")
-            
+
             return {
                 "success": models_trained > 0,
                 "models_trained": models_trained,
                 "training_samples": len(df),
                 "features_used": feature_columns,
                 "results": results,
-                "training_time_seconds": round(training_time, 2)
+                "training_time_seconds": round(training_time, 2),
             }
-            
+
         except Exception as e:
             if str(e) == "Training cancelled":
                 return {"success": False, "error": "cancelled"}
@@ -395,13 +364,13 @@ class MLTrainerService:
 
     def train_disease_model(
         self,
-        unit_id: Optional[int] = None,
+        unit_id: int | None = None,
         days: int = 365,
         save_model: bool = True,
         *,
-        cancel_event: Optional[threading.Event] = None,
-        progress_callback: Optional[callable] = None,
-    ) -> Dict[str, Any]:
+        cancel_event: threading.Event | None = None,
+        progress_callback: callable | None = None,
+    ) -> dict[str, Any]:
         """
         Train disease prediction model using historical disease occurrences.
 
@@ -419,130 +388,133 @@ class MLTrainerService:
         """
         # Lazy load ML libraries
         import numpy as np
-        from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
-        from sklearn.model_selection import train_test_split, cross_val_score
+        from sklearn.ensemble import GradientBoostingClassifier
+        from sklearn.metrics import accuracy_score
+        from sklearn.model_selection import cross_val_score, train_test_split
         from sklearn.preprocessing import StandardScaler
-        from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
         start_time = datetime.now()
 
         def cancelled() -> bool:
             return cancel_event is not None and cancel_event.is_set()
 
-        def report_progress(progress: float, message: Optional[str] = None) -> None:
+        def report_progress(progress: float, message: str | None = None) -> None:
             if progress_callback:
                 progress_callback(float(progress), message)
-        
+
         try:
             if cancelled():
                 return {"success": False, "error": "cancelled"}
 
             report_progress(10, "Collecting disease occurrence data...")
-            
+
             # Get disease occurrence training data
             disease_df = self.training_data_repo.get_disease_occurrence_training_data(
                 unit_id=unit_id,
                 days_limit=days,
                 confirmed_only=True,
             )
-            
+
             if cancelled():
                 return {"success": False, "error": "cancelled"}
-            
+
             # Check if we have enough disease occurrences
             if len(disease_df) < 10:
-                self.logger.warning(
-                    f"Insufficient confirmed disease occurrences ({len(disease_df)} < 10)"
-                )
+                self.logger.warning(f"Insufficient confirmed disease occurrences ({len(disease_df)} < 10)")
                 return {
                     "success": False,
                     "error": f"Insufficient disease data ({len(disease_df)} < 10 confirmed occurrences)",
                     "message": "Train model after recording more disease incidents",
                 }
-            
+
             report_progress(20, "Generating training features...")
-            
+
             # Prepare positive examples (disease occurred)
             positive_features = []
             positive_labels = []
             disease_types = disease_df["disease_type"].unique().tolist()
-            
+
             for _, row in disease_df.iterrows():
                 features = self._extract_disease_features(row)
                 if features:
                     positive_features.append(features)
                     positive_labels.append(row["disease_type"])
-            
+
             if len(positive_features) < 10:
                 return {
                     "success": False,
                     "error": "Insufficient valid feature vectors for training",
                 }
-            
+
             if cancelled():
                 return {"success": False, "error": "cancelled"}
-            
+
             report_progress(30, "Generating negative examples...")
-            
+
             # Generate negative examples from healthy periods
             negative_features = self._generate_healthy_samples(
                 unit_id=unit_id,
                 days=days,
                 num_samples=len(positive_features) * 2,  # 2:1 ratio
             )
-            
+
             if len(negative_features) < len(positive_features):
                 self.logger.warning("Could not generate enough negative samples")
-            
+
             negative_labels = ["healthy"] * len(negative_features)
-            
+
             if cancelled():
                 return {"success": False, "error": "cancelled"}
-            
+
             report_progress(40, "Building training dataset...")
-            
+
             # Combine positive and negative examples
             all_features = positive_features + negative_features
             all_labels = positive_labels + negative_labels
-            
+
             # Convert to DataFrame for easier handling
             feature_columns = [
-                "temperature", "humidity", "soil_moisture", "vpd",
-                "avg_temperature_72h", "avg_humidity_72h", "avg_soil_moisture_72h",
-                "humidity_variance_72h", "growth_stage_num", "days_in_stage",
+                "temperature",
+                "humidity",
+                "soil_moisture",
+                "vpd",
+                "avg_temperature_72h",
+                "avg_humidity_72h",
+                "avg_soil_moisture_72h",
+                "humidity_variance_72h",
+                "growth_stage_num",
+                "days_in_stage",
             ]
-            
+
             X = np.array([[f.get(col, 0) for col in feature_columns] for f in all_features])
             y = np.array(all_labels)
-            
+
             # Remove any rows with NaN values
             valid_mask = ~np.any(np.isnan(X), axis=1)
             X = X[valid_mask]
             y = y[valid_mask]
-            
+
             if len(X) < self.min_training_samples:
                 return {
                     "success": False,
                     "error": f"Insufficient training samples after cleanup ({len(X)} < {self.min_training_samples})",
                 }
-            
+
             report_progress(50, "Splitting and scaling data...")
-            
+
             # Split data
-            X_train, X_test, y_train, y_test = train_test_split(
-                X, y, test_size=0.2, random_state=42, stratify=y
-            )
-            
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+
             # Scale features
             scaler = StandardScaler()
             X_train_scaled = scaler.fit_transform(X_train)
             X_test_scaled = scaler.transform(X_test)
-            
+
             if cancelled():
                 return {"success": False, "error": "cancelled"}
-            
+
             report_progress(60, "Training disease classifier...")
-            
+
             # Train model - use GradientBoosting for better imbalanced data handling
             model = GradientBoostingClassifier(
                 n_estimators=100,
@@ -552,20 +524,20 @@ class MLTrainerService:
                 learning_rate=0.1,
                 random_state=42,
             )
-            
+
             model.fit(X_train_scaled, y_train)
-            
+
             if cancelled():
                 return {"success": False, "error": "cancelled"}
-            
+
             report_progress(80, "Evaluating model...")
-            
+
             # Evaluate
             y_pred = model.predict(X_test_scaled)
-            
+
             # Calculate metrics
             accuracy = accuracy_score(y_test, y_pred)
-            
+
             # Calculate per-class metrics
             unique_classes = np.unique(y_test)
             class_metrics = {}
@@ -578,15 +550,15 @@ class MLTrainerService:
                         "samples": int(cls_mask.sum()),
                         "correct": int((cls_pred == cls_true).sum()),
                     }
-            
+
             # Cross-validation for robustness check
             cv_scores = cross_val_score(model, X_train_scaled, y_train, cv=min(5, len(y_train) // 5))
-            
+
             if cancelled():
                 return {"success": False, "error": "cancelled"}
-            
+
             report_progress(90, "Saving model...")
-            
+
             # Save model and scaler
             if save_model:
                 model_data = {
@@ -598,18 +570,18 @@ class MLTrainerService:
                     "training_samples": len(X_train),
                     "accuracy": accuracy,
                 }
-                
+
                 model_name = f"disease_classifier_unit_{unit_id}" if unit_id else "disease_classifier"
                 self._save_model(model_data, model_name)
-            
+
             training_time = (datetime.now() - start_time).total_seconds()
             report_progress(100, "Disease model training complete")
-            
+
             self.logger.info(
                 f"Trained disease classifier: {len(X_train)} samples, "
                 f"{len(disease_types)} disease types, accuracy={accuracy:.3f}"
             )
-            
+
             return {
                 "success": True,
                 "model_type": "disease_classifier",
@@ -624,19 +596,23 @@ class MLTrainerService:
                 "class_metrics": class_metrics,
                 "training_time_seconds": round(training_time, 2),
             }
-            
+
         except Exception as e:
             self.logger.error(f"Failed to train disease model: {e}", exc_info=True)
             return {"success": False, "error": str(e)}
 
-    def _extract_disease_features(self, row) -> Optional[Dict[str, float]]:
+    def _extract_disease_features(self, row) -> dict[str, float] | None:
         """Extract feature vector from disease occurrence row."""
         try:
             growth_stage_map = {
-                "seedling": 1, "vegetative": 2, "flowering": 3,
-                "fruiting": 4, "harvest": 5, "dormant": 0,
+                "seedling": 1,
+                "vegetative": 2,
+                "flowering": 3,
+                "fruiting": 4,
+                "harvest": 5,
+                "dormant": 0,
             }
-            
+
             return {
                 "temperature": row.get("temperature_at_detection", 0) or 0,
                 "humidity": row.get("humidity_at_detection", 0) or 0,
@@ -655,31 +631,31 @@ class MLTrainerService:
 
     def _generate_healthy_samples(
         self,
-        unit_id: Optional[int],
+        unit_id: int | None,
         days: int,
         num_samples: int,
-    ) -> List[Dict[str, float]]:
+    ) -> list[dict[str, float]]:
         """
         Generate synthetic negative samples from healthy periods.
-        
+
         Samples environmental conditions from times when no disease was detected.
         """
         import numpy as np
-        
+
         try:
             # Get environmental data
             env_df = self.collect_training_data("climate", unit_id, days)
-            
+
             if len(env_df) < num_samples:
                 num_samples = len(env_df)
-            
+
             if num_samples == 0:
                 return []
-            
+
             # Sample random healthy periods
             samples = []
             indices = np.random.choice(len(env_df), size=num_samples, replace=False)
-            
+
             for idx in indices:
                 row = env_df.iloc[idx]
                 sample = {
@@ -695,112 +671,109 @@ class MLTrainerService:
                     "days_in_stage": np.random.randint(5, 30),
                 }
                 samples.append(sample)
-            
+
             return samples
-            
+
         except Exception as e:
             self.logger.warning(f"Failed to generate healthy samples: {e}")
             return []
-    
+
     def retrain_all_models(
         self,
         days: int = 30,
         include_irrigation: bool = True,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Retrain all models with latest data.
-        
+
         Args:
             days: Days of training data to use
             include_irrigation: Whether to include irrigation models (default True)
-            
+
         Returns:
             Summary of retraining results
         """
         results = {}
-        
+
         # Train climate models
         climate_result = self.train_climate_model(days=days, save_model=True)
-        results['climate'] = climate_result
-        
+        results["climate"] = climate_result
+
         # Train irrigation models
         if include_irrigation:
             # Irrigation threshold model
             threshold_result = self.train_irrigation_threshold_model(days=90, save_model=True)
-            results['irrigation_threshold'] = threshold_result
-            
+            results["irrigation_threshold"] = threshold_result
+
             # Irrigation response model
             response_result = self.train_irrigation_response_model(days=90, save_model=True)
-            results['irrigation_response'] = response_result
-            
+            results["irrigation_response"] = response_result
+
             # Irrigation duration model
             duration_result = self.train_irrigation_duration_model(days=90, save_model=True)
-            results['irrigation_duration'] = duration_result
+            results["irrigation_duration"] = duration_result
 
             # Irrigation timing model
             timing_result = self.train_irrigation_timing_model(days=120, save_model=True)
-            results['irrigation_timing'] = timing_result
-        
+            results["irrigation_timing"] = timing_result
+
         return {
-            "success": any(r.get('success', False) for r in results.values()),
+            "success": any(r.get("success", False) for r in results.values()),
             "models": results,
-            "timestamp": iso_now()
+            "timestamp": iso_now(),
         }
-    
-    def get_training_status(self) -> Dict[str, Any]:
+
+    def get_training_status(self) -> dict[str, Any]:
         """Get status of training system."""
         try:
             # Get all models from registry
             models = self.model_registry.list_models()
-            
+
             return {
                 "available": True,
                 "total_models": len(models),
                 "models": models,
-                "min_training_samples": self.min_training_samples
+                "min_training_samples": self.min_training_samples,
             }
-            
+
         except Exception as e:
             self.logger.error(f"Failed to get training status: {e}")
-            return {
-                "available": False,
-                "error": str(e)
-            }
+            return {"available": False, "error": str(e)}
 
     # ==================== Irrigation ML Training Methods ====================
 
     def train_irrigation_threshold_model(
         self,
-        unit_id: Optional[int] = None,
+        unit_id: int | None = None,
         days: int = 90,
         save_model: bool = True,
         *,
-        cancel_event: Optional[threading.Event] = None,
-        progress_callback: Optional[callable] = None,
-    ) -> Dict[str, Any]:
+        cancel_event: threading.Event | None = None,
+        progress_callback: callable | None = None,
+    ) -> dict[str, Any]:
         """
         Train model to predict optimal soil moisture threshold.
-        
+
         This model learns from user feedback (too_little/just_right/too_much)
         to predict the optimal threshold for specific plant/growth stage combinations.
-        
+
         Features:
         - Plant type/variety
         - Growth stage
         - Environmental conditions at feedback time
         - Historical threshold adjustments
         - User consistency score
-        
+
         Target:
         - Optimal threshold (derived from feedback patterns)
-        
+
         Args:
             unit_id: Optional unit filter
             days: Days of training data to use
             save_model: Whether to save the trained model
             cancel_event: Optional threading event for cancellation
             progress_callback: Optional callback for progress updates
-            
+
         Returns:
             Training results with metrics
         """
@@ -808,7 +781,7 @@ class MLTrainerService:
         import numpy as np
         from sklearn.ensemble import GradientBoostingRegressor
         from sklearn.metrics import mean_absolute_error
-        from sklearn.model_selection import train_test_split, cross_val_score
+        from sklearn.model_selection import cross_val_score, train_test_split
         from sklearn.preprocessing import StandardScaler
 
         start_time = datetime.now()
@@ -816,7 +789,7 @@ class MLTrainerService:
         def cancelled() -> bool:
             return cancel_event is not None and cancel_event.is_set()
 
-        def report_progress(progress: float, message: Optional[str] = None) -> None:
+        def report_progress(progress: float, message: str | None = None) -> None:
             if progress_callback:
                 progress_callback(float(progress), message)
 
@@ -833,10 +806,7 @@ class MLTrainerService:
 
             min_samples = 30  # Lower threshold for irrigation models
             if len(df) < min_samples:
-                return {
-                    "success": False,
-                    "error": f"Insufficient training data ({len(df)} < {min_samples})"
-                }
+                return {"success": False, "error": f"Insufficient training data ({len(df)} < {min_samples})"}
 
             report_progress(20, f"Processing {len(df)} samples...")
 
@@ -860,9 +830,7 @@ class MLTrainerService:
 
             # Split data
             X_train, X_test, y_train, y_test = train_test_split(
-                X, y,
-                test_size=self.validation_split,
-                random_state=self.random_state
+                X, y, test_size=self.validation_split, random_state=self.random_state
             )
 
             # Scale features
@@ -897,9 +865,7 @@ class MLTrainerService:
 
             # Cross-validation
             cv_scores = cross_val_score(
-                model, X_train_scaled, y_train,
-                cv=min(self.cross_validation_folds, len(X_train)),
-                scoring="r2"
+                model, X_train_scaled, y_train, cv=min(self.cross_validation_folds, len(X_train)), scoring="r2"
             )
 
             # Feature importance
@@ -927,12 +893,7 @@ class MLTrainerService:
                     "training_samples": len(X_train),
                     "feature_importance": {k: float(v) for k, v in feature_importance.items()},
                 }
-                self.model_registry.save_model(
-                    model_name=model_name,
-                    model=model,
-                    metadata=metadata,
-                    scaler=scaler
-                )
+                self.model_registry.save_model(model_name=model_name, model=model, metadata=metadata, scaler=scaler)
 
             training_time = (datetime.now() - start_time).total_seconds()
             report_progress(95, "Training complete")
@@ -959,51 +920,57 @@ class MLTrainerService:
 
     def train_irrigation_response_model(
         self,
-        unit_id: Optional[int] = None,
+        unit_id: int | None = None,
         days: int = 90,
         save_model: bool = True,
         *,
-        cancel_event: Optional[threading.Event] = None,
-        progress_callback: Optional[callable] = None,
-    ) -> Dict[str, Any]:
+        cancel_event: threading.Event | None = None,
+        progress_callback: callable | None = None,
+    ) -> dict[str, Any]:
         """
         Train model to predict user response to irrigation requests.
-        
+
         Predicts whether user will approve, delay, or cancel irrigation requests
         based on timing, conditions, and historical patterns.
-        
+
         Features:
         - Time of day, day of week
         - Current soil moisture
         - Environmental conditions
         - User historical patterns
-        
+
         Target:
         - Response class (approve/delay/cancel)
-        
+
         Args:
             unit_id: Optional unit filter
             days: Days of training data to use
             save_model: Whether to save the trained model
             cancel_event: Optional threading event for cancellation
             progress_callback: Optional callback for progress updates
-            
+
         Returns:
             Training results with metrics
         """
         # Lazy load ML libraries
         import numpy as np
         from sklearn.ensemble import RandomForestClassifier
-        from sklearn.model_selection import train_test_split, cross_val_score
-        from sklearn.preprocessing import StandardScaler, LabelEncoder
-        from sklearn.metrics import classification_report, f1_score, balanced_accuracy_score, accuracy_score
+        from sklearn.metrics import (
+            accuracy_score,
+            balanced_accuracy_score,
+            classification_report,
+            f1_score,
+            mean_absolute_error,
+        )
+        from sklearn.model_selection import cross_val_score, train_test_split
+        from sklearn.preprocessing import LabelEncoder, StandardScaler
 
         start_time = datetime.now()
 
         def cancelled() -> bool:
             return cancel_event is not None and cancel_event.is_set()
 
-        def report_progress(progress: float, message: Optional[str] = None) -> None:
+        def report_progress(progress: float, message: str | None = None) -> None:
             if progress_callback:
                 progress_callback(float(progress), message)
 
@@ -1020,10 +987,7 @@ class MLTrainerService:
 
             min_samples = 20
             if len(df) < min_samples:
-                return {
-                    "success": False,
-                    "error": f"Insufficient training data ({len(df)} < {min_samples})"
-                }
+                return {"success": False, "error": f"Insufficient training data ({len(df)} < {min_samples})"}
 
             report_progress(20, f"Processing {len(df)} samples...")
 
@@ -1050,10 +1014,11 @@ class MLTrainerService:
 
             # Split data
             X_train, X_test, y_train, y_test = train_test_split(
-                X, y,
+                X,
+                y,
                 test_size=self.validation_split,
                 random_state=self.random_state,
-                stratify=y if len(np.unique(y)) > 1 else None
+                stratify=y if len(np.unique(y)) > 1 else None,
             )
 
             # Scale features
@@ -1068,11 +1033,7 @@ class MLTrainerService:
 
             # Train classifier
             model = RandomForestClassifier(
-                n_estimators=100,
-                max_depth=8,
-                random_state=self.random_state,
-                class_weight="balanced",
-                n_jobs=-1
+                n_estimators=100, max_depth=8, random_state=self.random_state, class_weight="balanced", n_jobs=-1
             )
             model.fit(X_train_scaled, y_train)
 
@@ -1090,9 +1051,7 @@ class MLTrainerService:
 
             # Cross-validation
             cv_scores = cross_val_score(
-                model, X_train_scaled, y_train,
-                cv=min(self.cross_validation_folds, len(X_train)),
-                scoring="accuracy"
+                model, X_train_scaled, y_train, cv=min(self.cross_validation_folds, len(X_train)), scoring="accuracy"
             )
 
             # Feature importance
@@ -1133,11 +1092,7 @@ class MLTrainerService:
                     "feature_importance": {k: float(v) for k, v in feature_importance.items()},
                 }
                 self.model_registry.save_model(
-                    model_name=model_name,
-                    model=model,
-                    metadata=metadata,
-                    scaler=scaler,
-                    label_encoder=label_encoder
+                    model_name=model_name, model=model, metadata=metadata, scaler=scaler, label_encoder=label_encoder
                 )
 
             training_time = (datetime.now() - start_time).total_seconds()
@@ -1168,13 +1123,13 @@ class MLTrainerService:
 
     def train_irrigation_timing_model(
         self,
-        unit_id: Optional[int] = None,
+        unit_id: int | None = None,
         days: int = 120,
         save_model: bool = True,
         *,
-        cancel_event: Optional[threading.Event] = None,
-        progress_callback: Optional[callable] = None,
-    ) -> Dict[str, Any]:
+        cancel_event: threading.Event | None = None,
+        progress_callback: callable | None = None,
+    ) -> dict[str, Any]:
         """
         Train model to predict preferred irrigation hour (classification).
 
@@ -1190,16 +1145,16 @@ class MLTrainerService:
         """
         import numpy as np
         from sklearn.ensemble import RandomForestClassifier
-        from sklearn.model_selection import train_test_split, cross_val_score
-        from sklearn.preprocessing import StandardScaler, LabelEncoder
         from sklearn.metrics import accuracy_score
+        from sklearn.model_selection import cross_val_score, train_test_split
+        from sklearn.preprocessing import LabelEncoder, StandardScaler
 
         start_time = datetime.now()
 
         def cancelled() -> bool:
             return cancel_event is not None and cancel_event.is_set()
 
-        def report_progress(progress: float, message: Optional[str] = None) -> None:
+        def report_progress(progress: float, message: str | None = None) -> None:
             if progress_callback:
                 progress_callback(float(progress), message)
 
@@ -1215,10 +1170,7 @@ class MLTrainerService:
 
             min_samples = 25
             if len(df) < min_samples:
-                return {
-                    "success": False,
-                    "error": f"Insufficient training data ({len(df)} < {min_samples})"
-                }
+                return {"success": False, "error": f"Insufficient training data ({len(df)} < {min_samples})"}
 
             report_progress(20, f"Processing {len(df)} samples...")
 
@@ -1240,9 +1192,7 @@ class MLTrainerService:
             y = label_encoder.fit_transform(df["preferred_hour"].astype(int))
             class_names = list(label_encoder.classes_)
             class_values, class_counts = np.unique(df["preferred_hour"].astype(int), return_counts=True)
-            class_distribution = {
-                int(label): int(count) for label, count in zip(class_values, class_counts)
-            }
+            class_distribution = {int(label): int(count) for label, count in zip(class_values, class_counts)}
             total_samples = int(class_counts.sum()) if len(class_counts) else 0
             min_count = int(class_counts.min()) if len(class_counts) else 0
             min_fraction = (min_count / total_samples) if total_samples > 0 else 0.0
@@ -1374,42 +1324,43 @@ class MLTrainerService:
 
     def train_irrigation_duration_model(
         self,
-        unit_id: Optional[int] = None,
+        unit_id: int | None = None,
         days: int = 90,
         save_model: bool = True,
         *,
-        cancel_event: Optional[threading.Event] = None,
-        progress_callback: Optional[callable] = None,
-    ) -> Dict[str, Any]:
+        cancel_event: threading.Event | None = None,
+        progress_callback: callable | None = None,
+    ) -> dict[str, Any]:
         """
         Train model to predict optimal irrigation duration.
-        
+
         Learns the relationship between duration and moisture increase
         to recommend optimal watering time.
-        
+
         Features:
         - Soil moisture before irrigation
         - Target moisture level
         - Temperature, humidity
         - Historical duration outcomes
-        
+
         Target:
         - Optimal duration in seconds
-        
+
         Args:
             unit_id: Optional unit filter
             days: Days of training data to use
             save_model: Whether to save the trained model
             cancel_event: Optional threading event for cancellation
             progress_callback: Optional callback for progress updates
-            
+
         Returns:
             Training results with metrics
         """
         # Lazy load ML libraries
         import numpy as np
         from sklearn.ensemble import RandomForestRegressor
-        from sklearn.model_selection import train_test_split, cross_val_score
+        from sklearn.metrics import mean_absolute_error
+        from sklearn.model_selection import cross_val_score, train_test_split
         from sklearn.preprocessing import StandardScaler
 
         start_time = datetime.now()
@@ -1417,7 +1368,7 @@ class MLTrainerService:
         def cancelled() -> bool:
             return cancel_event is not None and cancel_event.is_set()
 
-        def report_progress(progress: float, message: Optional[str] = None) -> None:
+        def report_progress(progress: float, message: str | None = None) -> None:
             if progress_callback:
                 progress_callback(float(progress), message)
 
@@ -1434,10 +1385,7 @@ class MLTrainerService:
 
             min_samples = 15
             if len(df) < min_samples:
-                return {
-                    "success": False,
-                    "error": f"Insufficient training data ({len(df)} < {min_samples})"
-                }
+                return {"success": False, "error": f"Insufficient training data ({len(df)} < {min_samples})"}
 
             report_progress(20, f"Processing {len(df)} samples...")
 
@@ -1460,9 +1408,7 @@ class MLTrainerService:
 
             # Split data
             X_train, X_test, y_train, y_test = train_test_split(
-                X, y,
-                test_size=self.validation_split,
-                random_state=self.random_state
+                X, y, test_size=self.validation_split, random_state=self.random_state
             )
 
             # Scale features
@@ -1476,12 +1422,7 @@ class MLTrainerService:
             report_progress(50, "Training duration model...")
 
             # Train model
-            model = RandomForestRegressor(
-                n_estimators=100,
-                max_depth=8,
-                random_state=self.random_state,
-                n_jobs=-1
-            )
+            model = RandomForestRegressor(n_estimators=100, max_depth=8, random_state=self.random_state, n_jobs=-1)
             model.fit(X_train_scaled, y_train)
 
             if cancelled():
@@ -1492,12 +1433,13 @@ class MLTrainerService:
             # Evaluate
             train_score = model.score(X_train_scaled, y_train)
             test_score = model.score(X_test_scaled, y_test)
+            y_pred = model.predict(X_test_scaled)
+            mae = mean_absolute_error(y_test, y_pred)
+            mape = float(np.mean(np.abs((y_test - y_pred) / np.maximum(y_test, 1.0))))
 
             # Cross-validation
             cv_scores = cross_val_score(
-                model, X_train_scaled, y_train,
-                cv=min(self.cross_validation_folds, len(X_train)),
-                scoring="r2"
+                model, X_train_scaled, y_train, cv=min(self.cross_validation_folds, len(X_train)), scoring="r2"
             )
 
             # Feature importance
@@ -1526,12 +1468,7 @@ class MLTrainerService:
                     "training_samples": len(X_train),
                     "feature_importance": {k: float(v) for k, v in feature_importance.items()},
                 }
-                self.model_registry.save_model(
-                    model_name=model_name,
-                    model=model,
-                    metadata=metadata,
-                    scaler=scaler
-                )
+                self.model_registry.save_model(model_name=model_name, model=model, metadata=metadata, scaler=scaler)
 
             training_time = (datetime.now() - start_time).total_seconds()
             report_progress(95, "Training complete")
@@ -1561,19 +1498,19 @@ class MLTrainerService:
 
     def _collect_irrigation_threshold_data(
         self,
-        unit_id: Optional[int] = None,
+        unit_id: int | None = None,
         days: int = 90,
     ):
         """
         Collect training data for threshold prediction model.
-        
+
         Derives optimal threshold from feedback patterns.
         """
         import pandas as pd
 
         try:
             start_date = (datetime.now() - timedelta(days=days)).isoformat()
-            
+
             # Get feedback data with environmental context
             data = self.training_data_repo.get_irrigation_threshold_training_data(
                 unit_id=unit_id,
@@ -1594,7 +1531,7 @@ class MLTrainerService:
                     current=row.get("current_threshold", 50.0),
                     feedback=row.get("feedback_response", "just_right"),
                 ),
-                axis=1
+                axis=1,
             )
 
             # Add growth stage encoding
@@ -1614,7 +1551,7 @@ class MLTrainerService:
 
     def _collect_irrigation_response_data(
         self,
-        unit_id: Optional[int] = None,
+        unit_id: int | None = None,
         days: int = 90,
     ):
         """Collect training data for response prediction model."""
@@ -1648,7 +1585,7 @@ class MLTrainerService:
 
     def _collect_irrigation_duration_data(
         self,
-        unit_id: Optional[int] = None,
+        unit_id: int | None = None,
         days: int = 90,
     ):
         """Collect training data for duration prediction model."""
@@ -1690,18 +1627,18 @@ class MLTrainerService:
     ) -> float:
         """
         Calculate optimal threshold from user feedback.
-        
+
         Args:
             current: Current threshold setting
             feedback: User feedback (triggered_too_early, triggered_too_late, just_right)
-            
+
         Returns:
             Estimated optimal threshold
         """
         # Adjustment based on feedback type
         adjustments = {
-            "triggered_too_late": 5.0,   # Trigger earlier -> higher threshold
-            "just_right": 0.0,          # Current is optimal
+            "triggered_too_late": 5.0,  # Trigger earlier -> higher threshold
+            "just_right": 0.0,  # Current is optimal
             "triggered_too_early": -5.0,  # Trigger later -> lower threshold
         }
         adjustment = adjustments.get(feedback, 0.0)
@@ -1709,12 +1646,13 @@ class MLTrainerService:
 
     def _collect_irrigation_timing_data(
         self,
-        unit_id: Optional[int] = None,
+        unit_id: int | None = None,
         days: int = 120,
     ):
         """Collect training data for irrigation timing prediction model."""
-        import pandas as pd
         from zoneinfo import ZoneInfo
+
+        import pandas as pd
 
         try:
             start_date = (datetime.now() - timedelta(days=days)).isoformat()
@@ -1742,9 +1680,9 @@ class MLTrainerService:
             if "timezone" in df.columns and df["timezone"].notna().any():
                 detected_local = detected_series.copy()
                 delayed_local = delayed_series.copy()
-                tz_cache: Dict[str, Optional[ZoneInfo]] = {}
+                tz_cache: dict[str, ZoneInfo | None] = {}
 
-                def _resolve_tz(tz_name: Optional[str]) -> Optional[ZoneInfo]:
+                def _resolve_tz(tz_name: str | None) -> ZoneInfo | None:
                     if not tz_name:
                         return None
                     cached = tz_cache.get(tz_name)
@@ -1795,28 +1733,24 @@ class MLTrainerService:
         plant_type: str,
         min_samples: int = 10,
         save_model: bool = True,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Fine-tune a base model for a specific plant type using harvest outcomes.
-        
+
         Creates specialized models like:
         - climate_optimizer_tomato
         - climate_optimizer_pepper
         - growth_predictor_lettuce
-        
+
         Args:
             base_model_name: Base model to fine-tune (e.g., 'climate_optimizer')
             plant_type: Plant type to specialize for
             min_samples: Minimum harvest records needed for fine-tuning
             save_model: Whether to save the fine-tuned model
-            
+
         Returns:
             Fine-tuning results with metrics
         """
-        import numpy as np
-        from sklearn.ensemble import GradientBoostingRegressor
-        from sklearn.model_selection import train_test_split
-        from sklearn.metrics import mean_absolute_error, r2_score
 
         start_time = datetime.now()
         specialized_name = f"{base_model_name}_{plant_type.lower().replace(' ', '_')}"
@@ -1831,8 +1765,7 @@ class MLTrainerService:
 
             if len(harvest_data) < min_samples:
                 self.logger.info(
-                    f"Insufficient harvest data for {plant_type} fine-tuning: "
-                    f"{len(harvest_data)}/{min_samples}"
+                    f"Insufficient harvest data for {plant_type} fine-tuning: {len(harvest_data)}/{min_samples}"
                 )
                 return {
                     "success": False,
@@ -1840,19 +1773,13 @@ class MLTrainerService:
                     "plant_type": plant_type,
                 }
 
-            self.logger.info(
-                f"Fine-tuning {base_model_name} for {plant_type} with {len(harvest_data)} records"
-            )
+            self.logger.info(f"Fine-tuning {base_model_name} for {plant_type} with {len(harvest_data)} records")
 
             # Prepare features based on model type
             if base_model_name == "climate_optimizer":
-                return self._fine_tune_climate_model(
-                    harvest_data, plant_type, specialized_name, save_model
-                )
+                return self._fine_tune_climate_model(harvest_data, plant_type, specialized_name, save_model)
             elif base_model_name == "growth_predictor":
-                return self._fine_tune_growth_model(
-                    harvest_data, plant_type, specialized_name, save_model
-                )
+                return self._fine_tune_growth_model(harvest_data, plant_type, specialized_name, save_model)
             else:
                 return {
                     "success": False,
@@ -1870,12 +1797,11 @@ class MLTrainerService:
         plant_type: str,
         model_name: str,
         save_model: bool,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Fine-tune climate model for a specific plant type."""
-        import numpy as np
         from sklearn.ensemble import GradientBoostingRegressor
-        from sklearn.model_selection import train_test_split
         from sklearn.metrics import mean_absolute_error, r2_score
+        from sklearn.model_selection import train_test_split
 
         try:
             # Filter to records with required fields
@@ -1896,15 +1822,9 @@ class MLTrainerService:
 
             # Train model to predict quality from conditions
             # This lets us find conditions that maximize quality
-            X_train, X_test, y_train, y_test = train_test_split(
-                X, y_quality, test_size=0.2, random_state=42
-            )
+            X_train, X_test, y_train, y_test = train_test_split(X, y_quality, test_size=0.2, random_state=42)
 
-            model = GradientBoostingRegressor(
-                n_estimators=50,
-                max_depth=3,
-                random_state=42
-            )
+            model = GradientBoostingRegressor(n_estimators=50, max_depth=3, random_state=42)
             model.fit(X_train, y_train)
 
             # Evaluate
@@ -1922,7 +1842,7 @@ class MLTrainerService:
             # Save model
             if save_model:
                 self.model_registry.save_model(model_name, model)
-                
+
                 # Also save optimal conditions as metadata
                 metadata = {
                     "plant_type": plant_type,
@@ -1933,9 +1853,7 @@ class MLTrainerService:
                 }
                 self.model_registry.save_model(f"{model_name}_meta", metadata)
 
-            self.logger.info(
-                f"✅ Fine-tuned climate model for {plant_type}: MAE={mae:.3f}, R²={r2:.3f}"
-            )
+            self.logger.info(f"✅ Fine-tuned climate model for {plant_type}: MAE={mae:.3f}, R²={r2:.3f}")
 
             return {
                 "success": True,
@@ -1956,12 +1874,11 @@ class MLTrainerService:
         plant_type: str,
         model_name: str,
         save_model: bool,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Fine-tune growth predictor for a specific plant type."""
-        import numpy as np
         from sklearn.ensemble import RandomForestRegressor
-        from sklearn.model_selection import train_test_split
         from sklearn.metrics import mean_absolute_error, r2_score
+        from sklearn.model_selection import train_test_split
 
         try:
             # Filter to records with duration data
@@ -1980,15 +1897,9 @@ class MLTrainerService:
             X = df[["avg_temperature", "avg_humidity"]].values
             y_days = df["total_days"].values
 
-            X_train, X_test, y_train, y_test = train_test_split(
-                X, y_days, test_size=0.2, random_state=42
-            )
+            X_train, X_test, y_train, y_test = train_test_split(X, y_days, test_size=0.2, random_state=42)
 
-            model = RandomForestRegressor(
-                n_estimators=50,
-                max_depth=5,
-                random_state=42
-            )
+            model = RandomForestRegressor(n_estimators=50, max_depth=5, random_state=42)
             model.fit(X_train, y_train)
 
             # Evaluate
@@ -2001,7 +1912,7 @@ class MLTrainerService:
                 "total_days": int(df["total_days"].mean()),
                 "std_days": int(df["total_days"].std()),
             }
-            
+
             if "vegetative_days" in df.columns and df["vegetative_days"].notna().any():
                 avg_duration["vegetative_days"] = int(df["vegetative_days"].mean())
             if "flowering_days" in df.columns and df["flowering_days"].notna().any():
@@ -2010,7 +1921,7 @@ class MLTrainerService:
             # Save model
             if save_model:
                 self.model_registry.save_model(model_name, model)
-                
+
                 metadata = {
                     "plant_type": plant_type,
                     "avg_duration": avg_duration,
@@ -2020,9 +1931,7 @@ class MLTrainerService:
                 }
                 self.model_registry.save_model(f"{model_name}_meta", metadata)
 
-            self.logger.info(
-                f"✅ Fine-tuned growth model for {plant_type}: MAE={mae:.1f} days, R²={r2:.3f}"
-            )
+            self.logger.info(f"✅ Fine-tuned growth model for {plant_type}: MAE={mae:.1f} days, R²={r2:.3f}")
 
             return {
                 "success": True,
@@ -2041,14 +1950,14 @@ class MLTrainerService:
         self,
         base_model_name: str = "climate_optimizer",
         min_samples: int = 10,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Fine-tune models for all plant types with sufficient harvest data.
-        
+
         Args:
             base_model_name: Base model to fine-tune
             min_samples: Minimum samples required per plant type
-            
+
         Returns:
             Summary of all fine-tuning results
         """
@@ -2102,14 +2011,14 @@ class MLTrainerService:
 
     def train_health_score_model(
         self,
-        unit_id: Optional[int] = None,
-        plant_type: Optional[str] = None,
+        unit_id: int | None = None,
+        plant_type: str | None = None,
         days: int = 365,
         save_model: bool = True,
         *,
-        cancel_event: Optional[threading.Event] = None,
-        progress_callback: Optional[callable] = None,
-    ) -> Dict[str, Any]:
+        cancel_event: threading.Event | None = None,
+        progress_callback: callable | None = None,
+    ) -> dict[str, Any]:
         """
         Train plant health score regressor.
 
@@ -2129,18 +2038,18 @@ class MLTrainerService:
             Training result dictionary with metrics
         """
         import time
+
         start_time = time.time()
 
         try:
             # Lazy load ML libraries
             import numpy as np
             from sklearn.ensemble import GradientBoostingRegressor
-            from sklearn.model_selection import train_test_split, cross_val_score
-            from sklearn.preprocessing import StandardScaler
             from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+            from sklearn.model_selection import cross_val_score, train_test_split
+            from sklearn.preprocessing import StandardScaler
 
             from app.services.ai.feature_engineering import (
-                FeatureEngineer,
                 PlantHealthFeatureExtractor,
             )
 
@@ -2161,9 +2070,7 @@ class MLTrainerService:
                 return {"success": False, "error": "Training cancelled"}
 
             if len(harvest_data) < MIN_SAMPLES:
-                self.logger.warning(
-                    f"Insufficient training data: {len(harvest_data)} < {MIN_SAMPLES}"
-                )
+                self.logger.warning(f"Insufficient training data: {len(harvest_data)} < {MIN_SAMPLES}")
                 return {
                     "success": False,
                     "error": f"Insufficient training data: {len(harvest_data)} samples (need {MIN_SAMPLES})",
@@ -2188,9 +2095,7 @@ class MLTrainerService:
                 progress_callback(0.5, "Training model...")
 
             # 3. Split and scale
-            X_train, X_test, y_train, y_test = train_test_split(
-                X_df, y, test_size=0.2, random_state=self.random_state
-            )
+            X_train, X_test, y_train, y_test = train_test_split(X_df, y, test_size=0.2, random_state=self.random_state)
             scaler = StandardScaler()
             X_train_scaled = scaler.fit_transform(X_train)
             X_test_scaled = scaler.transform(X_test)
@@ -2219,17 +2124,11 @@ class MLTrainerService:
             r2 = r2_score(y_test, y_pred)
 
             # Cross-validation
-            cv_scores = cross_val_score(
-                model, X_train_scaled, y_train, cv=min(5, len(X_train) // 10)
-            )
+            cv_scores = cross_val_score(model, X_train_scaled, y_train, cv=min(5, len(X_train) // 10))
 
             # Feature importance
-            feature_importance = dict(
-                zip(X_df.columns, model.feature_importances_)
-            )
-            sorted_importance = dict(
-                sorted(feature_importance.items(), key=lambda x: x[1], reverse=True)[:10]
-            )
+            feature_importance = dict(zip(X_df.columns, model.feature_importances_))
+            sorted_importance = dict(sorted(feature_importance.items(), key=lambda x: x[1], reverse=True)[:10])
 
             if progress_callback:
                 progress_callback(0.9, "Saving model...")
@@ -2256,8 +2155,7 @@ class MLTrainerService:
             training_time = time.time() - start_time
 
             self.logger.info(
-                f"✅ Trained plant health regressor: R²={test_score:.3f}, MAE={mae:.1f}, "
-                f"samples={len(harvest_data)}"
+                f"✅ Trained plant health regressor: R²={test_score:.3f}, MAE={mae:.1f}, samples={len(harvest_data)}"
             )
 
             if progress_callback:
@@ -2288,13 +2186,13 @@ class MLTrainerService:
 
     def train_health_status_classifier(
         self,
-        unit_id: Optional[int] = None,
+        unit_id: int | None = None,
         days: int = 365,
         save_model: bool = True,
         *,
-        cancel_event: Optional[threading.Event] = None,
-        progress_callback: Optional[callable] = None,
-    ) -> Dict[str, Any]:
+        cancel_event: threading.Event | None = None,
+        progress_callback: callable | None = None,
+    ) -> dict[str, Any]:
         """
         Train plant health status classifier (ensemble component 2).
 
@@ -2313,15 +2211,16 @@ class MLTrainerService:
             Training result dictionary with metrics
         """
         import time
+
         start_time = time.time()
 
         try:
             # Lazy load ML libraries
             import numpy as np
             from sklearn.ensemble import GradientBoostingClassifier
-            from sklearn.model_selection import train_test_split, cross_val_score
-            from sklearn.preprocessing import StandardScaler, LabelEncoder
-            from sklearn.metrics import accuracy_score, classification_report
+            from sklearn.metrics import classification_report
+            from sklearn.model_selection import cross_val_score, train_test_split
+            from sklearn.preprocessing import LabelEncoder, StandardScaler
 
             from app.services.ai.feature_engineering import PlantHealthFeatureExtractor
 
@@ -2349,9 +2248,7 @@ class MLTrainerService:
             all_samples = observation_data + healthy_samples
 
             if len(all_samples) < MIN_SAMPLES:
-                self.logger.warning(
-                    f"Insufficient training data: {len(all_samples)} < {MIN_SAMPLES}"
-                )
+                self.logger.warning(f"Insufficient training data: {len(all_samples)} < {MIN_SAMPLES}")
                 return {
                     "success": False,
                     "error": f"Insufficient training data: {len(all_samples)} samples (need {MIN_SAMPLES})",
@@ -2409,22 +2306,14 @@ class MLTrainerService:
 
             # Classification report
             class_names = label_encoder.classes_.tolist()
-            report = classification_report(
-                y_test, y_pred, target_names=class_names, output_dict=True
-            )
+            report = classification_report(y_test, y_pred, target_names=class_names, output_dict=True)
 
             # Cross-validation
-            cv_scores = cross_val_score(
-                model, X_train_scaled, y_train, cv=min(5, len(X_train) // 10)
-            )
+            cv_scores = cross_val_score(model, X_train_scaled, y_train, cv=min(5, len(X_train) // 10))
 
             # Feature importance
-            feature_importance = dict(
-                zip(X_df.columns, model.feature_importances_)
-            )
-            sorted_importance = dict(
-                sorted(feature_importance.items(), key=lambda x: x[1], reverse=True)[:10]
-            )
+            feature_importance = dict(zip(X_df.columns, model.feature_importances_))
+            sorted_importance = dict(sorted(feature_importance.items(), key=lambda x: x[1], reverse=True)[:10])
 
             if progress_callback:
                 progress_callback(0.9, "Saving classifier...")

@@ -25,37 +25,37 @@ Author: SYSGrow Team
 Date: January 2026
 """
 
-from flask import Blueprint, jsonify, request, current_app
-from typing import Any, Dict
 from datetime import timedelta
+from typing import Any, Dict
+
+from flask import Blueprint, current_app, jsonify, request
 from pydantic import ValidationError
 
 from app.blueprints.api._common import (
-    get_container,
     get_analytics_repo,
+    get_container,
+    get_device_repo,
     get_irrigation_service,
     get_manual_irrigation_service,
     get_plant_irrigation_model_service,
-    get_pump_calibration_service,
     get_plant_service,
-    get_device_repo,
+    get_pump_calibration_service,
+    get_selected_unit_id,
     get_unit_repo,
     get_user_id,
-    get_selected_unit_id,
 )
 from app.schemas import (
-    IrrigationDelayRequest,
-    IrrigationFeedbackRequest,
     IrrigationConfigRequest,
-    ManualIrrigationLogRequest,
-    IrrigationExecutionLogResponse,
+    IrrigationDelayRequest,
     IrrigationEligibilityTraceResponse,
+    IrrigationExecutionLogResponse,
+    IrrigationFeedbackRequest,
+    ManualIrrigationLogRequest,
     ManualIrrigationLogResponse,
     ManualIrrigationPredictionResponse,
 )
-from app.utils.http import success_response, error_response
+from app.utils.http import error_response, success_response
 from app.utils.time import coerce_datetime, utc_now
-
 from infrastructure.database.repositories.irrigation_workflow import IrrigationWorkflowRepository
 
 irrigation_bp = Blueprint("irrigation", __name__, url_prefix="/api/irrigation")
@@ -97,11 +97,13 @@ def get_pending_requests():
 
     try:
         requests_list = service.get_pending_requests(user_id, limit=limit)
-        return jsonify({
-            "ok": True,
-            "data": requests_list,
-            "count": len(requests_list),
-        })
+        return jsonify(
+            {
+                "ok": True,
+                "data": requests_list,
+                "count": len(requests_list),
+            }
+        )
     except Exception as e:
         current_app.logger.error(f"Error getting pending requests: {e}")
         return jsonify({"ok": False, "error": {"message": str(e)}}), 500
@@ -164,16 +166,14 @@ def delay_request(request_id: int):
 
     user_id = get_user_id()
     raw = request.get_json() or {}
-    
+
     try:
         body = IrrigationDelayRequest(**raw)
     except ValidationError as ve:
         return jsonify({"ok": False, "error": {"message": "Invalid request", "details": ve.errors()}}), 400
 
     try:
-        result = service.handle_user_response(
-            request_id, "delay", user_id, delay_minutes=body.delay_minutes
-        )
+        result = service.handle_user_response(request_id, "delay", user_id, delay_minutes=body.delay_minutes)
 
         if result.get("ok"):
             return jsonify(result)
@@ -403,11 +403,13 @@ def get_history(unit_id: int):
 
     try:
         history = service.get_request_history(unit_id, limit=limit)
-        return jsonify({
-            "ok": True,
-            "data": history,
-            "count": len(history),
-        })
+        return jsonify(
+            {
+                "ok": True,
+                "data": history,
+                "count": len(history),
+            }
+        )
     except Exception as e:
         current_app.logger.error(f"Error getting history for unit {unit_id}: {e}")
         return jsonify({"ok": False, "error": {"message": str(e)}}), 500
@@ -431,11 +433,11 @@ def get_config(unit_id: int):
         return success_response(config.to_dict())
     except Exception as e:
         current_app.logger.error(f"Error getting config for unit {unit_id}: {e}")
-    return error_response(
-      "Failed to load irrigation configuration",
-      status=500,
-      details={"unit_id": unit_id, "reason": str(e)},
-    )
+        return error_response(
+            "Failed to load irrigation configuration",
+            status=500,
+            details={"unit_id": unit_id, "reason": str(e)},
+        )
 
 
 @irrigation_bp.route("/config/<int:unit_id>", methods=["PUT"])
@@ -461,7 +463,7 @@ def update_config(unit_id: int):
     """
     service = get_irrigation_service()
     if not service:
-      return error_response("Service not available", status=503)
+        return error_response("Service not available", status=503)
 
     data = request.get_json() or {}
 
@@ -515,10 +517,12 @@ def get_preferences():
 
     try:
         preferences = service.get_user_preferences(user_id, unit_id)
-        return jsonify({
-            "ok": True,
-            "data": preferences or {},
-        })
+        return jsonify(
+            {
+                "ok": True,
+                "data": preferences or {},
+            }
+        )
     except Exception as e:
         current_app.logger.error(f"Error getting preferences: {e}")
         return jsonify({"ok": False, "error": {"message": str(e)}}), 500
@@ -551,17 +555,12 @@ def handle_action(request_id: int):
 
     valid_actions = {"approve", "delay", "cancel"}
     if action not in valid_actions:
-        return jsonify({
-            "ok": False,
-            "error": {"message": f"Invalid action. Must be one of: {valid_actions}"}
-        }), 400
+        return jsonify({"ok": False, "error": {"message": f"Invalid action. Must be one of: {valid_actions}"}}), 400
 
     delay_minutes = data.get("delay_minutes") if action == "delay" else None
 
     try:
-        result = service.handle_user_response(
-            request_id, action, user_id, delay_minutes=delay_minutes
-        )
+        result = service.handle_user_response(request_id, action, user_id, delay_minutes=delay_minutes)
 
         if result.get("ok"):
             return jsonify(result)
@@ -571,6 +570,7 @@ def handle_action(request_id: int):
         current_app.logger.error(f"Error handling action for request {request_id}: {e}")
         return jsonify({"ok": False, "error": {"message": str(e)}}), 500
 
+
 # ==================== Pump Calibration ====================
 
 
@@ -578,11 +578,11 @@ def handle_action(request_id: int):
 def start_pump_calibration():
     """
     Start pump calibration for an actuator.
-    
+
     Request body:
     - actuator_id: ID of the pump actuator to calibrate
     - duration_seconds: Optional duration to run the pump (default from config)
-    
+
     Returns:
     - duration_seconds: Duration used for calibration
     - status: Session status
@@ -592,12 +592,12 @@ def start_pump_calibration():
         pump_cal = get_pump_calibration_service()
     except RuntimeError as e:
         return jsonify({"ok": False, "error": {"message": str(e)}}), 503
-    
+
     data = request.get_json() or {}
     actuator_id = data.get("actuator_id")
     if not actuator_id:
         return jsonify({"ok": False, "error": {"message": "Missing 'actuator_id'"}}), 400
-    
+
     duration_seconds = data.get("duration_seconds")
     if duration_seconds is not None:
         try:
@@ -606,7 +606,7 @@ def start_pump_calibration():
             return jsonify({"ok": False, "error": {"message": "Invalid 'duration_seconds'"}}), 400
         if duration_seconds <= 0:
             return jsonify({"ok": False, "error": {"message": "'duration_seconds' must be positive"}}), 400
-    
+
     try:
         result = pump_cal.start_calibration(
             actuator_id=actuator_id,
@@ -621,10 +621,12 @@ def start_pump_calibration():
                 payload["status"] = result.get("status")
             return jsonify(payload), 400
         data = {key: value for key, value in result.items() if key != "ok"}
-        return jsonify({
-            "ok": True,
-            "data": data,
-        })
+        return jsonify(
+            {
+                "ok": True,
+                "data": data,
+            }
+        )
     except ValueError as e:
         return jsonify({"ok": False, "error": {"message": str(e)}}), 400
     except Exception as e:
@@ -636,10 +638,10 @@ def start_pump_calibration():
 def complete_pump_calibration(actuator_id: int):
     """
     Complete pump calibration with measured volume.
-    
+
     Request body:
     - measured_ml: Actual volume measured by user
-    
+
     Returns:
     - flow_rate_ml_per_second: Calculated flow rate
     - confidence: Confidence in the calibration
@@ -648,7 +650,7 @@ def complete_pump_calibration(actuator_id: int):
         pump_cal = get_pump_calibration_service()
     except RuntimeError as e:
         return jsonify({"ok": False, "error": {"message": str(e)}}), 503
-    
+
     data = request.get_json() or {}
     measured_ml = data.get("measured_ml", data.get("actual_ml"))
     if measured_ml is None:
@@ -657,16 +659,14 @@ def complete_pump_calibration(actuator_id: int):
         measured_ml = float(measured_ml)
     except (TypeError, ValueError):
         return jsonify({"ok": False, "error": {"message": "Invalid 'measured_ml'"}}), 400
-    
+
     try:
         result = pump_cal.complete_calibration(
             actuator_id=actuator_id,
             measured_ml=measured_ml,
         )
         response_data = result.to_dict()
-        response_data["message"] = (
-            f"Calibration complete. Flow rate: {result.flow_rate_ml_per_second:.2f} ml/s"
-        )
+        response_data["message"] = f"Calibration complete. Flow rate: {result.flow_rate_ml_per_second:.2f} ml/s"
         return jsonify({"ok": True, "data": response_data})
     except ValueError as e:
         return jsonify({"ok": False, "error": {"message": str(e)}}), 400
@@ -679,7 +679,7 @@ def complete_pump_calibration(actuator_id: int):
 def get_pump_calibration(actuator_id: int):
     """
     Get current calibration data for a pump actuator.
-    
+
     Returns:
     - calibration_data: Current calibration info (flow rate, confidence, history)
     """
@@ -687,20 +687,24 @@ def get_pump_calibration(actuator_id: int):
         pump_cal = get_pump_calibration_service()
     except RuntimeError as e:
         return jsonify({"ok": False, "error": {"message": str(e)}}), 503
-    
+
     try:
         cal_data = pump_cal.get_calibration_data(actuator_id)
         if cal_data:
-            return jsonify({
-                "ok": True,
-                "data": cal_data.to_dict(),
-            })
+            return jsonify(
+                {
+                    "ok": True,
+                    "data": cal_data.to_dict(),
+                }
+            )
         else:
-            return jsonify({
-                "ok": True,
-                "data": None,
-                "message": "No calibration data for this actuator",
-            })
+            return jsonify(
+                {
+                    "ok": True,
+                    "data": None,
+                    "message": "No calibration data for this actuator",
+                }
+            )
     except Exception as e:
         current_app.logger.error(f"Error getting pump calibration: {e}")
         return jsonify({"ok": False, "error": {"message": str(e)}}), 500
@@ -710,10 +714,10 @@ def get_pump_calibration(actuator_id: int):
 def adjust_pump_calibration(actuator_id: int):
     """
     Adjust pump calibration based on post-irrigation feedback.
-    
+
     Use this when the irrigation result doesn't match expectations.
     The ML feedback loop will refine the flow rate estimate.
-    
+
     Request body:
     - feedback: "too_little", "just_right", or "too_much"
     - adjustment_factor: Optional adjustment percentage (e.g., 0.05 = 5%)
@@ -722,19 +726,15 @@ def adjust_pump_calibration(actuator_id: int):
         pump_cal = get_pump_calibration_service()
     except RuntimeError as e:
         return jsonify({"ok": False, "error": {"message": str(e)}}), 503
-    
+
     data = request.get_json() or {}
     feedback = data.get("feedback")
     if not feedback:
-        return jsonify({
-            "ok": False,
-            "error": {"message": "Missing required field: feedback"}
-        }), 400
+        return jsonify({"ok": False, "error": {"message": "Missing required field: feedback"}}), 400
     if feedback not in {"too_little", "just_right", "too_much"}:
-        return jsonify({
-            "ok": False,
-            "error": {"message": "Invalid feedback. Use: too_little, just_right, too_much"}
-        }), 400
+        return jsonify(
+            {"ok": False, "error": {"message": "Invalid feedback. Use: too_little, just_right, too_much"}}
+        ), 400
 
     adjustment_factor = data.get("adjustment_factor")
     if adjustment_factor is not None:
@@ -743,10 +743,7 @@ def adjust_pump_calibration(actuator_id: int):
         except (TypeError, ValueError):
             return jsonify({"ok": False, "error": {"message": "Invalid 'adjustment_factor'"}}), 400
         if adjustment_factor <= 0 or adjustment_factor >= 1:
-            return jsonify({
-                "ok": False,
-                "error": {"message": "'adjustment_factor' must be between 0 and 1"}
-            }), 400
+            return jsonify({"ok": False, "error": {"message": "'adjustment_factor' must be between 0 and 1"}}), 400
 
     try:
         if adjustment_factor is None:
@@ -761,19 +758,20 @@ def adjust_pump_calibration(actuator_id: int):
                 adjustment_factor=adjustment_factor,
             )
         if new_flow_rate:
-            return jsonify({
-                "ok": True,
-                "data": {
-                    "actuator_id": actuator_id,
-                    "adjusted_flow_rate": new_flow_rate,
-                    "message": f"Flow rate adjusted to {new_flow_rate:.2f} ml/s based on feedback",
-                },
-            })
+            return jsonify(
+                {
+                    "ok": True,
+                    "data": {
+                        "actuator_id": actuator_id,
+                        "adjusted_flow_rate": new_flow_rate,
+                        "message": f"Flow rate adjusted to {new_flow_rate:.2f} ml/s based on feedback",
+                    },
+                }
+            )
         else:
-            return jsonify({
-                "ok": False,
-                "error": {"message": "No calibration data exists for this actuator to adjust"}
-            }), 400
+            return jsonify(
+                {"ok": False, "error": {"message": "No calibration data exists for this actuator to adjust"}}
+            ), 400
     except Exception as e:
         current_app.logger.error(f"Error adjusting pump calibration: {e}")
         return jsonify({"ok": False, "error": {"message": str(e)}}), 500
@@ -877,29 +875,28 @@ def get_pump_calibration_history(actuator_id: int):
         pump_cal = get_pump_calibration_service()
     except RuntimeError as e:
         return jsonify({"ok": False, "error": {"message": str(e)}}), 503
-    
+
     try:
         calibration = pump_cal.get_calibration_data(actuator_id)
         if not calibration:
-            return jsonify({
-                "ok": False,
-                "error": {"message": "No calibration data for this actuator"}
-            }), 404
-        
+            return jsonify({"ok": False, "error": {"message": "No calibration data for this actuator"}}), 404
+
         trend = calibration.get_flow_rate_trend()
-        
-        return jsonify({
-            "ok": True,
-            "data": {
-                "actuator_id": actuator_id,
-                "current_flow_rate": calibration.flow_rate_ml_per_second,
-                "current_confidence": calibration.calibration_confidence,
-                "feedback_adjustments_count": calibration.feedback_adjustments_count,
-                "last_feedback_adjustment": calibration.last_feedback_adjustment,
-                "calibration_history": calibration.calibration_history,
-                "trend_analysis": trend,
+
+        return jsonify(
+            {
+                "ok": True,
+                "data": {
+                    "actuator_id": actuator_id,
+                    "current_flow_rate": calibration.flow_rate_ml_per_second,
+                    "current_confidence": calibration.calibration_confidence,
+                    "feedback_adjustments_count": calibration.feedback_adjustments_count,
+                    "last_feedback_adjustment": calibration.last_feedback_adjustment,
+                    "calibration_history": calibration.calibration_history,
+                    "trend_analysis": trend,
+                },
             }
-        })
+        )
     except Exception as e:
         current_app.logger.error(f"Error getting calibration history: {e}")
         return jsonify({"ok": False, "error": {"message": str(e)}}), 500
@@ -990,55 +987,57 @@ def get_irrigation_recommendations(plant_id: int):
         description: Plant service not available
     """
     from app.domain.irrigation_calculator import IrrigationCalculator
-    
+
     try:
-      plant_service = get_plant_service()
-      if not plant_service:
-        return error_response("Plant service not available", status=503)
+        plant_service = get_plant_service()
+        if not plant_service:
+            return error_response("Plant service not available", status=503)
 
-      calculator = IrrigationCalculator(plant_service)
+        calculator = IrrigationCalculator(plant_service)
 
-      # Get current moisture from query param or sensor
-      current_moisture = request.args.get("current_moisture", type=float)
-      if current_moisture is None:
-        # Try to get from sensor data
-        plant = plant_service.get_plant(plant_id)
-        if plant:
-          current_moisture = plant.get_moisture_level()
+        # Get current moisture from query param or sensor
+        current_moisture = request.args.get("current_moisture", type=float)
+        if current_moisture is None:
+            # Try to get from sensor data
+            plant = plant_service.get_plant(plant_id)
+            if plant:
+                current_moisture = plant.get_moisture_level()
+
+            if current_moisture is None:
+                analytics_repo = get_analytics_repo()
+                if analytics_repo:
+                    latest = analytics_repo.get_soil_moisture_history(plant_id)
+                    if latest:
+                        current_moisture = latest[0].get("soil_moisture", 50.0)
 
         if current_moisture is None:
-          analytics_repo = get_analytics_repo()
-          if analytics_repo:
-            latest = analytics_repo.get_soil_moisture_history(plant_id)
-            if latest:
-              current_moisture = latest[0].get("soil_moisture", 50.0)
+            # Fall back to neutral soil moisture to keep calculator stable
+            current_moisture = 50.0
 
-      if current_moisture is None:
-        # Fall back to neutral soil moisture to keep calculator stable
-        current_moisture = 50.0
+        # Get recommendation
+        recommendation = calculator.get_recommendations(
+            plant_id=plant_id,
+            current_moisture=current_moisture,
+        )
 
-      # Get recommendation
-      recommendation = calculator.get_recommendations(
-        plant_id=plant_id,
-        current_moisture=current_moisture,
-      )
+        # Get calculation preview
+        calculation = calculator.calculate(plant_id=plant_id)
 
-      # Get calculation preview
-      calculation = calculator.calculate(plant_id=plant_id)
-
-      return success_response({
-        "plant_id": plant_id,
-        "current_moisture": current_moisture,
-        "recommendation": recommendation,
-        "calculation": calculation.to_dict(),
-      })
+        return success_response(
+            {
+                "plant_id": plant_id,
+                "current_moisture": current_moisture,
+                "recommendation": recommendation,
+                "calculation": calculation.to_dict(),
+            }
+        )
     except Exception as e:
-      current_app.logger.error(f"Error getting irrigation recommendations: {e}")
-      return error_response(
-        "Failed to get irrigation recommendations",
-        status=500,
-        details={"plant_id": plant_id, "reason": str(e)},
-      )
+        current_app.logger.error(f"Error getting irrigation recommendations: {e}")
+        return error_response(
+            "Failed to get irrigation recommendations",
+            status=500,
+            details={"plant_id": plant_id, "reason": str(e)},
+        )
 
 
 @irrigation_bp.route("/calculate/<int:plant_id>", methods=["GET"])
@@ -1126,13 +1125,13 @@ def calculate_irrigation(plant_id: int):
         plant_service = get_plant_service()
         if not plant_service:
             return jsonify({"ok": False, "error": {"message": "Plant service not available"}}), 503
-        
+
         calculator = IrrigationCalculator(plant_service)
-        
+
         # Get optional params
         pump_flow_rate = request.args.get("pump_flow_rate", type=float)
         use_ml = request.args.get("use_ml", "false").lower() == "true"
-        
+
         # Calculate
         if use_ml:
             calculation = calculator.calculate_with_ml(
@@ -1144,11 +1143,13 @@ def calculate_irrigation(plant_id: int):
                 plant_id=plant_id,
                 pump_flow_rate=pump_flow_rate,
             )
-        
-        return jsonify({
-            "ok": True,
-            "data": calculation.to_dict(),
-        })
+
+        return jsonify(
+            {
+                "ok": True,
+                "data": calculation.to_dict(),
+            }
+        )
     except Exception as e:
         current_app.logger.error(f"Error calculating irrigation: {e}")
         return jsonify({"ok": False, "error": {"message": str(e)}}), 500
@@ -1230,20 +1231,20 @@ def send_recommendation_notification(plant_id: int):
     """
     from app.blueprints.api._common import get_notifications_service
     from app.domain.irrigation_calculator import IrrigationCalculator
-    from app.enums import NotificationType, NotificationSeverity
-    
+    from app.enums import NotificationSeverity, NotificationType
+
     try:
         plant_service = get_plant_service()
         if not plant_service:
             return jsonify({"ok": False, "error": {"message": "Plant service not available"}}), 503
-        
+
         # Get plant info
         plant = plant_service.get_plant(plant_id)
         if not plant:
             return jsonify({"ok": False, "error": {"message": "Plant not found"}}), 404
-        
+
         calculator = IrrigationCalculator(plant_service)
-        
+
         # Get current moisture
         raw = request.get_json() or {}
         current_moisture = raw.get("current_moisture")
@@ -1252,72 +1253,74 @@ def send_recommendation_notification(plant_id: int):
             plant = plant_service.get_plant(plant_id)
             if plant:
                 current_moisture = plant.get_moisture_level()
-                
+
                 if not current_moisture:
                     analytics_repo = get_analytics_repo()
                     latest = analytics_repo.get_soil_moisture_history(plant_id)
                     current_moisture = latest[0].get("soil_moisture", 50.0)
-        
+
         # Get recommendation
         recommendation = calculator.get_recommendations(
             plant_id=plant_id,
             current_moisture=current_moisture,
         )
-        
+
         # Get calculation for the notification
         calculation = calculator.calculate(plant_id=plant_id)
-        
+
         # Determine if we should send notification
         rec_type = recommendation.get("recommendation", "monitor")
         if rec_type == "monitor":
-            return jsonify({
-                "ok": True,
-                "data": {
-                    "sent": False,
-                    "reason": "No action needed - plant moisture levels are adequate",
-                    "recommendation": recommendation,
+            return jsonify(
+                {
+                    "ok": True,
+                    "data": {
+                        "sent": False,
+                        "reason": "No action needed - plant moisture levels are adequate",
+                        "recommendation": recommendation,
+                    },
                 }
-            })
-        
+            )
+
         # Get notification service
         try:
             notifications_service = get_notifications_service()
         except RuntimeError:
             return jsonify({"ok": False, "error": {"message": "Notification service not available"}}), 503
-        
+
         # Get user_id
-        user_id = get_user_id()       
+        user_id = get_user_id()
         if not user_id:
             return jsonify({"ok": False, "error": {"message": "User not authenticated"}}), 401
-            
+
         # Build notification message
         plant_name = plant.plant_name or f"Plant #{plant_id}"
         urgency = recommendation.get("urgency", "low")
         reason = recommendation.get("reason", "")
         volume_ml = calculation.volume_ml
         duration_s = calculation.duration_seconds
-        
+
         severity_map = {
             "high": NotificationSeverity.CRITICAL,
             "medium": NotificationSeverity.WARNING,
             "low": NotificationSeverity.INFO,
         }
         severity = severity_map.get(urgency, NotificationSeverity.INFO)
-        
+
         if rec_type == "water_now":
             title = f"💧 {plant_name} Needs Water"
             message = f"{reason}\n\nRecommended: {volume_ml:.0f}ml ({duration_s:.0f}s)"
         else:  # wait
             title = f"⏰ {plant_name} - Irrigation Reminder"
             message = f"{reason}\n\nWhen ready: {volume_ml:.0f}ml ({duration_s:.0f}s)"
-        
+
         # Add threshold proposals if any
         threshold_proposals = recommendation.get("threshold_proposals", [])
         if threshold_proposals:
             message += "\n\nSuggested threshold updates:"
             for tp in threshold_proposals[:3]:  # Max 3 proposals
                 message += f"\n• {tp}"
-        
+
         # Send notification
         message_id = notifications_service.send_notification(
             user_id=user_id,
@@ -1340,16 +1343,18 @@ def send_recommendation_notification(plant_id: int):
                 "actions": ["water_now", "delay", "dismiss"],
             },
         )
-        
-        return jsonify({
-            "ok": True,
-            "data": {
-                "sent": message_id is not None,
-                "message_id": message_id,
-                "recommendation": recommendation,
-                "calculation": calculation.to_dict(),
+
+        return jsonify(
+            {
+                "ok": True,
+                "data": {
+                    "sent": message_id is not None,
+                    "message_id": message_id,
+                    "recommendation": recommendation,
+                    "calculation": calculation.to_dict(),
+                },
             }
-        })
+        )
     except Exception as e:
         current_app.logger.error(f"Error sending irrigation recommendation: {e}")
         return jsonify({"ok": False, "error": {"message": str(e)}}), 500

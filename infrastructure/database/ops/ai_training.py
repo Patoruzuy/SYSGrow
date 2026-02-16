@@ -14,10 +14,8 @@ from __future__ import annotations
 import json
 import logging
 import sqlite3
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
-
-from infrastructure.utils.time import iso_now
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -29,16 +27,16 @@ class AITrainingOperations:
     def _timestamp_query_param(dt: datetime) -> str:
         """Return ISO8601 timestamp suitable for lexical range filtering."""
         if dt.tzinfo is not None:
-            dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+            dt = dt.astimezone(UTC).replace(tzinfo=None)
         return dt.isoformat()
 
     def get_health_score_training_data(
         self,
-        unit_id: Optional[int] = None,
-        plant_type: Optional[str] = None,
+        unit_id: int | None = None,
+        plant_type: str | None = None,
         days_limit: int = 365,
         min_quality: int = 1,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Collect training data from harvests with quality ratings.
 
@@ -58,12 +56,12 @@ class AITrainingOperations:
         """
         try:
             db = self.get_db()
-            params: List[Any] = []
-            filters: List[str] = ["phs.quality_rating >= ?"]
+            params: list[Any] = []
+            filters: list[str] = ["phs.quality_rating >= ?"]
             params.append(min_quality)
 
             # Time filter
-            cutoff = datetime.now(timezone.utc) - timedelta(days=days_limit)
+            cutoff = datetime.now(UTC) - timedelta(days=days_limit)
             filters.append("phs.harvested_date >= ?")
             params.append(self._timestamp_query_param(cutoff))
 
@@ -108,14 +106,10 @@ class AITrainingOperations:
                 h_unit_id = harvest.get("unit_id")
 
                 # Get environmental snapshot from 7 days before harvest
-                env_data = self._get_environmental_snapshot(
-                    db, h_unit_id, harvest_date, days_before=7
-                )
+                env_data = self._get_environmental_snapshot(db, h_unit_id, harvest_date, days_before=7)
 
                 # Get plant metrics from before harvest
-                plant_data = self._get_plant_metrics_snapshot(
-                    db, plant_id, harvest_date, days_before=7
-                )
+                plant_data = self._get_plant_metrics_snapshot(db, plant_id, harvest_date, days_before=7)
 
                 # Build training sample
                 sample = {
@@ -138,8 +132,7 @@ class AITrainingOperations:
                 samples.append(sample)
 
             logger.info(
-                f"Collected {len(samples)} health score training samples "
-                f"(unit_id={unit_id}, plant_type={plant_type})"
+                f"Collected {len(samples)} health score training samples (unit_id={unit_id}, plant_type={plant_type})"
             )
             return samples
 
@@ -149,10 +142,10 @@ class AITrainingOperations:
 
     def get_health_status_training_data(
         self,
-        unit_id: Optional[int] = None,
+        unit_id: int | None = None,
         days_limit: int = 365,
         confirmed_only: bool = True,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Collect training data from user health observations.
 
@@ -170,15 +163,15 @@ class AITrainingOperations:
         """
         try:
             db = self.get_db()
-            params: List[Any] = []
-            filters: List[str] = [
+            params: list[Any] = []
+            filters: list[str] = [
                 "pj.entry_type = 'observation'",
                 "pj.observation_type = 'health'",
                 "pj.health_status IS NOT NULL",
             ]
 
             # Time filter
-            cutoff = datetime.now(timezone.utc) - timedelta(days=days_limit)
+            cutoff = datetime.now(UTC) - timedelta(days=days_limit)
             filters.append("pj.created_at >= ?")
             params.append(self._timestamp_query_param(cutoff))
 
@@ -231,14 +224,10 @@ class AITrainingOperations:
 
                 # Get environmental snapshot at observation time
                 if not env_factors:
-                    env_factors = self._get_environmental_snapshot(
-                        db, obs_unit_id, obs_date, days_before=1
-                    )
+                    env_factors = self._get_environmental_snapshot(db, obs_unit_id, obs_date, days_before=1)
 
                 # Get plant metrics at observation time
-                plant_data = self._get_plant_metrics_snapshot(
-                    db, plant_id, obs_date, days_before=1
-                )
+                plant_data = self._get_plant_metrics_snapshot(db, plant_id, obs_date, days_before=1)
 
                 # Map health status to standardized labels
                 health_status = self._normalize_health_status(obs.get("health_status"))
@@ -262,10 +251,7 @@ class AITrainingOperations:
                 }
                 samples.append(sample)
 
-            logger.info(
-                f"Collected {len(samples)} health status training samples "
-                f"(unit_id={unit_id})"
-            )
+            logger.info(f"Collected {len(samples)} health status training samples (unit_id={unit_id})")
             return samples
 
         except sqlite3.Error as exc:
@@ -276,7 +262,7 @@ class AITrainingOperations:
         self,
         unit_id: int,
         num_samples: int = 100,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Generate synthetic 'healthy' samples from periods without issues.
 
@@ -379,9 +365,7 @@ class AITrainingOperations:
                 if len(samples) >= num_samples:
                     break
 
-            logger.info(
-                f"Generated {len(samples)} synthetic healthy samples for unit {unit_id}"
-            )
+            logger.info(f"Generated {len(samples)} synthetic healthy samples for unit {unit_id}")
             return samples
 
         except sqlite3.Error as exc:
@@ -391,10 +375,10 @@ class AITrainingOperations:
     def _get_environmental_snapshot(
         self,
         db,
-        unit_id: Optional[int],
-        reference_date: Optional[str],
+        unit_id: int | None,
+        reference_date: str | None,
         days_before: int = 7,
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """Get averaged environmental readings before a reference date."""
         if not unit_id or not reference_date:
             return {
@@ -459,10 +443,10 @@ class AITrainingOperations:
     def _get_plant_metrics_snapshot(
         self,
         db,
-        plant_id: Optional[int],
-        reference_date: Optional[str],
+        plant_id: int | None,
+        reference_date: str | None,
         days_before: int = 7,
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """Get averaged plant sensor readings before a reference date."""
         if not plant_id or not reference_date:
             return {
@@ -519,8 +503,8 @@ class AITrainingOperations:
     def _get_plant_thresholds(
         self,
         db,
-        plant_id: Optional[int],
-    ) -> Optional[Dict[str, Any]]:
+        plant_id: int | None,
+    ) -> dict[str, Any] | None:
         """Get optimal thresholds for a plant from its profile."""
         if not plant_id:
             return None
@@ -552,7 +536,7 @@ class AITrainingOperations:
             logger.warning(f"Error getting plant thresholds: {exc}")
             return None
 
-    def _normalize_health_status(self, status: Optional[str]) -> str:
+    def _normalize_health_status(self, status: str | None) -> str:
         """Normalize health status to standard labels."""
         if not status:
             return "healthy"
@@ -576,8 +560,8 @@ class AITrainingOperations:
 
     def count_available_training_samples(
         self,
-        unit_id: Optional[int] = None,
-    ) -> Dict[str, int]:
+        unit_id: int | None = None,
+    ) -> dict[str, int]:
         """
         Count available training samples for health models.
 
@@ -597,7 +581,7 @@ class AITrainingOperations:
                 FROM PlantHarvestSummary
                 WHERE quality_rating IS NOT NULL
             """
-            params: List[Any] = []
+            params: list[Any] = []
             if unit_id is not None:
                 harvest_query += " AND unit_id = ?"
                 params.append(unit_id)
@@ -612,7 +596,7 @@ class AITrainingOperations:
                   AND observation_type = 'health'
                   AND health_status IS NOT NULL
             """
-            obs_params: List[Any] = []
+            obs_params: list[Any] = []
             if unit_id is not None:
                 obs_query += " AND unit_id = ?"
                 obs_params.append(unit_id)

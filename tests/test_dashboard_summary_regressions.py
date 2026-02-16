@@ -8,7 +8,6 @@ from types import SimpleNamespace
 import pytest
 from flask import Flask, jsonify
 
-
 DASHBOARD_PATH = Path(__file__).resolve().parents[1] / "app/blueprints/api/dashboard.py"
 
 
@@ -103,9 +102,7 @@ def test_build_devices_summary_counts_active_from_is_active_and_sensors(dashboar
         actuator_management_service=_ActuatorServiceStub(),
     )
 
-    sensors, actuators, devices_summary = dashboard_api_module._build_devices_summary(
-        container, selected_unit_id=1
-    )
+    sensors, actuators, devices_summary = dashboard_api_module._build_devices_summary(container, selected_unit_id=1)
 
     assert len(sensors) == 3
     assert len(actuators) == 2
@@ -115,9 +112,7 @@ def test_build_devices_summary_counts_active_from_is_active_and_sensors(dashboar
     assert devices_summary["total"] == 5
 
 
-def test_dashboard_summary_preserves_actuators_and_passes_them_to_unit_settings(
-    dashboard_api_module, monkeypatch
-):
+def test_dashboard_summary_preserves_actuators_and_passes_them_to_unit_settings(dashboard_api_module, monkeypatch):
     app = Flask(__name__)
     app.secret_key = "test-secret"
     app.register_blueprint(dashboard_api_module.dashboard_api)

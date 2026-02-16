@@ -19,7 +19,7 @@ import json
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from app.domain.plant_symptoms import (
     SYMPTOM_DATABASE as _SYMPTOM_DB,
@@ -28,8 +28,8 @@ from app.domain.plant_symptoms import (
 
 if TYPE_CHECKING:
     from app.domain.irrigation import IrrigationPrediction
-    from app.services.application.threshold_service import ThresholdService
     from app.services.ai.llm_backends import LLMBackend
+    from app.services.application.threshold_service import ThresholdService
 
 logger = logging.getLogger(__name__)
 
@@ -40,15 +40,15 @@ class RecommendationContext:
 
     plant_id: int
     unit_id: int
-    plant_type: Optional[str] = None
-    growth_stage: Optional[str] = None
-    symptoms: List[str] = field(default_factory=list)
-    health_status: Optional[str] = None
+    plant_type: str | None = None
+    growth_stage: str | None = None
+    symptoms: list[str] = field(default_factory=list)
+    health_status: str | None = None
     severity_level: int = 1
-    environmental_data: Optional[Dict[str, float]] = None
-    recent_observations: Optional[List[Dict]] = None
-    nutrient_history: Optional[List[Dict]] = None
-    irrigation_prediction: Optional["IrrigationPrediction"] = None
+    environmental_data: dict[str, float] | None = None
+    recent_observations: list[dict] | None = None
+    nutrient_history: list[dict] | None = None
+    irrigation_prediction: "IrrigationPrediction" | None = None
 
 
 @dataclass
@@ -59,10 +59,10 @@ class Recommendation:
     priority: str  # "urgent", "high", "medium", "low"
     category: str  # "watering", "nutrition", "environment", "pest", "disease"
     confidence: float  # 0.0 - 1.0
-    rationale: Optional[str] = None  # Why this is recommended
+    rationale: str | None = None  # Why this is recommended
     source: str = "rule_based"  # "rule_based", "ml", "llm"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "action": self.action,
@@ -83,10 +83,7 @@ class RecommendationProvider(ABC):
     """
 
     @abstractmethod
-    def get_recommendations(
-        self,
-        context: RecommendationContext
-    ) -> List[Recommendation]:
+    def get_recommendations(self, context: RecommendationContext) -> list[Recommendation]:
         """
         Generate recommendations based on context.
 
@@ -100,10 +97,8 @@ class RecommendationProvider(ABC):
 
     @abstractmethod
     def get_treatment_suggestions(
-        self,
-        symptoms: List[str],
-        context: Optional[RecommendationContext] = None
-    ) -> List[Recommendation]:
+        self, symptoms: list[str], context: RecommendationContext | None = None
+    ) -> list[Recommendation]:
         """
         Get treatment suggestions for specific symptoms.
 
@@ -143,7 +138,7 @@ class RuleBasedRecommendationProvider(RecommendationProvider):
 
     def __init__(
         self,
-        threshold_service: Optional["ThresholdService"] = None,
+        threshold_service: "ThresholdService" | None = None,
     ):
         self.threshold_service = threshold_service
 
@@ -155,10 +150,7 @@ class RuleBasedRecommendationProvider(RecommendationProvider):
     def is_available(self) -> bool:
         return True  # Always available
 
-    def get_recommendations(
-        self,
-        context: RecommendationContext
-    ) -> List[Recommendation]:
+    def get_recommendations(self, context: RecommendationContext) -> list[Recommendation]:
         """Generate rule-based recommendations from symptoms and context."""
         recommendations = []
 
@@ -174,19 +166,19 @@ class RuleBasedRecommendationProvider(RecommendationProvider):
 
                     # Add diagnosis recommendations
                     for cause in symptom_info["likely_causes"][:2]:  # Top 2 causes
-                        recommendations.append(Recommendation(
-                            action=f"Investigate {cause.replace('_', ' ')}",
-                            priority="high" if context.severity_level >= 3 else "medium",
-                            category="diagnosis",
-                            confidence=0.6,
-                            rationale=f"Symptom '{symptom}' is often caused by {cause.replace('_', ' ')}",
-                            source="rule_based"
-                        ))
+                        recommendations.append(
+                            Recommendation(
+                                action=f"Investigate {cause.replace('_', ' ')}",
+                                priority="high" if context.severity_level >= 3 else "medium",
+                                category="diagnosis",
+                                confidence=0.6,
+                                rationale=f"Symptom '{symptom}' is often caused by {cause.replace('_', ' ')}",
+                                source="rule_based",
+                            )
+                        )
 
             # Add treatment recommendations
-            treatment_recs = self.get_treatment_suggestions(
-                context.symptoms, context
-            )
+            treatment_recs = self.get_treatment_suggestions(context.symptoms, context)
             recommendations.extend(treatment_recs)
 
         # Add environmental recommendations if data available
@@ -197,31 +189,33 @@ class RuleBasedRecommendationProvider(RecommendationProvider):
         # If no recommendations, add general guidance
         if not recommendations:
             if context.health_status == "healthy":
-                recommendations.append(Recommendation(
-                    action="Continue current care routine",
-                    priority="low",
-                    category="maintenance",
-                    confidence=0.8,
-                    rationale="No issues detected",
-                    source="rule_based"
-                ))
+                recommendations.append(
+                    Recommendation(
+                        action="Continue current care routine",
+                        priority="low",
+                        category="maintenance",
+                        confidence=0.8,
+                        rationale="No issues detected",
+                        source="rule_based",
+                    )
+                )
             else:
-                recommendations.append(Recommendation(
-                    action="Monitor plant closely for changes",
-                    priority="medium",
-                    category="monitoring",
-                    confidence=0.7,
-                    rationale="Status requires attention",
-                    source="rule_based"
-                ))
+                recommendations.append(
+                    Recommendation(
+                        action="Monitor plant closely for changes",
+                        priority="medium",
+                        category="monitoring",
+                        confidence=0.7,
+                        rationale="Status requires attention",
+                        source="rule_based",
+                    )
+                )
 
         return recommendations[:6]  # Limit to top 6 recommendations
 
     def get_treatment_suggestions(
-        self,
-        symptoms: List[str],
-        context: Optional[RecommendationContext] = None
-    ) -> List[Recommendation]:
+        self, symptoms: list[str], context: RecommendationContext | None = None
+    ) -> list[Recommendation]:
         """Get treatment suggestions for specific symptoms."""
         suggestions = []
 
@@ -230,23 +224,22 @@ class RuleBasedRecommendationProvider(RecommendationProvider):
             if symptom_lower in self.TREATMENT_MAP:
                 treatments = self.TREATMENT_MAP[symptom_lower]
                 for idx, treatment in enumerate(treatments[:3]):  # Top 3 treatments
-                    suggestions.append(Recommendation(
-                        action=treatment,
-                        priority="high" if idx == 0 else "medium",
-                        category="treatment",
-                        confidence=0.7 - (idx * 0.1),  # First is most confident
-                        rationale=f"Recommended treatment for {symptom.replace('_', ' ')}",
-                        source="rule_based"
-                    ))
+                    suggestions.append(
+                        Recommendation(
+                            action=treatment,
+                            priority="high" if idx == 0 else "medium",
+                            category="treatment",
+                            confidence=0.7 - (idx * 0.1),  # First is most confident
+                            rationale=f"Recommended treatment for {symptom.replace('_', ' ')}",
+                            source="rule_based",
+                        )
+                    )
 
         return suggestions
 
-    def _get_irrigation_recommendations(
-        self,
-        context: RecommendationContext
-    ) -> List[Recommendation]:
+    def _get_irrigation_recommendations(self, context: RecommendationContext) -> list[Recommendation]:
         """Generate irrigation recommendations from ML predictions if available."""
-        recommendations: List[Recommendation] = []
+        recommendations: list[Recommendation] = []
         prediction = context.irrigation_prediction
         if not prediction:
             return recommendations
@@ -265,14 +258,16 @@ class RuleBasedRecommendationProvider(RecommendationProvider):
             optimal = _get(threshold, "optimal_threshold")
             confidence = float(_get(threshold, "confidence", 0.0) or 0.0)
             if direction and direction != "maintain" and amount > 2.0 and optimal is not None:
-                recommendations.append(Recommendation(
-                    action=f"Adjust soil moisture threshold to {float(optimal):.1f}%",
-                    priority="high" if amount >= 5.0 else "medium",
-                    category="watering",
-                    confidence=min(1.0, confidence),
-                    rationale=f"Model suggests {direction} by {amount:.1f}%",
-                    source="ml",
-                ))
+                recommendations.append(
+                    Recommendation(
+                        action=f"Adjust soil moisture threshold to {float(optimal):.1f}%",
+                        priority="high" if amount >= 5.0 else "medium",
+                        category="watering",
+                        confidence=min(1.0, confidence),
+                        rationale=f"Model suggests {direction} by {amount:.1f}%",
+                        source="ml",
+                    )
+                )
 
         response = _get(prediction, "user_response")
         if response:
@@ -281,23 +276,27 @@ class RuleBasedRecommendationProvider(RecommendationProvider):
             delay_prob = float(_get(response, "delay_probability", 0.0) or 0.0)
             confidence = float(_get(response, "confidence", 0.0) or 0.0)
             if most_likely == "cancel" and cancel_prob > 0.3:
-                recommendations.append(Recommendation(
-                    action="Review irrigation settings to reduce cancellations",
-                    priority="medium",
-                    category="watering",
-                    confidence=min(1.0, max(confidence, cancel_prob)),
-                    rationale=f"Cancel probability is {cancel_prob:.2f}",
-                    source="ml",
-                ))
+                recommendations.append(
+                    Recommendation(
+                        action="Review irrigation settings to reduce cancellations",
+                        priority="medium",
+                        category="watering",
+                        confidence=min(1.0, max(confidence, cancel_prob)),
+                        rationale=f"Cancel probability is {cancel_prob:.2f}",
+                        source="ml",
+                    )
+                )
             elif most_likely == "delay" and delay_prob > 0.4:
-                recommendations.append(Recommendation(
-                    action="Adjust irrigation timing to match user preferences",
-                    priority="medium",
-                    category="watering",
-                    confidence=min(1.0, max(confidence, delay_prob)),
-                    rationale=f"Delay probability is {delay_prob:.2f}",
-                    source="ml",
-                ))
+                recommendations.append(
+                    Recommendation(
+                        action="Adjust irrigation timing to match user preferences",
+                        priority="medium",
+                        category="watering",
+                        confidence=min(1.0, max(confidence, delay_prob)),
+                        rationale=f"Delay probability is {delay_prob:.2f}",
+                        source="ml",
+                    )
+                )
 
         duration = _get(prediction, "duration")
         if duration:
@@ -308,14 +307,16 @@ class RuleBasedRecommendationProvider(RecommendationProvider):
                 diff = abs(int(recommended) - int(current_default))
                 if diff > 30 and confidence > 0.5:
                     direction = "Increase" if int(recommended) > int(current_default) else "Reduce"
-                    recommendations.append(Recommendation(
-                        action=f"{direction} irrigation duration to {int(recommended)}s",
-                        priority="high" if diff >= 60 else "medium",
-                        category="watering",
-                        confidence=min(1.0, confidence),
-                        rationale=f"Recommended change is {diff}s",
-                        source="ml",
-                    ))
+                    recommendations.append(
+                        Recommendation(
+                            action=f"{direction} irrigation duration to {int(recommended)}s",
+                            priority="high" if diff >= 60 else "medium",
+                            category="watering",
+                            confidence=min(1.0, confidence),
+                            rationale=f"Recommended change is {diff}s",
+                            source="ml",
+                        )
+                    )
 
         timing = _get(prediction, "timing")
         if timing:
@@ -324,14 +325,16 @@ class RuleBasedRecommendationProvider(RecommendationProvider):
             confidence = float(_get(timing, "confidence", 0.0) or 0.0)
             if preferred_time and avoid_times and confidence > 0.5:
                 avoid_preview = ", ".join(list(avoid_times)[:3])
-                recommendations.append(Recommendation(
-                    action=f"Schedule irrigation near {preferred_time} and avoid {avoid_preview}",
-                    priority="medium",
-                    category="watering",
-                    confidence=min(1.0, confidence),
-                    rationale="Timing model suggests preferred hours",
-                    source="ml",
-                ))
+                recommendations.append(
+                    Recommendation(
+                        action=f"Schedule irrigation near {preferred_time} and avoid {avoid_preview}",
+                        priority="medium",
+                        category="watering",
+                        confidence=min(1.0, confidence),
+                        rationale="Timing model suggests preferred hours",
+                        source="ml",
+                    )
+                )
 
         next_irrigation = _get(prediction, "next_irrigation")
         if next_irrigation:
@@ -339,33 +342,28 @@ class RuleBasedRecommendationProvider(RecommendationProvider):
             hours_until = _get(next_irrigation, "hours_until_threshold")
             confidence = float(_get(next_irrigation, "confidence", 0.0) or 0.0)
             if predicted_time and confidence > 0.5:
-                eta = (
-                    f"{float(hours_until):.1f}h"
-                    if hours_until is not None
-                    else "soon"
+                eta = f"{float(hours_until):.1f}h" if hours_until is not None else "soon"
+                recommendations.append(
+                    Recommendation(
+                        action=f"Next irrigation expected in {eta} (around {predicted_time})",
+                        priority="low",
+                        category="watering",
+                        confidence=min(1.0, confidence),
+                        rationale="Dry-down model projection",
+                        source="ml",
+                    )
                 )
-                recommendations.append(Recommendation(
-                    action=f"Next irrigation expected in {eta} (around {predicted_time})",
-                    priority="low",
-                    category="watering",
-                    confidence=min(1.0, confidence),
-                    rationale="Dry-down model projection",
-                    source="ml",
-                ))
 
         return recommendations
 
-    def _check_environmental_conditions(
-        self,
-        context: RecommendationContext
-    ) -> List[Recommendation]:
+    def _check_environmental_conditions(self, context: RecommendationContext) -> list[Recommendation]:
         """Check environmental conditions against ThresholdService ranges.
 
         Uses ``ThresholdService.get_threshold_ranges()`` for plant-specific
         min/max/optimal values when available, otherwise falls back to safe
         generic limits.
         """
-        recommendations: List[Recommendation] = []
+        recommendations: list[Recommendation] = []
         env = context.environmental_data or {}
 
         # Resolve ranges from ThresholdService (plant-aware) or generic
@@ -378,23 +376,27 @@ class RuleBasedRecommendationProvider(RecommendationProvider):
             temp_max = temp_range.get("max", 32.0)
             temp_min = temp_range.get("min", 15.0)
             if temp > temp_max:
-                recommendations.append(Recommendation(
-                    action="Reduce temperature - risk of heat stress",
-                    priority="high",
-                    category="environment",
-                    confidence=0.8,
-                    rationale=f"Temperature ({temp}°C) exceeds max ({temp_max}°C)",
-                    source="rule_based"
-                ))
+                recommendations.append(
+                    Recommendation(
+                        action="Reduce temperature - risk of heat stress",
+                        priority="high",
+                        category="environment",
+                        confidence=0.8,
+                        rationale=f"Temperature ({temp}°C) exceeds max ({temp_max}°C)",
+                        source="rule_based",
+                    )
+                )
             elif temp < temp_min:
-                recommendations.append(Recommendation(
-                    action="Increase temperature - risk of cold stress",
-                    priority="high",
-                    category="environment",
-                    confidence=0.8,
-                    rationale=f"Temperature ({temp}°C) below min ({temp_min}°C)",
-                    source="rule_based"
-                ))
+                recommendations.append(
+                    Recommendation(
+                        action="Increase temperature - risk of cold stress",
+                        priority="high",
+                        category="environment",
+                        confidence=0.8,
+                        rationale=f"Temperature ({temp}°C) below min ({temp_min}°C)",
+                        source="rule_based",
+                    )
+                )
 
         # Humidity checks
         humidity = env.get("humidity")
@@ -403,23 +405,27 @@ class RuleBasedRecommendationProvider(RecommendationProvider):
             hum_max = hum_range.get("max", 80.0)
             hum_min = hum_range.get("min", 30.0)
             if humidity > hum_max:
-                recommendations.append(Recommendation(
-                    action="Reduce humidity to prevent fungal issues",
-                    priority="medium",
-                    category="environment",
-                    confidence=0.7,
-                    rationale=f"Humidity ({humidity}%) exceeds max ({hum_max}%)",
-                    source="rule_based"
-                ))
+                recommendations.append(
+                    Recommendation(
+                        action="Reduce humidity to prevent fungal issues",
+                        priority="medium",
+                        category="environment",
+                        confidence=0.7,
+                        rationale=f"Humidity ({humidity}%) exceeds max ({hum_max}%)",
+                        source="rule_based",
+                    )
+                )
             elif humidity < hum_min:
-                recommendations.append(Recommendation(
-                    action="Increase humidity to prevent leaf damage",
-                    priority="medium",
-                    category="environment",
-                    confidence=0.7,
-                    rationale=f"Humidity ({humidity}%) below min ({hum_min}%)",
-                    source="rule_based"
-                ))
+                recommendations.append(
+                    Recommendation(
+                        action="Increase humidity to prevent leaf damage",
+                        priority="medium",
+                        category="environment",
+                        confidence=0.7,
+                        rationale=f"Humidity ({humidity}%) below min ({hum_min}%)",
+                        source="rule_based",
+                    )
+                )
 
         # Soil moisture checks
         soil_moisture = env.get("soil_moisture")
@@ -428,36 +434,41 @@ class RuleBasedRecommendationProvider(RecommendationProvider):
             sm_max = sm_range.get("max", 85.0)
             sm_min = sm_range.get("min", 25.0)
             if soil_moisture < sm_min:
-                recommendations.append(Recommendation(
-                    action="Water immediately - soil is very dry",
-                    priority="urgent",
-                    category="watering",
-                    confidence=0.9,
-                    rationale=f"Soil moisture ({soil_moisture}%) below min ({sm_min}%)",
-                    source="rule_based"
-                ))
+                recommendations.append(
+                    Recommendation(
+                        action="Water immediately - soil is very dry",
+                        priority="urgent",
+                        category="watering",
+                        confidence=0.9,
+                        rationale=f"Soil moisture ({soil_moisture}%) below min ({sm_min}%)",
+                        source="rule_based",
+                    )
+                )
             elif soil_moisture > sm_max:
-                recommendations.append(Recommendation(
-                    action="Reduce watering - risk of root rot",
-                    priority="high",
-                    category="watering",
-                    confidence=0.8,
-                    rationale=f"Soil moisture ({soil_moisture}%) exceeds max ({sm_max}%)",
-                    source="rule_based"
-                ))
+                recommendations.append(
+                    Recommendation(
+                        action="Reduce watering - risk of root rot",
+                        priority="high",
+                        category="watering",
+                        confidence=0.8,
+                        rationale=f"Soil moisture ({soil_moisture}%) exceeds max ({sm_max}%)",
+                        source="rule_based",
+                    )
+                )
 
         return recommendations
 
     def _get_env_ranges(
         self,
-        plant_type: Optional[str],
-        growth_stage: Optional[str],
-    ) -> Dict[str, Dict[str, float]]:
+        plant_type: str | None,
+        growth_stage: str | None,
+    ) -> dict[str, dict[str, float]]:
         """Resolve environmental ranges from ThresholdService or generic fallback."""
         if self.threshold_service and plant_type:
             try:
                 return self.threshold_service.get_threshold_ranges(
-                    plant_type, growth_stage,
+                    plant_type,
+                    growth_stage,
                 )
             except Exception as exc:
                 logger.debug("ThresholdService lookup failed: %s", exc)
@@ -525,8 +536,8 @@ Respond ONLY with a valid JSON array. No markdown fences."""
 
     def __init__(
         self,
-        backend: Optional["LLMBackend"] = None,
-        fallback_provider: Optional[RecommendationProvider] = None,
+        backend: "LLMBackend" | None = None,
+        fallback_provider: RecommendationProvider | None = None,
         max_tokens: int = 512,
         temperature: float = 0.3,
     ):
@@ -552,7 +563,7 @@ Respond ONLY with a valid JSON array. No markdown fences."""
     def get_recommendations(
         self,
         context: RecommendationContext,
-    ) -> List[Recommendation]:
+    ) -> list[Recommendation]:
         """Generate LLM-powered recommendations, falling back to rules."""
         if not self.is_available:
             logger.debug("LLM backend not available — using fallback provider")
@@ -572,7 +583,8 @@ Respond ONLY with a valid JSON array. No markdown fences."""
             if recommendations:
                 logger.debug(
                     "LLM produced %d recommendations (%.0f ms)",
-                    len(recommendations), response.latency_ms,
+                    len(recommendations),
+                    response.latency_ms,
                 )
                 return recommendations
         except Exception as exc:
@@ -582,9 +594,9 @@ Respond ONLY with a valid JSON array. No markdown fences."""
 
     def get_treatment_suggestions(
         self,
-        symptoms: List[str],
-        context: Optional[RecommendationContext] = None,
-    ) -> List[Recommendation]:
+        symptoms: list[str],
+        context: RecommendationContext | None = None,
+    ) -> list[Recommendation]:
         """Get LLM-powered treatment suggestions for specific symptoms."""
         if not self.is_available:
             return self._fallback.get_treatment_suggestions(symptoms, context)
@@ -598,9 +610,7 @@ Respond ONLY with a valid JSON array. No markdown fences."""
             plant_info += "\n"
 
         user_prompt = (
-            f"{plant_info}"
-            f"Symptoms observed: {symptom_text}\n\n"
-            f"Suggest specific treatments for these symptoms."
+            f"{plant_info}Symptoms observed: {symptom_text}\n\nSuggest specific treatments for these symptoms."
         )
 
         try:
@@ -627,7 +637,7 @@ Respond ONLY with a valid JSON array. No markdown fences."""
 
     def _build_recommendation_prompt(self, ctx: RecommendationContext) -> str:
         """Build a rich user prompt from :class:`RecommendationContext`."""
-        parts: List[str] = []
+        parts: list[str] = []
 
         if ctx.plant_type:
             stage = ctx.growth_stage or "unknown"
@@ -643,16 +653,11 @@ Respond ONLY with a valid JSON array. No markdown fences."""
             parts.append(f"Symptoms: {', '.join(ctx.symptoms)}")
 
         if ctx.environmental_data:
-            env_lines = [
-                f"  {key}: {val}"
-                for key, val in ctx.environmental_data.items()
-            ]
+            env_lines = [f"  {key}: {val}" for key, val in ctx.environmental_data.items()]
             parts.append("Current sensor readings:\n" + "\n".join(env_lines))
 
         if ctx.recent_observations:
-            obs_summary = "; ".join(
-                str(o.get("summary", o)) for o in ctx.recent_observations[:3]
-            )
+            obs_summary = "; ".join(str(o.get("summary", o)) for o in ctx.recent_observations[:3])
             parts.append(f"Recent observations: {obs_summary}")
 
         if ctx.irrigation_prediction:
@@ -665,7 +670,7 @@ Respond ONLY with a valid JSON array. No markdown fences."""
 
     # -- response parsing ---------------------------------------------------
 
-    def _parse_recommendations(self, text: str) -> List[Recommendation]:
+    def _parse_recommendations(self, text: str) -> list[Recommendation]:
         """Parse the LLM's JSON response into :class:`Recommendation` objects."""
         cleaned = text.strip()
         # Strip markdown fences if present
@@ -681,7 +686,7 @@ Respond ONLY with a valid JSON array. No markdown fences."""
             return self._parse_freeform(cleaned)
 
         # Accept both a top-level array and {"recommendations": [...]}
-        items: List[Dict[str, Any]] = []
+        items: list[dict[str, Any]] = []
         if isinstance(data, list):
             items = data
         elif isinstance(data, dict):
@@ -689,7 +694,7 @@ Respond ONLY with a valid JSON array. No markdown fences."""
             if not items and "action" in data:
                 items = [data]
 
-        recommendations: List[Recommendation] = []
+        recommendations: list[Recommendation] = []
         valid_priorities = {"urgent", "high", "medium", "low"}
         for item in items[:5]:
             if not isinstance(item, dict) or "action" not in item:
@@ -697,21 +702,23 @@ Respond ONLY with a valid JSON array. No markdown fences."""
             priority = str(item.get("priority", "medium")).lower()
             if priority not in valid_priorities:
                 priority = "medium"
-            recommendations.append(Recommendation(
-                action=str(item["action"]),
-                priority=priority,
-                category=str(item.get("category", "general")),
-                confidence=min(1.0, max(0.0, float(item.get("confidence", 0.7)))),
-                rationale=item.get("rationale"),
-                source="llm",
-            ))
+            recommendations.append(
+                Recommendation(
+                    action=str(item["action"]),
+                    priority=priority,
+                    category=str(item.get("category", "general")),
+                    confidence=min(1.0, max(0.0, float(item.get("confidence", 0.7)))),
+                    rationale=item.get("rationale"),
+                    source="llm",
+                )
+            )
 
         return recommendations
 
     @staticmethod
-    def _parse_freeform(text: str) -> List[Recommendation]:
+    def _parse_freeform(text: str) -> list[Recommendation]:
         """Last-resort: extract numbered lines from plain text."""
-        recommendations: List[Recommendation] = []
+        recommendations: list[Recommendation] = []
         for line in text.strip().split("\n"):
             line = line.strip()
             if line and line[0].isdigit():
@@ -719,12 +726,14 @@ Respond ONLY with a valid JSON array. No markdown fences."""
                 if not action:
                     continue
                 parts = action.split(" - ", 1)
-                recommendations.append(Recommendation(
-                    action=parts[0],
-                    priority="medium",
-                    category="general",
-                    confidence=0.5,
-                    rationale=parts[1] if len(parts) > 1 else None,
-                    source="llm",
-                ))
+                recommendations.append(
+                    Recommendation(
+                        action=parts[0],
+                        priority="medium",
+                        category="general",
+                        confidence=0.5,
+                        rationale=parts[1] if len(parts) > 1 else None,
+                        source="llm",
+                    )
+                )
         return recommendations[:5]

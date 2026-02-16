@@ -11,16 +11,16 @@ Recovery codes are one-time codes for offline password recovery.
 from __future__ import annotations
 
 import logging
+
 from flask import request, session
 
-from app.blueprints.api.settings import settings_api
-from app.security.auth import api_login_required
-
 from app.blueprints.api._common import (
-    success as _success,
     fail as _fail,
     get_container as _get_container,
+    success as _success,
 )
+from app.blueprints.api.settings import settings_api
+from app.security.auth import api_login_required
 
 logger = logging.getLogger(__name__)
 
@@ -45,10 +45,12 @@ def get_recovery_code_count():
         auth_manager = container.auth_manager
         count = auth_manager.get_recovery_code_count(user_id)
 
-        return _success({
-            "count": count,
-            "total": 10  # RECOVERY_CODE_COUNT
-        })
+        return _success(
+            {
+                "count": count,
+                "total": 10,  # RECOVERY_CODE_COUNT
+            }
+        )
 
     except Exception as exc:
         logger.exception("Error getting recovery code count")
@@ -97,10 +99,10 @@ def generate_recovery_codes():
         if codes is None:
             return _fail("Failed to generate recovery codes", 500)
 
-        return _success({
-            "codes": codes,
-            "count": len(codes)
-        }, message="Recovery codes generated successfully. Save these codes in a secure location.")
+        return _success(
+            {"codes": codes, "count": len(codes)},
+            message="Recovery codes generated successfully. Save these codes in a secure location.",
+        )
 
     except Exception as exc:
         logger.exception("Error generating recovery codes")

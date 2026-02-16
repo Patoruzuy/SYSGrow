@@ -10,18 +10,18 @@ Date: 11/03/2025
 import logging
 import os
 import threading
+from dataclasses import dataclass
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
-from typing import Callable, List, Optional, Tuple
+from typing import Callable
 
 import paho.mqtt.client as mqtt
 
-from dataclasses import dataclass
 from app.enums.events import DeviceEvent
+from app.hardware.mqtt.client_factory import create_mqtt_client
 from app.schemas.events import ConnectivityStatePayload
 from app.utils.event_bus import EventBus
 from app.utils.time import iso_now
-from app.hardware.mqtt.client_factory import create_mqtt_client
 
 # Configure rotating log handler for MQTT operations
 # Prevents log file explosion on Raspberry Pi (critical fix)
@@ -31,26 +31,26 @@ if not _mqtt_logger.handlers:
     _mqtt_handler = RotatingFileHandler(
         "logs/devices_mqtt.log",
         maxBytes=10 * 1024 * 1024,  # 10MB max per file
-        backupCount=3,              # Keep 3 backup files (40MB total max)
-        encoding="utf-8"
+        backupCount=3,  # Keep 3 backup files (40MB total max)
+        encoding="utf-8",
     )
-    _mqtt_handler.setFormatter(logging.Formatter(
-        "%(asctime)s - %(levelname)s - %(message)s"
-    ))
+    _mqtt_handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
     _mqtt_logger.addHandler(_mqtt_handler)
     _mqtt_logger.setLevel(logging.INFO)
     _mqtt_logger.propagate = False  # Don't duplicate to root logger
 
 _LOG_MQTT_DISPATCH = os.getenv("SYSGROW_LOG_MQTT_DISPATCH", "").lower() in {"1", "true", "t", "yes", "on"}
 
+
 @dataclass
 class HealthStatus:
     """
     Tracks the health status of the MQTT client connection.
     """
+
     is_connected: bool = False
-    last_error: Optional[str] = None
-    last_error_time: Optional[datetime] = None
+    last_error: str | None = None
+    last_error_time: datetime | None = None
     connection_attempts: int = 0
     successful_publishes: int = 0
     failed_publishes: int = 0
@@ -63,7 +63,7 @@ class HealthStatus:
         if total_publishes == 0:
             return 0.0
         return (self.successful_publishes / total_publishes) * 100
-    
+
     def mark_status(self, connected: bool):
         """Mark the connection status."""
         self.is_connected = connected
@@ -109,14 +109,15 @@ class HealthStatus:
             "successful_publishes": self.successful_publishes,
             "failed_publishes": self.failed_publishes,
             "active_subscriptions": self.active_subscriptions,
-            "publish_success_rate": round(self.success_rate, 2)
+            "publish_success_rate": round(self.success_rate, 2),
         }
-    
+
 
 class MQTTClientWrapper:
     """
     Wrapper class for handling MQTT client functionality.
     """
+
     def __init__(self, broker, port, client_id=""):
         """
         Initializes the MQTT client wrapper.
@@ -133,7 +134,7 @@ class MQTTClientWrapper:
         self.connected = False
         self.subscribe_count = 0
         self._callback_lock = threading.Lock()
-        self._callbacks: List[Tuple[str, Callable]] = []
+        self._callbacks: list[tuple[str, Callable]] = []
         # Always dispatch through our fan-out handler so multiple subscribers can coexist
         self.client.on_message = self._dispatch_message
         self.event_bus = EventBus()
@@ -237,7 +238,9 @@ class MQTTClientWrapper:
                     self.subscribe_count += 1
                     self.health_status.set_active_subscriptions(self.subscribe_count)
                     _mqtt_logger.info(f"Subscribed to topic {topic} with callback {callback.__name__}")
-                    _mqtt_logger.info(f"   Total subscriptions: {self.subscribe_count}, registered callbacks: {len(self._callbacks)}")
+                    _mqtt_logger.info(
+                        f"   Total subscriptions: {self.subscribe_count}, registered callbacks: {len(self._callbacks)}"
+                    )
                 else:
                     _mqtt_logger.error(f"Failed to subscribe to topic {topic}: result code {result}")
             except Exception as e:
@@ -277,7 +280,9 @@ class MQTTClientWrapper:
                 _mqtt_logger.error(f"Error in MQTT callback for topic {sub}: {e}", exc_info=True)
 
         if not handled:
-            _mqtt_logger.warning(f"MQTT message on {msg.topic} had no registered handlers (subscriptions: {[s[0] for s in callbacks]})")
+            _mqtt_logger.warning(
+                f"MQTT message on {msg.topic} had no registered handlers (subscriptions: {[s[0] for s in callbacks]})"
+            )
 
     def __del__(self):
         """

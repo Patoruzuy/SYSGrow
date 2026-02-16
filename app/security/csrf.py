@@ -1,5 +1,6 @@
+import hmac
 import secrets
-from typing import Iterable, Set
+from typing import Iterable
 
 from flask import Flask, abort, current_app, request, session
 
@@ -13,8 +14,8 @@ class CSRFMiddleware:
         exempt_endpoints: Iterable[str] | None = None,
         exempt_blueprints: Iterable[str] | None = None,
     ) -> None:
-        self.exempt_endpoints: Set[str] = set(exempt_endpoints or [])
-        self.exempt_blueprints: Set[str] = set(exempt_blueprints or [])
+        self.exempt_endpoints: set[str] = set(exempt_endpoints or [])
+        self.exempt_blueprints: set[str] = set(exempt_blueprints or [])
 
     def init_app(self, app: Flask) -> None:
         app.before_request(self._protect)
@@ -35,7 +36,7 @@ class CSRFMiddleware:
 
         session_token = session.get("_csrf_token")
         request_token = request.headers.get("X-CSRF-Token") or request.form.get("csrf_token")
-        if not session_token or not request_token or session_token != request_token:
+        if not session_token or not request_token or not hmac.compare_digest(session_token, request_token):
             abort(400, description="CSRF token missing or invalid")
 
     def _is_exempt(self) -> bool:

@@ -1,11 +1,11 @@
 from __future__ import annotations
 
+import json
 import logging
 import sqlite3
-import json
-from typing import Any, Dict, List, Optional
-from app.utils.time import iso_now
+from typing import Any
 
+from app.utils.time import iso_now
 
 logger = logging.getLogger(__name__)
 
@@ -16,16 +16,19 @@ class AlertOperations:
     def find_latest_matching_alert(
         self,
         alert_type: str,
-        source_type: Optional[str] = None,
-        source_id: Optional[int] = None,
-        dedup_key: Optional[str] = None,
+        source_type: str | None = None,
+        source_id: int | None = None,
+        dedup_key: str | None = None,
     ):
         try:
             db = self.get_db()
             # If dedup_key is provided, prefer the AlertDedupe table for a fast indexed lookup
             if dedup_key:
                 try:
-                    cur = db.execute("SELECT alert_id, dedup_key, occurrences, last_seen FROM AlertDedupe WHERE dedup_key = ?", (dedup_key,))
+                    cur = db.execute(
+                        "SELECT alert_id, dedup_key, occurrences, last_seen FROM AlertDedupe WHERE dedup_key = ?",
+                        (dedup_key,),
+                    )
                     ded = cur.fetchone()
                     if ded and ded.get("alert_id"):
                         # Return the linked alert row
@@ -38,7 +41,7 @@ class AlertOperations:
                     pass
 
             conditions = ["alert_type = ?", "resolved = 0"]
-            params: List[Any] = [alert_type]
+            params: list[Any] = [alert_type]
 
             if source_type is None:
                 conditions.append("source_type IS NULL")
@@ -78,11 +81,11 @@ class AlertOperations:
         severity: str,
         title: str,
         message: str,
-        source_type: Optional[str],
-        source_id: Optional[int],
-        unit_id: Optional[int],
-        metadata_json: Optional[str],
-    ) -> Optional[int]:
+        source_type: str | None,
+        source_id: int | None,
+        unit_id: int | None,
+        metadata_json: str | None,
+    ) -> int | None:
         try:
             db = self.get_db()
             cur = db.cursor()
@@ -163,11 +166,11 @@ class AlertOperations:
             logger.debug("Failed to update alert metadata: %s", exc)
             return False
 
-    def get_active_alerts(self, severity: Optional[str] = None, unit_id: Optional[int] = None, limit: int = 100):
+    def get_active_alerts(self, severity: str | None = None, unit_id: int | None = None, limit: int = 100):
         try:
             db = self.get_db()
             query = "SELECT * FROM Alert WHERE resolved = 0"
-            params: List[Any] = []
+            params: list[Any] = []
             if severity:
                 query += " AND severity = ?"
                 params.append(severity)
@@ -181,12 +184,12 @@ class AlertOperations:
         except sqlite3.Error as exc:
             logger.debug("get_active_alerts failed: %s", exc)
             return []
-    
-    def list_active(self, severity: Optional[str] = None, unit_id: Optional[int] = None, limit: int = 100):
+
+    def list_active(self, severity: str | None = None, unit_id: int | None = None, limit: int = 100):
         """Alias for get_active_alerts for consistency."""
         return self.get_active_alerts(severity=severity, unit_id=unit_id, limit=limit)
 
-    def acknowledge_alert(self, alert_id: int, user_id: Optional[int] = None) -> bool:
+    def acknowledge_alert(self, alert_id: int, user_id: int | None = None) -> bool:
         try:
             db = self.get_db()
             db.execute(
@@ -202,6 +205,7 @@ class AlertOperations:
     def resolve_alert(self, alert_id: int) -> bool:
         try:
             from app.utils.time import iso_now
+
             db = self.get_db()
             db.execute("UPDATE Alert SET resolved = 1, resolved_at = ? WHERE alert_id = ?", (iso_now(), alert_id))
             db.commit()
@@ -210,7 +214,7 @@ class AlertOperations:
             logger.debug("resolve_alert failed: %s", exc)
             return False
 
-    def get_alert_summary(self) -> Dict[str, Any]:
+    def get_alert_summary(self) -> dict[str, Any]:
         try:
             db = self.get_db()
             cursor = db.execute("SELECT severity, COUNT(*) as count FROM Alert WHERE resolved = 0 GROUP BY severity")
@@ -230,13 +234,19 @@ class AlertOperations:
             }
         except Exception as exc:
             logger.debug("get_alert_summary failed: %s", exc)
-            return {"total_active": 0, "total_resolved": 0, "active_by_severity": {"info": 0, "warning": 0, "critical": 0}}
+            return {
+                "total_active": 0,
+                "total_resolved": 0,
+                "active_by_severity": {"info": 0, "warning": 0, "critical": 0},
+            }
 
     def purge_old_alerts(self, cutoff_iso: str, resolved_only: bool = True) -> int:
         try:
             db = self.get_db()
             if resolved_only:
-                cur = db.execute("SELECT COUNT(*) as cnt FROM Alert WHERE resolved = 1 AND timestamp < ?", (cutoff_iso,))
+                cur = db.execute(
+                    "SELECT COUNT(*) as cnt FROM Alert WHERE resolved = 1 AND timestamp < ?", (cutoff_iso,)
+                )
                 to_delete = cur.fetchone()[0]
                 if to_delete > 0:
                     db.execute("DELETE FROM Alert WHERE resolved = 1 AND timestamp < ?", (cutoff_iso,))

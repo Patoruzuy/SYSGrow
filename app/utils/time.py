@@ -6,16 +6,16 @@ ISO-8601 strings with timezone offsets (e.g., "+00:00") via iso_now().
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Optional, Any
+from datetime import UTC, datetime
+from typing import Any
 
 
 def utc_now() -> datetime:
     """Return current UTC time as an aware datetime."""
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
-def iso_now(*, timespec: Optional[str] = None) -> str:
+def iso_now(*, timespec: str | None = None) -> str:
     """Return current UTC time as an ISO8601 string (timezone-aware)."""
     now = utc_now()
     if timespec:
@@ -27,10 +27,11 @@ def get_current_utc_time() -> datetime:
     """Backward-compatible alias for retrieving UTC now."""
     return utc_now()
 
+
 def convert_utc_to_local(utc_dt: datetime) -> datetime:
     """Convert a UTC datetime (aware or naive) to the local timezone."""
     if utc_dt.tzinfo is None:
-        utc_dt = utc_dt.replace(tzinfo=timezone.utc)
+        utc_dt = utc_dt.replace(tzinfo=UTC)
     return utc_dt.astimezone()
 
 
@@ -42,13 +43,13 @@ def format_datetime(dt: datetime, fmt: str = "%Y-%m-%d %H:%M:%S %Z") -> str:
 def sqlite_timestamp(dt: datetime) -> str:
     """Format a datetime for safe use with SQLite datetime() comparisons."""
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
+        dt = dt.replace(tzinfo=UTC)
     else:
-        dt = dt.astimezone(timezone.utc)
+        dt = dt.astimezone(UTC)
     return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 
-def coerce_datetime(value: Any) -> Optional[datetime]:
+def coerce_datetime(value: Any) -> datetime | None:
     """
     Coerce value to datetime, returning None on failure.
 
@@ -75,8 +76,8 @@ def coerce_datetime(value: Any) -> Optional[datetime]:
         return None
 
     if parsed.tzinfo is not None:
-        parsed = parsed.astimezone(timezone.utc)
+        parsed = parsed.astimezone(UTC)
     else:
-        parsed = parsed.replace(tzinfo=timezone.utc)
+        parsed = parsed.replace(tzinfo=UTC)
 
     return parsed

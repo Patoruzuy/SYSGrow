@@ -3,6 +3,7 @@
 Provides public access to blog posts and categories.
 No authentication required for better SEO.
 """
+
 from __future__ import annotations
 
 import json
@@ -29,7 +30,7 @@ def _load_blog_data() -> dict[str, Any]:
 
     try:
         data_path = Path(__file__).resolve().parent.parent.parent.parent / "static" / "data" / "blog_posts.json"
-        with open(data_path, "r", encoding="utf-8") as f:
+        with open(data_path, encoding="utf-8") as f:
             _blog_data_cache = json.load(f)
         return _blog_data_cache
     except FileNotFoundError:
@@ -87,42 +88,42 @@ def get_posts():
         # Apply search filter
         if search_term:
             searchable = (
-                post.get("title", "").lower() + " " +
-                post.get("summary", "").lower() + " " +
-                " ".join(post.get("tags", []))
+                post.get("title", "").lower()
+                + " "
+                + post.get("summary", "").lower()
+                + " "
+                + " ".join(post.get("tags", []))
             )
             if search_term not in searchable:
                 continue
 
         # Return post without full content for listing
-        filtered_posts.append({
-            "id": post.get("id"),
-            "slug": post.get("slug"),
-            "title": post.get("title"),
-            "summary": post.get("summary"),
-            "category": post.get("category"),
-            "emoji": post.get("emoji"),
-            "author": post.get("author"),
-            "published_at": post.get("published_at"),
-            "reading_time": post.get("reading_time"),
-            "featured": post.get("featured", False),
-            "tags": post.get("tags", [])
-        })
+        filtered_posts.append(
+            {
+                "id": post.get("id"),
+                "slug": post.get("slug"),
+                "title": post.get("title"),
+                "summary": post.get("summary"),
+                "category": post.get("category"),
+                "emoji": post.get("emoji"),
+                "author": post.get("author"),
+                "published_at": post.get("published_at"),
+                "reading_time": post.get("reading_time"),
+                "featured": post.get("featured", False),
+                "tags": post.get("tags", []),
+            }
+        )
 
     # Sort by published_at descending (newest first)
     filtered_posts.sort(key=lambda x: x.get("published_at", ""), reverse=True)
 
     # Apply pagination
     total = len(filtered_posts)
-    paginated = filtered_posts[offset:offset + limit]
+    paginated = filtered_posts[offset : offset + limit]
 
-    return _api_success({
-        "posts": paginated,
-        "total": total,
-        "limit": limit,
-        "offset": offset,
-        "has_more": offset + limit < total
-    })
+    return _api_success(
+        {"posts": paginated, "total": total, "limit": limit, "offset": offset, "has_more": offset + limit < total}
+    )
 
 
 @blog_api.route("/post/<slug>", methods=["GET"])
@@ -162,13 +163,15 @@ def get_categories():
     categories = []
     for cat in data.get("categories", []):
         cat_id = cat.get("id")
-        categories.append({
-            "id": cat_id,
-            "name": cat.get("name"),
-            "description": cat.get("description"),
-            "icon": cat.get("icon"),
-            "post_count": category_counts.get(cat_id, 0)
-        })
+        categories.append(
+            {
+                "id": cat_id,
+                "name": cat.get("name"),
+                "description": cat.get("description"),
+                "icon": cat.get("icon"),
+                "post_count": category_counts.get(cat_id, 0),
+            }
+        )
 
     return _api_success(categories)
 
@@ -189,18 +192,20 @@ def get_featured():
     featured = []
     for post in data.get("posts", []):
         if post.get("featured", False):
-            featured.append({
-                "id": post.get("id"),
-                "slug": post.get("slug"),
-                "title": post.get("title"),
-                "summary": post.get("summary"),
-                "category": post.get("category"),
-                "emoji": post.get("emoji"),
-                "author": post.get("author"),
-                "published_at": post.get("published_at"),
-                "reading_time": post.get("reading_time"),
-                "tags": post.get("tags", [])
-            })
+            featured.append(
+                {
+                    "id": post.get("id"),
+                    "slug": post.get("slug"),
+                    "title": post.get("title"),
+                    "summary": post.get("summary"),
+                    "category": post.get("category"),
+                    "emoji": post.get("emoji"),
+                    "author": post.get("author"),
+                    "published_at": post.get("published_at"),
+                    "reading_time": post.get("reading_time"),
+                    "tags": post.get("tags", []),
+                }
+            )
 
     # Sort by published_at descending
     featured.sort(key=lambda x: x.get("published_at", ""), reverse=True)
@@ -270,23 +275,21 @@ def search_posts():
             score += 15
 
         if score > 0:
-            results.append({
-                "id": post.get("id"),
-                "slug": post.get("slug"),
-                "title": post.get("title"),
-                "summary": post.get("summary"),
-                "category": post.get("category"),
-                "emoji": post.get("emoji"),
-                "published_at": post.get("published_at"),
-                "reading_time": post.get("reading_time"),
-                "score": score
-            })
+            results.append(
+                {
+                    "id": post.get("id"),
+                    "slug": post.get("slug"),
+                    "title": post.get("title"),
+                    "summary": post.get("summary"),
+                    "category": post.get("category"),
+                    "emoji": post.get("emoji"),
+                    "published_at": post.get("published_at"),
+                    "reading_time": post.get("reading_time"),
+                    "score": score,
+                }
+            )
 
     # Sort by score descending
     results.sort(key=lambda x: x["score"], reverse=True)
 
-    return _api_success({
-        "results": results[:limit],
-        "total": len(results),
-        "query": query
-    })
+    return _api_success({"results": results[:limit], "total": len(results), "query": query})

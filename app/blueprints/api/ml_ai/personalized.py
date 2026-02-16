@@ -6,23 +6,28 @@ Endpoints for managing user-specific AI learning and recommendations.
 
 import logging
 from datetime import datetime
+from typing import TYPE_CHECKING
+
 from flask import Blueprint, request
 
 from app.blueprints.api._common import (
+    fail as _fail,
     get_container as _container,
     get_user_id as _get_user_id,
     success as _success,
-    fail as _fail,
 )
+
+if TYPE_CHECKING:
+    from app.services.ai.personalized_learning import PlantStageConditionProfile
 from app.enums.common import (
     ConditionProfileMode,
-    ConditionProfileVisibility,
     ConditionProfileTarget,
+    ConditionProfileVisibility,
 )
 from app.schemas.personalized import (
     ConditionProfileCard,
-    ConditionProfileSection,
     ConditionProfileLinkSummary,
+    ConditionProfileSection,
     ConditionProfileSelectorResponse,
 )
 
@@ -36,7 +41,7 @@ def _get_personalized_service():
     container = _container()
     if not container:
         return None
-    return getattr(container, 'personalized_learning', None)
+    return getattr(container, "personalized_learning", None)
 
 
 def _parse_enum(enum_cls, value, field: str):
@@ -117,11 +122,12 @@ def _build_profile_card(
 # ENVIRONMENT PROFILES
 # ==============================================================================
 
+
 @personalized_bp.get("/profiles/<int:unit_id>")
 def get_profile(unit_id: int):
     """
     Get environment profile for a unit.
-    
+
     Returns:
         {
             "profile": {
@@ -137,27 +143,27 @@ def get_profile(unit_id: int):
     """
     try:
         service = _get_personalized_service()
-        
+
         if not service:
             return _fail("Personalized learning service is not enabled", 503)
-        
+
         profile = service.get_profile(unit_id)
-        
+
         if not profile:
             return _fail(f"Profile for unit {unit_id} not found", 404)
-        
+
         return _success({"profile": profile.to_dict()})
-        
+
     except Exception as e:
         logger.error(f"Error getting profile for unit {unit_id}: {e}", exc_info=True)
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
 @personalized_bp.post("/profiles")
 def create_profile():
     """
     Create a new environment profile.
-    
+
     Request body:
         {
             "user_id": int,
@@ -165,7 +171,7 @@ def create_profile():
             "location_info": {...} (optional),
             "equipment_info": {...} (optional)
         }
-    
+
     Returns:
         {
             "profile": {...}
@@ -173,37 +179,37 @@ def create_profile():
     """
     try:
         service = _get_personalized_service()
-        
+
         if not service:
             return _fail("Personalized learning service is not enabled", 503)
-        
+
         data = request.get_json() or {}
-        
-        user_id = data.get('user_id')
-        unit_id = data.get('unit_id')
-        
+
+        user_id = data.get("user_id")
+        unit_id = data.get("unit_id")
+
         if user_id is None or unit_id is None:
             return _fail("user_id and unit_id are required", 400)
-        
+
         profile = service.create_environment_profile(
             user_id=user_id,
             unit_id=unit_id,
-            location_info=data.get('location_info'),
-            equipment_info=data.get('equipment_info')
+            location_info=data.get("location_info"),
+            equipment_info=data.get("equipment_info"),
         )
-        
+
         return _success({"profile": profile.to_dict()}, 201)
-        
+
     except Exception as e:
         logger.error(f"Error creating profile: {e}", exc_info=True)
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
 @personalized_bp.put("/profiles/<int:unit_id>")
 def update_profile(unit_id: int):
     """
     Update an existing environment profile.
-    
+
     Request body:
         {
             "location_characteristics": {...} (optional),
@@ -211,7 +217,7 @@ def update_profile(unit_id: int):
             "success_factors": [...] (optional),
             "challenge_areas": [...] (optional)
         }
-    
+
     Returns:
         {
             "updated": true,
@@ -220,32 +226,31 @@ def update_profile(unit_id: int):
     """
     try:
         service = _get_personalized_service()
-        
+
         if not service:
             return _fail("Personalized learning service is not enabled", 503)
-        
+
         data = request.get_json() or {}
-        
+
         service.update_profile(unit_id, data)
-        
+
         # Get updated profile
         profile = service.get_profile(unit_id)
-        
+
         if not profile:
             return _fail(f"Profile for unit {unit_id} not found", 404)
-        
-        return _success({
-            "updated": True,
-            "profile": profile.to_dict()
-        })
-        
+
+        return _success({"updated": True, "profile": profile.to_dict()})
+
     except Exception as e:
         logger.error(f"Error updating profile for unit {unit_id}: {e}", exc_info=True)
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
+
 
 # ==============================================================================
 # CONDITION PROFILES (Per-plant stage thresholds)
 # ==============================================================================
+
 
 @personalized_bp.get("/condition-profiles")
 def get_condition_profile():
@@ -297,10 +302,10 @@ def get_condition_profile():
             return _fail("Condition profile not found", 404)
         return _success({"profile": profile.to_dict()})
     except ValueError as e:
-        return _fail(str(e), 400)
+        return safe_error(e, 400)
     except Exception as e:
         logger.error("Error fetching condition profile: %s", e, exc_info=True)
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
 @personalized_bp.get("/condition-profiles/user/<int:user_id>")
@@ -328,10 +333,10 @@ def list_condition_profiles(user_id: int):
             profiles = [p for p in profiles if p.visibility == visibility_enum]
         return _success({"profiles": [profile.to_dict() for profile in profiles]})
     except ValueError as e:
-        return _fail(str(e), 400)
+        return safe_error(e, 400)
     except Exception as e:
         logger.error("Error listing condition profiles: %s", e, exc_info=True)
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
 @personalized_bp.get("/condition-profiles/selector")
@@ -357,32 +362,20 @@ def get_condition_profile_selector():
         target_type = request.args.get("target_type")
         target_id = request.args.get("target_id", type=int)
 
-        target_type_enum = (
-            _parse_enum(ConditionProfileTarget, target_type, "target_type")
-            if target_type
-            else None
-        )
+        target_type_enum = _parse_enum(ConditionProfileTarget, target_type, "target_type") if target_type else None
 
         profiles = service.list_condition_profiles(user_id)
         if plant_type:
-            profiles = [
-                p
-                for p in profiles
-                if str(p.plant_type).strip().lower() == plant_type.strip().lower()
-            ]
+            profiles = [p for p in profiles if str(p.plant_type).strip().lower() == plant_type.strip().lower()]
         if growth_stage:
-            profiles = [
-                p
-                for p in profiles
-                if str(p.growth_stage).strip().lower() == growth_stage.strip().lower()
-            ]
+            profiles = [p for p in profiles if str(p.growth_stage).strip().lower() == growth_stage.strip().lower()]
 
-        def _has_env_thresholds(profile: PlantStageConditionProfile) -> bool:
+        def _has_env_thresholds(profile: "PlantStageConditionProfile") -> bool:
             if not profile.environment_thresholds:
                 return False
             return any(value is not None for value in profile.environment_thresholds.values())
 
-        def _has_soil_threshold(profile: PlantStageConditionProfile) -> bool:
+        def _has_soil_threshold(profile: "PlantStageConditionProfile") -> bool:
             return profile.soil_moisture_threshold is not None
 
         if target_type_enum == ConditionProfileTarget.UNIT:
@@ -396,17 +389,13 @@ def get_condition_profile_selector():
         shared_profiles = service.list_shared_profiles()
         if plant_type:
             shared_profiles = [
-                p
-                for p in shared_profiles
-                if str(p.get("plant_type", "")).strip().lower()
-                == plant_type.strip().lower()
+                p for p in shared_profiles if str(p.get("plant_type", "")).strip().lower() == plant_type.strip().lower()
             ]
         if growth_stage:
             shared_profiles = [
                 p
                 for p in shared_profiles
-                if str(p.get("growth_stage", "")).strip().lower()
-                == growth_stage.strip().lower()
+                if str(p.get("growth_stage", "")).strip().lower() == growth_stage.strip().lower()
             ]
 
         if target_type_enum == ConditionProfileTarget.UNIT:
@@ -417,9 +406,7 @@ def get_condition_profile_selector():
                 and any(v is not None for v in p.get("environment_thresholds", {}).values())
             ]
         elif target_type_enum == ConditionProfileTarget.PLANT:
-            shared_profiles = [
-                p for p in shared_profiles if p.get("soil_moisture_threshold") is not None
-            ]
+            shared_profiles = [p for p in shared_profiles if p.get("soil_moisture_threshold") is not None]
 
         sections = [
             ConditionProfileSection(
@@ -439,9 +426,7 @@ def get_condition_profile_selector():
                 label="Shared",
                 description="Community profiles you can import.",
                 profiles=[
-                    _build_profile_card(
-                        p, fallback_visibility=ConditionProfileVisibility.PUBLIC
-                    )
+                    _build_profile_card(p, fallback_visibility=ConditionProfileVisibility.PUBLIC)
                     for p in shared_profiles
                 ],
             ),
@@ -470,10 +455,10 @@ def get_condition_profile_selector():
         )
         return _success({"selector": payload.model_dump()})
     except ValueError as e:
-        return _fail(str(e), 400)
+        return safe_error(e, 400)
     except Exception as e:
         logger.error("Error building condition profile selector: %s", e, exc_info=True)
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
 @personalized_bp.post("/condition-profiles")
@@ -537,10 +522,10 @@ def upsert_condition_profile():
 
         return _success({"profile": profile.to_dict()}, 201)
     except ValueError as e:
-        return _fail(str(e), 400)
+        return safe_error(e, 400)
     except Exception as e:
         logger.error("Error upserting condition profile: %s", e, exc_info=True)
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
 @personalized_bp.post("/condition-profiles/clone")
@@ -578,10 +563,10 @@ def clone_condition_profile():
             return _fail("Source profile not found", 404)
         return _success({"profile": profile.to_dict()}, 201)
     except ValueError as e:
-        return _fail(str(e), 400)
+        return safe_error(e, 400)
     except Exception as e:
         logger.error("Error cloning condition profile: %s", e, exc_info=True)
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
 @personalized_bp.post("/condition-profiles/share")
@@ -605,9 +590,11 @@ def share_condition_profile():
         visibility = data.get("visibility")
         if user_id is None or not profile_id:
             return _fail("user_id and profile_id are required", 400)
-        visibility_enum = _parse_enum(
-            ConditionProfileVisibility, visibility, "visibility"
-        ) if visibility else ConditionProfileVisibility.LINK
+        visibility_enum = (
+            _parse_enum(ConditionProfileVisibility, visibility, "visibility")
+            if visibility
+            else ConditionProfileVisibility.LINK
+        )
 
         result = service.share_condition_profile(
             user_id=int(user_id),
@@ -618,10 +605,10 @@ def share_condition_profile():
             return _fail("Profile not found", 404)
         return _success(result)
     except ValueError as e:
-        return _fail(str(e), 400)
+        return safe_error(e, 400)
     except Exception as e:
         logger.error("Error sharing condition profile: %s", e, exc_info=True)
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
 @personalized_bp.get("/condition-profiles/shared/<string:token>")
@@ -636,10 +623,10 @@ def get_shared_condition_profile(token: str):
             return _fail("Shared profile not found", 404)
         return _success({"profile": profile})
     except ValueError as e:
-        return _fail(str(e), 400)
+        return safe_error(e, 400)
     except Exception as e:
         logger.error("Error fetching shared profile: %s", e, exc_info=True)
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
 @personalized_bp.get("/condition-profiles/shared")
@@ -652,10 +639,10 @@ def list_shared_condition_profiles():
         profiles = service.list_shared_profiles()
         return _success({"profiles": profiles})
     except ValueError as e:
-        return _fail(str(e), 400)
+        return safe_error(e, 400)
     except Exception as e:
         logger.error("Error listing shared profiles: %s", e, exc_info=True)
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
 @personalized_bp.post("/condition-profiles/import")
@@ -693,21 +680,22 @@ def import_shared_condition_profile():
         status = 200 if already_imported else 201
         return _success({"profile": profile.to_dict(), "already_imported": already_imported}, status)
     except ValueError as e:
-        return _fail(str(e), 400)
+        return safe_error(e, 400)
     except Exception as e:
         logger.error("Error importing shared profile: %s", e, exc_info=True)
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
 # ==============================================================================
 # SUCCESS TRACKING
 # ==============================================================================
 
+
 @personalized_bp.post("/successes")
 def record_success():
     """
     Record a growing success (completed grow cycle).
-    
+
     Request body:
         {
             "user_id": int,
@@ -722,7 +710,7 @@ def record_success():
             "lessons_learned": [...] (optional),
             "would_repeat": bool
         }
-    
+
     Returns:
         {
             "recorded": true,
@@ -731,63 +719,59 @@ def record_success():
     """
     try:
         from app.services.ai.personalized_learning import GrowingSuccess
-        
+
         service = _get_personalized_service()
-        
+
         if not service:
             return _fail("Personalized learning service is not enabled", 503)
-        
+
         data = request.get_json() or {}
-        
+
         # Validate required fields
-        required = ['user_id', 'unit_id', 'plant_type', 'start_date', 'harvest_date', 'quality_rating', 'would_repeat']
+        required = ["user_id", "unit_id", "plant_type", "start_date", "harvest_date", "quality_rating", "would_repeat"]
         missing = [f for f in required if f not in data]
         if missing:
             return _fail(f"Missing required fields: {', '.join(missing)}", 400)
-        
+
         success = GrowingSuccess(
-            user_id=data['user_id'],
-            unit_id=data['unit_id'],
-            plant_type=data['plant_type'],
-            plant_variety=data.get('plant_variety'),
-            start_date=datetime.fromisoformat(data['start_date']),
-            harvest_date=datetime.fromisoformat(data['harvest_date']),
-            total_yield=data.get('total_yield'),
-            quality_rating=data['quality_rating'],
-            growth_conditions=data.get('growth_conditions', {}),
-            lessons_learned=data.get('lessons_learned', []),
-            would_repeat=data['would_repeat']
+            user_id=data["user_id"],
+            unit_id=data["unit_id"],
+            plant_type=data["plant_type"],
+            plant_variety=data.get("plant_variety"),
+            start_date=datetime.fromisoformat(data["start_date"]),
+            harvest_date=datetime.fromisoformat(data["harvest_date"]),
+            total_yield=data.get("total_yield"),
+            quality_rating=data["quality_rating"],
+            growth_conditions=data.get("growth_conditions", {}),
+            lessons_learned=data.get("lessons_learned", []),
+            would_repeat=data["would_repeat"],
         )
-        
+
         service.record_success(success)
-        
-        return _success({
-            "recorded": True,
-            "success": success.to_dict()
-        }, 201)
-        
+
+        return _success({"recorded": True, "success": success.to_dict()}, 201)
+
     except ValueError as e:
         return _fail(f"Invalid date format: {e}", 400)
     except Exception as e:
         logger.error(f"Error recording success: {e}", exc_info=True)
-        return _fail(str(e), 500)
-
-
+        return safe_error(e, 500)
 
 
 # ==============================================================================
 # RECOMMENDATIONS
 # ==============================================================================
 
+
 @personalized_bp.get("/recommendations/<int:unit_id>")
 def get_recommendations(unit_id: int):
     """
     Get personalized recommendations for a unit.
-    
+
     Query params:
     - plant_type: Plant type for recommendations
     - growth_stage: Current growth stage
-    
+
     Returns:
         {
             "unit_id": int,
@@ -803,17 +787,15 @@ def get_recommendations(unit_id: int):
     try:
         container = _container()
         service = getattr(container, "personalized_learning", None)
-        
+
         if not service:
-            return _success({
-                "unit_id": unit_id,
-                "recommendations": None,
-                "message": "Personalized learning service is not enabled"
-            })
-        
-        plant_type = request.args.get('plant_type', 'tomato')
-        growth_stage = request.args.get('growth_stage', 'vegetative')
-        
+            return _success(
+                {"unit_id": unit_id, "recommendations": None, "message": "Personalized learning service is not enabled"}
+            )
+
+        plant_type = request.args.get("plant_type", "tomato")
+        growth_stage = request.args.get("growth_stage", "vegetative")
+
         # Get current conditions from latest sensor data
         latest_data = None
         analytics_service = getattr(container, "analytics_service", None)
@@ -824,45 +806,48 @@ def get_recommendations(unit_id: int):
                 logger.warning("Failed to load latest sensor data for unit %s: %s", unit_id, exc)
 
         from app.domain.sensors.fields import SensorField
-        
+
         # Use standardized keys
         lux_value = latest_data.get(SensorField.LUX.value) if isinstance(latest_data, dict) else None
-        
+
         current_conditions = {
-            'temperature': latest_data.get(SensorField.TEMPERATURE.value, 25.0) if isinstance(latest_data, dict) else 25.0,
-            'humidity': latest_data.get(SensorField.HUMIDITY.value, 60.0) if isinstance(latest_data, dict) else 60.0,
-            'soil_moisture': latest_data.get(SensorField.SOIL_MOISTURE.value, 50.0) if isinstance(latest_data, dict) else 50.0,
-            'lux': lux_value if lux_value is not None else 500.0
+            "temperature": latest_data.get(SensorField.TEMPERATURE.value, 25.0)
+            if isinstance(latest_data, dict)
+            else 25.0,
+            "humidity": latest_data.get(SensorField.HUMIDITY.value, 60.0) if isinstance(latest_data, dict) else 60.0,
+            "soil_moisture": latest_data.get(SensorField.SOIL_MOISTURE.value, 50.0)
+            if isinstance(latest_data, dict)
+            else 50.0,
+            "lux": lux_value if lux_value is not None else 500.0,
         }
-        
+
         recommendations = service.get_personalized_recommendations(
-            unit_id=unit_id,
-            plant_type=plant_type,
-            growth_stage=growth_stage,
-            current_conditions=current_conditions
+            unit_id=unit_id, plant_type=plant_type, growth_stage=growth_stage, current_conditions=current_conditions
         )
-        
-        return _success({
-            "unit_id": unit_id,
-            "plant_type": plant_type,
-            "growth_stage": growth_stage,
-            "recommendations": recommendations
-        })
-        
+
+        return _success(
+            {
+                "unit_id": unit_id,
+                "plant_type": plant_type,
+                "growth_stage": growth_stage,
+                "recommendations": recommendations,
+            }
+        )
+
     except Exception as e:
         logger.error(f"Error getting recommendations for unit {unit_id}: {e}", exc_info=True)
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
 @personalized_bp.get("/similar-growers/<int:unit_id>")
 def get_similar_growers(unit_id: int):
     """
     Find growers with similar environments and successes.
-    
+
     Query params:
     - plant_type: Plant type to compare (optional)
     - limit: Max results (default 5)
-    
+
     Returns:
         {
             "unit_id": int,
@@ -878,29 +863,19 @@ def get_similar_growers(unit_id: int):
     """
     try:
         service = _get_personalized_service()
-        
+
         if not service:
-            return _success({
-                "unit_id": unit_id,
-                "similar_growers": [],
-                "message": "Personalized learning service is not enabled"
-            })
-        
-        plant_type = request.args.get('plant_type')
-        limit = request.args.get('limit', 5, type=int)
-        
-        similar = service.get_similar_growers(
-            unit_id=unit_id,
-            plant_type=plant_type,
-            limit=limit
-        )
-        
-        return _success({
-            "unit_id": unit_id,
-            "similar_growers": similar,
-            "count": len(similar)
-        })
-        
+            return _success(
+                {"unit_id": unit_id, "similar_growers": [], "message": "Personalized learning service is not enabled"}
+            )
+
+        plant_type = request.args.get("plant_type")
+        limit = request.args.get("limit", 5, type=int)
+
+        similar = service.get_similar_growers(unit_id=unit_id, plant_type=plant_type, limit=limit)
+
+        return _success({"unit_id": unit_id, "similar_growers": similar, "count": len(similar)})
+
     except Exception as e:
         logger.error(f"Error finding similar growers for unit {unit_id}: {e}", exc_info=True)
-        return _fail(str(e), 500)
+        return safe_error(e, 500)

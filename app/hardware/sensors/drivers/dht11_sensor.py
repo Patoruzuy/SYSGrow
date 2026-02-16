@@ -3,23 +3,25 @@ Internal hardware driver for DHT11 temperature and humidity sensor.
 This module should only be used by sensor adapters, not directly by application code.
 """
 
-import time
-import threading
 import logging
-from typing import Any, Dict
+import threading
+import time
+from typing import Any
+
 from app.utils.time import iso_now
+
 from .base import BaseSensorDriver
 
 logger = logging.getLogger(__name__)
 
 try:
-    import board
     import adafruit_dht
+    import board
+
     IS_PI = True
 except (ImportError, NotImplementedError):
     logger.warning("Raspberry Pi-specific libraries not available. Using mock DHT11 sensor.")
     IS_PI = False
-
 
 
 class DHT11Sensor(BaseSensorDriver):
@@ -52,14 +54,9 @@ class DHT11Sensor(BaseSensorDriver):
             except Exception as e:
                 logger.error("Failed to initialize DHT11 on D%s: %s", pin, e)
         else:
-            self.mock_data = {
-                'temperature': 23.4,
-                'humidity': 48.6,
-                'status': 'MOCK'
-            }
+            self.mock_data = {"temperature": 23.4, "humidity": 48.6, "status": "MOCK"}
 
-
-    def read(self, retries: int = 3, delay: int = 2) -> Dict[str, Any]:
+    def read(self, retries: int = 3, delay: int = 2) -> dict[str, Any]:
         """
         Read raw data from the sensor with retry logic.
 
@@ -79,12 +76,7 @@ class DHT11Sensor(BaseSensorDriver):
                         temp = self.sensor.temperature
                         hum = self.sensor.humidity
                         if temp is not None and hum is not None:
-                            return {
-                                'temperature': temp,
-                                'humidity': hum,
-                                'timestamp': iso_now(),
-                                'status': 'OK'
-                            }
+                            return {"temperature": temp, "humidity": hum, "timestamp": iso_now(), "status": "OK"}
                     else:
                         break
                 except RuntimeError as e:
@@ -93,7 +85,6 @@ class DHT11Sensor(BaseSensorDriver):
                     logger.error("Unexpected DHT11 read error: %s", e)
                 time.sleep(delay)
         return self._return_mock()
-
 
     def cleanup(self) -> None:
         """

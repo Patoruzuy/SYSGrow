@@ -14,8 +14,10 @@ Usage:
 # Timing Constants (seconds unless otherwise noted)
 # =============================================================================
 
+
 class Timeouts:
     """Timeout values for various operations."""
+
     # Network/API
     HTTP_REQUEST_TIMEOUT = 30  # seconds
     MQTT_CONNECT_TIMEOUT = 10  # seconds
@@ -34,6 +36,7 @@ class Timeouts:
 
 class Intervals:
     """Polling and scheduling intervals."""
+
     # Sensor polling
     SENSOR_POLLING_DEFAULT = 60  # seconds
     SENSOR_POLLING_MIN = 10  # seconds
@@ -60,8 +63,10 @@ class Intervals:
 # Pagination Constants
 # =============================================================================
 
+
 class Pagination:
     """Pagination defaults and limits."""
+
     DEFAULT_PAGE_SIZE = 50
     MAX_PAGE_SIZE = 500
     DEFAULT_OFFSET = 0
@@ -79,8 +84,10 @@ class Pagination:
 # Data Retention Constants (days)
 # =============================================================================
 
+
 class Retention:
     """Data retention periods in days."""
+
     SENSOR_READINGS_DEFAULT = 30
     SENSOR_READINGS_MIN = 7
     SENSOR_READINGS_MAX = 365
@@ -98,8 +105,10 @@ class Retention:
 # Environmental Thresholds
 # =============================================================================
 
+
 class EnvironmentThresholds:
     """Environmental monitoring thresholds."""
+
     # Temperature (Celsius)
     TEMP_MIN_SAFE = 10.0
     TEMP_MAX_SAFE = 40.0
@@ -130,13 +139,13 @@ class EnvironmentThresholds:
 
 # Tolerance values for threshold updates (minimum change required to trigger update)
 THRESHOLD_UPDATE_TOLERANCE: dict[str, float] = {
-    "temperature_threshold": 0.5,      # 0.5°C minimum change
-    "humidity_threshold": 1.0,         # 1% minimum change
-    "soil_moisture_threshold": 2.0,    # 2% minimum change
-    "co2_threshold": 50.0,             # 50 ppm minimum change
-    "voc_threshold": 10.0,             # 10 ppb minimum change
-    "lux_threshold": 100.0,            # 100 lux minimum change
-    "air_quality_threshold": 5.0,              # 5 AQI points minimum change
+    "temperature_threshold": 0.5,  # 0.5°C minimum change
+    "humidity_threshold": 1.0,  # 1% minimum change
+    "soil_moisture_threshold": 2.0,  # 2% minimum change
+    "co2_threshold": 50.0,  # 50 ppm minimum change
+    "voc_threshold": 10.0,  # 10 ppb minimum change
+    "lux_threshold": 100.0,  # 100 lux minimum change
+    "air_quality_threshold": 5.0,  # 5 AQI points minimum change
 }
 
 
@@ -145,14 +154,15 @@ THRESHOLD_UPDATE_TOLERANCE: dict[str, float] = {
 # Temperature drops during the dark period (plant respiration, DIF strategy).
 # Humidity rises as transpiration slows.  Lux drops to 0 (lights off).
 NIGHT_THRESHOLD_ADJUSTMENTS: dict[str, float] = {
-    "temperature": -3.0,    # °C — drop 3°C at night
-    "humidity":    +5.0,    # %  — humidity rises when transpiration slows
-    "lux":         0.0,     # absolute value — lights off at night
+    "temperature": -3.0,  # °C — drop 3°C at night
+    "humidity": +5.0,  # %  — humidity rises when transpiration slows
+    "lux": 0.0,  # absolute value — lights off at night
 }
 
 
 class VPDThresholds:
     """Vapor Pressure Deficit thresholds by growth stage."""
+
     # Seedling/Clone (kPa)
     SEEDLING_MIN = 0.4
     SEEDLING_MAX = 0.8
@@ -178,8 +188,10 @@ class VPDThresholds:
 # Control System Constants
 # =============================================================================
 
+
 class ControlConstants:
     """Control loop and PID constants."""
+
     # Cycle times (seconds)
     MIN_CYCLE_TIME = 60  # Minimum time between actuator state changes
     CONTROL_LOOP_INTERVAL = 30  # Control loop execution interval
@@ -203,8 +215,10 @@ class ControlConstants:
 # Alert System Constants
 # =============================================================================
 
+
 class AlertConstants:
     """Alert system configuration."""
+
     # Deduplication
     DEDUPE_WINDOW_MINUTES = 15
     MAX_ALERTS_PER_HOUR = 10
@@ -333,8 +347,10 @@ class MLConstants:
 # Database Constants
 # =============================================================================
 
+
 class DatabaseConstants:
     """Database configuration."""
+
     # Connection pool
     POOL_SIZE_DEFAULT = 5
     POOL_SIZE_MAX = 10
@@ -349,8 +365,10 @@ class DatabaseConstants:
 # Hardware Constants
 # =============================================================================
 
+
 class HardwareConstants:
     """Hardware-specific constants."""
+
     # ESP32
     ESP32_MAX_RETRIES = 3
     ESP32_RETRY_DELAY = 2  # seconds
@@ -368,8 +386,10 @@ class HardwareConstants:
 # File Size Constants
 # =============================================================================
 
+
 class FileSizeConstants:
     """File size limits."""
+
     # Logs
     LOG_MAX_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB
     LOG_BACKUP_COUNT = 3
@@ -386,8 +406,10 @@ class FileSizeConstants:
 # Rate Limiting Constants
 # =============================================================================
 
+
 class RateLimitConstants:
     """API rate limiting."""
+
     DEFAULT_REQUESTS_PER_MINUTE = 60
     DEFAULT_WINDOW_SECONDS = 60
 
@@ -425,30 +447,25 @@ MAX_ALERTS_PER_HOUR = AlertConstants.MAX_ALERTS_PER_HOUR
 
 # Irrigation
 IRRIGATION_THRESHOLDS = EnvironmentThresholds.SOIL_MOISTURE_MIN, EnvironmentThresholds.SOIL_MOISTURE_MAX
-IRRIGATION_DURATIONS = {'soil_type': 30}  # seconds, example default per soil type
+IRRIGATION_DURATIONS = {"soil_type": 30}  # seconds, example default per soil type
 GROWTH_STAGE_MOISTURE_ADJUSTMENTS = {
-    'germination': -10.0,
-    'seedling': -5.0,
-    'vegetative': 0.0,
-    'flowering': 5.0,
-    'fruiting': 7.5,
-    'late_flowering': 10.0
+    "germination": -10.0,
+    "seedling": -5.0,
+    "vegetative": 0.0,
+    "flowering": 5.0,
+    "fruiting": 7.5,
+    "late_flowering": 10.0,
 }  # adjustments in percentage points
-BAYESIAN_DEFAULTS = {
-    'min_variance': 10.0,
-    'prior_mean': 50.0,
-    'prior_variance': 100.0,
-    'observation_variance': 25.0
-}
+BAYESIAN_DEFAULTS = {"min_variance": 10.0, "prior_mean": 50.0, "prior_variance": 100.0, "observation_variance": 25.0}
 
 # Growth Stage Volume Multipliers (for irrigation calculations)
 GROWTH_STAGE_VOLUME_MULTIPLIERS = {
-    'germination': 0.5,
-    'seedling': 0.7,
-    'vegetative': 1.0,
-    'flowering': 1.2,
-    'fruiting': 1.3,
-    'harvest': 0.8,
+    "germination": 0.5,
+    "seedling": 0.7,
+    "vegetative": 1.0,
+    "flowering": 1.2,
+    "fruiting": 1.3,
+    "harvest": 0.8,
 }
 
 # Reference pot size for scaling calculations
@@ -456,8 +473,8 @@ REFERENCE_POT_SIZE_LITERS = 5.0
 
 # Pump calibration defaults
 PUMP_CALIBRATION_DEFAULTS = {
-    'default_flow_rate_ml_per_second': 3.33,  # ~200ml/min
-    'calibration_duration_seconds': 30,
-    'min_duration_seconds': 5,
-    'max_duration_seconds': 600,
+    "default_flow_rate_ml_per_second": 3.33,  # ~200ml/min
+    "calibration_duration_seconds": 30,
+    "min_duration_seconds": 5,
+    "max_duration_seconds": 600,
 }

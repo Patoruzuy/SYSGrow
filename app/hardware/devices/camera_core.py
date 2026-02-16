@@ -1,17 +1,18 @@
-import time
-import threading
 import logging
+import threading
+import time
 
 logger = logging.getLogger(__name__)
 
-class CameraBase(object):
+
+class CameraBase:
     """
     Base class for camera implementations with instance-level state.
-    
+
     This allows multiple camera instances to run independently without
     interfering with each other.
     """
-    
+
     def __init__(self):
         """Initialize instance-level camera state."""
         self._thread = None  # Background thread that reads frames from the camera
@@ -42,7 +43,7 @@ class CameraBase(object):
 
     def frames(self):
         """Generator that returns frames from the camera."""
-        raise RuntimeError('Must be implemented by subclasses.')
+        raise RuntimeError("Must be implemented by subclasses.")
 
     def _thread_func(self):
         """Camera background thread."""
@@ -52,7 +53,7 @@ class CameraBase(object):
             for frame in frames_iterator:
                 if not self._running:
                     break
-                    
+
                 with self._lock:
                     self._frame = frame
 
@@ -71,11 +72,10 @@ class CameraBase(object):
             with self._lock:
                 self._thread = None
                 self._running = False
-    
+
     def stop(self):
         """Stop the camera and clean up resources."""
         self._running = False
         if self._thread is not None:
             self._thread.join(timeout=2)
             self._thread = None
-

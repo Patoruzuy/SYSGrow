@@ -1,9 +1,14 @@
 """Flask Extension Instances and Initialisation."""
-import os
+
 import logging
+import os
 
 from flask import Flask
+from flask_compress import Compress
 from flask_socketio import SocketIO
+
+# Flask-Compress instance — compresses JSON/HTML/CSS/JS responses with gzip/brotli
+compress = Compress()
 
 
 def _socketio_transports() -> list[str]:
@@ -26,9 +31,9 @@ socketio = SocketIO(
     async_mode="threading",
     cors_allowed_origins=[],
     logger=True,
-        # Keep Socket.IO logging enabled but avoid noisy Engine.IO INFO logs
-        # (e.g. repeated "Invalid transport" from external clients/extensions).
-        engineio_logger=False,
+    # Keep Socket.IO logging enabled but avoid noisy Engine.IO INFO logs
+    # (e.g. repeated "Invalid transport" from external clients/extensions).
+    engineio_logger=False,
     ping_timeout=60,
     ping_interval=25,
     transports=_socketio_transports(),
@@ -38,17 +43,29 @@ socketio = SocketIO(
 def init_extensions(app: Flask, cors_origins: str) -> None:
     """Initialise Flask extension objects."""
     origins = cors_origins if isinstance(cors_origins, str) else "*"
-    
+
+    # Enable response compression (gzip/brotli) — significant for Pi over WiFi
+    app.config.setdefault(
+        "COMPRESS_MIMETYPES",
+        [
+            "text/html",
+            "text/css",
+            "text/xml",
+            "text/plain",
+            "application/json",
+            "application/javascript",
+        ],
+    )
+    app.config.setdefault("COMPRESS_MIN_SIZE", 256)  # Don't compress tiny responses
+    compress.init_app(app)
+
     try:
         # Ensure engineio logger does not emit INFO-level messages
-        logging.getLogger('engineio').setLevel(logging.WARNING)
-        logging.getLogger('socketio').setLevel(logging.INFO)
+        logging.getLogger("engineio").setLevel(logging.WARNING)
+        logging.getLogger("socketio").setLevel(logging.INFO)
 
         socketio.init_app(
-            app,
-            cors_allowed_origins=origins,
-            logger=logging.getLogger("socketio"),
-            engineio_logger=False
+            app, cors_allowed_origins=origins, logger=logging.getLogger("socketio"), engineio_logger=False
         )
         logging.info(f"✅ Socket.IO initialized with CORS origins: {origins}")
     except Exception as e:

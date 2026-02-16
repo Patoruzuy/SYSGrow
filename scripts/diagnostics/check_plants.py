@@ -1,6 +1,9 @@
 import json
+from pathlib import Path
 
-with open('plants_info.json', 'r') as f:
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+with (REPO_ROOT / 'plants_info.json').open('r', encoding='utf-8') as f:
     data = json.load(f)
 
 plants = data['plants_info']
@@ -18,7 +21,7 @@ for p in plants:
             missing.append(f"{field} (empty)")
         elif isinstance(p[field], list) and not p[field]:
             missing.append(f"{field} (empty)")
-    
+
     if missing:
         incomplete.append({
             'id': p['id'],

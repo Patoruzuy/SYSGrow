@@ -1,7 +1,9 @@
 # utils/event_logger.py
 import logging
+
+from app.enums.events import ActivityEvent, DeviceEvent, PlantEvent, RuntimeEvent, SensorEvent
 from app.utils.event_bus import EventBus
-from app.enums.events import DeviceEvent, RuntimeEvent, PlantEvent, SensorEvent, ActivityEvent
+
 
 class EventLogger:
     """Listens for events and logs them."""
@@ -11,9 +13,7 @@ class EventLogger:
 
         # Configure logging
         logging.basicConfig(
-            filename="grow_tent.log",
-            level=logging.INFO,
-            format="%(asctime)s - %(levelname)s - %(message)s"
+            filename="grow_tent.log", level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
         )
 
         # Subscribe to relevant events (prefer enums; keep legacy dynamic where needed)
@@ -32,7 +32,7 @@ class EventLogger:
         self.event_bus.subscribe(DeviceEvent.CONNECTIVITY_CHANGED, self.log_connectivity)
         self.event_bus.subscribe(PlantEvent.ACTIVE_PLANT_CHANGED, self.log_active_plant_changed)
         self.event_bus.subscribe(RuntimeEvent.SENSOR_RELOAD, self.log_sensor_reload)
-        
+
         # Subscribe to activity events (new)
         self.event_bus.subscribe(ActivityEvent.PLANT_ADDED, self.log_activity_event)
         self.event_bus.subscribe(ActivityEvent.PLANT_REMOVED, self.log_activity_event)
@@ -80,8 +80,8 @@ class EventLogger:
 
     def log_relay_state(self, data):
         try:
-            device = data.get('device')
-            state = data.get('state')
+            device = data.get("device")
+            state = data.get("state")
             logging.info(f"🔁 Relay '{device}' state → {state}")
         except Exception:
             logging.info("🔁 Relay state changed (payload unavailable)")
@@ -106,9 +106,9 @@ class EventLogger:
 
     def log_connectivity(self, data):
         try:
-            ctype = data.get('connection_type')
-            status = data.get('status') or ("connected" if data.get('connected') else "disconnected")
-            endpoint = data.get('endpoint') or data.get('broker')
+            ctype = data.get("connection_type")
+            status = data.get("status") or ("connected" if data.get("connected") else "disconnected")
+            endpoint = data.get("endpoint") or data.get("broker")
             logging.info(f"📡 Connectivity ({ctype}) → {status} [{endpoint}]")
         except Exception:
             logging.info("📡 Connectivity event")
@@ -116,31 +116,32 @@ class EventLogger:
     def log_activity_event(self, data):
         """Log activity events from ActivityLogger."""
         try:
-            activity_type = data.get('activity_type', '').replace('_', ' ').title()
-            description = data.get('description', '')
-            severity = data.get('severity', 'info')
-            
+            activity_type = data.get("activity_type", "").replace("_", " ").title()
+            description = data.get("description", "")
+            severity = data.get("severity", "info")
+
             emoji_map = {
-                'plant_added': '🌱',
-                'plant_removed': '🗑️',
-                'unit_created': '🏠',
-                'device_connected': '🔌',
-                'harvest_recorded': '🌾',
-                'system_startup': '🚀',
-                'system_shutdown': '🛑',
+                "plant_added": "🌱",
+                "plant_removed": "🗑️",
+                "unit_created": "🏠",
+                "device_connected": "🔌",
+                "harvest_recorded": "🌾",
+                "system_startup": "🚀",
+                "system_shutdown": "🛑",
             }
-            
-            emoji = emoji_map.get(data.get('activity_type'), '📝')
+
+            emoji = emoji_map.get(data.get("activity_type"), "📝")
             log_msg = f"{emoji} {activity_type}: {description}"
-            
-            if severity == 'error':
+
+            if severity == "error":
                 logging.error(log_msg)
-            elif severity == 'warning':
+            elif severity == "warning":
                 logging.warning(log_msg)
             else:
                 logging.info(log_msg)
-        except Exception as e:
+        except Exception:
             logging.info(f"📝 Activity event: {data}")
+
 
 # Initialize logger
 EventLogger()

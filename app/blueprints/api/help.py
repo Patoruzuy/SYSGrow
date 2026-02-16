@@ -3,6 +3,7 @@
 Provides public access to help articles and categories.
 No authentication required for better SEO and user support.
 """
+
 from __future__ import annotations
 
 import json
@@ -29,7 +30,7 @@ def _load_help_data() -> dict[str, Any]:
 
     try:
         data_path = Path(__file__).resolve().parent.parent.parent.parent / "static" / "data" / "help_articles.json"
-        with open(data_path, "r", encoding="utf-8") as f:
+        with open(data_path, encoding="utf-8") as f:
             _help_data_cache = json.load(f)
         return _help_data_cache
     except FileNotFoundError:
@@ -61,13 +62,15 @@ def get_categories():
 
     categories = []
     for cat in data.get("categories", []):
-        categories.append({
-            "id": cat.get("id"),
-            "title": cat.get("title"),
-            "icon": cat.get("icon"),
-            "description": cat.get("description"),
-            "article_count": len(cat.get("articles", []))
-        })
+        categories.append(
+            {
+                "id": cat.get("id"),
+                "title": cat.get("title"),
+                "icon": cat.get("icon"),
+                "description": cat.get("description"),
+                "article_count": len(cat.get("articles", [])),
+            }
+        )
 
     return _api_success(categories)
 
@@ -102,7 +105,7 @@ def get_articles():
                 "category_icon": cat.get("icon"),
                 "title": article.get("title"),
                 "summary": article.get("summary"),
-                "keywords": article.get("keywords", [])
+                "keywords": article.get("keywords", []),
             }
 
             # Apply category filter
@@ -112,9 +115,11 @@ def get_articles():
             # Apply search filter
             if search_term:
                 searchable = (
-                    article.get("title", "").lower() + " " +
-                    article.get("summary", "").lower() + " " +
-                    " ".join(article.get("keywords", []))
+                    article.get("title", "").lower()
+                    + " "
+                    + article.get("summary", "").lower()
+                    + " "
+                    + " ".join(article.get("keywords", []))
                 )
                 if search_term not in searchable:
                     continue
@@ -123,15 +128,11 @@ def get_articles():
 
     # Apply pagination
     total = len(all_articles)
-    paginated = all_articles[offset:offset + limit]
+    paginated = all_articles[offset : offset + limit]
 
-    return _api_success({
-        "articles": paginated,
-        "total": total,
-        "limit": limit,
-        "offset": offset,
-        "has_more": offset + limit < total
-    })
+    return _api_success(
+        {"articles": paginated, "total": total, "limit": limit, "offset": offset, "has_more": offset + limit < total}
+    )
 
 
 @help_api.route("/article/<category>/<article_id>", methods=["GET"])
@@ -151,16 +152,18 @@ def get_article(category: str, article_id: str):
         if cat.get("id") == category:
             for article in cat.get("articles", []):
                 if article.get("id") == article_id:
-                    return _api_success({
-                        "id": article.get("id"),
-                        "category": cat.get("id"),
-                        "category_title": cat.get("title"),
-                        "category_icon": cat.get("icon"),
-                        "title": article.get("title"),
-                        "summary": article.get("summary"),
-                        "keywords": article.get("keywords", []),
-                        "content": article.get("content", "")
-                    })
+                    return _api_success(
+                        {
+                            "id": article.get("id"),
+                            "category": cat.get("id"),
+                            "category_title": cat.get("title"),
+                            "category_icon": cat.get("icon"),
+                            "title": article.get("title"),
+                            "summary": article.get("summary"),
+                            "keywords": article.get("keywords", []),
+                            "content": article.get("content", ""),
+                        }
+                    )
 
     return _api_error("Article not found", 404)
 
@@ -208,20 +211,18 @@ def search_articles():
                 score += 15
 
             if score > 0:
-                results.append({
-                    "id": article.get("id"),
-                    "category": cat.get("id"),
-                    "category_title": cat.get("title"),
-                    "title": article.get("title"),
-                    "summary": article.get("summary"),
-                    "score": score
-                })
+                results.append(
+                    {
+                        "id": article.get("id"),
+                        "category": cat.get("id"),
+                        "category_title": cat.get("title"),
+                        "title": article.get("title"),
+                        "summary": article.get("summary"),
+                        "score": score,
+                    }
+                )
 
     # Sort by score descending
     results.sort(key=lambda x: x["score"], reverse=True)
 
-    return _api_success({
-        "results": results[:limit],
-        "total": len(results),
-        "query": query
-    })
+    return _api_success({"results": results[:limit], "total": len(results), "query": query})

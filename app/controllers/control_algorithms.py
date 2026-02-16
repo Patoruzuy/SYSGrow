@@ -8,9 +8,10 @@ This module provides control algorithm implementations:
 Author: Sebastian Gomez
 Date: 2024
 """
+
+import logging
 import os
 from abc import ABC, abstractmethod
-import logging
 from logging.handlers import RotatingFileHandler
 
 # Module-level logger with rotation (prevents unbounded log file growth)
@@ -21,7 +22,7 @@ if not logger.handlers:
         "logs/devices.log",
         maxBytes=10 * 1024 * 1024,  # 10MB
         backupCount=3,
-        encoding="utf-8"
+        encoding="utf-8",
     )
     _handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
     logger.addHandler(_handler)
@@ -33,6 +34,7 @@ class Controller(ABC):
     """
     Abstract base class for all controllers.
     """
+
     @abstractmethod
     def compute(self, current_value: float, setpoint: float) -> float:
         """
@@ -51,19 +53,20 @@ class Controller(ABC):
 class PIDController(Controller):
     """
     A PID controller class.
-    
+
     Used for environmental control:
     - Temperature (heater/cooler)
     - Humidity (humidifier/dehumidifier)
     - CO2 (injector)
     - Light (dimmer)
-    
+
     Note: Soil moisture/irrigation is user-controlled, not PID-controlled.
     """
+
     def __init__(self, kp: float, ki: float, kd: float, setpoint: float):
         """
         Initializes the PIDController.
-        
+
         Args:
             kp: Proportional gain
             ki: Integral gain
@@ -90,19 +93,19 @@ class PIDController(Controller):
         """
         # Calculate the error
         error = setpoint - current_value
-        
+
         # Accumulate the integral term
         self.integral += error
-        
+
         # Calculate the derivative term
         derivative = error - self.previous_error
-        
+
         # Compute the PID output
         output = self.kp * error + self.ki * self.integral + self.kd * derivative
-        
+
         # Update the previous error for the next derivative calculation
         self.previous_error = error
-        
+
         return output
 
     def reset(self) -> None:
@@ -115,6 +118,7 @@ class MLController(Controller):
     """
     A controller that uses a machine learning model.
     """
+
     def __init__(self, model, setpoint: float):
         """
         Initializes the MLController.
@@ -138,6 +142,7 @@ class MLController(Controller):
             The computed control output.
         """
         import numpy as np  # Lazy load
+
         input_data = np.array([[current_value, setpoint]])
         output = self.model.predict(input_data)[0]
         return output

@@ -13,6 +13,7 @@ Only the following namespaces are supported:
 Note: Real-time sensor broadcasting is handled by MQTTSensorService via
 EmitterService; these handlers focus on room membership and lifecycle.
 """
+
 import logging
 
 from flask import request, session
@@ -30,14 +31,13 @@ from app.utils.emitters import (
 
 logger = logging.getLogger(__name__)
 
+
 def _auto_join_unit_room(namespace_label: str) -> None:
     """Best-effort auto-join the unit room based on session.selected_unit."""
     try:
         selected_unit = session.get("selected_unit")
         if selected_unit is None:
-            logger.info(
-                f"⚠️  Client {request.sid} connected to {namespace_label} with no selected_unit in session"
-            )
+            logger.info(f"⚠️  Client {request.sid} connected to {namespace_label} with no selected_unit in session")
             return
 
         unit_id = int(selected_unit)
@@ -96,24 +96,25 @@ def _leave_unit_from_payload(data) -> None:
 # /dashboard NAMESPACE HANDLERS
 # =====================================
 
-@socketio.on('connect', namespace=SOCKETIO_NAMESPACE_DASHBOARD)
+
+@socketio.on("connect", namespace=SOCKETIO_NAMESPACE_DASHBOARD)
 def handle_dashboard_connect():
     """Handle client connection to /dashboard namespace"""
     logger.info(f"Client connected to /dashboard namespace: {request.sid}")
     _auto_join_unit_room("/dashboard")
 
 
-@socketio.on('join_unit', namespace=SOCKETIO_NAMESPACE_DASHBOARD)
+@socketio.on("join_unit", namespace=SOCKETIO_NAMESPACE_DASHBOARD)
 def handle_dashboard_join_unit(data):
     _join_unit_from_payload(data)
 
 
-@socketio.on('leave_unit', namespace=SOCKETIO_NAMESPACE_DASHBOARD)
+@socketio.on("leave_unit", namespace=SOCKETIO_NAMESPACE_DASHBOARD)
 def handle_dashboard_leave_unit(data):
     _leave_unit_from_payload(data)
 
 
-@socketio.on('disconnect', namespace=SOCKETIO_NAMESPACE_DASHBOARD)
+@socketio.on("disconnect", namespace=SOCKETIO_NAMESPACE_DASHBOARD)
 def handle_dashboard_disconnect():
     """Handle client disconnection from /dashboard namespace"""
     logger.info(f"Client disconnected from /dashboard namespace: {request.sid}")
@@ -123,24 +124,25 @@ def handle_dashboard_disconnect():
 # /devices NAMESPACE HANDLERS
 # =====================================
 
-@socketio.on('connect', namespace=SOCKETIO_NAMESPACE_DEVICES)
+
+@socketio.on("connect", namespace=SOCKETIO_NAMESPACE_DEVICES)
 def handle_devices_connect():
     """Handle client connection to /devices namespace"""
     logger.info(f"Client connected to /devices namespace: {request.sid}")
     _auto_join_unit_room("/devices")
 
 
-@socketio.on('join_unit', namespace=SOCKETIO_NAMESPACE_DEVICES)
+@socketio.on("join_unit", namespace=SOCKETIO_NAMESPACE_DEVICES)
 def handle_devices_join_unit(data):
     _join_unit_from_payload(data)
 
 
-@socketio.on('leave_unit', namespace=SOCKETIO_NAMESPACE_DEVICES)
+@socketio.on("leave_unit", namespace=SOCKETIO_NAMESPACE_DEVICES)
 def handle_devices_leave_unit(data):
     _leave_unit_from_payload(data)
 
 
-@socketio.on('disconnect', namespace=SOCKETIO_NAMESPACE_DEVICES)
+@socketio.on("disconnect", namespace=SOCKETIO_NAMESPACE_DEVICES)
 def handle_devices_disconnect():
     """Handle client disconnection from /devices namespace"""
     logger.info(f"Client disconnected from /devices namespace: {request.sid}")
@@ -151,23 +153,23 @@ def handle_devices_disconnect():
 # =====================================
 
 
-@socketio.on('connect', namespace=SOCKETIO_NAMESPACE_SYSTEM)
+@socketio.on("connect", namespace=SOCKETIO_NAMESPACE_SYSTEM)
 def handle_system_connect():
     logger.info(f"Client connected to /system namespace: {request.sid}")
     _auto_join_unit_room("/system")
 
 
-@socketio.on('join_unit', namespace=SOCKETIO_NAMESPACE_SYSTEM)
+@socketio.on("join_unit", namespace=SOCKETIO_NAMESPACE_SYSTEM)
 def handle_system_join_unit(data):
     _join_unit_from_payload(data)
 
 
-@socketio.on('leave_unit', namespace=SOCKETIO_NAMESPACE_SYSTEM)
+@socketio.on("leave_unit", namespace=SOCKETIO_NAMESPACE_SYSTEM)
 def handle_system_leave_unit(data):
     _leave_unit_from_payload(data)
 
 
-@socketio.on('disconnect', namespace=SOCKETIO_NAMESPACE_SYSTEM)
+@socketio.on("disconnect", namespace=SOCKETIO_NAMESPACE_SYSTEM)
 def handle_system_disconnect():
     logger.info(f"Client disconnected from /system namespace: {request.sid}")
 
@@ -177,12 +179,12 @@ def handle_system_disconnect():
 # =====================================
 
 
-@socketio.on('connect', namespace=SOCKETIO_NAMESPACE_ALERTS)
+@socketio.on("connect", namespace=SOCKETIO_NAMESPACE_ALERTS)
 def handle_alerts_connect():
     logger.info(f"Client connected to /alerts namespace: {request.sid}")
 
 
-@socketio.on('disconnect', namespace=SOCKETIO_NAMESPACE_ALERTS)
+@socketio.on("disconnect", namespace=SOCKETIO_NAMESPACE_ALERTS)
 def handle_alerts_disconnect():
     logger.info(f"Client disconnected from /alerts namespace: {request.sid}")
 
@@ -192,12 +194,12 @@ def handle_alerts_disconnect():
 # =====================================
 
 
-@socketio.on('connect', namespace=SOCKETIO_NAMESPACE_NOTIFICATIONS)
+@socketio.on("connect", namespace=SOCKETIO_NAMESPACE_NOTIFICATIONS)
 def handle_notifications_connect():
     logger.info(f"Client connected to /notifications namespace: {request.sid}")
 
 
-@socketio.on('disconnect', namespace=SOCKETIO_NAMESPACE_NOTIFICATIONS)
+@socketio.on("disconnect", namespace=SOCKETIO_NAMESPACE_NOTIFICATIONS)
 def handle_notifications_disconnect():
     logger.info(f"Client disconnected from /notifications namespace: {request.sid}")
 
@@ -207,12 +209,12 @@ def handle_notifications_disconnect():
 # =====================================
 
 
-@socketio.on('connect', namespace=SOCKETIO_NAMESPACE_SESSION)
+@socketio.on("connect", namespace=SOCKETIO_NAMESPACE_SESSION)
 def handle_session_connect():
     logger.info(f"Client connected to /session namespace: {request.sid}")
 
 
-@socketio.on('disconnect', namespace=SOCKETIO_NAMESPACE_SESSION)
+@socketio.on("disconnect", namespace=SOCKETIO_NAMESPACE_SESSION)
 def handle_session_disconnect():
     logger.info(f"Client disconnected from /session namespace: {request.sid}")
 
@@ -221,13 +223,14 @@ def handle_session_disconnect():
 # DEFAULT NAMESPACE HANDLERS
 # =====================================
 
-@socketio.on('connect')
+
+@socketio.on("connect")
 def handle_connect():
     """Handle client connection to default namespace"""
     logger.debug(f"Client {request.sid} connected to default namespace")
 
 
-@socketio.on('disconnect')
+@socketio.on("disconnect")
 def handle_disconnect():
     """Handle client disconnection from default namespace"""
     logger.debug(f"Client {request.sid} disconnected from default namespace")

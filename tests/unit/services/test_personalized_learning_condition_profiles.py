@@ -1,10 +1,10 @@
 import math
+import tempfile
 from pathlib import Path
 from unittest.mock import Mock
-import tempfile
 
-from app.services.ai.personalized_learning import PersonalizedLearningService
 from app.enums.common import ConditionProfileMode, ConditionProfileVisibility
+from app.services.ai.personalized_learning import PersonalizedLearningService
 
 
 def test_condition_profile_upsert_and_rating_updates():

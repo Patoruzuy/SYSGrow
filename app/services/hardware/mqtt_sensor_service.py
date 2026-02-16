@@ -20,7 +20,7 @@ Architecture:
 ------------
 - Inbound: MQTT Messages (Zigbee2MQTT or ESP32-GrowTent).
 - Logic: Resolve Sensor -> Pipeline.process() -> Pipeline.build_payloads().
-- Outbound: 
+- Outbound:
     - Device readings (/devices)
     - Primary metrics snapshots (/dashboard)
     - Internal events (EventBus) for automation and persistence.
@@ -36,26 +36,21 @@ import logging
 import os
 import time
 from datetime import datetime
-from typing import Any, Dict, Optional, Tuple
+from typing import TYPE_CHECKING, Any
 
 from app.hardware.mqtt.mqtt_broker_wrapper import MQTTClientWrapper
 from app.hardware.sensors.processors.base_processor import IDataProcessor, ProcessorError
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.services.hardware.sensor_management_service import SensorManagementService
-from app.domain.sensors.sensor_entity import SensorEntity, SensorType, Protocol
-from app.domain.sensors.sensor_config import SensorConfig
-from app.utils.time import utc_now, iso_now
-from app.utils.emitters import EmitterService
-from app.utils.event_bus import EventBus
+from app.domain.sensors.sensor_entity import SensorEntity
 from app.enums.events import DeviceEvent
-
 from app.schemas.events import (
-    DeviceSensorReadingPayload,
-    DashboardSnapshotPayload,
     UnregisteredSensorPayload,
 )
+from app.utils.emitters import EmitterService
+from app.utils.event_bus import EventBus
+from app.utils.time import iso_now, utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +81,7 @@ class MQTTSensorService:
     """
     High-performance MQTT router and websocket emitter.
 
-    This service connects the asynchronous world of MQTT devices to the synchronous 
+    This service connects the asynchronous world of MQTT devices to the synchronous
     business logic of the sensor processing pipeline.
     """
 
@@ -96,7 +91,7 @@ class MQTTSensorService:
         emitter: EmitterService,
         sensor_manager: "SensorManagementService",
         processor: IDataProcessor,
-        metrics: Optional[Any] = None,
+        metrics: Any | None = None,
     ):
         """
         Initializes the service and binds events.
@@ -118,14 +113,14 @@ class MQTTSensorService:
         # Trace logging (payload preview) is intentionally noisy for debugging.
         trace_env = os.getenv("SYSGROW_MQTT_TRACE", "false").strip().lower()
         self._trace_messages = trace_env in {"1", "true", "yes", "on"}
-        
+
         # Local state and caches
-        self._friendly_name_cache: Dict[str, int] = {}
-        self._unmapped_last_logged_at: Dict[str, float] = {}
+        self._friendly_name_cache: dict[str, int] = {}
+        self._unmapped_last_logged_at: dict[str, float] = {}
 
         # Basic health tracking (routing state; not “processing” logic)
-        self.last_seen: Dict[int, datetime] = {}
-        self.sensor_health: Dict[int, Dict[str, Any]] = {}
+        self.last_seen: dict[int, datetime] = {}
+        self.sensor_health: dict[int, dict[str, Any]] = {}
 
         # Cooldown for 'unmapped device' logs to avoid log flooding
         self._unmapped_log_cooldown_s = int(os.getenv("SYSGROW_UNMAPPED_LOG_COOLDOWN", "600"))
@@ -225,13 +220,13 @@ class MQTTSensorService:
         Unregistered Zigbee messages are dropped as their context is unknown.
         """
         parts = topic.split("/")
-        
+
         # Handle availability messages: zigbee2mqtt/<friendly_name>/availability
         if len(parts) == 3 and parts[2] == "availability":
             friendly_name = parts[1]
             self._handle_zigbee_availability(friendly_name, payload)
             return
-        
+
         friendly_name = parts[-1].strip()
 
         if friendly_name == "bridge":
@@ -259,45 +254,46 @@ class MQTTSensorService:
     def _handle_zigbee_availability(self, friendly_name: str, payload: bytes) -> None:
         """
         Handle Zigbee2MQTT device availability messages.
-        
+
         Args:
             friendly_name: Device friendly name
             payload: Raw payload (b"online" or b"offline" or JSON)
         """
         try:
             payload_str = payload.decode().strip().lower()
-            
+
             # Skip JSON payloads (bridge health data)
-            if payload_str.startswith('{'):
+            if payload_str.startswith("{"):
                 return
-            
-            is_online = (payload_str == "online")
+
+            is_online = payload_str == "online"
             self.metrics.inc("mqtt_zigbee_availability_total", status=payload_str)
-            
+
             # Update adapter availability if sensor is registered
             sensor_id, sensor = self._resolve_registered_sensor(friendly_name)
-            if sensor is not None and hasattr(sensor, '_adapter'):
+            if sensor is not None and hasattr(sensor, "_adapter"):
                 adapter = sensor._adapter
-                if hasattr(adapter, '_device_available'):
+                if hasattr(adapter, "_device_available"):
                     adapter._device_available = is_online
                     logger.info(f"Zigbee2MQTT device '{friendly_name}' is {payload_str}")
-            
+
             # Emit availability event for UI updates
             if self.event_bus:
-                #TODO: it should emit with the emitter service
+                # TODO: it should emit with the emitter service
                 try:
                     from app.enums.events import DeviceEvent
+
                     self.event_bus.publish(
                         DeviceEvent.DEVICE_AVAILABILITY_CHANGED,
                         {
                             "friendly_name": friendly_name,
                             "available": is_online,
                             "source": "zigbee2mqtt",
-                        }
+                        },
                     )
                 except Exception as exc:
                     logger.debug("Failed to publish availability event: %s", exc)
-                    
+
         except Exception as e:
             logger.error(f"Error handling Zigbee availability for {friendly_name}: {e}")
 
@@ -309,10 +305,7 @@ class MQTTSensorService:
             return
         self._unmapped_last_logged_at[friendly_name] = now
 
-        logger.warning(
-            "Unregistered Zigbee device '%s' detected. Mapping missing in dashboard.",
-            friendly_name
-        )
+        logger.warning("Unregistered Zigbee device '%s' detected. Mapping missing in dashboard.", friendly_name)
 
     # ---------------------------------------------------------------------
     # SYSGrow Zigbee2MQTT-style handling
@@ -353,7 +346,7 @@ class MQTTSensorService:
                         "protocol": "sysgrow",
                         "online": is_online,
                         "timestamp": iso_now(),
-                    }
+                    },
                 )
             except Exception as exc:
                 logger.debug("Failed to publish availability event: %s", exc)
@@ -431,7 +424,7 @@ class MQTTSensorService:
                         "devices": devices,
                         "device_count": len(devices),
                         "timestamp": iso_now(),
-                    }
+                    },
                 )
             except Exception as exc:
                 logger.debug("Failed to publish bridge info event: %s", exc)
@@ -441,8 +434,7 @@ class MQTTSensorService:
             status = data.get("status", "unknown")
             uptime = data.get("uptime")
             free_heap = data.get("free_heap")
-            logger.info("SYSGrow bridge health: %s (uptime=%ss, heap=%s)",
-                       status, uptime, free_heap)
+            logger.info("SYSGrow bridge health: %s (uptime=%ss, heap=%s)", status, uptime, free_heap)
 
             # Publish bridge health event
             try:
@@ -454,7 +446,7 @@ class MQTTSensorService:
                         "free_heap": free_heap,
                         "timestamp": iso_now(),
                         **data,  # Include all health fields
-                    }
+                    },
                 )
             except Exception as exc:
                 logger.debug("Failed to publish bridge health event: %s", exc)
@@ -474,7 +466,7 @@ class MQTTSensorService:
                         "status": status,
                         "response": data,
                         "timestamp": iso_now(),
-                    }
+                    },
                 )
             except Exception as exc:
                 logger.debug("Failed to publish command response event: %s", exc)
@@ -483,7 +475,7 @@ class MQTTSensorService:
         self,
         *,
         friendly_name: str,
-        raw_data: Dict[str, Any],
+        raw_data: dict[str, Any],
     ) -> None:
         """Emits discovery payload for unregistered SYSGrow devices."""
         # Throttle logging for repeated unregistered devices
@@ -494,7 +486,7 @@ class MQTTSensorService:
             logger.info(
                 "Discovered unregistered SYSGrow device: %s (type=%s)",
                 friendly_name,
-                raw_data.get("device_type", "unknown")
+                raw_data.get("device_type", "unknown"),
             )
 
         publisher_id = f"sysgrow:{friendly_name}"
@@ -537,7 +529,7 @@ class MQTTSensorService:
             logger.error("Failed to emit SYSGrow discovery payload for %s: %s", friendly_name, exc)
             self.metrics.inc("mqtt_emit_errors_total", source="sysgrow")
 
-    def _resolve_sensor_by_mac(self, mac_address: str) -> Tuple[Optional[int], Optional[SensorEntity]]:
+    def _resolve_sensor_by_mac(self, mac_address: str) -> tuple[int | None, SensorEntity | None]:
         """
         Resolves a sensor by MAC address.
 
@@ -568,7 +560,7 @@ class MQTTSensorService:
     # Processing & Emission Flow
     # ---------------------------------------------------------------------
 
-    def _ingest_registered(self, *, sensor: SensorEntity, raw_data: Dict[str, Any], source: str) -> None:
+    def _ingest_registered(self, *, sensor: SensorEntity, raw_data: dict[str, Any], source: str) -> None:
         """
         Orchestrates the transition from raw hardware data to enriched system domain models.
 
@@ -664,8 +656,8 @@ class MQTTSensorService:
             self.metrics.inc("mqtt_emit_errors_total", source=source)
         finally:
             self.metrics.observe("mqtt_emit_latency_seconds", time.perf_counter() - t0, source=source)
-  
-    def _parse_json(self, payload: bytes, *, source: str, identity: str) -> Optional[Dict[str, Any]]:
+
+    def _parse_json(self, payload: bytes, *, source: str, identity: str) -> dict[str, Any] | None:
         """Safely decodes MQTT byte payload into a JSON dictionary."""
         try:
             decoded = payload.decode(errors="strict")
@@ -684,7 +676,7 @@ class MQTTSensorService:
         except Exception as exc:
             logger.error("Payload decode error from %s (%s): %s", source, identity, exc)
             self.metrics.inc("mqtt_messages_decode_errors_total", source=source)
-        
+
         return None
 
     # ---------------------------------------------------------------------
@@ -695,7 +687,7 @@ class MQTTSensorService:
         """Invalidates all resolution caches (triggers on sensor config changes)."""
         self._friendly_name_cache.clear()
         self._unmapped_last_logged_at.clear()
-        
+
         # Clear priority processor state to force re-election of primary sensors
         try:
             if hasattr(self.processor, "_priority") and self.processor._priority:
@@ -708,29 +700,29 @@ class MQTTSensorService:
 
         logger.info("MQTTSensorService: Resolution caches cleared")
 
-    def _get_sensor_entity(self, sensor_id: int) -> Optional[SensorEntity]:
+    def _get_sensor_entity(self, sensor_id: int) -> SensorEntity | None:
         """
         Retrieves a SensorEntity by ID.
-        
+
         Delegates to SensorManagementService which owns the sensor registry.
         """
         if sensor_id <= 0:
             return None
-        
+
         try:
             return self.sensor_manager.get_sensor_entity(sensor_id)
         except Exception:
             return None
 
-    def _resolve_registered_sensor(self, friendly_name: str) -> Tuple[Optional[int], Optional[SensorEntity]]:
+    def _resolve_registered_sensor(self, friendly_name: str) -> tuple[int | None, SensorEntity | None]:
         """
         Resolves a friendly name to a concrete SensorID and Entity.
-        
+
         Delegates to SensorManagementService which owns the sensor registry.
         """
         if not friendly_name:
             return None, None
-        
+
         # Check local cache first for performance
         cached_id = self._friendly_name_cache.get(friendly_name)
         if cached_id:
@@ -739,18 +731,18 @@ class MQTTSensorService:
                 return cached_id, sensor
             # Cache is stale, clear it
             self._friendly_name_cache.pop(friendly_name, None)
-        
+
         # Delegate to sensor_manager
         try:
             sensor = self.sensor_manager.get_sensor_by_friendly_name(friendly_name)
             if sensor:
-                sensor_id = _safe_int(getattr(sensor, 'id', 0))
+                sensor_id = _safe_int(getattr(sensor, "id", 0))
                 if sensor_id > 0:
                     self._friendly_name_cache[friendly_name] = sensor_id
                     return sensor_id, sensor
         except Exception:
             pass
-        
+
         return None, None
 
     # ---------------------------------------------------------------------
@@ -761,12 +753,12 @@ class MQTTSensorService:
         self,
         *,
         friendly_name: str,
-        payload: Dict[str, Any],
-        sensor_id: Optional[int] = None,
+        payload: dict[str, Any],
+        sensor_id: int | None = None,
     ) -> bool:
         """
         Manually injects a Zigbee payload into the pipeline.
-        
+
         Used for hydrating state on startup or reconnect.
         """
         try:
@@ -790,11 +782,11 @@ class MQTTSensorService:
             logger.exception("Manual Zigbee ingestion failed for %s", friendly_name)
             return False
 
-    def get_sensor_health(self, sensor_id: Optional[int] = None) -> Dict[str, Any]:
+    def get_sensor_health(self, sensor_id: int | None = None) -> dict[str, Any]:
         """Returns the routing health status for one or all sensors."""
         if sensor_id is not None:
             return self.sensor_health.get(sensor_id, {"status": "unknown"})
-        
+
         return {
             "total_tracked": len(self.sensor_health),
             "sensors": self.sensor_health,
@@ -804,4 +796,3 @@ class MQTTSensorService:
         """Gracefully releases MQTT subscriptions."""
         logger.info("MQTTSensorService shutting down")
         # MQTT client cleanup handled by container/framework
- 

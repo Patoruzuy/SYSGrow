@@ -5,12 +5,13 @@ Endpoints for managing ML training data collection and quality.
 """
 
 import logging
+
 from flask import Blueprint, request
 
 from app.blueprints.api._common import (
+    fail as _fail,
     get_container as _container,
     success as _success,
-    fail as _fail,
 )
 
 logger = logging.getLogger(__name__)
@@ -23,18 +24,19 @@ def _get_training_data_collector():
     container = _container()
     if not container:
         return None
-    return getattr(container, 'training_data_collector', None)
+    return getattr(container, "training_data_collector", None)
 
 
 # ==============================================================================
 # DATA COLLECTION
 # ==============================================================================
 
+
 @training_data_bp.get("/summary")
 def get_summary():
     """
     Get summary of available training data.
-    
+
     Returns:
         {
             "datasets": {
@@ -48,34 +50,30 @@ def get_summary():
     """
     try:
         collector = _get_training_data_collector()
-        
+
         if not collector:
-            return _success({
-                "datasets": {},
-                "total_examples": 0,
-                "message": "Training data collector is not enabled"
-            })
-        
+            return _success({"datasets": {}, "total_examples": 0, "message": "Training data collector is not enabled"})
+
         summary = collector.get_training_data_summary()
-        
+
         return _success(summary)
-        
+
     except Exception as e:
         logger.error(f"Error getting training data summary: {e}", exc_info=True)
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
 @training_data_bp.post("/collect/disease")
 def collect_disease_data():
     """
     Trigger disease training data collection.
-    
+
     Request body:
         {
             "days_back": int (optional, default 30),
             "min_examples_per_class": int (optional, default 50)
         }
-    
+
     Returns:
         {
             "collected": true,
@@ -85,42 +83,35 @@ def collect_disease_data():
     """
     try:
         collector = _get_training_data_collector()
-        
+
         if not collector:
             return _fail("Training data collector is not enabled", 503)
-        
+
         data = request.get_json() or {}
-        days_back = data.get('days_back', 30)
-        min_examples = data.get('min_examples_per_class', 50)
-        
-        result = collector.collect_disease_training_data(
-            days_back=days_back,
-            min_examples_per_class=min_examples
-        )
-        
+        days_back = data.get("days_back", 30)
+        min_examples = data.get("min_examples_per_class", 50)
+
+        result = collector.collect_disease_training_data(days_back=days_back, min_examples_per_class=min_examples)
+
         examples_count = len(result) if result is not None else 0
-        
-        return _success({
-            "collected": True,
-            "examples_count": examples_count,
-            "days_analyzed": days_back
-        })
-        
+
+        return _success({"collected": True, "examples_count": examples_count, "days_analyzed": days_back})
+
     except Exception as e:
         logger.error(f"Error collecting disease training data: {e}", exc_info=True)
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
 @training_data_bp.post("/collect/climate")
 def collect_climate_data():
     """
     Trigger climate optimization training data collection.
-    
+
     Request body:
         {
             "days_back": int (optional, default 30)
         }
-    
+
     Returns:
         {
             "collected": true,
@@ -129,38 +120,34 @@ def collect_climate_data():
     """
     try:
         collector = _get_training_data_collector()
-        
+
         if not collector:
             return _fail("Training data collector is not enabled", 503)
-        
+
         data = request.get_json() or {}
-        days_back = data.get('days_back', 30)
-        
+        days_back = data.get("days_back", 30)
+
         result = collector.collect_climate_training_data(days_back=days_back)
-        
+
         examples_count = len(result) if result is not None else 0
-        
-        return _success({
-            "collected": True,
-            "examples_count": examples_count,
-            "days_analyzed": days_back
-        })
-        
+
+        return _success({"collected": True, "examples_count": examples_count, "days_analyzed": days_back})
+
     except Exception as e:
         logger.error(f"Error collecting climate training data: {e}", exc_info=True)
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
 @training_data_bp.post("/collect/growth")
 def collect_growth_data():
     """
     Trigger growth outcome training data collection.
-    
+
     Request body:
         {
             "min_examples": int (optional, default 100)
         }
-    
+
     Returns:
         {
             "collected": true,
@@ -169,41 +156,39 @@ def collect_growth_data():
     """
     try:
         collector = _get_training_data_collector()
-        
+
         if not collector:
             return _fail("Training data collector is not enabled", 503)
-        
+
         data = request.get_json() or {}
-        min_examples = data.get('min_examples', 100)
-        
+        min_examples = data.get("min_examples", 100)
+
         result = collector.collect_growth_outcome_data(min_examples=min_examples)
-        
+
         examples_count = len(result) if result is not None else 0
-        
-        return _success({
-            "collected": True,
-            "examples_count": examples_count
-        })
-        
+
+        return _success({"collected": True, "examples_count": examples_count})
+
     except Exception as e:
         logger.error(f"Error collecting growth training data: {e}", exc_info=True)
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
 # ==============================================================================
 # DATA VALIDATION
 # ==============================================================================
 
+
 @training_data_bp.post("/validate")
 def validate_data():
     """
     Validate training data quality.
-    
+
     Request body:
         {
             "dataset_type": str ("disease", "climate", "growth")
         }
-    
+
     Returns:
         {
             "valid": bool,
@@ -214,33 +199,33 @@ def validate_data():
     """
     try:
         collector = _get_training_data_collector()
-        
+
         if not collector:
             return _fail("Training data collector is not enabled", 503)
-        
+
         data = request.get_json() or {}
-        dataset_type = data.get('dataset_type')
-        
+        dataset_type = data.get("dataset_type")
+
         if not dataset_type:
             return _fail("dataset_type is required", 400)
-        
-        if dataset_type not in ['disease', 'climate', 'growth']:
+
+        if dataset_type not in ["disease", "climate", "growth"]:
             return _fail("dataset_type must be one of: disease, climate, growth", 400)
-        
+
         validation_result = collector.validate_training_data(dataset_type)
-        
+
         return _success(validation_result)
-        
+
     except Exception as e:
         logger.error(f"Error validating training data: {e}", exc_info=True)
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
 @training_data_bp.get("/quality/<dataset_type>")
 def get_quality_metrics(dataset_type: str):
     """
     Get quality metrics for a specific dataset.
-    
+
     Returns:
         {
             "dataset_type": str,
@@ -253,45 +238,40 @@ def get_quality_metrics(dataset_type: str):
     """
     try:
         collector = _get_training_data_collector()
-        
+
         if not collector:
-            return _success({
-                "dataset_type": dataset_type,
-                "message": "Training data collector is not enabled"
-            })
-        
-        if dataset_type not in ['disease', 'climate', 'growth']:
+            return _success({"dataset_type": dataset_type, "message": "Training data collector is not enabled"})
+
+        if dataset_type not in ["disease", "climate", "growth"]:
             return _fail("dataset_type must be one of: disease, climate, growth", 400)
-        
+
         # Get file summary for the dataset
         filename_map = {
-            'disease': 'disease_training_data.csv',
-            'climate': 'climate_training_data.csv',
-            'growth': 'growth_training_data.csv'
+            "disease": "disease_training_data.csv",
+            "climate": "climate_training_data.csv",
+            "growth": "growth_training_data.csv",
         }
-        
+
         summary = collector._get_file_summary(filename_map[dataset_type])
-        
-        return _success({
-            "dataset_type": dataset_type,
-            **summary
-        })
-        
+
+        return _success({"dataset_type": dataset_type, **summary})
+
     except Exception as e:
         logger.error(f"Error getting quality metrics for {dataset_type}: {e}", exc_info=True)
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
 # ==============================================================================
 # PLANT HEALTH MODEL TRAINING
 # ==============================================================================
 
+
 def _get_ml_trainer():
     """Get ML trainer service from container."""
     container = _container()
     if not container:
         return None
-    return getattr(container, 'ml_trainer', None)
+    return getattr(container, "ml_trainer", None)
 
 
 @training_data_bp.post("/plant-health/train")
@@ -368,7 +348,7 @@ def train_plant_health_models():
 
     except Exception as e:
         logger.error(f"Error training plant health models: {e}", exc_info=True)
-        return _fail(str(e), 500)
+        return safe_error(e, 500)
 
 
 @training_data_bp.get("/plant-health/status")
@@ -393,8 +373,8 @@ def get_plant_health_training_status():
             return _fail("Container not available", 503)
 
         # Check for training data repository
-        training_repo = getattr(container, 'training_data_repo', None)
-        model_registry = getattr(container, 'model_registry', None)
+        training_repo = getattr(container, "training_data_repo", None)
+        model_registry = getattr(container, "model_registry", None)
 
         MIN_SAMPLES = 50
         harvest_samples = 0
@@ -403,14 +383,14 @@ def get_plant_health_training_status():
         classifier_exists = False
 
         # Count available training data
-        if training_repo and hasattr(training_repo, 'get_health_score_training_data'):
+        if training_repo and hasattr(training_repo, "get_health_score_training_data"):
             try:
                 harvest_data = training_repo.get_health_score_training_data(days_limit=365)
                 harvest_samples = len(harvest_data) if harvest_data else 0
             except Exception as e:
                 logger.warning(f"Error getting harvest samples: {e}")
 
-        if training_repo and hasattr(training_repo, 'get_health_status_training_data'):
+        if training_repo and hasattr(training_repo, "get_health_status_training_data"):
             try:
                 obs_data = training_repo.get_health_status_training_data(days_limit=365)
                 observation_samples = len(obs_data) if obs_data else 0
@@ -432,28 +412,26 @@ def get_plant_health_training_status():
         recommendations = []
 
         if harvest_samples < MIN_SAMPLES:
-            recommendations.append(
-                f"Need {MIN_SAMPLES - harvest_samples} more harvest records with quality ratings"
-            )
+            recommendations.append(f"Need {MIN_SAMPLES - harvest_samples} more harvest records with quality ratings")
         if observation_samples < MIN_SAMPLES:
-            recommendations.append(
-                f"Need {MIN_SAMPLES - observation_samples} more health observations"
-            )
+            recommendations.append(f"Need {MIN_SAMPLES - observation_samples} more health observations")
         if ready_for_training and not regressor_exists:
             recommendations.append("Ready to train health score regressor")
         if ready_for_training and not classifier_exists:
             recommendations.append("Ready to train health status classifier")
 
-        return _success({
-            "ready_for_training": ready_for_training,
-            "harvest_samples": harvest_samples,
-            "observation_samples": observation_samples,
-            "min_samples_required": MIN_SAMPLES,
-            "regressor_model_exists": regressor_exists,
-            "classifier_model_exists": classifier_exists,
-            "recommendations": recommendations,
-        })
+        return _success(
+            {
+                "ready_for_training": ready_for_training,
+                "harvest_samples": harvest_samples,
+                "observation_samples": observation_samples,
+                "min_samples_required": MIN_SAMPLES,
+                "regressor_model_exists": regressor_exists,
+                "classifier_model_exists": classifier_exists,
+                "recommendations": recommendations,
+            }
+        )
 
     except Exception as e:
         logger.error(f"Error getting plant health training status: {e}", exc_info=True)
-        return _fail(str(e), 500)
+        return safe_error(e, 500)

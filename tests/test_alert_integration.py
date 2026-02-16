@@ -1,12 +1,10 @@
-import os
-import json
-from pathlib import Path
 import logging
+from pathlib import Path
 
-from infrastructure.database.sqlite_handler import SQLiteDatabaseHandler
-from infrastructure.database.repositories.alerts import AlertRepository
 from app.services.application.alert_service import AlertService
 from app.services.application.device_health_service import DeviceHealthService
+from infrastructure.database.repositories.alerts import AlertRepository
+from infrastructure.database.sqlite_handler import SQLiteDatabaseHandler
 
 # Setup logging for test run
 logging.basicConfig(level=logging.DEBUG)

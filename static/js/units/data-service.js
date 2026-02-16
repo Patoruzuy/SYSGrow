@@ -825,7 +825,7 @@
      */
     async startCamera(unitId) {
       try {
-        const data = await this.api.post(`/api/growth/units/${unitId}/camera/start`);
+        const data = await this.api.Growth.startCamera(unitId);
         return { ok: true, data };
       } catch (error) {
         console.error(`[UnitsDataService] startCamera(${unitId}) failed:`, error);
@@ -838,7 +838,7 @@
      */
     async stopCamera(unitId) {
       try {
-        const data = await this.api.post(`/api/growth/units/${unitId}/camera/stop`);
+        const data = await this.api.Growth.stopCamera(unitId);
         return { ok: true, data };
       } catch (error) {
         console.error(`[UnitsDataService] stopCamera(${unitId}) failed:`, error);
@@ -851,7 +851,7 @@
      */
     async getCameraStatus(unitId) {
       try {
-        const data = await this.api.get(`/api/growth/units/${unitId}/camera/status`);
+        const data = await this.api.Growth.getCameraStatus(unitId);
         return { ok: true, data };
       } catch (error) {
         console.error(`[UnitsDataService] getCameraStatus(${unitId}) failed:`, error);

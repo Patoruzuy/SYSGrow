@@ -13,7 +13,21 @@ from typing import Any
 
 from app.schemas.device import ActuatorResponse, SensorResponse
 
-# Import shared utilities from centralized module
+# Re-export shared utilities from centralized module.
+# These are imported by sub-modules (control.py, crud.py, sensors.py, shared.py, etc.)
+# via ``from ..utils import _success, _fail, ...``.
+from app.blueprints.api._common import (  # noqa: F401 — re-exports for sub-modules
+    fail as _fail,
+    get_actuator_service as _actuator_service,
+    get_analytics_service as _analytics_service,
+    get_device_coordinator as _device_coordinator,
+    get_device_health_service as _device_health_service,
+    get_device_repo as _device_repo,
+    get_growth_service as _growth_service,
+    get_sensor_service as _sensor_service,
+    get_zigbee_service as _zigbee_service,
+    success as _success,
+)
 
 logger = logging.getLogger("devices_api")
 

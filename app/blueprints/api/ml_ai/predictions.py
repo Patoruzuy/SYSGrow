@@ -19,7 +19,7 @@ from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from flask import Blueprint, request, session
+from flask import Blueprint, Response, request, session
 from pydantic import ValidationError
 
 from app.blueprints.api._common import (
@@ -29,11 +29,12 @@ from app.blueprints.api._common import (
     success as _success,
 )
 from app.schemas import DiseaseRiskRequest, GrowthComparisonRequest
+from app.utils.http import safe_route
 from app.utils.time import iso_now
 
 logger = logging.getLogger(__name__)
 
-predictions_bp = Blueprint("ml_predictions", __name__, url_prefix="/api/ml/predictions")
+predictions_bp = Blueprint("ml_predictions", __name__)
 
 
 def _get_unit_timezone(unit_id: int) -> str | None:
@@ -63,19 +64,12 @@ def _get_irrigation_predictor(container):
     if predictor:
         return predictor
     try:
-        from app.services.ai.irrigation_predictor import IrrigationPredictor
-        from infrastructure.database.repositories.irrigation_ml import IrrigationMLRepository
-
-        irrigation_ml_repo = IrrigationMLRepository(container.database)
-        predictor = IrrigationPredictor(
-            irrigation_ml_repo=irrigation_ml_repo,
-            model_registry=getattr(container, "model_registry", None),
-            feature_engineer=getattr(container, "feature_engineer", None),
-        )
-        predictor.load_models()
-        return predictor
+        # Predictor should be registered on the container by ContainerBuilder.
+        # If missing, log a warning rather than constructing repos in the blueprint.
+        logger.warning("irrigation_predictor not found on container; predictions will be unavailable")
+        return None
     except Exception as exc:
-        logger.error(f"Failed to initialize irrigation predictor: {exc}", exc_info=True)
+        logger.error("Failed to resolve irrigation predictor: %s", exc, exc_info=True)
         return None
 
 
@@ -149,12 +143,12 @@ def _resolve_current_threshold(container, unit_id: int, user_id: int, active_pla
                 if value is not None:
                     current_threshold = float(value)
 
-    from infrastructure.database.repositories.irrigation_workflow import IrrigationWorkflowRepository
-
-    workflow_repo = IrrigationWorkflowRepository(container.database)
-    prefs = workflow_repo.get_user_preference(user_id, unit_id)
-    if prefs and prefs.get("preferred_moisture_threshold") is not None:
-        current_threshold = float(prefs.get("preferred_moisture_threshold"))
+    # Use the service layer for user preferences (not direct repo access)
+    workflow_service = getattr(container, "irrigation_workflow_service", None)
+    if workflow_service:
+        prefs = workflow_service.get_user_preferences(user_id, unit_id)
+        if prefs and prefs.get("preferred_moisture_threshold") is not None:
+            current_threshold = float(prefs.get("preferred_moisture_threshold"))
 
     return current_threshold
 
@@ -189,7 +183,8 @@ def _build_irrigation_feature_context(
 
 
 @predictions_bp.post("/disease/risk")
-def predict_disease_risk():
+@safe_route("Failed to predict disease risk")
+def predict_disease_risk() -> Response:
     """
     Predict disease risk for a specific unit.
 
@@ -201,42 +196,38 @@ def predict_disease_risk():
         "current_conditions": {...}  # optional
     }
     """
+    raw = request.get_json() or {}
     try:
-        raw = request.get_json() or {}
-        try:
-            body = DiseaseRiskRequest(**raw)
-        except ValidationError as ve:
-            return _fail("Invalid request", 400, details={"errors": ve.errors()})
+        body = DiseaseRiskRequest(**raw)
+    except ValidationError as ve:
+        return _fail("Invalid request", 400, details={"errors": ve.errors()})
 
-        container = _container()
-        predictor = container.disease_predictor
+    container = _container()
+    predictor = container.disease_predictor
 
-        if not predictor.is_available():
-            return _fail("Disease prediction model not available", 503)
+    if not predictor.is_available():
+        return _fail("Disease prediction model not available", 503)
 
-        risks = predictor.predict_disease_risk(
-            unit_id=body.unit_id,
-            plant_type=body.plant_type,
-            growth_stage=body.growth_stage,
-            current_conditions=body.current_conditions,
-        )
+    risks = predictor.predict_disease_risk(
+        unit_id=body.unit_id,
+        plant_type=body.plant_type,
+        growth_stage=body.growth_stage,
+        current_conditions=body.current_conditions,
+    )
 
-        return _success(
-            {
-                "unit_id": body.unit_id,
-                "plant_type": body.plant_type,
-                "risks": [risk.to_dict() for risk in risks],
-                "count": len(risks),
-            }
-        )
-
-    except Exception as e:
-        logger.error(f"Error predicting disease risk: {e}", exc_info=True)
-        return safe_error(e, 500)
+    return _success(
+        {
+            "unit_id": body.unit_id,
+            "plant_type": body.plant_type,
+            "risks": [risk.to_dict() for risk in risks],
+            "count": len(risks),
+        }
+    )
 
 
 @predictions_bp.get("/disease/risks")
-def get_all_disease_risks():
+@safe_route("Failed to get disease risks")
+def get_all_disease_risks() -> Response:
     """
     Get disease risk assessments for all or filtered units.
 
@@ -244,271 +235,253 @@ def get_all_disease_risks():
     - unit_id: Optional unit ID filter
     - risk_level: Optional filter (low, moderate, high, critical)
     """
-    try:
-        from app.services.ai import RiskLevel
+    from app.services.ai import RiskLevel
 
-        container = _container()
-        predictor = container.disease_predictor
-        plant_service = container.plant_service
-        growth_service = container.growth_service
+    container = _container()
+    predictor = container.disease_predictor
+    plant_service = container.plant_service
+    growth_service = container.growth_service
 
-        if not predictor.is_available():
-            return _fail("Disease prediction model not available", 503)
+    if not predictor.is_available():
+        return _fail("Disease prediction model not available", 503)
 
-        unit_id_filter = request.args.get("unit_id", type=int)
-        risk_level_filter = request.args.get("risk_level")
+    unit_id_filter = request.args.get("unit_id", type=int)
+    risk_level_filter = request.args.get("risk_level")
 
-        def _resolve_unit_plants(unit_id: int):
-            active = plant_service.get_active_plant(unit_id)
-            if active:
-                return [(unit_id, active)]
-            unit_plants = plant_service.list_plants(unit_id)
-            if unit_plants:
-                return [(unit_id, unit_plants[0])]
-            return []
+    def _resolve_unit_plants(unit_id: int):
+        active = plant_service.get_active_plant(unit_id)
+        if active:
+            return [(unit_id, active)]
+        unit_plants = plant_service.list_plants(unit_id)
+        if unit_plants:
+            return [(unit_id, unit_plants[0])]
+        return []
 
-        # Get active plants per unit
-        plant_records = []
-        if unit_id_filter:
-            plant_records = _resolve_unit_plants(unit_id_filter)
-        else:
-            for unit in growth_service.list_units() if growth_service else []:
-                unit_id = unit.get("unit_id") or unit.get("id")
-                if not unit_id:
-                    continue
-                plant_records.extend(_resolve_unit_plants(unit_id))
-
-        plants = []
-        for unit_id, plant in plant_records:
-            plant_data = plant.to_dict() if hasattr(plant, "to_dict") else dict(plant)
-            plant_data["unit_id"] = unit_id
-            plants.append(plant_data)
-
-        if not plants:
-            return _success(
-                {"units": [], "summary": {"total_units": 0, "high_risk_units": 0, "critical_risk_units": 0}}
-            )
-
-        # Process units
-        units_data = []
-        high_risk_count = 0
-        critical_risk_count = 0
-        all_risk_types = []
-        processed_units = set()
-
-        for plant in plants:
-            if plant["unit_id"] in processed_units:
+    # Get active plants per unit
+    plant_records = []
+    if unit_id_filter:
+        plant_records = _resolve_unit_plants(unit_id_filter)
+    else:
+        for unit in growth_service.list_units() if growth_service else []:
+            unit_id = unit.get("unit_id") or unit.get("id")
+            if not unit_id:
                 continue
-            processed_units.add(plant["unit_id"])
+            plant_records.extend(_resolve_unit_plants(unit_id))
 
-            risks = predictor.predict_disease_risk(
-                unit_id=plant["unit_id"],
-                plant_type=plant.get("plant_type", "unknown"),
-                growth_stage=plant.get("current_stage", "vegetative"),
-            )
+    plants = []
+    for unit_id, plant in plant_records:
+        plant_data = plant.to_dict() if hasattr(plant, "to_dict") else dict(plant)
+        plant_data["unit_id"] = unit_id
+        plants.append(plant_data)
 
-            # Filter by risk level if specified
-            if risk_level_filter:
-                try:
-                    filter_level = RiskLevel(risk_level_filter.lower())
-                    risks = [r for r in risks if r.risk_level == filter_level]
-                except ValueError:
-                    pass
+    if not plants:
+        return _success({"units": [], "summary": {"total_units": 0, "high_risk_units": 0, "critical_risk_units": 0}})
 
-            # Count risks
-            for risk in risks:
-                if risk.risk_level == RiskLevel.HIGH:
-                    high_risk_count += 1
-                elif risk.risk_level == RiskLevel.CRITICAL:
-                    critical_risk_count += 1
-                all_risk_types.append(risk.disease_type.value)
+    # Process units
+    units_data = []
+    high_risk_count = 0
+    critical_risk_count = 0
+    all_risk_types = []
+    processed_units = set()
 
-            risks_data = [risk.to_dict() for risk in risks]
+    for plant in plants:
+        if plant["unit_id"] in processed_units:
+            continue
+        processed_units.add(plant["unit_id"])
 
-            units_data.append(
-                {
-                    "unit_id": plant["unit_id"],
-                    "unit_name": plant.get("unit_name", f"Unit {plant['unit_id']}"),
-                    "plant_type": plant.get("plant_type", "unknown"),
-                    "growth_stage": plant.get("current_stage", "vegetative"),
-                    "risks": risks_data,
-                    "risk_count": len(risks_data),
-                    "highest_risk_score": max([r["risk_score"] for r in risks_data]) if risks_data else 0,
-                }
-            )
+        risks = predictor.predict_disease_risk(
+            unit_id=plant["unit_id"],
+            plant_type=plant.get("plant_type", "unknown"),
+            growth_stage=plant.get("current_stage", "vegetative"),
+        )
 
-        # Summary
-        most_common_risk = None
-        if all_risk_types:
-            risk_counts = Counter(all_risk_types)
-            most_common_risk = risk_counts.most_common(1)[0][0]
+        # Filter by risk level if specified
+        if risk_level_filter:
+            try:
+                filter_level = RiskLevel(risk_level_filter.lower())
+                risks = [r for r in risks if r.risk_level == filter_level]
+            except ValueError:
+                pass
 
-        return _success(
+        # Count risks
+        for risk in risks:
+            if risk.risk_level == RiskLevel.HIGH:
+                high_risk_count += 1
+            elif risk.risk_level == RiskLevel.CRITICAL:
+                critical_risk_count += 1
+            all_risk_types.append(risk.disease_type.value)
+
+        risks_data = [risk.to_dict() for risk in risks]
+
+        units_data.append(
             {
-                "units": units_data,
-                "summary": {
-                    "total_units": len(units_data),
-                    "high_risk_units": high_risk_count,
-                    "critical_risk_units": critical_risk_count,
-                    "most_common_risk": most_common_risk,
-                    "total_risks_detected": len(all_risk_types),
-                },
+                "unit_id": plant["unit_id"],
+                "unit_name": plant.get("unit_name", f"Unit {plant['unit_id']}"),
+                "plant_type": plant.get("plant_type", "unknown"),
+                "growth_stage": plant.get("current_stage", "vegetative"),
+                "risks": risks_data,
+                "risk_count": len(risks_data),
+                "highest_risk_score": max([r["risk_score"] for r in risks_data]) if risks_data else 0,
             }
         )
 
-    except Exception as e:
-        logger.error(f"Error getting disease risks: {e}", exc_info=True)
-        return safe_error(e, 500)
+    # Summary
+    most_common_risk = None
+    if all_risk_types:
+        risk_counts = Counter(all_risk_types)
+        most_common_risk = risk_counts.most_common(1)[0][0]
+
+    return _success(
+        {
+            "units": units_data,
+            "summary": {
+                "total_units": len(units_data),
+                "high_risk_units": high_risk_count,
+                "critical_risk_units": critical_risk_count,
+                "most_common_risk": most_common_risk,
+                "total_risks_detected": len(all_risk_types),
+            },
+        }
+    )
 
 
 @predictions_bp.get("/disease/alerts")
-def get_disease_alerts():
+@safe_route("Failed to get disease alerts")
+def get_disease_alerts() -> Response:
     """
     Get active disease alerts (HIGH and CRITICAL risks only).
 
     Query params:
     - unit_id: Optional unit ID filter
     """
-    try:
-        from app.services.ai import RiskLevel
+    from app.services.ai import RiskLevel
 
-        container = _container()
-        predictor = container.disease_predictor
-        plant_service = container.plant_service
-        growth_service = container.growth_service
+    container = _container()
+    predictor = container.disease_predictor
+    plant_service = container.plant_service
+    growth_service = container.growth_service
 
-        if not predictor.is_available():
-            return _fail("Disease prediction model not available", 503)
+    if not predictor.is_available():
+        return _fail("Disease prediction model not available", 503)
 
-        unit_id_filter = request.args.get("unit_id", type=int)
+    unit_id_filter = request.args.get("unit_id", type=int)
 
-        def _resolve_unit_plants(unit_id: int):
-            active = plant_service.get_active_plant(unit_id)
-            if active:
-                return [(unit_id, active)]
-            unit_plants = plant_service.list_plants(unit_id)
-            if unit_plants:
-                return [(unit_id, unit_plants[0])]
-            return []
+    def _resolve_unit_plants(unit_id: int):
+        active = plant_service.get_active_plant(unit_id)
+        if active:
+            return [(unit_id, active)]
+        unit_plants = plant_service.list_plants(unit_id)
+        if unit_plants:
+            return [(unit_id, unit_plants[0])]
+        return []
 
-        plant_records = []
-        if unit_id_filter:
-            plant_records = _resolve_unit_plants(unit_id_filter)
-        else:
-            for unit in growth_service.list_units() if growth_service else []:
-                unit_id = unit.get("unit_id") or unit.get("id")
-                if not unit_id:
-                    continue
-                plant_records.extend(_resolve_unit_plants(unit_id))
-
-        plants = []
-        for unit_id, plant in plant_records:
-            plant_data = plant.to_dict() if hasattr(plant, "to_dict") else dict(plant)
-            plant_data["unit_id"] = unit_id
-            plants.append(plant_data)
-
-        if not plants:
-            return _success({"alerts": [], "alert_count": 0, "critical_count": 0})
-
-        # Generate alerts
-        alerts = []
-        critical_count = 0
-        processed_units = set()
-
-        for plant in plants:
-            if plant["unit_id"] in processed_units:
+    plant_records = []
+    if unit_id_filter:
+        plant_records = _resolve_unit_plants(unit_id_filter)
+    else:
+        for unit in growth_service.list_units() if growth_service else []:
+            unit_id = unit.get("unit_id") or unit.get("id")
+            if not unit_id:
                 continue
-            processed_units.add(plant["unit_id"])
+            plant_records.extend(_resolve_unit_plants(unit_id))
 
-            risks = predictor.predict_disease_risk(
-                unit_id=plant["unit_id"],
-                plant_type=plant.get("plant_type", "unknown"),
-                growth_stage=plant.get("current_stage", "vegetative"),
+    plants = []
+    for unit_id, plant in plant_records:
+        plant_data = plant.to_dict() if hasattr(plant, "to_dict") else dict(plant)
+        plant_data["unit_id"] = unit_id
+        plants.append(plant_data)
+
+    if not plants:
+        return _success({"alerts": [], "alert_count": 0, "critical_count": 0})
+
+    # Generate alerts
+    alerts = []
+    critical_count = 0
+    processed_units = set()
+
+    for plant in plants:
+        if plant["unit_id"] in processed_units:
+            continue
+        processed_units.add(plant["unit_id"])
+
+        risks = predictor.predict_disease_risk(
+            unit_id=plant["unit_id"],
+            plant_type=plant.get("plant_type", "unknown"),
+            growth_stage=plant.get("current_stage", "vegetative"),
+        )
+
+        # Filter for HIGH and CRITICAL only
+        high_risks = [r for r in risks if r.risk_level in [RiskLevel.HIGH, RiskLevel.CRITICAL]]
+
+        for risk in high_risks:
+            if risk.risk_level == RiskLevel.CRITICAL:
+                critical_count += 1
+
+            alert_id = f"unit{plant['unit_id']}_{risk.disease_type.value}_{datetime.now().strftime('%Y-%m-%d')}"
+
+            alerts.append(
+                {
+                    "alert_id": alert_id,
+                    "unit_id": plant["unit_id"],
+                    "unit_name": plant.get("unit_name", f"Unit {plant['unit_id']}"),
+                    "disease_type": risk.disease_type.value,
+                    "risk_level": risk.risk_level.value,
+                    "risk_score": round(risk.risk_score, 1),
+                    "predicted_onset_days": risk.predicted_onset_days,
+                    "priority": 1 if risk.risk_level == RiskLevel.CRITICAL else 2,
+                    "actions": risk.recommendations[:3],
+                    "timestamp": iso_now(),
+                }
             )
 
-            # Filter for HIGH and CRITICAL only
-            high_risks = [r for r in risks if r.risk_level in [RiskLevel.HIGH, RiskLevel.CRITICAL]]
+    # Sort by priority
+    alerts.sort(key=lambda a: (a["priority"], -a["risk_score"]))
 
-            for risk in high_risks:
-                if risk.risk_level == RiskLevel.CRITICAL:
-                    critical_count += 1
-
-                alert_id = f"unit{plant['unit_id']}_{risk.disease_type.value}_{datetime.now().strftime('%Y-%m-%d')}"
-
-                alerts.append(
-                    {
-                        "alert_id": alert_id,
-                        "unit_id": plant["unit_id"],
-                        "unit_name": plant.get("unit_name", f"Unit {plant['unit_id']}"),
-                        "disease_type": risk.disease_type.value,
-                        "risk_level": risk.risk_level.value,
-                        "risk_score": round(risk.risk_score, 1),
-                        "predicted_onset_days": risk.predicted_onset_days,
-                        "priority": 1 if risk.risk_level == RiskLevel.CRITICAL else 2,
-                        "actions": risk.recommendations[:3],
-                        "timestamp": iso_now(),
-                    }
-                )
-
-        # Sort by priority
-        alerts.sort(key=lambda a: (a["priority"], -a["risk_score"]))
-
-        return _success({"alerts": alerts, "alert_count": len(alerts), "critical_count": critical_count})
-
-    except Exception as e:
-        logger.error(f"Error getting disease alerts: {e}", exc_info=True)
-        return safe_error(e, 500)
+    return _success({"alerts": alerts, "alert_count": len(alerts), "critical_count": critical_count})
 
 
 # ==================== Growth Stage Prediction ====================
 
 
 @predictions_bp.get("/growth/<string:stage>")
-def predict_growth_conditions(stage: str):
+@safe_route("Failed to predict growth conditions")
+def predict_growth_conditions(stage: str) -> Response:
     """
     Get optimal environmental conditions for a growth stage.
 
     Query params:
     - days_in_stage: Optional days in current stage for fine-tuning
     """
-    try:
-        container = _container()
-        growth_predictor = container.plant_growth_predictor
+    container = _container()
+    growth_predictor = container.plant_growth_predictor
 
-        days_in_stage = request.args.get("days_in_stage", type=int)
+    days_in_stage = request.args.get("days_in_stage", type=int)
 
-        conditions = growth_predictor.predict_growth_conditions(stage_name=stage, days_in_stage=days_in_stage)
+    conditions = growth_predictor.predict_growth_conditions(stage_name=stage, days_in_stage=days_in_stage)
 
-        if not conditions:
-            return _fail(f"Unknown growth stage: {stage}", 404)
+    if not conditions:
+        return _fail(f"Unknown growth stage: {stage}", 404)
 
-        return _success(
-            {"stage": stage, "conditions": conditions.to_dict(), "recommendation": conditions.get_recommendation()}
-        )
-
-    except Exception as e:
-        logger.error(f"Error predicting conditions for {stage}: {e}", exc_info=True)
-        return safe_error(e, 500)
+    return _success(
+        {"stage": stage, "conditions": conditions.to_dict(), "recommendation": conditions.get_recommendation()}
+    )
 
 
 @predictions_bp.get("/growth/stages/all")
-def get_all_growth_stages():
+@safe_route("Failed to get all growth stage conditions")
+def get_all_growth_stages() -> Response:
     """Get optimal conditions for all growth stages."""
-    try:
-        container = _container()
-        growth_predictor = container.plant_growth_predictor
+    container = _container()
+    growth_predictor = container.plant_growth_predictor
 
-        all_conditions = growth_predictor.get_all_stage_conditions()
+    all_conditions = growth_predictor.get_all_stage_conditions()
 
-        return _success({"stages": {stage: conditions.to_dict() for stage, conditions in all_conditions.items()}})
-
-    except Exception as e:
-        logger.error(f"Error getting all stage conditions: {e}", exc_info=True)
-        return safe_error(e, 500)
+    return _success({"stages": {stage: conditions.to_dict() for stage, conditions in all_conditions.items()}})
 
 
 @predictions_bp.post("/growth/transition-analysis")
-def analyze_growth_transition():
+@safe_route("Failed to analyze growth transition")
+def analyze_growth_transition() -> Response:
     """
     Analyze readiness for growth stage transition.
 
@@ -523,34 +496,30 @@ def analyze_growth_transition():
         }
     }
     """
-    try:
-        container = _container()
-        growth_predictor = container.plant_growth_predictor
+    container = _container()
+    growth_predictor = container.plant_growth_predictor
 
-        data = request.get_json()
-        if not data:
-            return _fail("No data provided", 400)
+    data = request.get_json()
+    if not data:
+        return _fail("No data provided", 400)
 
-        current_stage = data.get("current_stage")
-        days_in_stage = data.get("days_in_stage")
-        actual_conditions = data.get("actual_conditions", {})
+    current_stage = data.get("current_stage")
+    days_in_stage = data.get("days_in_stage")
+    actual_conditions = data.get("actual_conditions", {})
 
-        if not current_stage or days_in_stage is None:
-            return _fail("current_stage and days_in_stage are required", 400)
+    if not current_stage or days_in_stage is None:
+        return _fail("current_stage and days_in_stage are required", 400)
 
-        transition = growth_predictor.analyze_stage_transition(
-            current_stage=current_stage, days_in_stage=days_in_stage, actual_conditions=actual_conditions
-        )
+    transition = growth_predictor.analyze_stage_transition(
+        current_stage=current_stage, days_in_stage=days_in_stage, actual_conditions=actual_conditions
+    )
 
-        return _success({"transition": transition.to_dict()})
-
-    except Exception as e:
-        logger.error(f"Error analyzing transition: {e}", exc_info=True)
-        return safe_error(e, 500)
+    return _success({"transition": transition.to_dict()})
 
 
 @predictions_bp.post("/growth/compare")
-def compare_growth_conditions():
+@safe_route("Failed to compare growth conditions")
+def compare_growth_conditions() -> Response:
     """
     Compare actual conditions against optimal for a stage.
 
@@ -564,97 +533,77 @@ def compare_growth_conditions():
         }
     }
     """
+    container = _container()
+    growth_predictor = container.plant_growth_predictor
+
+    raw = request.get_json() or {}
     try:
-        container = _container()
-        growth_predictor = container.plant_growth_predictor
+        body = GrowthComparisonRequest(**raw)
+    except ValidationError as ve:
+        return _fail("Invalid request", 400, details={"errors": ve.errors()})
 
-        raw = request.get_json() or {}
-        try:
-            body = GrowthComparisonRequest(**raw)
-        except ValidationError as ve:
-            return _fail("Invalid request", 400, details={"errors": ve.errors()})
+    comparison = growth_predictor.compare_conditions(body.actual_conditions, body.stage)
 
-        comparison = growth_predictor.compare_conditions(body.actual_conditions, body.stage)
-
-        return _success({"comparison": comparison})
-
-    except Exception as e:
-        logger.error(f"Error comparing conditions: {e}", exc_info=True)
-        return safe_error(e, 500)
+    return _success({"comparison": comparison})
 
 
 @predictions_bp.get("/growth/status")
-def get_growth_predictor_status():
+@safe_route("Failed to get growth predictor status")
+def get_growth_predictor_status() -> Response:
     """Get growth predictor status and available stages."""
-    try:
-        container = _container()
-        growth_predictor = container.growth_predictor
+    container = _container()
+    growth_predictor = container.growth_predictor
 
-        status = growth_predictor.get_status()
+    status = growth_predictor.get_status()
 
-        return _success({"status": status})
-
-    except Exception as e:
-        logger.error(f"Error getting predictor status: {e}", exc_info=True)
-        return safe_error(e, 500)
+    return _success({"status": status})
 
 
 # ==================== Climate Optimization ====================
 
 
 @predictions_bp.get("/climate/<string:growth_stage>")
-def predict_climate_conditions(growth_stage: str):
+@safe_route("Failed to predict climate conditions")
+def predict_climate_conditions(growth_stage: str) -> Response:
     """Predict optimal climate conditions for a growth stage."""
-    try:
-        container = _container()
-        optimizer = container.climate_optimizer
+    container = _container()
+    optimizer = container.climate_optimizer
 
-        conditions = optimizer.predict_conditions(growth_stage)
+    conditions = optimizer.predict_conditions(growth_stage)
 
-        if not conditions:
-            return _fail("Prediction not available", 404)
+    if not conditions:
+        return _fail("Prediction not available", 404)
 
-        return _success(conditions.to_dict())
-
-    except Exception as e:
-        logger.error(f"Error predicting conditions: {e}", exc_info=True)
-        return safe_error(e, 500)
+    return _success(conditions.to_dict())
 
 
 @predictions_bp.get("/climate/<int:unit_id>/recommendations")
-def get_climate_recommendations(unit_id: int):
+@safe_route("Failed to get climate recommendations")
+def get_climate_recommendations(unit_id: int) -> Response:
     """Get climate control recommendations for a unit."""
-    try:
-        container = _container()
-        optimizer = container.climate_optimizer
+    container = _container()
+    optimizer = container.climate_optimizer
 
-        recommendations = optimizer.get_recommendations(unit_id)
+    recommendations = optimizer.get_recommendations(unit_id)
 
-        return _success(recommendations)
-
-    except Exception as e:
-        logger.error(f"Error getting climate recommendations: {e}", exc_info=True)
-        return safe_error(e, 500)
+    return _success(recommendations)
 
 
 @predictions_bp.get("/climate/<int:unit_id>/watering-issues")
-def detect_watering_issues(unit_id: int):
+@safe_route("Failed to detect watering issues")
+def detect_watering_issues(unit_id: int) -> Response:
     """Detect and analyze watering issues for a unit."""
-    try:
-        container = _container()
-        optimizer = container.climate_optimizer
+    container = _container()
+    optimizer = container.climate_optimizer
 
-        issues = optimizer.detect_watering_issues(unit_id)
+    issues = optimizer.detect_watering_issues(unit_id)
 
-        return _success(issues)
-
-    except Exception as e:
-        logger.error(f"Error detecting watering issues: {e}", exc_info=True)
-        return safe_error(e, 500)
+    return _success(issues)
 
 
 @predictions_bp.get("/climate/forecast")
-def get_climate_forecast():
+@safe_route("Failed to generate climate forecast")
+def get_climate_forecast() -> Response:
     """
     Get climate forecast for the next 6 hours.
 
@@ -662,79 +611,73 @@ def get_climate_forecast():
     - unit_id: Optional unit ID for context-specific forecast
     - hours_ahead: Number of hours to forecast (default: 6, max: 24)
     """
-    try:
-        container = _container()
-        optimizer = container.climate_optimizer
+    container = _container()
+    optimizer = container.climate_optimizer
 
-        if not optimizer.is_available():
-            return _fail("Climate forecast model not available", 503)
+    if not optimizer.is_available():
+        return _fail("Climate forecast model not available", 503)
 
-        unit_id = request.args.get("unit_id", type=int)
-        hours_ahead = min(request.args.get("hours_ahead", default=6, type=int), 24)
+    unit_id = request.args.get("unit_id", type=int)
+    hours_ahead = min(request.args.get("hours_ahead", default=6, type=int), 24)
 
-        # Get current sensor data for context
-        sensor_service = container.sensor_service
-        current_readings = None
+    # Get current sensor data for context
+    sensor_service = container.sensor_service
+    current_readings = None
 
-        if unit_id:
-            current_readings = sensor_service.get_latest_by_unit(unit_id)
+    if unit_id:
+        current_readings = sensor_service.get_latest_by_unit(unit_id)
 
-        # Generate hourly forecast
-        forecast = {"temperature": [], "humidity": [], "soil_moisture": [], "timestamps": []}
+    # Generate hourly forecast
+    forecast = {"temperature": [], "humidity": [], "soil_moisture": [], "timestamps": []}
 
-        base_time = datetime.now()
+    base_time = datetime.now()
 
-        # Use simple trend-based forecast if available
-        # (In production, this would call the actual ML model's forecast method)
-        for hour in range(1, hours_ahead + 1):
-            forecast_time = base_time.timestamp() + (hour * 3600)
-            forecast["timestamps"].append(int(forecast_time * 1000))
+    # Use simple trend-based forecast if available
+    # (In production, this would call the actual ML model's forecast method)
+    for hour in range(1, hours_ahead + 1):
+        forecast_time = base_time.timestamp() + (hour * 3600)
+        forecast["timestamps"].append(int(forecast_time * 1000))
 
-            # Simple placeholder forecast logic
-            # In production, replace with optimizer.forecast_conditions(unit_id, hours_ahead)
-            if current_readings and len(current_readings) > 0:
-                latest = current_readings[0]
-                # Add small random variation to simulate forecast
-                import random
+        # Simple placeholder forecast logic
+        # In production, replace with optimizer.forecast_conditions(unit_id, hours_ahead)
+        if current_readings and len(current_readings) > 0:
+            latest = current_readings[0]
+            # Add small random variation to simulate forecast
+            import random
 
-                forecast["temperature"].append(
-                    round(latest.temperature + random.uniform(-1, 1), 1) if latest.temperature else None
-                )
-                forecast["humidity"].append(
-                    round(latest.humidity + random.uniform(-2, 2), 1) if latest.humidity else None
-                )
-                forecast["soil_moisture"].append(
-                    round(latest.soil_moisture + random.uniform(-1, 1), 1) if latest.soil_moisture else None
-                )
-            else:
-                forecast["temperature"].append(None)
-                forecast["humidity"].append(None)
-                forecast["soil_moisture"].append(None)
+            forecast["temperature"].append(
+                round(latest.temperature + random.uniform(-1, 1), 1) if latest.temperature else None
+            )
+            forecast["humidity"].append(round(latest.humidity + random.uniform(-2, 2), 1) if latest.humidity else None)
+            forecast["soil_moisture"].append(
+                round(latest.soil_moisture + random.uniform(-1, 1), 1) if latest.soil_moisture else None
+            )
+        else:
+            forecast["temperature"].append(None)
+            forecast["humidity"].append(None)
+            forecast["soil_moisture"].append(None)
 
-        # Get model confidence
-        model_status = optimizer.is_available()
-        confidence = 0.85 if model_status else 0.0
+    # Get model confidence
+    model_status = optimizer.is_available()
+    confidence = 0.85 if model_status else 0.0
 
-        return _success(
-            {
-                "forecast": forecast,
-                "confidence": confidence,
-                "hours_ahead": hours_ahead,
-                "unit_id": unit_id,
-                "explanation": "Forecast based on recent trends and climate model predictions",
-            }
-        )
-
-    except Exception as e:
-        logger.error(f"Error generating climate forecast: {e}", exc_info=True)
-        return safe_error(e, 500)
+    return _success(
+        {
+            "forecast": forecast,
+            "confidence": confidence,
+            "hours_ahead": hours_ahead,
+            "unit_id": unit_id,
+            "explanation": "Forecast based on recent trends and climate model predictions",
+        }
+    )
 
 
 # ==================== Health Monitoring ====================
 
 
 @predictions_bp.get("/health/<int:unit_id>/recommendations")
-def get_health_recommendations(unit_id: int):
+@safe_route("Failed to get health recommendations")
+def get_health_recommendations(unit_id: int) -> Response:
     """
     Get health recommendations for a unit.
 
@@ -742,26 +685,22 @@ def get_health_recommendations(unit_id: int):
     - plant_type: Optional plant type
     - growth_stage: Optional growth stage
     """
-    try:
-        container = _container()
-        monitor = container.plant_health_monitor
+    container = _container()
+    monitor = container.plant_health_monitor
 
-        plant_type = request.args.get("plant_type")
-        growth_stage = request.args.get("growth_stage")
+    plant_type = request.args.get("plant_type")
+    growth_stage = request.args.get("growth_stage")
 
-        recommendations = monitor.get_health_recommendations(
-            unit_id=unit_id, plant_type=plant_type, growth_stage=growth_stage
-        )
+    recommendations = monitor.get_health_recommendations(
+        unit_id=unit_id, plant_type=plant_type, growth_stage=growth_stage
+    )
 
-        return _success(recommendations)
-
-    except Exception as e:
-        logger.error(f"Error getting health recommendations: {e}", exc_info=True)
-        return safe_error(e, 500)
+    return _success(recommendations)
 
 
 @predictions_bp.post("/health/observation")
-def record_health_observation():
+@safe_route("Failed to record health observation")
+def record_health_observation() -> Response:
     """
     Record a plant health observation.
 
@@ -825,16 +764,14 @@ def record_health_observation():
 
     except ValueError as e:
         return _fail(f"Invalid value: {e!s}", 400)
-    except Exception as e:
-        logger.error(f"Error recording observation: {e}", exc_info=True)
-        return safe_error(e, 500)
 
 
 # ==================== What-If Simulator ====================
 
 
 @predictions_bp.post("/what-if")
-def what_if_simulation():
+@safe_route("Failed to run what-if simulation")
+def what_if_simulation() -> Response:
     """
     Predict impact of environmental parameter changes.
 
@@ -894,71 +831,64 @@ def what_if_simulation():
         }
     }
     """
+    data = request.get_json()
+
+    # Validate required fields
+    if not data.get("current") or not data.get("simulated"):
+        return _fail("Missing required fields: current, simulated", 400)
+
+    current = data["current"]
+    simulated = data["simulated"]
+    unit_id = data.get("unit_id")
+
+    # Validate parameter presence
+    required_params = ["temperature", "humidity", "light_hours", "co2"]
+    for params in [current, simulated]:
+        missing = [p for p in required_params if p not in params]
+        if missing:
+            return _fail(f"Missing parameters: {', '.join(missing)}", 400)
+
+    container = _container()
+
+    # Try to get ML predictions
+    ml_used = False
+    confidence = 0.0
+    predictions = {}
+
     try:
-        data = request.get_json()
+        # Check if climate optimizer is available
+        climate_optimizer = container.climate_optimizer
 
-        # Validate required fields
-        if not data.get("current") or not data.get("simulated"):
-            return _fail("Missing required fields: current, simulated", 400)
+        if climate_optimizer and hasattr(climate_optimizer, "predict_impact"):
+            # Use ML model to predict impact
+            impact = climate_optimizer.predict_impact(
+                current_conditions=current, target_conditions=simulated, unit_id=unit_id
+            )
 
-        current = data["current"]
-        simulated = data["simulated"]
-        unit_id = data.get("unit_id")
-
-        # Validate parameter presence
-        required_params = ["temperature", "humidity", "light_hours", "co2"]
-        for params in [current, simulated]:
-            missing = [p for p in required_params if p not in params]
-            if missing:
-                return _fail(f"Missing parameters: {', '.join(missing)}", 400)
-
-        container = _container()
-
-        # Try to get ML predictions
-        ml_used = False
-        confidence = 0.0
-        predictions = {}
-
-        try:
-            # Check if climate optimizer is available
-            climate_optimizer = container.climate_optimizer
-
-            if climate_optimizer and hasattr(climate_optimizer, "predict_impact"):
-                # Use ML model to predict impact
-                impact = climate_optimizer.predict_impact(
-                    current_conditions=current, target_conditions=simulated, unit_id=unit_id
-                )
-
-                if impact:
-                    ml_used = True
-                    confidence = impact.get("confidence", 0.8)
-                    predictions = impact.get("predictions", {})
-
-        except Exception as e:
-            logger.warning(f"ML prediction failed, using statistical fallback: {e}")
-
-        # Fallback to statistical predictions if ML not available
-        if not ml_used:
-            predictions = _calculate_statistical_predictions(current, simulated)
-
-        # Generate recommendations
-        recommendations = _generate_what_if_recommendations(current, simulated, predictions)
-
-        return _success(
-            {
-                "predictions": predictions,
-                "recommendations": recommendations,
-                "ml_used": ml_used,
-                "confidence": confidence,
-                "explanation": "Predictions based on ML models"
-                if ml_used
-                else "Predictions based on statistical analysis",
-            }
-        )
+            if impact:
+                ml_used = True
+                confidence = impact.get("confidence", 0.8)
+                predictions = impact.get("predictions", {})
 
     except Exception as e:
-        logger.error(f"Error in what-if simulation: {e}", exc_info=True)
-        return safe_error(e, 500)
+        logger.warning("ML prediction failed, using statistical fallback: %s", e)
+
+    # Fallback to statistical predictions if ML not available
+    if not ml_used:
+        predictions = _calculate_statistical_predictions(current, simulated)
+
+    # Generate recommendations
+    recommendations = _generate_what_if_recommendations(current, simulated, predictions)
+
+    return _success(
+        {
+            "predictions": predictions,
+            "recommendations": recommendations,
+            "ml_used": ml_used,
+            "confidence": confidence,
+            "explanation": "Predictions based on ML models" if ml_used else "Predictions based on statistical analysis",
+        }
+    )
 
 
 def _calculate_statistical_predictions(current, simulated):
@@ -1235,7 +1165,8 @@ def _generate_what_if_recommendations(current, simulated, predictions):
 
 
 @predictions_bp.get("/irrigation/<int:unit_id>")
-def get_irrigation_predictions(unit_id: int):
+@safe_route("Failed to get irrigation predictions")
+def get_irrigation_predictions(unit_id: int) -> Response:
     """
     Get comprehensive ML predictions for irrigation.
 
@@ -1272,65 +1203,61 @@ def get_irrigation_predictions(unit_id: int):
         }
     }
     """
-    try:
-        container = _container()
-        irrigation_predictor = _get_irrigation_predictor(container)
-        if not irrigation_predictor:
-            return _fail("Irrigation prediction service not available", 503)
+    container = _container()
+    irrigation_predictor = _get_irrigation_predictor(container)
+    if not irrigation_predictor:
+        return _fail("Irrigation prediction service not available", 503)
 
-        active_plant = _resolve_active_plant(container, unit_id)
-        plant_type = _plant_value(active_plant, "plant_type", "unknown")
-        growth_stage = _plant_value(active_plant, "current_stage", "vegetative")
-        plant_id = _resolve_plant_id(active_plant)
+    active_plant = _resolve_active_plant(container, unit_id)
+    plant_type = _plant_value(active_plant, "plant_type", "unknown")
+    growth_stage = _plant_value(active_plant, "current_stage", "vegetative")
+    plant_id = _resolve_plant_id(active_plant)
 
-        user_id, auth_error = _require_user_id()
-        if auth_error:
-            return auth_error
-        feature_context = _build_irrigation_feature_context(
-            container,
-            unit_id=unit_id,
-            plant_id=plant_id,
-            user_id=user_id,
-        )
-        current_conditions = feature_context.get("current_conditions", {})
-        current_threshold = current_conditions.get("soil_moisture_threshold") or _resolve_current_threshold(
-            container,
-            unit_id,
-            user_id,
-            active_plant,
-        )
-        current_duration = 120
+    user_id, auth_error = _require_user_id()
+    if auth_error:
+        return auth_error
+    feature_context = _build_irrigation_feature_context(
+        container,
+        unit_id=unit_id,
+        plant_id=plant_id,
+        user_id=user_id,
+    )
+    current_conditions = feature_context.get("current_conditions", {})
+    current_threshold = current_conditions.get("soil_moisture_threshold") or _resolve_current_threshold(
+        container,
+        unit_id,
+        user_id,
+        active_plant,
+    )
+    current_duration = 120
 
-        # Get enabled models filter from query params
-        models_param = request.args.get("models")
-        enabled_models = None
-        if models_param:
-            enabled_models = [m.strip() for m in models_param.split(",")]
+    # Get enabled models filter from query params
+    models_param = request.args.get("models")
+    enabled_models = None
+    if models_param:
+        enabled_models = [m.strip() for m in models_param.split(",")]
 
-        # Get comprehensive prediction
-        prediction = irrigation_predictor.get_comprehensive_prediction(
-            unit_id=unit_id,
-            plant_type=plant_type,
-            growth_stage=growth_stage,
-            current_conditions=current_conditions,
-            current_threshold=current_threshold,
-            current_default_duration=current_duration,
-            enabled_models=enabled_models,
-            plant_id=plant_id,
-            feature_context=feature_context,
-        )
+    # Get comprehensive prediction
+    prediction = irrigation_predictor.get_comprehensive_prediction(
+        unit_id=unit_id,
+        plant_type=plant_type,
+        growth_stage=growth_stage,
+        current_conditions=current_conditions,
+        current_threshold=current_threshold,
+        current_default_duration=current_duration,
+        enabled_models=enabled_models,
+        plant_id=plant_id,
+        feature_context=feature_context,
+    )
 
-        payload = prediction.to_dict()
-        payload["model_status"] = irrigation_predictor.get_model_statuses(enabled_models)
-        return _success(payload)
-
-    except Exception as e:
-        logger.error(f"Error getting irrigation predictions: {e}", exc_info=True)
-        return safe_error(e, 500)
+    payload = prediction.to_dict()
+    payload["model_status"] = irrigation_predictor.get_model_statuses(enabled_models)
+    return _success(payload)
 
 
 @predictions_bp.get("/irrigation/<int:unit_id>/threshold")
-def get_irrigation_threshold_prediction(unit_id: int):
+@safe_route("Failed to get irrigation threshold prediction")
+def get_irrigation_threshold_prediction(unit_id: int) -> Response:
     """
     Get threshold-only prediction for a unit.
 
@@ -1347,50 +1274,46 @@ def get_irrigation_threshold_prediction(unit_id: int):
         }
     }
     """
-    try:
-        container = _container()
-        irrigation_predictor = _get_irrigation_predictor(container)
-        if not irrigation_predictor:
-            return _fail("Irrigation prediction service not available", 503)
+    container = _container()
+    irrigation_predictor = _get_irrigation_predictor(container)
+    if not irrigation_predictor:
+        return _fail("Irrigation prediction service not available", 503)
 
-        active_plant = _resolve_active_plant(container, unit_id)
-        user_id, auth_error = _require_user_id()
-        if auth_error:
-            return auth_error
-        plant_id = _resolve_plant_id(active_plant)
-        feature_context = _build_irrigation_feature_context(
-            container,
-            unit_id=unit_id,
-            plant_id=plant_id,
-            user_id=user_id,
-        )
-        current_conditions = feature_context.get("current_conditions", {})
-        current_threshold = current_conditions.get("soil_moisture_threshold") or _resolve_current_threshold(
-            container,
-            unit_id,
-            user_id,
-            active_plant,
-        )
+    active_plant = _resolve_active_plant(container, unit_id)
+    user_id, auth_error = _require_user_id()
+    if auth_error:
+        return auth_error
+    plant_id = _resolve_plant_id(active_plant)
+    feature_context = _build_irrigation_feature_context(
+        container,
+        unit_id=unit_id,
+        plant_id=plant_id,
+        user_id=user_id,
+    )
+    current_conditions = feature_context.get("current_conditions", {})
+    current_threshold = current_conditions.get("soil_moisture_threshold") or _resolve_current_threshold(
+        container,
+        unit_id,
+        user_id,
+        active_plant,
+    )
 
-        prediction = irrigation_predictor.predict_threshold(
-            unit_id=unit_id,
-            plant_type=_plant_value(active_plant, "plant_type", "unknown"),
-            growth_stage=_plant_value(active_plant, "current_stage", "vegetative"),
-            current_threshold=current_threshold,
-            feature_context=feature_context,
-        )
+    prediction = irrigation_predictor.predict_threshold(
+        unit_id=unit_id,
+        plant_type=_plant_value(active_plant, "plant_type", "unknown"),
+        growth_stage=_plant_value(active_plant, "current_stage", "vegetative"),
+        current_threshold=current_threshold,
+        feature_context=feature_context,
+    )
 
-        payload = prediction.to_dict()
-        payload["model_status"] = irrigation_predictor.get_model_status("threshold_optimizer")
-        return _success(payload)
-
-    except Exception as e:
-        logger.error(f"Error getting threshold prediction: {e}", exc_info=True)
-        return safe_error(e, 500)
+    payload = prediction.to_dict()
+    payload["model_status"] = irrigation_predictor.get_model_status("threshold_optimizer")
+    return _success(payload)
 
 
 @predictions_bp.get("/irrigation/<int:unit_id>/timing")
-def get_irrigation_timing_prediction(unit_id: int):
+@safe_route("Failed to get irrigation timing prediction")
+def get_irrigation_timing_prediction(unit_id: int) -> Response:
     """
     Get preferred irrigation timing prediction.
 
@@ -1407,43 +1330,39 @@ def get_irrigation_timing_prediction(unit_id: int):
         }
     }
     """
-    try:
-        container = _container()
-        irrigation_predictor = _get_irrigation_predictor(container)
-        if not irrigation_predictor:
-            return _fail("Irrigation prediction service not available", 503)
+    container = _container()
+    irrigation_predictor = _get_irrigation_predictor(container)
+    if not irrigation_predictor:
+        return _fail("Irrigation prediction service not available", 503)
 
-        unit_timezone = _get_unit_timezone(unit_id)
-        now = _resolve_unit_now(unit_timezone)
-        user_id, auth_error = _require_user_id()
-        if auth_error:
-            return auth_error
-        feature_context = _build_irrigation_feature_context(
-            container,
-            unit_id=unit_id,
-            plant_id=None,
-            user_id=user_id,
-        )
+    unit_timezone = _get_unit_timezone(unit_id)
+    now = _resolve_unit_now(unit_timezone)
+    user_id, auth_error = _require_user_id()
+    if auth_error:
+        return auth_error
+    feature_context = _build_irrigation_feature_context(
+        container,
+        unit_id=unit_id,
+        plant_id=None,
+        user_id=user_id,
+    )
 
-        prediction = irrigation_predictor.predict_timing(
-            unit_id=unit_id,
-            day_of_week=now.weekday(),
-            feature_context=feature_context,
-            unit_timezone=unit_timezone,
-            current_time=now,
-        )
+    prediction = irrigation_predictor.predict_timing(
+        unit_id=unit_id,
+        day_of_week=now.weekday(),
+        feature_context=feature_context,
+        unit_timezone=unit_timezone,
+        current_time=now,
+    )
 
-        payload = prediction.to_dict()
-        payload["model_status"] = irrigation_predictor.get_model_status("timing_predictor")
-        return _success(payload)
-
-    except Exception as e:
-        logger.error(f"Error getting timing prediction: {e}", exc_info=True)
-        return safe_error(e, 500)
+    payload = prediction.to_dict()
+    payload["model_status"] = irrigation_predictor.get_model_status("timing_predictor")
+    return _success(payload)
 
 
 @predictions_bp.get("/irrigation/<int:unit_id>/response")
-def get_irrigation_response_prediction(unit_id: int):
+@safe_route("Failed to get irrigation response prediction")
+def get_irrigation_response_prediction(unit_id: int) -> Response:
     """
     Predict user response for a hypothetical irrigation request.
 
@@ -1461,57 +1380,53 @@ def get_irrigation_response_prediction(unit_id: int):
         }
     }
     """
-    try:
-        from datetime import datetime
+    from datetime import datetime
 
-        container = _container()
-        irrigation_predictor = _get_irrigation_predictor(container)
-        if not irrigation_predictor:
-            return _fail("Irrigation prediction service not available", 503)
+    container = _container()
+    irrigation_predictor = _get_irrigation_predictor(container)
+    if not irrigation_predictor:
+        return _fail("Irrigation prediction service not available", 503)
 
-        now = datetime.now()
-        hour = request.args.get("hour", type=int, default=now.hour)
+    now = datetime.now()
+    hour = request.args.get("hour", type=int, default=now.hour)
 
-        user_id, auth_error = _require_user_id()
-        if auth_error:
-            return auth_error
-        feature_context = _build_irrigation_feature_context(
-            container,
-            unit_id=unit_id,
-            plant_id=None,
-            user_id=user_id,
-        )
-        current_conditions = feature_context.get("current_conditions", {})
-        threshold = current_conditions.get("soil_moisture_threshold") or _resolve_current_threshold(
-            container,
-            unit_id,
-            user_id,
-        )
+    user_id, auth_error = _require_user_id()
+    if auth_error:
+        return auth_error
+    feature_context = _build_irrigation_feature_context(
+        container,
+        unit_id=unit_id,
+        plant_id=None,
+        user_id=user_id,
+    )
+    current_conditions = feature_context.get("current_conditions", {})
+    threshold = current_conditions.get("soil_moisture_threshold") or _resolve_current_threshold(
+        container,
+        unit_id,
+        user_id,
+    )
 
-        soil_moisture = request.args.get("soil_moisture", type=float)
-        if soil_moisture is None:
-            soil_moisture = current_conditions.get("soil_moisture", 45.0)
+    soil_moisture = request.args.get("soil_moisture", type=float)
+    if soil_moisture is None:
+        soil_moisture = current_conditions.get("soil_moisture", 45.0)
 
-        prediction = irrigation_predictor.predict_user_response(
-            unit_id=unit_id,
-            current_moisture=soil_moisture,
-            threshold=threshold,
-            hour_of_day=hour,
-            day_of_week=now.weekday(),
-            feature_context=feature_context,
-        )
+    prediction = irrigation_predictor.predict_user_response(
+        unit_id=unit_id,
+        current_moisture=soil_moisture,
+        threshold=threshold,
+        hour_of_day=hour,
+        day_of_week=now.weekday(),
+        feature_context=feature_context,
+    )
 
-        payload = prediction.to_dict()
-        payload["model_status"] = irrigation_predictor.get_model_status("response_predictor")
-        return _success(payload)
-
-    except Exception as e:
-        logger.error(f"Error getting response prediction: {e}", exc_info=True)
-        return safe_error(e, 500)
+    payload = prediction.to_dict()
+    payload["model_status"] = irrigation_predictor.get_model_status("response_predictor")
+    return _success(payload)
 
 
 @predictions_bp.get("/irrigation/<int:unit_id>/duration")
-def get_irrigation_duration_prediction(unit_id: int):
+@safe_route("Failed to get irrigation duration prediction")
+def get_irrigation_duration_prediction(unit_id: int) -> Response:
     """
     Get recommended irrigation duration prediction.
 
@@ -1530,120 +1445,112 @@ def get_irrigation_duration_prediction(unit_id: int):
         }
     }
     """
-    try:
-        container = _container()
-        irrigation_predictor = _get_irrigation_predictor(container)
-        if not irrigation_predictor:
-            return _fail("Irrigation prediction service not available", 503)
+    container = _container()
+    irrigation_predictor = _get_irrigation_predictor(container)
+    if not irrigation_predictor:
+        return _fail("Irrigation prediction service not available", 503)
 
-        # Get current settings
-        user_id, auth_error = _require_user_id()
-        if auth_error:
-            return auth_error
-        feature_context = _build_irrigation_feature_context(
-            container,
-            unit_id=unit_id,
-            plant_id=None,
-            user_id=user_id,
-        )
-        current_conditions = feature_context.get("current_conditions", {})
-        threshold = current_conditions.get("soil_moisture_threshold") or _resolve_current_threshold(
-            container,
-            unit_id,
-            user_id,
-        )
-        current_default = 120
+    # Get current settings
+    user_id, auth_error = _require_user_id()
+    if auth_error:
+        return auth_error
+    feature_context = _build_irrigation_feature_context(
+        container,
+        unit_id=unit_id,
+        plant_id=None,
+        user_id=user_id,
+    )
+    current_conditions = feature_context.get("current_conditions", {})
+    threshold = current_conditions.get("soil_moisture_threshold") or _resolve_current_threshold(
+        container,
+        unit_id,
+        user_id,
+    )
+    current_default = 120
 
-        current_moisture = current_conditions.get("soil_moisture", 45.0)
+    current_moisture = current_conditions.get("soil_moisture", 45.0)
 
-        # Target moisture from query or default
-        target_moisture = request.args.get("target_moisture", type=float, default=threshold + 15.0)
+    # Target moisture from query or default
+    target_moisture = request.args.get("target_moisture", type=float, default=threshold + 15.0)
 
-        prediction = irrigation_predictor.predict_duration(
-            unit_id=unit_id,
-            current_moisture=current_moisture,
-            target_moisture=target_moisture,
-            current_default_seconds=current_default,
-            feature_context=feature_context,
-        )
+    prediction = irrigation_predictor.predict_duration(
+        unit_id=unit_id,
+        current_moisture=current_moisture,
+        target_moisture=target_moisture,
+        current_default_seconds=current_default,
+        feature_context=feature_context,
+    )
 
-        payload = prediction.to_dict()
-        payload["model_status"] = irrigation_predictor.get_model_status("duration_optimizer")
-        return _success(payload)
-
-    except Exception as e:
-        logger.error(f"Error getting duration prediction: {e}", exc_info=True)
-        return safe_error(e, 500)
+    payload = prediction.to_dict()
+    payload["model_status"] = irrigation_predictor.get_model_status("duration_optimizer")
+    return _success(payload)
 
 
 @predictions_bp.get("/irrigation/<int:unit_id>/next")
-def get_irrigation_next_prediction(unit_id: int):
+@safe_route("Failed to get next irrigation prediction")
+def get_irrigation_next_prediction(unit_id: int) -> Response:
     """
     Predict when the next irrigation will be needed for the active plant.
 
     Query params:
     - soil_moisture: Current soil moisture (optional, defaults to latest)
     """
-    try:
-        container = _container()
+    container = _container()
 
-        irrigation_predictor = _get_irrigation_predictor(container)
-        if not irrigation_predictor:
-            return _fail("Irrigation prediction service not available", 503)
+    irrigation_predictor = _get_irrigation_predictor(container)
+    if not irrigation_predictor:
+        return _fail("Irrigation prediction service not available", 503)
 
-        active_plant = _resolve_active_plant(container, unit_id)
-        plant_id = _resolve_plant_id(active_plant)
-        if plant_id is None:
-            return _fail("No active plant found for unit", 404)
+    active_plant = _resolve_active_plant(container, unit_id)
+    plant_id = _resolve_plant_id(active_plant)
+    if plant_id is None:
+        return _fail("No active plant found for unit", 404)
 
-        user_id, auth_error = _require_user_id()
-        if auth_error:
-            return auth_error
-        feature_context = _build_irrigation_feature_context(
-            container,
-            unit_id=unit_id,
-            plant_id=plant_id,
-            user_id=user_id,
-        )
-        current_conditions = feature_context.get("current_conditions", {})
-        threshold = current_conditions.get("soil_moisture_threshold") or _resolve_current_threshold(
-            container,
-            unit_id,
-            user_id,
-            active_plant,
-        )
+    user_id, auth_error = _require_user_id()
+    if auth_error:
+        return auth_error
+    feature_context = _build_irrigation_feature_context(
+        container,
+        unit_id=unit_id,
+        plant_id=plant_id,
+        user_id=user_id,
+    )
+    current_conditions = feature_context.get("current_conditions", {})
+    threshold = current_conditions.get("soil_moisture_threshold") or _resolve_current_threshold(
+        container,
+        unit_id,
+        user_id,
+        active_plant,
+    )
 
-        current_moisture = request.args.get("soil_moisture", type=float)
-        if current_moisture is None:
-            current_moisture = current_conditions.get("soil_moisture")
+    current_moisture = request.args.get("soil_moisture", type=float)
+    if current_moisture is None:
+        current_moisture = current_conditions.get("soil_moisture")
 
-        if current_moisture is None:
-            return _success(
-                {
-                    "unit_id": unit_id,
-                    "plant_id": plant_id,
-                    "available": False,
-                    "reason": "no_moisture_reading",
-                }
-            )
-
-        prediction = irrigation_predictor.predict_next_irrigation_time(
-            plant_id=int(plant_id),
-            current_moisture=float(current_moisture),
-            threshold=float(threshold),
+    if current_moisture is None:
+        return _success(
+            {
+                "unit_id": unit_id,
+                "plant_id": plant_id,
+                "available": False,
+                "reason": "no_moisture_reading",
+            }
         )
 
-        if not prediction:
-            return _success(
-                {
-                    "unit_id": unit_id,
-                    "plant_id": plant_id,
-                    "available": False,
-                    "reason": "insufficient_data",
-                }
-            )
+    prediction = irrigation_predictor.predict_next_irrigation_time(
+        plant_id=int(plant_id),
+        current_moisture=float(current_moisture),
+        threshold=float(threshold),
+    )
 
-        return _success(prediction.to_dict())
-    except Exception as e:
-        logger.error(f"Error getting next irrigation prediction: {e}", exc_info=True)
-        return safe_error(e, 500)
+    if not prediction:
+        return _success(
+            {
+                "unit_id": unit_id,
+                "plant_id": plant_id,
+                "available": False,
+                "reason": "insufficient_data",
+            }
+        )
+
+    return _success(prediction.to_dict())

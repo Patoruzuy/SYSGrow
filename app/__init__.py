@@ -1,15 +1,23 @@
 from __future__ import annotations
 
+import atexit
+import contextlib
 import logging
+import signal
+import threading
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
 from flask import Flask, request
+from werkzeug.exceptions import HTTPException
 
 from app.blueprints.api.blog import blog_api
 from app.blueprints.api.dashboard import dashboard_api
 from app.blueprints.api.devices import devices_api
+
+# Import API docs blueprint (OpenAPI / Swagger UI)
+from app.blueprints.api.docs import docs_api
 from app.blueprints.api.growth import growth_api
 from app.blueprints.api.harvest_routes import harvest_bp
 from app.blueprints.api.help import help_api
@@ -36,9 +44,9 @@ from app.blueprints.auth.routes import auth_bp
 from app.blueprints.ui.routes import ui_bp
 from app.config import load_config, setup_logging
 from app.extensions import init_extensions, socketio
+from app.middleware.api_auth import init_api_write_protection
 from app.middleware.health_tracking import init_health_tracking
 from app.middleware.rate_limiting import init_rate_limiting
-from app.middleware.api_auth import init_api_write_protection
 from app.middleware.response_validation import init_response_validation
 from app.middleware.security_headers import init_security_headers
 from app.security.csrf import CSRFMiddleware
@@ -102,6 +110,38 @@ def create_app(config_overrides: dict[str, Any] | None = None, *, bootstrap_runt
     container = ServiceContainer.build(config, start_coordinator=bootstrap_runtime)
     flask_app.config["CONTAINER"] = container
 
+    # ── Graceful shutdown handlers ──────────────────────────────────
+    _shutdown_lock = threading.Lock()
+    _shutdown_done = False
+
+    def _graceful_shutdown(reason: str = "unknown") -> None:
+        nonlocal _shutdown_done
+        if getattr(container, "_shutdown_complete", False):
+            return
+        with _shutdown_lock:
+            if _shutdown_done:
+                return
+            _shutdown_done = True
+        logging.info("Graceful shutdown initiated (%s)", reason)
+        try:
+            container.shutdown()
+        except Exception as exc:
+            logging.warning("Error during graceful shutdown: %s", exc)
+
+    def _signal_handler(signum: int, _frame: object) -> None:
+        sig_name = signal.Signals(signum).name
+        logging.info("Received %s — shutting down", sig_name)
+        _graceful_shutdown(sig_name)
+        raise SystemExit(0)
+
+    # Register atexit (covers normal interpreter exit)
+    atexit.register(_graceful_shutdown, "atexit")
+
+    # Register OS signal handlers (SIGINT=Ctrl-C, SIGTERM=container/systemd stop)
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        with contextlib.suppress(OSError, ValueError):
+            signal.signal(sig, _signal_handler)
+
     # Initialize health tracking middleware
     init_health_tracking(flask_app, container.system_health_service)
 
@@ -134,6 +174,7 @@ def create_app(config_overrides: dict[str, Any] | None = None, *, bootstrap_runt
             "health_api",
             "help_api",
             "blog_api",
+            "docs_api",
             # ML endpoints remain exempt (mostly read operations, lower risk)
             "ml_predictions",
             "ml_base",
@@ -159,52 +200,78 @@ def create_app(config_overrides: dict[str, Any] | None = None, *, bootstrap_runt
 
     # Global JSON error handler — catches any unhandled exception on /api/
     # routes and returns a generic message instead of leaking stack traces.
+    # Sprint 7: domain exceptions carry their own ``http_status`` so the
+    # handler can map SysGrowError subclasses to the right status code.
     @flask_app.errorhandler(Exception)
-    def _handle_unhandled(exc):  # noqa: ANN001, ANN202
-        if not request.path.startswith("/api/"):
+    def _handle_unhandled(exc):
+        if not request.path.startswith(("/api/", "/auth/")):
             raise exc  # Let Flask's default HTML error pages handle UI routes
-        from app.utils.http import safe_error
+        from app.domain.exceptions import SysGrowError
+        from app.utils.http import error_response, safe_error
+
+        if isinstance(exc, HTTPException):
+            status = int(exc.code or 500)
+            if status >= 500:
+                return safe_error(exc, status, context="http-exception")
+            return error_response(exc.description or "Request failed", status)
+
+        if isinstance(exc, SysGrowError):
+            status = exc.http_status
+            if status >= 500:
+                return safe_error(exc, status, context=type(exc).__name__)
+            # 4xx — surface the message; it was written for the caller.
+            return error_response(str(exc) or "Request failed", status)
 
         return safe_error(exc, 500, context="unhandled")
 
     @flask_app.errorhandler(413)
-    def _handle_too_large(_exc):  # noqa: ANN001, ANN202
+    def _handle_too_large(_exc):
         from app.utils.http import error_response
 
         return error_response("Request payload too large", 413)
 
-    # Register core blueprints
-    flask_app.register_blueprint(auth_bp, url_prefix="/auth")
-    flask_app.register_blueprint(harvest_bp)
-    flask_app.register_blueprint(ui_bp)
-    flask_app.register_blueprint(plants_api, url_prefix="/api/plants")
-    flask_app.register_blueprint(disease_bp)  # Already has /api/plants/disease prefix
-    flask_app.register_blueprint(settings_api, url_prefix="/api/settings")
-    flask_app.register_blueprint(growth_api, url_prefix="/api/growth")
-    flask_app.register_blueprint(devices_api, url_prefix="/api/devices")
-    flask_app.register_blueprint(dashboard_api, url_prefix="/api/dashboard")
+    # ── API version prefix ──────────────────────────────────────────
+    # Sprint 5, Finding #35: all API endpoints under /api/v1/.
+    # Backward-compat redirects keep /api/* working during migration.
+    V1 = "/api/v1"
 
-    # Register consolidated ML/AI blueprints
-    flask_app.register_blueprint(base_bp)  # /api/ml (health, training history)
-    flask_app.register_blueprint(predictions_bp)  # /api/ml/predictions
-    flask_app.register_blueprint(models_bp)  # /api/ml/models
-    flask_app.register_blueprint(monitoring_bp)  # /api/ml/monitoring
-    flask_app.register_blueprint(analytics_bp)  # /api/ml/analytics
-    flask_app.register_blueprint(retraining_bp)  # /api/ml/retraining
-    flask_app.register_blueprint(analysis_bp)  # /api/ml/analysis
-    flask_app.register_blueprint(readiness_bp)  # /api/ml/readiness
-    flask_app.register_blueprint(ab_testing_bp)  # /api/ml/ab-testing
-    flask_app.register_blueprint(continuous_bp)  # /api/ml/continuous
-    flask_app.register_blueprint(personalized_bp)  # /api/ml/personalized
-    flask_app.register_blueprint(training_data_bp)  # /api/ml/training-data
+    # Register non-API blueprints (no version prefix)
+    flask_app.register_blueprint(auth_bp, url_prefix="/auth")
+    flask_app.register_blueprint(ui_bp)
+
+    # Register core API blueprints with v1 prefix
+    flask_app.register_blueprint(plants_api, url_prefix=f"{V1}/plants")
+    flask_app.register_blueprint(disease_bp, url_prefix=f"{V1}/plants/disease")
+    flask_app.register_blueprint(settings_api, url_prefix=f"{V1}/settings")
+    flask_app.register_blueprint(growth_api, url_prefix=f"{V1}/growth")
+    flask_app.register_blueprint(devices_api, url_prefix=f"{V1}/devices")
+    flask_app.register_blueprint(dashboard_api, url_prefix=f"{V1}/dashboard")
+    flask_app.register_blueprint(harvest_bp)  # Routes use absolute paths (already include /api/v1)
+
+    # Register consolidated ML/AI blueprints with v1 prefix
+    flask_app.register_blueprint(base_bp, url_prefix=f"{V1}/ml")
+    flask_app.register_blueprint(predictions_bp, url_prefix=f"{V1}/ml/predictions")
+    flask_app.register_blueprint(models_bp, url_prefix=f"{V1}/ml/models")
+    flask_app.register_blueprint(monitoring_bp, url_prefix=f"{V1}/ml/monitoring")
+    flask_app.register_blueprint(analytics_bp, url_prefix=f"{V1}/ml/analytics")
+    flask_app.register_blueprint(retraining_bp, url_prefix=f"{V1}/ml/retraining")
+    flask_app.register_blueprint(analysis_bp, url_prefix=f"{V1}/ml/analysis")
+    flask_app.register_blueprint(readiness_bp, url_prefix=f"{V1}/ml/readiness")
+    flask_app.register_blueprint(ab_testing_bp, url_prefix=f"{V1}/ml/ab-testing")
+    flask_app.register_blueprint(continuous_bp, url_prefix=f"{V1}/ml/continuous")
+    flask_app.register_blueprint(personalized_bp, url_prefix=f"{V1}/ml/personalized")
+    flask_app.register_blueprint(training_data_bp, url_prefix=f"{V1}/ml/training-data")
 
     # Register health API if available
     if health_api:
-        flask_app.register_blueprint(health_api)  # Already has /api/health prefix
+        flask_app.register_blueprint(health_api, url_prefix=f"{V1}/health")
 
     # Register Help and Blog APIs (public access, no auth required)
-    flask_app.register_blueprint(help_api)  # /api/help
-    flask_app.register_blueprint(blog_api)  # /api/blog
+    flask_app.register_blueprint(help_api, url_prefix=f"{V1}/help")
+    flask_app.register_blueprint(blog_api, url_prefix=f"{V1}/blog")
+
+    # Register OpenAPI docs (public, no auth)
+    flask_app.register_blueprint(docs_api, url_prefix=f"{V1}/docs")
 
     # Register Socket.IO event handlers (must be after socketio init)
     from app.socketio import register_handlers
@@ -212,16 +279,28 @@ def create_app(config_overrides: dict[str, Any] | None = None, *, bootstrap_runt
     register_handlers()
 
     # List all registered blueprints
-    for bp_name, bp in flask_app.blueprints.items():
+    for bp_name, _bp in flask_app.blueprints.items():
         logging.info(f" Registered blueprint: {bp_name}")
 
     # Register analytics API if available
     if analytics_api is not None:
-        flask_app.register_blueprint(analytics_api)  # Already has /api/analytics prefix
+        flask_app.register_blueprint(analytics_api, url_prefix=f"{V1}/analytics")
 
     # Register irrigation workflow API if available
     if irrigation_bp is not None:
-        flask_app.register_blueprint(irrigation_bp)  # Already has /api/irrigation prefix
+        flask_app.register_blueprint(irrigation_bp, url_prefix=f"{V1}/irrigation")
+
+    # ── Backward-compat: rewrite /api/* → /api/v1/* ─────────────
+    # WSGI-level rewrite (no HTTP redirect — fully transparent to clients).
+    _original_wsgi = flask_app.wsgi_app
+
+    def _legacy_api_rewrite(environ, start_response):
+        path = environ.get("PATH_INFO", "")
+        if path.startswith("/api/") and not path.startswith("/api/v1/"):
+            environ["PATH_INFO"] = "/api/v1" + path[4:]
+        return _original_wsgi(environ, start_response)
+
+    flask_app.wsgi_app = _legacy_api_rewrite  # type: ignore[assignment]
 
     if bootstrap_runtime:
         _initialize_hardware_runtimes(flask_app, container)

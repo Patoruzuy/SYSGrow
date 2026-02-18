@@ -32,7 +32,7 @@ from flask import Blueprint
 logger = logging.getLogger("health_api")
 
 # Create the blueprint
-health_api = Blueprint("health_api", __name__, url_prefix="/api/health")
+health_api = Blueprint("health_api", __name__)
 
 # Import and register routes from submodules
 from app.blueprints.api.health.cache import register_cache_routes

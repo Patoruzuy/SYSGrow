@@ -119,6 +119,7 @@ class ServiceContainer:
     plant_health_scorer: PlantHealthScorer
     climate_optimizer: ClimateOptimizer
     growth_predictor: PlantGrowthPredictor
+    irrigation_predictor: object | None  # IrrigationPredictor (avoid import cycle)
     # Phase 2 AI Services
     ml_trainer: MLTrainerService
     drift_detector: ModelDriftDetectorService
@@ -127,6 +128,8 @@ class ServiceContainer:
     automated_retraining: AutomatedRetrainingService | None
     personalized_learning: PersonalizedLearningService | None
     training_data_collector: TrainingDataCollector | None
+    ml_readiness_monitor: object | None  # MLReadinessMonitorService (avoid import cycle)
+    _shutdown_complete: bool = False
 
     @classmethod
     def build(cls, config: AppConfig, *, start_coordinator: bool = False) -> "ServiceContainer":
@@ -155,6 +158,10 @@ class ServiceContainer:
 
     def shutdown(self) -> None:
         """Release external resources before process exit."""
+        if self._shutdown_complete:
+            return
+        self._shutdown_complete = True
+
         # Log system shutdown
         try:
             self.activity_logger.log_activity(
@@ -163,7 +170,7 @@ class ServiceContainer:
                 severity=ActivityLogger.INFO,
             )
         except Exception as e:
-            logger.warning(f"Failed to log shutdown activity: {e}")
+            logger.warning("Failed to log shutdown activity: %s", e)
 
         # Stop device coordinator event subscriptions
         self.device_coordinator.stop()
@@ -173,7 +180,7 @@ class ServiceContainer:
             self.scheduler.shutdown()
             logger.info("✓ UnifiedScheduler stopped")
         except Exception as e:
-            logger.warning(f"Failed to stop UnifiedScheduler: {e}")
+            logger.warning("Failed to stop UnifiedScheduler: %s", e)
 
         # Stop continuous monitoring if enabled
         if self.continuous_monitor is not None:
@@ -181,7 +188,7 @@ class ServiceContainer:
                 self.continuous_monitor.stop_monitoring()
                 logger.info("✓ Continuous monitoring stopped")
             except Exception as e:
-                logger.warning(f"Failed to stop continuous monitoring: {e}")
+                logger.warning("Failed to stop continuous monitoring: %s", e)
 
         # Shutdown health monitoring
         self.system_health_service.shutdown()
@@ -192,7 +199,7 @@ class ServiceContainer:
                 self.mqtt_sensor_service.shutdown()
                 logger.info("✓ MQTTSensorService stopped")
             except Exception as e:
-                logger.warning(f"Failed to stop MQTTSensorService: {e}")
+                logger.warning("Failed to stop MQTTSensorService: %s", e)
 
         # Stop all unit runtimes (includes per-unit hardware managers and actuator managers)
         self.growth_service.shutdown()

@@ -23,7 +23,7 @@ from flask import Blueprint
 logger = logging.getLogger(__name__)
 
 # Create the blueprint
-analytics_api = Blueprint("analytics_api", __name__, url_prefix="/api/analytics")
+analytics_api = Blueprint("analytics_api", __name__)
 
 # Import routes after blueprint creation to avoid circular imports
 from app.blueprints.api.analytics import (

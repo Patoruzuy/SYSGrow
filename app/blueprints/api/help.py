@@ -11,11 +11,13 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, Response, jsonify, request
+
+from app.utils.http import safe_route
 
 logger = logging.getLogger(__name__)
 
-help_api = Blueprint("help_api", __name__, url_prefix="/api/help")
+help_api = Blueprint("help_api", __name__)
 
 # Cache for help data
 _help_data_cache: dict[str, Any] | None = None
@@ -37,7 +39,7 @@ def _load_help_data() -> dict[str, Any]:
         logger.error("Help articles data file not found")
         return {"categories": []}
     except json.JSONDecodeError as e:
-        logger.error(f"Invalid JSON in help articles file: {e}")
+        logger.error("Invalid JSON in help articles file: %s", e)
         return {"categories": []}
 
 
@@ -52,7 +54,8 @@ def _api_error(message: str, status: int = 400):
 
 
 @help_api.route("/categories", methods=["GET"])
-def get_categories():
+@safe_route("Failed to retrieve help categories")
+def get_categories() -> Response:
     """Get all help categories with their article counts.
 
     Returns:
@@ -76,7 +79,8 @@ def get_categories():
 
 
 @help_api.route("/articles", methods=["GET"])
-def get_articles():
+@safe_route("Failed to retrieve help articles")
+def get_articles() -> Response:
     """Get help articles with optional filtering and search.
 
     Query Parameters:
@@ -136,7 +140,8 @@ def get_articles():
 
 
 @help_api.route("/article/<category>/<article_id>", methods=["GET"])
-def get_article(category: str, article_id: str):
+@safe_route("Failed to retrieve help article")
+def get_article(category: str, article_id: str) -> Response:
     """Get a single help article with full content.
 
     Args:
@@ -169,7 +174,8 @@ def get_article(category: str, article_id: str):
 
 
 @help_api.route("/search", methods=["GET"])
-def search_articles():
+@safe_route("Failed to search help articles")
+def search_articles() -> Response:
     """Search help articles across all categories.
 
     Query Parameters:

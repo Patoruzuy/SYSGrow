@@ -11,11 +11,13 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, Response, jsonify, request
+
+from app.utils.http import safe_route
 
 logger = logging.getLogger(__name__)
 
-blog_api = Blueprint("blog_api", __name__, url_prefix="/api/blog")
+blog_api = Blueprint("blog_api", __name__)
 
 # Cache for blog data
 _blog_data_cache: dict[str, Any] | None = None
@@ -37,7 +39,7 @@ def _load_blog_data() -> dict[str, Any]:
         logger.error("Blog posts data file not found")
         return {"posts": [], "categories": []}
     except json.JSONDecodeError as e:
-        logger.error(f"Invalid JSON in blog posts file: {e}")
+        logger.error("Invalid JSON in blog posts file: %s", e)
         return {"posts": [], "categories": []}
 
 
@@ -52,7 +54,8 @@ def _api_error(message: str, status: int = 400):
 
 
 @blog_api.route("/posts", methods=["GET"])
-def get_posts():
+@safe_route("Failed to retrieve blog posts")
+def get_posts() -> Response:
     """Get blog posts with optional filtering and pagination.
 
     Query Parameters:
@@ -127,7 +130,8 @@ def get_posts():
 
 
 @blog_api.route("/post/<slug>", methods=["GET"])
-def get_post(slug: str):
+@safe_route("Failed to retrieve blog post")
+def get_post(slug: str) -> Response:
     """Get a single blog post by slug with full content.
 
     Args:
@@ -146,7 +150,8 @@ def get_post(slug: str):
 
 
 @blog_api.route("/categories", methods=["GET"])
-def get_categories():
+@safe_route("Failed to retrieve blog categories")
+def get_categories() -> Response:
     """Get all blog categories with post counts.
 
     Returns:
@@ -177,7 +182,8 @@ def get_categories():
 
 
 @blog_api.route("/featured", methods=["GET"])
-def get_featured():
+@safe_route("Failed to retrieve featured posts")
+def get_featured() -> Response:
     """Get featured blog posts.
 
     Query Parameters:
@@ -214,7 +220,8 @@ def get_featured():
 
 
 @blog_api.route("/tags", methods=["GET"])
-def get_tags():
+@safe_route("Failed to retrieve blog tags")
+def get_tags() -> Response:
     """Get all unique tags with post counts.
 
     Returns:
@@ -234,7 +241,8 @@ def get_tags():
 
 
 @blog_api.route("/search", methods=["GET"])
-def search_posts():
+@safe_route("Failed to search blog posts")
+def search_posts() -> Response:
     """Search blog posts.
 
     Query Parameters:

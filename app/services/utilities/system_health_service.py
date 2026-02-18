@@ -15,11 +15,15 @@ Now handles:
 
 import logging
 import os
+import shutil
 from collections import deque
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-import psutil
+try:
+    import psutil  # type: ignore[import-not-found]
+except ImportError:  # pragma: no cover - environment dependent optional dependency
+    psutil = None
 
 from app.config import load_config
 from app.domain.sensors import HealthLevel
@@ -88,13 +92,17 @@ class SystemHealthService:
 
     def _system_startup(self) -> None:
         """Initialize system health monitoring on startup."""
+        if psutil is None:
+            logger.warning("psutil is unavailable; uptime tracking uses service start time.")
+            self.uptime_start = utc_now()
+            return
         try:
             process = psutil.Process(os.getpid())
             start_time = process.create_time()
             self.uptime_start = datetime.fromtimestamp(start_time, tz=UTC)
             logger.info("System uptime tracking initialized.")
         except Exception as e:
-            logger.warning(f"Failed to calculate server uptime: {e}")
+            logger.warning("Failed to calculate server uptime: %s", e)
             self.uptime_start = utc_now()  # Fallback to current time
 
     # ==================== Sensor Health Tracking (from HealthMonitoringService) ====================
@@ -107,7 +115,7 @@ class SystemHealthService:
             sensor: SensorEntity instance
         """
         self._sensor_entities[sensor.id] = sensor
-        logger.info(f"Registered sensor {sensor.id} for health monitoring")
+        logger.info("Registered sensor %s for health monitoring", sensor.id)
 
     def unregister_sensor(self, sensor_id: int):
         """
@@ -118,7 +126,7 @@ class SystemHealthService:
         """
         if sensor_id in self._sensor_entities:
             del self._sensor_entities[sensor_id]
-            logger.info(f"Unregistered sensor {sensor_id} from health monitoring")
+            logger.info("Unregistered sensor %s from health monitoring", sensor_id)
 
     def generate_sensor_health_report(self) -> SystemHealthReport:
         """
@@ -354,7 +362,7 @@ class SystemHealthService:
         else:
             status = SystemHealthStatus(system_id=system_id, level=level, message=message, last_check=now)
             self.health_statuses[system_id] = status
-        logger.info(f"Updated health status for system {system_id}: {status.to_dict()}")
+        logger.info("Updated health status for system %s: %s", system_id, status.to_dict())
 
     def get_health_status(self, system_id: int) -> SystemHealthStatus | None:
         """Retrieve the health status of a system."""
@@ -368,7 +376,7 @@ class SystemHealthService:
                 f"Recorded incident for system {system_id}. Total incidents: {self.health_statuses[system_id].incident_count}"
             )
         else:
-            logger.warning(f"Attempted to record incident for unknown system {system_id}.")
+            logger.warning("Attempted to record incident for unknown system %s.", system_id)
 
     def get_overall_health(self) -> list[dict[str, Any]]:
         """Get overall health status for all custom systems."""
@@ -409,7 +417,7 @@ class SystemHealthService:
                 elif sensor_report.system_health_level.value == "degraded":
                     report["overall_status"] = "degraded"
             except Exception as e:
-                logger.error(f"Failed to generate sensor health report: {e}")
+                logger.error("Failed to generate sensor health report: %s", e)
                 report["sensor_health"] = {"error": str(e)}
 
         # Get active alerts if available
@@ -424,7 +432,7 @@ class SystemHealthService:
                 elif alert_summary.get("active_by_severity", {}).get("warning", 0) > 3:
                     report["overall_status"] = "degraded"
             except Exception as e:
-                logger.error(f"Failed to get alert summary: {e}")
+                logger.error("Failed to get alert summary: %s", e)
                 report["alerts"] = {"error": str(e)}
 
         # Add custom system health statuses
@@ -530,10 +538,10 @@ class SystemHealthService:
                 created_alerts.append(alert_id)
 
             if created_alerts:
-                logger.info(f"Created {len(created_alerts)} health alerts")
+                logger.info("Created %s health alerts", len(created_alerts))
 
         except Exception as e:
-            logger.error(f"Error checking health and creating alerts: {e}")
+            logger.error("Error checking health and creating alerts: %s", e)
 
         return created_alerts
 
@@ -554,7 +562,7 @@ class SystemHealthService:
             old_status = self.api_status
             self.api_status = api_status
             status_changed = True
-            logger.info(f"API status changed: {old_status} -> {api_status}")
+            logger.info("API status changed: %s -> %s", old_status, api_status)
 
             # Create alert for API issues
             if self.alert_service and api_status in ["degraded", "offline"]:
@@ -572,7 +580,7 @@ class SystemHealthService:
             old_status = self.db_status
             self.db_status = db_status
             status_changed = True
-            logger.info(f"Database status changed: {old_status} -> {db_status}")
+            logger.info("Database status changed: %s -> %s", old_status, db_status)
 
             # Create alert for DB issues
             if self.alert_service and db_status != "connected":
@@ -612,21 +620,21 @@ class SystemHealthService:
                     "last_check": status.last_check.isoformat() if status.last_check else None,
                 },
             )
-            logger.info(f"Notified health change for system {system_id}.")
+            logger.info("Notified health change for system %s.", system_id)
 
     def get_uptime_seconds(self) -> int:
         """Get the server uptime in seconds from process start time."""
         try:
             return (self.uptime_start and int((utc_now() - self.uptime_start).total_seconds())) or 0
         except Exception as e:
-            logger.warning(f"Failed to calculate server uptime: {e}")
+            logger.warning("Failed to calculate server uptime: %s", e)
             return 0
 
     def storage_usage_update(self, used: int, total: int) -> None:
         """Update storage usage statistics."""
         self.storage_used = used
         self.storage_total = total
-        logger.info(f"Updated storage usage: {used}/{total} bytes.")
+        logger.info("Updated storage usage: %s/%s bytes.", used, total)
 
     def refresh_storage_usage(self, path: str = "/") -> dict[str, Any]:
         """
@@ -643,23 +651,32 @@ class SystemHealthService:
             if os.name == "nt":
                 path = os.path.abspath(os.sep)
 
-            disk_usage = psutil.disk_usage(path)
+            if psutil is not None:
+                disk_usage = psutil.disk_usage(path)
+                total = int(disk_usage.total)
+                used = int(disk_usage.used)
+                free = int(disk_usage.free)
+                usage_percent = float(disk_usage.percent)
+            else:
+                disk_usage = shutil.disk_usage(path)
+                total = int(disk_usage.total)
+                used = int(disk_usage.used)
+                free = int(disk_usage.free)
+                usage_percent = round((used / total) * 100, 1) if total > 0 else 0.0
 
-            self.storage_used = disk_usage.used
-            self.storage_total = disk_usage.total
+            self.storage_used = used
+            self.storage_total = total
 
-            usage_percent = disk_usage.percent
-
-            logger.info(f"Storage refreshed: {usage_percent:.1f}% used ({disk_usage.used}/{disk_usage.total} bytes)")
+            logger.info("Storage refreshed: %s%% used (%s/%s bytes)", usage_percent, used, total)
 
             return {
-                "total": disk_usage.total,
-                "used": disk_usage.used,
-                "free": disk_usage.free,
+                "total": total,
+                "used": used,
+                "free": free,
                 "percent": usage_percent,
             }
         except Exception as e:
-            logger.error(f"Failed to refresh storage usage: {e}")
+            logger.error("Failed to refresh storage usage: %s", e)
             return {"error": str(e), "total": 0, "used": 0, "free": 0, "percent": 0}
 
     def check_database_health(self, db_handler: Any | None = None) -> str:
@@ -686,13 +703,13 @@ class SystemHealthService:
             self.db_status = "connected"
 
             if old_status != "connected":
-                logger.info(f"Database health restored: {old_status} -> connected")
+                logger.info("Database health restored: %s -> connected", old_status)
                 self.update_infrastructure_status(db_status="connected")
 
             return "connected"
 
         except Exception as e:
-            logger.error(f"Database health check failed: {e}")
+            logger.error("Database health check failed: %s", e)
             old_status = self.db_status
             self.db_status = "error"
 
@@ -815,7 +832,7 @@ class SystemHealthService:
 
         # Notify if status changed
         if old_status != self.api_status:
-            logger.warning(f"API status changed: {old_status} -> {self.api_status}")
+            logger.warning("API status changed: %s -> %s", old_status, self.api_status)
             self.update_infrastructure_status(api_status=self.api_status)
 
     def get_api_metrics(self) -> dict[str, Any]:
@@ -888,7 +905,7 @@ class SystemHealthService:
         scores = self._calculate_health_scores(report, storage)
         report["health_scores"] = scores
 
-        logger.info(f"Health check complete. Overall status: {report['overall_status']}, score: {scores['overall']}")
+        logger.info("Health check complete. Overall status: %s, score: %s", report["overall_status"], scores["overall"])
 
         return report
 

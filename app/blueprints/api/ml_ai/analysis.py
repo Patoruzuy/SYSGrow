@@ -10,21 +10,23 @@ Machine learning analysis endpoints:
 
 import logging
 
-from flask import Blueprint, request
+from flask import Blueprint, Response, request
 
 from app.blueprints.api._common import (
     fail as _fail,
     get_container as _container,
     success as _success,
 )
+from app.utils.http import safe_route
 
 logger = logging.getLogger(__name__)
 
-analysis_bp = Blueprint("ml_analysis", __name__, url_prefix="/api/ml/analysis")
+analysis_bp = Blueprint("ml_analysis", __name__)
 
 
 @analysis_bp.post("/root-cause")
-def analyze_root_cause():
+@safe_route("Failed to analyze root cause")
+def analyze_root_cause() -> Response:
     """
     Analyze root causes for alert clusters.
 
@@ -55,55 +57,50 @@ def analyze_root_cause():
         ]
     }
     """
-    try:
-        data = request.get_json()
+    data = request.get_json()
 
-        if not data or "clusters" not in data:
-            return _fail("Missing clusters data", 400)
+    if not data or "clusters" not in data:
+        return _fail("Missing clusters data", 400)
 
-        clusters = data["clusters"]
+    clusters = data["clusters"]
 
-        # Check if ML service is available
-        container = _container()
-        ml_available = False
+    # Check if ML service is available
+    container = _container()
+    ml_available = False
 
-        if container and hasattr(container, "ml_service"):
-            ml_service = container.ml_service
-            ml_available = True
+    if container and hasattr(container, "ml_service"):
+        ml_service = container.ml_service
+        ml_available = True
 
-        analyses = []
+    analyses = []
 
-        for cluster in clusters:
-            cluster_id = cluster.get("id")
-            alert_type = cluster.get("type")
-            severity = cluster.get("severity")
-            alert_ids = cluster.get("alert_ids", [])
+    for cluster in clusters:
+        cluster_id = cluster.get("id")
+        alert_type = cluster.get("type")
+        severity = cluster.get("severity")
+        alert_ids = cluster.get("alert_ids", [])
 
-            if ml_available:
-                # Use ML service for root cause analysis
-                try:
-                    analysis = _ml_root_cause_analysis(ml_service, alert_type, severity, alert_ids)
-                except Exception as ml_error:
-                    logger.warning(f"ML analysis failed, using heuristics: {ml_error}")
-                    analysis = _heuristic_root_cause_analysis(alert_type, severity)
-            else:
-                # Use heuristic-based analysis
+        if ml_available:
+            # Use ML service for root cause analysis
+            try:
+                analysis = _ml_root_cause_analysis(ml_service, alert_type, severity, alert_ids)
+            except Exception as ml_error:
+                logger.warning("ML analysis failed, using heuristics: %s", ml_error)
                 analysis = _heuristic_root_cause_analysis(alert_type, severity)
+        else:
+            # Use heuristic-based analysis
+            analysis = _heuristic_root_cause_analysis(alert_type, severity)
 
-            analyses.append(
-                {
-                    "cluster_id": cluster_id,
-                    "root_cause": analysis["root_cause"],
-                    "confidence": analysis["confidence"],
-                    "recommendations": analysis["recommendations"],
-                }
-            )
+        analyses.append(
+            {
+                "cluster_id": cluster_id,
+                "root_cause": analysis["root_cause"],
+                "confidence": analysis["confidence"],
+                "recommendations": analysis["recommendations"],
+            }
+        )
 
-        return _success({"analyses": analyses, "ml_powered": ml_available})
-
-    except Exception as e:
-        logger.error(f"Error in root cause analysis: {e}", exc_info=True)
-        return safe_error(e, 500)
+    return _success({"analyses": analyses, "ml_powered": ml_available})
 
 
 def _ml_root_cause_analysis(ml_service, alert_type, severity, alert_ids):
@@ -218,7 +215,8 @@ def _heuristic_root_cause_analysis(alert_type, severity):
 
 
 @analysis_bp.get("/patterns")
-def detect_patterns():
+@safe_route("Failed to detect patterns")
+def detect_patterns() -> Response:
     """
     Detect patterns in historical alerts.
 
@@ -231,24 +229,20 @@ def detect_patterns():
     - Cascade failures
     - Time-of-day correlations
     """
-    try:
-        hours = request.args.get("hours", 24, type=int)
-        unit_id = request.args.get("unit_id", type=int)
+    hours = request.args.get("hours", 24, type=int)
+    unit_id = request.args.get("unit_id", type=int)
 
-        # TODO: Implement pattern detection using ML or statistical methods
-        # For now, return empty patterns
+    # TODO: Implement pattern detection using ML or statistical methods
+    # For now, return empty patterns
 
-        patterns = []
+    patterns = []
 
-        return _success({"patterns": patterns, "time_window_hours": hours, "unit_id": unit_id})
-
-    except Exception as e:
-        logger.error(f"Error detecting patterns: {e}", exc_info=True)
-        return safe_error(e, 500)
+    return _success({"patterns": patterns, "time_window_hours": hours, "unit_id": unit_id})
 
 
 @analysis_bp.get("/correlations")
-def analyze_correlations():
+@safe_route("Failed to analyze correlations")
+def analyze_correlations() -> Response:
     """
     Analyze correlations between alerts and environmental conditions.
 
@@ -259,34 +253,27 @@ def analyze_correlations():
 
     Returns correlations with environmental metrics.
     """
-    try:
-        alert_type = request.args.get("alert_type")
-        days = request.args.get("days", 7, type=int)
-        unit_id = request.args.get("unit_id", type=int)
+    alert_type = request.args.get("alert_type")
 
-        if not alert_type:
-            return _fail("Missing alert_type parameter", 400)
+    if not alert_type:
+        return _fail("Missing alert_type parameter", 400)
 
-        # TODO: Implement correlation analysis
-        # Calculate correlations between alert occurrences and:
-        # - Temperature
-        # - Humidity
-        # - Time of day
-        # - Day of week
-        # - Other alerts
+    # TODO: Implement correlation analysis
+    # Calculate correlations between alert occurrences and:
+    # - Temperature
+    # - Humidity
+    # - Time of day
+    # - Day of week
+    # - Other alerts
 
-        correlations = {
-            "alert_type": alert_type,
-            "environmental_factors": [],
-            "temporal_factors": [],
-            "related_alerts": [],
-        }
+    correlations = {
+        "alert_type": alert_type,
+        "environmental_factors": [],
+        "temporal_factors": [],
+        "related_alerts": [],
+    }
 
-        return _success(correlations)
-
-    except Exception as e:
-        logger.error(f"Error analyzing correlations: {e}", exc_info=True)
-        return safe_error(e, 500)
+    return _success(correlations)
 
 
 def register_blueprint(app):

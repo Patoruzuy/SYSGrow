@@ -7,13 +7,14 @@ Completes the disease tracking feedback loop for ML model improvement.
 
 import logging
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, Response, jsonify, request
 
 from app.blueprints.api._common import get_container
+from app.utils.http import safe_route
 
 logger = logging.getLogger(__name__)
 
-disease_bp = Blueprint("disease", __name__, url_prefix="/api/plants/disease")
+disease_bp = Blueprint("disease", __name__)
 
 
 def _get_ai_repo():
@@ -29,7 +30,8 @@ def _get_disease_predictor():
 
 
 @disease_bp.route("/occurrences", methods=["POST"])
-def record_disease_occurrence():
+@safe_route("Failed to record disease occurrence")
+def record_disease_occurrence() -> Response:
     """
     Record a confirmed disease occurrence.
 
@@ -47,107 +49,97 @@ def record_disease_occurrence():
         "notes": "First noticed 2 days ago"           // Optional
     }
     """
-    try:
-        ai_repo = _get_ai_repo()
-        if not ai_repo:
-            return jsonify({"ok": False, "data": None, "error": {"message": "AI repository not available"}}), 503
+    ai_repo = _get_ai_repo()
+    if not ai_repo:
+        return jsonify({"ok": False, "data": None, "error": {"message": "AI repository not available"}}), 503
 
-        data = request.get_json()
-        if not data:
-            return jsonify({"ok": False, "data": None, "error": {"message": "Request body is required"}}), 400
+    data = request.get_json()
+    if not data:
+        return jsonify({"ok": False, "data": None, "error": {"message": "Request body is required"}}), 400
 
-        # Validate required fields
-        unit_id = data.get("unit_id")
-        disease_type = data.get("disease_type")
+    # Validate required fields
+    unit_id = data.get("unit_id")
+    disease_type = data.get("disease_type")
 
-        if not unit_id:
-            return jsonify({"ok": False, "data": None, "error": {"message": "unit_id is required"}}), 400
+    if not unit_id:
+        return jsonify({"ok": False, "data": None, "error": {"message": "unit_id is required"}}), 400
 
-        if not disease_type:
-            return jsonify({"ok": False, "data": None, "error": {"message": "disease_type is required"}}), 400
+    if not disease_type:
+        return jsonify({"ok": False, "data": None, "error": {"message": "disease_type is required"}}), 400
 
-        valid_types = ["fungal", "bacterial", "viral", "pest", "nutrient_deficiency", "environmental_stress"]
-        if disease_type.lower() not in valid_types:
-            return jsonify(
-                {
-                    "ok": False,
-                    "data": None,
-                    "error": {"message": f"disease_type must be one of: {', '.join(valid_types)}"},
-                }
-            ), 400
-
-        # Get current environmental conditions for the record
-        env_data = _get_current_environmental_data(unit_id)
-
-        # Prepare occurrence data
-        occurrence_data = {
-            "unit_id": unit_id,
-            "plant_id": data.get("plant_id"),
-            "disease_type": disease_type.lower(),
-            "severity": data.get("severity", "mild"),
-            "confirmed_by_user": True,
-            "symptoms": data.get("symptoms"),
-            "affected_parts": data.get("affected_parts"),
-            "notes": data.get("notes"),
-            "plant_type": data.get("plant_type"),
-            "growth_stage": data.get("growth_stage"),
-            "days_in_stage": data.get("days_in_stage"),
-            # Environmental snapshot
-            "temperature_at_detection": env_data.get("temperature"),
-            "humidity_at_detection": env_data.get("humidity"),
-            "soil_moisture_at_detection": env_data.get("soil_moisture"),
-            "vpd_at_detection": env_data.get("vpd"),
-            "avg_temperature_72h": env_data.get("avg_temperature_72h"),
-            "avg_humidity_72h": env_data.get("avg_humidity_72h"),
-            "avg_soil_moisture_72h": env_data.get("avg_soil_moisture_72h"),
-            "humidity_variance_72h": env_data.get("humidity_variance_72h"),
-        }
-
-        occurrence_id = ai_repo.save_disease_occurrence(occurrence_data)
-
-        if occurrence_id:
-            logger.info(f"Disease occurrence recorded: {disease_type} for unit {unit_id}")
-            return jsonify(
-                {
-                    "ok": True,
-                    "data": {"occurrence_id": occurrence_id, "message": "Disease occurrence recorded successfully"},
-                    "error": None,
-                }
-            ), 201
-        else:
-            return jsonify({"ok": False, "data": None, "error": {"message": "Failed to save disease occurrence"}}), 500
-
-    except Exception as e:
-        logger.error(f"Error recording disease occurrence: {e}", exc_info=True)
+    valid_types = ["fungal", "bacterial", "viral", "pest", "nutrient_deficiency", "environmental_stress"]
+    if disease_type.lower() not in valid_types:
         return jsonify(
-            {"ok": False, "data": None, "error": {"message": f"Failed to record disease occurrence: {e!s}"}}
-        ), 500
+            {
+                "ok": False,
+                "data": None,
+                "error": {"message": f"disease_type must be one of: {', '.join(valid_types)}"},
+            }
+        ), 400
+
+    # Get current environmental conditions for the record
+    env_data = _get_current_environmental_data(unit_id)
+
+    # Prepare occurrence data
+    occurrence_data = {
+        "unit_id": unit_id,
+        "plant_id": data.get("plant_id"),
+        "disease_type": disease_type.lower(),
+        "severity": data.get("severity", "mild"),
+        "confirmed_by_user": True,
+        "symptoms": data.get("symptoms"),
+        "affected_parts": data.get("affected_parts"),
+        "notes": data.get("notes"),
+        "plant_type": data.get("plant_type"),
+        "growth_stage": data.get("growth_stage"),
+        "days_in_stage": data.get("days_in_stage"),
+        # Environmental snapshot
+        "temperature_at_detection": env_data.get("temperature"),
+        "humidity_at_detection": env_data.get("humidity"),
+        "soil_moisture_at_detection": env_data.get("soil_moisture"),
+        "vpd_at_detection": env_data.get("vpd"),
+        "avg_temperature_72h": env_data.get("avg_temperature_72h"),
+        "avg_humidity_72h": env_data.get("avg_humidity_72h"),
+        "avg_soil_moisture_72h": env_data.get("avg_soil_moisture_72h"),
+        "humidity_variance_72h": env_data.get("humidity_variance_72h"),
+    }
+
+    occurrence_id = ai_repo.save_disease_occurrence(occurrence_data)
+
+    if occurrence_id:
+        logger.info("Disease occurrence recorded: %s for unit %s", disease_type, unit_id)
+        return jsonify(
+            {
+                "ok": True,
+                "data": {"occurrence_id": occurrence_id, "message": "Disease occurrence recorded successfully"},
+                "error": None,
+            }
+        ), 201
+    else:
+        return jsonify({"ok": False, "data": None, "error": {"message": "Failed to save disease occurrence"}}), 500
 
 
 @disease_bp.route("/occurrences/<int:occurrence_id>", methods=["GET"])
-def get_disease_occurrence(occurrence_id: int):
+@safe_route("Failed to get disease occurrence")
+def get_disease_occurrence(occurrence_id: int) -> Response:
     """
     Get details of a specific disease occurrence.
     """
-    try:
-        ai_repo = _get_ai_repo()
-        if not ai_repo:
-            return jsonify({"ok": False, "data": None, "error": {"message": "AI repository not available"}}), 503
+    ai_repo = _get_ai_repo()
+    if not ai_repo:
+        return jsonify({"ok": False, "data": None, "error": {"message": "AI repository not available"}}), 503
 
-        occurrence = ai_repo.get_disease_occurrence_by_id(occurrence_id)
+    occurrence = ai_repo.get_disease_occurrence_by_id(occurrence_id)
 
-        if not occurrence:
-            return jsonify({"ok": False, "data": None, "error": {"message": "Disease occurrence not found"}}), 404
+    if not occurrence:
+        return jsonify({"ok": False, "data": None, "error": {"message": "Disease occurrence not found"}}), 404
 
-        return jsonify({"ok": True, "data": occurrence, "error": None}), 200
-
-    except Exception as e:
-        logger.error(f"Error getting disease occurrence {occurrence_id}: {e}")
-        return jsonify({"ok": False, "data": None, "error": {"message": str(e)}}), 500
+    return jsonify({"ok": True, "data": occurrence, "error": None}), 200
 
 
 @disease_bp.route("/occurrences/<int:occurrence_id>/resolve", methods=["PUT"])
-def resolve_disease_occurrence(occurrence_id: int):
+@safe_route("Failed to resolve disease occurrence")
+def resolve_disease_occurrence(occurrence_id: int) -> Response:
     """
     Mark a disease occurrence as resolved with treatment details.
 
@@ -157,42 +149,38 @@ def resolve_disease_occurrence(occurrence_id: int):
         "notes": "Plant recovered fully after 2 weeks"        // Optional
     }
     """
-    try:
-        ai_repo = _get_ai_repo()
-        if not ai_repo:
-            return jsonify({"ok": False, "data": None, "error": {"message": "AI repository not available"}}), 503
+    ai_repo = _get_ai_repo()
+    if not ai_repo:
+        return jsonify({"ok": False, "data": None, "error": {"message": "AI repository not available"}}), 503
 
-        data = request.get_json()
-        if not data:
-            return jsonify({"ok": False, "data": None, "error": {"message": "Request body is required"}}), 400
+    data = request.get_json()
+    if not data:
+        return jsonify({"ok": False, "data": None, "error": {"message": "Request body is required"}}), 400
 
-        treatment_applied = data.get("treatment_applied")
-        if not treatment_applied:
-            return jsonify({"ok": False, "data": None, "error": {"message": "treatment_applied is required"}}), 400
+    treatment_applied = data.get("treatment_applied")
+    if not treatment_applied:
+        return jsonify({"ok": False, "data": None, "error": {"message": "treatment_applied is required"}}), 400
 
-        success = ai_repo.resolve_disease_occurrence(
-            occurrence_id=occurrence_id,
-            treatment_applied=treatment_applied,
-            notes=data.get("notes"),
-        )
+    success = ai_repo.resolve_disease_occurrence(
+        occurrence_id=occurrence_id,
+        treatment_applied=treatment_applied,
+        notes=data.get("notes"),
+    )
 
-        if success:
-            logger.info(f"Disease occurrence {occurrence_id} resolved with treatment: {treatment_applied}")
-            return jsonify(
-                {"ok": True, "data": {"message": "Disease occurrence resolved successfully"}, "error": None}
-            ), 200
-        else:
-            return jsonify(
-                {"ok": False, "data": None, "error": {"message": "Disease occurrence not found or already resolved"}}
-            ), 404
-
-    except Exception as e:
-        logger.error(f"Error resolving disease occurrence {occurrence_id}: {e}")
-        return jsonify({"ok": False, "data": None, "error": {"message": str(e)}}), 500
+    if success:
+        logger.info("Disease occurrence %s resolved with treatment: %s", occurrence_id, treatment_applied)
+        return jsonify(
+            {"ok": True, "data": {"message": "Disease occurrence resolved successfully"}, "error": None}
+        ), 200
+    else:
+        return jsonify(
+            {"ok": False, "data": None, "error": {"message": "Disease occurrence not found or already resolved"}}
+        ), 404
 
 
 @disease_bp.route("/history", methods=["GET"])
-def get_disease_history():
+@safe_route("Failed to get disease history")
+def get_disease_history() -> Response:
     """
     Get disease occurrence history with optional filters.
 
@@ -204,55 +192,51 @@ def get_disease_history():
     - limit: Max records (default: 100, max: 500)
     - offset: Pagination offset
     """
-    try:
-        ai_repo = _get_ai_repo()
-        if not ai_repo:
-            return jsonify({"ok": False, "data": None, "error": {"message": "AI repository not available"}}), 503
+    ai_repo = _get_ai_repo()
+    if not ai_repo:
+        return jsonify({"ok": False, "data": None, "error": {"message": "AI repository not available"}}), 503
 
-        unit_id = request.args.get("unit_id", type=int)
-        plant_id = request.args.get("plant_id", type=int)
-        disease_type = request.args.get("disease_type")
-        include_resolved = request.args.get("include_resolved", "true").lower() != "false"
-        limit = min(request.args.get("limit", 100, type=int), 500)
-        offset = request.args.get("offset", 0, type=int)
+    unit_id = request.args.get("unit_id", type=int)
+    plant_id = request.args.get("plant_id", type=int)
+    disease_type = request.args.get("disease_type")
+    include_resolved = request.args.get("include_resolved", "true").lower() != "false"
+    limit = min(request.args.get("limit", 100, type=int), 500)
+    offset = request.args.get("offset", 0, type=int)
 
-        history = ai_repo.get_disease_history(
-            unit_id=unit_id,
-            plant_id=plant_id,
-            disease_type=disease_type,
-            include_resolved=include_resolved,
-            limit=limit,
-            offset=offset,
-        )
+    history = ai_repo.get_disease_history(
+        unit_id=unit_id,
+        plant_id=plant_id,
+        disease_type=disease_type,
+        include_resolved=include_resolved,
+        limit=limit,
+        offset=offset,
+    )
 
-        return jsonify(
-            {
-                "ok": True,
-                "data": {
-                    "count": len(history),
-                    "occurrences": history,
-                    "filters": {
-                        "unit_id": unit_id,
-                        "plant_id": plant_id,
-                        "disease_type": disease_type,
-                        "include_resolved": include_resolved,
-                    },
-                    "pagination": {
-                        "limit": limit,
-                        "offset": offset,
-                    },
+    return jsonify(
+        {
+            "ok": True,
+            "data": {
+                "count": len(history),
+                "occurrences": history,
+                "filters": {
+                    "unit_id": unit_id,
+                    "plant_id": plant_id,
+                    "disease_type": disease_type,
+                    "include_resolved": include_resolved,
                 },
-                "error": None,
-            }
-        ), 200
-
-    except Exception as e:
-        logger.error(f"Error getting disease history: {e}")
-        return jsonify({"ok": False, "data": None, "error": {"message": str(e)}}), 500
+                "pagination": {
+                    "limit": limit,
+                    "offset": offset,
+                },
+            },
+            "error": None,
+        }
+    ), 200
 
 
 @disease_bp.route("/statistics", methods=["GET"])
-def get_disease_statistics():
+@safe_route("Failed to get disease statistics")
+def get_disease_statistics() -> Response:
     """
     Get disease occurrence statistics and summaries.
 
@@ -260,28 +244,24 @@ def get_disease_statistics():
     - unit_id: Filter by growth unit (optional)
     - days: Number of days to analyze (default: 90)
     """
-    try:
-        ai_repo = _get_ai_repo()
-        if not ai_repo:
-            return jsonify({"ok": False, "data": None, "error": {"message": "AI repository not available"}}), 503
+    ai_repo = _get_ai_repo()
+    if not ai_repo:
+        return jsonify({"ok": False, "data": None, "error": {"message": "AI repository not available"}}), 503
 
-        unit_id = request.args.get("unit_id", type=int)
-        days = request.args.get("days", 90, type=int)
+    unit_id = request.args.get("unit_id", type=int)
+    days = request.args.get("days", 90, type=int)
 
-        stats = ai_repo.get_disease_summary_stats(
-            unit_id=unit_id,
-            days_limit=days,
-        )
+    stats = ai_repo.get_disease_summary_stats(
+        unit_id=unit_id,
+        days_limit=days,
+    )
 
-        return jsonify({"ok": True, "data": stats, "error": None}), 200
-
-    except Exception as e:
-        logger.error(f"Error getting disease statistics: {e}")
-        return jsonify({"ok": False, "data": None, "error": {"message": str(e)}}), 500
+    return jsonify({"ok": True, "data": stats, "error": None}), 200
 
 
 @disease_bp.route("/prediction/feedback", methods=["POST"])
-def record_prediction_feedback():
+@safe_route("Failed to record prediction feedback")
+def record_prediction_feedback() -> Response:
     """
     Record feedback on a disease prediction (was it accurate?).
 
@@ -301,44 +281,40 @@ def record_prediction_feedback():
         "feedback_source": "user"                 // Optional - user, automated, expert
     }
     """
-    try:
-        ai_repo = _get_ai_repo()
-        if not ai_repo:
-            return jsonify({"ok": False, "data": None, "error": {"message": "AI repository not available"}}), 503
+    ai_repo = _get_ai_repo()
+    if not ai_repo:
+        return jsonify({"ok": False, "data": None, "error": {"message": "AI repository not available"}}), 503
 
-        data = request.get_json()
-        if not data:
-            return jsonify({"ok": False, "data": None, "error": {"message": "Request body is required"}}), 400
+    data = request.get_json()
+    if not data:
+        return jsonify({"ok": False, "data": None, "error": {"message": "Request body is required"}}), 400
 
-        # Validate required fields
-        required = ["unit_id", "predicted_disease_type", "predicted_risk_level", "actual_disease_occurred"]
-        missing = [f for f in required if f not in data]
-        if missing:
-            return jsonify(
-                {"ok": False, "data": None, "error": {"message": f"Missing required fields: {', '.join(missing)}"}}
-            ), 400
+    # Validate required fields
+    required = ["unit_id", "predicted_disease_type", "predicted_risk_level", "actual_disease_occurred"]
+    missing = [f for f in required if f not in data]
+    if missing:
+        return jsonify(
+            {"ok": False, "data": None, "error": {"message": f"Missing required fields: {', '.join(missing)}"}}
+        ), 400
 
-        feedback_id = ai_repo.save_disease_prediction_feedback(data)
+    feedback_id = ai_repo.save_disease_prediction_feedback(data)
 
-        if feedback_id:
-            logger.info(f"Prediction feedback recorded for unit {data['unit_id']}")
-            return jsonify(
-                {
-                    "ok": True,
-                    "data": {"feedback_id": feedback_id, "message": "Prediction feedback recorded successfully"},
-                    "error": None,
-                }
-            ), 201
-        else:
-            return jsonify({"ok": False, "data": None, "error": {"message": "Failed to save prediction feedback"}}), 500
-
-    except Exception as e:
-        logger.error(f"Error recording prediction feedback: {e}")
-        return jsonify({"ok": False, "data": None, "error": {"message": str(e)}}), 500
+    if feedback_id:
+        logger.info("Prediction feedback recorded for unit %s", data["unit_id"])
+        return jsonify(
+            {
+                "ok": True,
+                "data": {"feedback_id": feedback_id, "message": "Prediction feedback recorded successfully"},
+                "error": None,
+            }
+        ), 201
+    else:
+        return jsonify({"ok": False, "data": None, "error": {"message": "Failed to save prediction feedback"}}), 500
 
 
 @disease_bp.route("/prediction/accuracy", methods=["GET"])
-def get_prediction_accuracy():
+@safe_route("Failed to get prediction accuracy")
+def get_prediction_accuracy() -> Response:
     """
     Get prediction accuracy metrics from feedback data.
 
@@ -346,24 +322,19 @@ def get_prediction_accuracy():
     - disease_type: Filter by disease type (optional)
     - days: Number of days to analyze (default: 90)
     """
-    try:
-        ai_repo = _get_ai_repo()
-        if not ai_repo:
-            return jsonify({"ok": False, "data": None, "error": {"message": "AI repository not available"}}), 503
+    ai_repo = _get_ai_repo()
+    if not ai_repo:
+        return jsonify({"ok": False, "data": None, "error": {"message": "AI repository not available"}}), 503
 
-        disease_type = request.args.get("disease_type")
-        days = request.args.get("days", 90, type=int)
+    disease_type = request.args.get("disease_type")
+    days = request.args.get("days", 90, type=int)
 
-        metrics = ai_repo.get_disease_prediction_accuracy(
-            disease_type=disease_type,
-            days_limit=days,
-        )
+    metrics = ai_repo.get_disease_prediction_accuracy(
+        disease_type=disease_type,
+        days_limit=days,
+    )
 
-        return jsonify({"ok": True, "data": metrics, "error": None}), 200
-
-    except Exception as e:
-        logger.error(f"Error getting prediction accuracy: {e}")
-        return jsonify({"ok": False, "data": None, "error": {"message": str(e)}}), 500
+    return jsonify({"ok": True, "data": metrics, "error": None}), 200
 
 
 def _get_current_environmental_data(unit_id: int) -> dict:
@@ -418,5 +389,5 @@ def _get_current_environmental_data(unit_id: int) -> dict:
         }
 
     except Exception as e:
-        logger.warning(f"Could not get environmental data for unit {unit_id}: {e}")
+        logger.warning("Could not get environmental data for unit %s: %s", unit_id, e)
         return {}

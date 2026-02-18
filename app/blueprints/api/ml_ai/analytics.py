@@ -12,21 +12,22 @@ Consolidates functionality from:
 import logging
 from datetime import datetime, timedelta
 
-from flask import Blueprint, request
+from flask import Blueprint, Response, request
 
 from app.blueprints.api._common import (
-    fail as _fail,
     get_container as _container,
     success as _success,
 )
+from app.utils.http import safe_route
 
 logger = logging.getLogger(__name__)
 
-analytics_bp = Blueprint("ml_analytics", __name__, url_prefix="/api/ml/analytics")
+analytics_bp = Blueprint("ml_analytics", __name__)
 
 
 @analytics_bp.get("/disease/statistics")
-def get_disease_statistics():
+@safe_route("Failed to get disease statistics")
+def get_disease_statistics() -> Response:
     """
     Get disease occurrence statistics and trends.
 
@@ -34,24 +35,20 @@ def get_disease_statistics():
     - days: Number of days to analyze (default: 90)
     - unit_id: Optional unit ID filter
     """
-    try:
-        container = _container()
-        ai_health_repo = container.ai_health_repo
+    container = _container()
+    ai_health_repo = container.ai_health_repo
 
-        days = request.args.get("days", 90, type=int)
-        unit_id = request.args.get("unit_id", type=int)
+    days = request.args.get("days", 90, type=int)
+    unit_id = request.args.get("unit_id", type=int)
 
-        stats = ai_health_repo.get_disease_statistics(days=days, unit_id=unit_id)
+    stats = ai_health_repo.get_disease_statistics(days=days, unit_id=unit_id)
 
-        return _success(stats)
-
-    except Exception as e:
-        logger.error(f"Error getting disease statistics: {e}", exc_info=True)
-        return safe_error(e, 500)
+    return _success(stats)
 
 
 @analytics_bp.get("/disease/trends")
-def get_disease_trends():
+@safe_route("Failed to get disease trends")
+def get_disease_trends() -> Response:
     """
     Get disease occurrence trends over time.
 
@@ -65,21 +62,16 @@ def get_disease_trends():
     - disease_totals: Total counts by disease type
     - period_days: Number of days analyzed
     """
-    try:
-        container = _container()
-        db_handler = container.database_handler
+    container = _container()
+    db_handler = container.database_handler
 
-        days = request.args.get("days", 30, type=int)
-        unit_id = request.args.get("unit_id", type=int)
-        disease_type = request.args.get("disease_type", type=str)
+    days = request.args.get("days", 30, type=int)
+    unit_id = request.args.get("unit_id", type=int)
+    disease_type = request.args.get("disease_type", type=str)
 
-        trends = _calculate_disease_trends(db_handler, days, unit_id, disease_type)
+    trends = _calculate_disease_trends(db_handler, days, unit_id, disease_type)
 
-        return _success(trends)
-
-    except Exception as e:
-        logger.error(f"Error getting disease trends: {e}", exc_info=True)
-        return safe_error(e, 500)
+    return _success(trends)
 
 
 def _calculate_disease_trends(
@@ -139,12 +131,13 @@ def _calculate_disease_trends(
         return {"daily_counts": daily_counts, "disease_totals": disease_totals, "period_days": days}
 
     except Exception as e:
-        logger.warning(f"Error calculating trends: {e}")
+        logger.warning("Error calculating trends: %s", e)
         return {"daily_counts": [], "disease_totals": {}, "period_days": days}
 
 
 @analytics_bp.get("/energy/actuator/<int:actuator_id>/dashboard")
-def get_actuator_energy_dashboard(actuator_id: int):
+@safe_route("Failed to get actuator energy dashboard")
+def get_actuator_energy_dashboard(actuator_id: int) -> Response:
     """
     Get unified energy dashboard for an actuator.
 
@@ -154,37 +147,28 @@ def get_actuator_energy_dashboard(actuator_id: int):
     - Recent anomalies (24 hours)
     - Current power status
     """
-    try:
-        container = _container()
-        analytics = container.analytics_service
+    container = _container()
+    analytics = container.analytics_service
 
-        dashboard = analytics.get_actuator_energy_dashboard(actuator_id)
+    dashboard = analytics.get_actuator_energy_dashboard(actuator_id)
 
-        return _success({"actuator_id": actuator_id, "dashboard": dashboard})
-
-    except Exception as e:
-        logger.error(f"Error getting energy dashboard: {e}", exc_info=True)
-        return safe_error(e, 500)
+    return _success({"actuator_id": actuator_id, "dashboard": dashboard})
 
 
 @analytics_bp.get("/energy/actuator/<int:actuator_id>/predict-failure")
-def predict_actuator_failure(actuator_id: int):
+@safe_route("Failed to predict actuator failure")
+def predict_actuator_failure(actuator_id: int) -> Response:
     """
     Predict device failure risk for an actuator.
 
     Query params:
     - days_ahead: Number of days to predict (default: 7)
     """
-    try:
-        days_ahead = request.args.get("days_ahead", 7, type=int)
+    days_ahead = request.args.get("days_ahead", 7, type=int)
 
-        container = _container()
-        analytics = container.analytics_service
+    container = _container()
+    analytics = container.analytics_service
 
-        prediction = analytics.predict_device_failure(actuator_id, days_ahead)
+    prediction = analytics.predict_device_failure(actuator_id, days_ahead)
 
-        return _success({"actuator_id": actuator_id, "prediction": prediction})
-
-    except Exception as e:
-        logger.error(f"Error predicting failure: {e}", exc_info=True)
-        return safe_error(e, 500)
+    return _success({"actuator_id": actuator_id, "prediction": prediction})

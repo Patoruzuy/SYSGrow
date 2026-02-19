@@ -23,6 +23,7 @@ Memory-First:
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import threading
 from datetime import datetime
@@ -172,7 +173,7 @@ class ActuatorManagementService:
                 analytics_repo=analytics_repository,
             )
             self._register_default_power_profiles()
-            logger.info(f"Energy monitoring enabled (persistence: {analytics_repository is not None})")
+            logger.info("Energy monitoring enabled (persistence: %s)", analytics_repository is not None)
 
         # Zigbee2MQTT discovery
         self.zigbee2mqtt_discovery: "ZigbeeManagementService" | None = None
@@ -190,10 +191,8 @@ class ActuatorManagementService:
         # Memory cache for actuator metadata (reduces DB queries)
         self._actuator_cache = TTLCache(enabled=True, ttl_seconds=cache_ttl_seconds, maxsize=cache_maxsize)
         # Register cache for monitoring
-        try:
+        with contextlib.suppress(ValueError):
             CacheRegistry.get_instance().register("actuator_management.actuators", self._actuator_cache)
-        except ValueError:
-            pass  # Already registered
 
         # Track which actuators are registered in runtime
         self._registered_actuators: set[int] = set()
@@ -275,9 +274,9 @@ class ActuatorManagementService:
                     if friendly_name:
                         try:
                             self.zigbee2mqtt_discovery.remove_device(friendly_name=friendly_name)
-                            logger.info(f"Removed actuator {actuator_id} from Zigbee network: {friendly_name}")
+                            logger.info("Removed actuator %s from Zigbee network: %s", actuator_id, friendly_name)
                         except Exception as e:
-                            logger.warning(f"Failed to remove actuator {actuator_id} from Zigbee network: {e}")
+                            logger.warning("Failed to remove actuator %s from Zigbee network: %s", actuator_id, e)
 
     @synchronized
     def set_actuator_state(
@@ -304,9 +303,9 @@ class ActuatorManagementService:
         try:
             # Check if actuator is registered in runtime
             if actuator_id not in self._registered_actuators:
-                logger.warning(f"Actuator {actuator_id} not registered in runtime, attempting auto-registration")
+                logger.warning("Actuator %s not registered in runtime, attempting auto-registration", actuator_id)
                 if not self._auto_register_actuator(actuator_id):
-                    logger.error(f"Failed to auto-register actuator {actuator_id}")
+                    logger.error("Failed to auto-register actuator %s", actuator_id)
                     return False
 
             if state:
@@ -317,7 +316,7 @@ class ActuatorManagementService:
             return result.state == ActuatorState.OFF
 
         except Exception as e:
-            logger.error(f"Error setting actuator {actuator_id} state: {e}", exc_info=True)
+            logger.error("Error setting actuator %s state: %s", actuator_id, e, exc_info=True)
             return False
 
     @synchronized
@@ -333,7 +332,7 @@ class ActuatorManagementService:
         """
         try:
             if actuator_id not in self._registered_actuators:
-                logger.warning(f"Actuator {actuator_id} not registered")
+                logger.warning("Actuator %s not registered", actuator_id)
                 return None
 
             reading = self.get_state(actuator_id)
@@ -344,7 +343,7 @@ class ActuatorManagementService:
             return None
 
         except Exception as e:
-            logger.error(f"Error getting actuator {actuator_id} state: {e}", exc_info=True)
+            logger.error("Error getting actuator %s state: %s", actuator_id, e, exc_info=True)
             return None
 
     @synchronized
@@ -379,9 +378,6 @@ class ActuatorManagementService:
                 actuator_type = app_to_infra_actuator_type(actuator_type)
             if not isinstance(protocol, Protocol):
                 protocol = app_to_infra_protocol(protocol)
-
-            protocol_val = getattr(protocol, "value", protocol)
-            protocol_lower = str(protocol_val).lower()
 
             # Canonical config keys expected by ActuatorFactory.
             mapped_config = {
@@ -470,19 +466,19 @@ class ActuatorManagementService:
             }
             self._actuator_cache.set(f"actuator_{actuator_id}", actuator_metadata)
 
-            logger.info(f"Registered actuator {actuator_id}: {name} ({actuator_type.value})")
+            logger.info("Registered actuator %s: %s (%s)", actuator_id, name, actuator_type.value)
 
             # Notify health service
             if self.device_health_service:
                 try:
                     self.device_health_service.register_actuator(actuator_id)
                 except Exception as health_error:
-                    logger.warning(f"Health registration failed for actuator {actuator_id}: {health_error}")
+                    logger.warning("Health registration failed for actuator %s: %s", actuator_id, health_error)
 
             return True
 
         except Exception as e:
-            logger.exception(f"Registration failed for actuator {actuator_id}: {e}")
+            logger.exception("Registration failed for actuator %s: %s", actuator_id, e)
             return False
 
     def register_actuator_config(self, actuator_config: dict[str, Any]) -> bool:
@@ -519,29 +515,25 @@ class ActuatorManagementService:
             actuator = self._actuators[actuator_id]
 
             # Turn off before removing (safety)
-            try:
+            with contextlib.suppress(Exception):
                 actuator.turn_off()
-            except Exception:
-                pass
 
             # Cleanup adapter resources (unsubscribe MQTT topics, etc.)
             if hasattr(actuator, "adapter") and actuator.adapter is not None:
                 try:
                     if hasattr(actuator.adapter, "cleanup"):
                         actuator.adapter.cleanup()
-                        logger.debug(f"Cleaned up adapter for actuator {actuator_id}")
+                        logger.debug("Cleaned up adapter for actuator %s", actuator_id)
                 except Exception as e:
-                    logger.warning(f"Adapter cleanup failed for actuator {actuator_id}: {e}")
+                    logger.warning("Adapter cleanup failed for actuator %s: %s", actuator_id, e)
 
             # Remove from storage
             del self._actuators[actuator_id]
 
             # Remove from type index
             if actuator.actuator_type in self._actuators_by_type:
-                try:
+                with contextlib.suppress(ValueError):
                     self._actuators_by_type[actuator.actuator_type].remove(actuator)
-                except ValueError:
-                    pass
 
             # Remove from tracking
             self._registered_actuators.discard(actuator_id)
@@ -558,19 +550,21 @@ class ActuatorManagementService:
                 ),
             )
 
-            logger.info(f"Unregistered actuator {actuator_id}")
+            logger.info("Unregistered actuator %s", actuator_id)
 
             # Notify health service
             if self.device_health_service:
                 try:
                     self.device_health_service.unregister_actuator(actuator_id)
                 except Exception as health_error:
-                    logger.warning(f"Failed to unregister actuator {actuator_id} from health service: {health_error}")
+                    logger.warning(
+                        "Failed to unregister actuator %s from health service: %s", actuator_id, health_error
+                    )
 
             return True
 
         except Exception as e:
-            logger.error(f"Error unregistering actuator {actuator_id}: {e}", exc_info=True)
+            logger.error("Error unregistering actuator %s: %s", actuator_id, e, exc_info=True)
             return False
 
     # ==================== Hardware Control Methods ====================
@@ -742,7 +736,7 @@ class ActuatorManagementService:
 
         actuator.add_interlock(interlocked_with)
         self.safety_service.register_interlock(actuator_id, interlocked_with)
-        logger.info(f"Added interlock: {actuator_id} <-> {interlocked_with}")
+        logger.info("Added interlock: %s <-> %s", actuator_id, interlocked_with)
 
     @synchronized
     def remove_interlock(self, actuator_id: int, interlocked_with: int) -> None:
@@ -753,7 +747,7 @@ class ActuatorManagementService:
 
         actuator.remove_interlock(interlocked_with)
         self.safety_service.remove_interlock(actuator_id, interlocked_with)
-        logger.info(f"Removed interlock: {actuator_id} <-> {interlocked_with}")
+        logger.info("Removed interlock: %s <-> %s", actuator_id, interlocked_with)
 
     @synchronized
     def get_runtime_stats(self, actuator_id: int) -> dict[str, Any]:
@@ -767,7 +761,7 @@ class ActuatorManagementService:
             try:
                 actuator.turn_off()
             except Exception as e:
-                logger.error(f"Failed to turn off actuator {actuator.actuator_id}: {e}")
+                logger.error("Failed to turn off actuator %s: %s", actuator.actuator_id, e)
         logger.info("Turned off all actuators")
 
     @synchronized
@@ -903,7 +897,7 @@ class ActuatorManagementService:
             try:
                 callback(device)
             except Exception as e:
-                logger.error(f"Error in discovery callback: {e}")
+                logger.error("Error in discovery callback: %s", e)
 
     @synchronized
     def _on_device_state_update(self, ieee_address: str, state: dict[str, Any]) -> None:
@@ -991,12 +985,12 @@ class ActuatorManagementService:
         """
         actuator = self._actuators.get(actuator_id)
         if not actuator:
-            logger.warning(f"Actuator {actuator_id} not found for send_command")
+            logger.warning("Actuator %s not found for send_command", actuator_id)
             return False
 
         adapter = actuator._adapter
         if not adapter:
-            logger.warning(f"Actuator {actuator_id} has no adapter for send_command")
+            logger.warning("Actuator %s has no adapter for send_command", actuator_id)
             return False
 
         if not hasattr(adapter, "send_command"):
@@ -1008,7 +1002,7 @@ class ActuatorManagementService:
         try:
             return adapter.send_command(command)
         except Exception as e:
-            logger.error(f"Error sending command to actuator {actuator_id}: {e}")
+            logger.error("Error sending command to actuator %s: %s", actuator_id, e)
             return False
 
     def identify_actuator(self, actuator_id: int, duration: int = 10) -> bool:
@@ -1024,7 +1018,7 @@ class ActuatorManagementService:
         """
         actuator = self._actuators.get(actuator_id)
         if not actuator or not actuator._adapter:
-            logger.warning(f"Actuator {actuator_id} not found or has no adapter")
+            logger.warning("Actuator %s not found or has no adapter", actuator_id)
             return False
 
         adapter = actuator._adapter
@@ -1032,14 +1026,14 @@ class ActuatorManagementService:
             try:
                 return adapter.identify(duration)
             except Exception as e:
-                logger.error(f"Error identifying actuator {actuator_id}: {e}")
+                logger.error("Error identifying actuator %s: %s", actuator_id, e)
                 return False
 
         # Fallback: try send_command with identify
         if hasattr(adapter, "send_command"):
             return adapter.send_command({"identify": duration})
 
-        logger.warning(f"Actuator {actuator_id} does not support identification")
+        logger.warning("Actuator %s does not support identification", actuator_id)
         return False
 
     def get_actuator_device_info(self, actuator_id: int) -> dict[str, Any] | None:
@@ -1061,7 +1055,7 @@ class ActuatorManagementService:
             try:
                 return adapter.get_device_info()
             except Exception as e:
-                logger.error(f"Error getting device info for actuator {actuator_id}: {e}")
+                logger.error("Error getting device info for actuator %s: %s", actuator_id, e)
                 return None
 
         # Return basic info from entity
@@ -1089,7 +1083,7 @@ class ActuatorManagementService:
         """
         actuator = self._actuators.get(actuator_id)
         if not actuator or not actuator._adapter:
-            logger.warning(f"Actuator {actuator_id} not found or has no adapter")
+            logger.warning("Actuator %s not found or has no adapter", actuator_id)
             return False
 
         adapter = actuator._adapter
@@ -1097,10 +1091,10 @@ class ActuatorManagementService:
             try:
                 return adapter.rename(new_name)
             except Exception as e:
-                logger.error(f"Error renaming actuator {actuator_id}: {e}")
+                logger.error("Error renaming actuator %s: %s", actuator_id, e)
                 return False
 
-        logger.warning(f"Actuator {actuator_id} does not support rename")
+        logger.warning("Actuator %s does not support rename", actuator_id)
         return False
 
     def remove_actuator_from_network(self, actuator_id: int) -> bool:
@@ -1118,7 +1112,7 @@ class ActuatorManagementService:
         """
         actuator = self._actuators.get(actuator_id)
         if not actuator or not actuator._adapter:
-            logger.warning(f"Actuator {actuator_id} not found or has no adapter")
+            logger.warning("Actuator %s not found or has no adapter", actuator_id)
             return False
 
         adapter = actuator._adapter
@@ -1126,10 +1120,10 @@ class ActuatorManagementService:
             try:
                 return adapter.remove_from_network()
             except Exception as e:
-                logger.error(f"Error removing actuator {actuator_id} from network: {e}")
+                logger.error("Error removing actuator %s from network: %s", actuator_id, e)
                 return False
 
-        logger.warning(f"Actuator {actuator_id} does not support network removal")
+        logger.warning("Actuator %s does not support network removal", actuator_id)
         return False
 
     # ==================== Health Tracking ====================
@@ -1203,7 +1197,7 @@ class ActuatorManagementService:
                 f"score={health_score:.1f}, status={status}, operations={operations}"
             )
         except Exception as e:
-            logger.error(f"Failed to save health snapshot for actuator {actuator_id}: {e}")
+            logger.error("Failed to save health snapshot for actuator %s: %s", actuator_id, e)
 
     def _log_anomaly(self, actuator_id: int, anomaly_type: str, severity: str, details: dict[str, Any]) -> None:
         """Log anomaly to database."""
@@ -1215,9 +1209,9 @@ class ActuatorManagementService:
                 self.device_health_service.log_actuator_anomaly(
                     actuator_id=actuator_id, anomaly_type=anomaly_type, severity=severity, details=details
                 )
-            logger.warning(f"Anomaly logged for actuator {actuator_id}: type={anomaly_type}, severity={severity}")
+            logger.warning("Anomaly logged for actuator %s: type=%s, severity=%s", actuator_id, anomaly_type, severity)
         except Exception as e:
-            logger.error(f"Failed to log anomaly for actuator {actuator_id}: {e}")
+            logger.error("Failed to log anomaly for actuator %s: %s", actuator_id, e)
 
     @synchronized
     def _persist_power_reading(self, actuator_id: int, reading: EnergyReading) -> None:
@@ -1238,9 +1232,9 @@ class ActuatorManagementService:
                     temperature=reading.temperature,
                     is_estimated=False,
                 )
-                logger.debug(f"Power reading persisted for actuator {actuator_id}: {reading.power}W")
+                logger.debug("Power reading persisted for actuator %s: %sW", actuator_id, reading.power)
         except Exception as e:
-            logger.error(f"Failed to persist power reading for actuator {actuator_id}: {e}")
+            logger.error("Failed to persist power reading for actuator %s: %s", actuator_id, e)
 
     @synchronized
     def _load_calibration_profiles(self, actuator_id: int, actuator_type: ActuatorType) -> None:
@@ -1269,7 +1263,7 @@ class ActuatorManagementService:
                     )
                     break
         except Exception as e:
-            logger.error(f"Failed to load calibration profiles for actuator {actuator_id}: {e}")
+            logger.error("Failed to load calibration profiles for actuator %s: %s", actuator_id, e)
 
     # ==================== Batch Operations ====================
 
@@ -1302,11 +1296,11 @@ class ActuatorManagementService:
                 success = self.set_actuator_state(actuator_id=actuator_id, state=state, user_id=user_id, reason=reason)
                 results[actuator_id] = success
             except Exception as e:
-                logger.error(f"Error in batch operation for actuator {actuator_id}: {e}")
+                logger.error("Error in batch operation for actuator %s: %s", actuator_id, e)
                 results[actuator_id] = False
 
         successful = sum(1 for success in results.values() if success)
-        logger.info(f"Batch operation: {successful}/{len(actuator_states)} actuators updated successfully")
+        logger.info("Batch operation: %s/%s actuators updated successfully", successful, len(actuator_states))
 
         return results
 
@@ -1328,7 +1322,7 @@ class ActuatorManagementService:
             cached = self._actuator_cache.get(cache_key)
 
             if cached:
-                logger.debug(f"Actuator {actuator_id} metadata from cache")
+                logger.debug("Actuator %s metadata from cache", actuator_id)
                 return cached
 
             # Fallback to database
@@ -1338,14 +1332,14 @@ class ActuatorManagementService:
                 # Cache for next time
                 self._actuator_cache.set(cache_key, actuator)
 
-                logger.debug(f"Actuator {actuator_id} metadata from database (cached)")
+                logger.debug("Actuator %s metadata from database (cached)", actuator_id)
                 return actuator
 
-            logger.warning(f"Actuator {actuator_id} not found")
+            logger.warning("Actuator %s not found", actuator_id)
             return None
 
         except Exception as e:
-            logger.error(f"Error getting actuator {actuator_id}: {e}", exc_info=True)
+            logger.error("Error getting actuator %s: %s", actuator_id, e, exc_info=True)
             return None
 
     def list_actuators(self, unit_id: int | None = None) -> list[dict[str, Any]]:
@@ -1362,7 +1356,7 @@ class ActuatorManagementService:
             return self.repository.list_actuator_configs(unit_id=unit_id)
 
         except Exception as e:
-            logger.error(f"Error listing actuators: {e}", exc_info=True)
+            logger.error("Error listing actuators: %s", e, exc_info=True)
             return []
 
     def get_registered_actuator_ids(self) -> list[int]:
@@ -1414,7 +1408,7 @@ class ActuatorManagementService:
             return status
 
         except Exception as e:
-            logger.error(f"Error getting actuator {actuator_id} status: {e}", exc_info=True)
+            logger.error("Error getting actuator %s status: %s", actuator_id, e, exc_info=True)
             return {"actuator_id": actuator_id, "error": str(e)}
 
     # ==================== Internal Helpers ====================
@@ -1434,17 +1428,17 @@ class ActuatorManagementService:
             actuator = self.repository.find_actuator_config_by_id(actuator_id)
 
             if not actuator:
-                logger.error(f"Actuator {actuator_id} not found in database")
+                logger.error("Actuator %s not found in database", actuator_id)
                 return False
             # Register in runtime (protect registration to avoid duplicates)
             with self._lock:
                 if actuator_id in self._registered_actuators:
-                    logger.debug(f"Actuator {actuator_id} already registered by another thread")
+                    logger.debug("Actuator %s already registered by another thread", actuator_id)
                     return True
                 return self.register_actuator_config(actuator)
 
         except Exception as e:
-            logger.error(f"Error auto-registering actuator {actuator_id}: {e}", exc_info=True)
+            logger.error("Error auto-registering actuator %s: %s", actuator_id, e, exc_info=True)
             return False
 
     # ==================== Lifecycle ====================
@@ -1465,7 +1459,7 @@ class ActuatorManagementService:
                 try:
                     self.set_actuator_state(actuator_id, False, reason="shutdown_safety")
                 except Exception as e:
-                    logger.warning(f"Failed to turn off actuator {actuator_id} during shutdown: {e}")
+                    logger.warning("Failed to turn off actuator %s during shutdown: %s", actuator_id, e)
 
             # Clear cache
             self._actuator_cache.clear()
@@ -1476,7 +1470,7 @@ class ActuatorManagementService:
             logger.info("ActuatorManagementService shutdown complete")
 
         except Exception as e:
-            logger.error(f"Error during ActuatorManagementService shutdown: {e}", exc_info=True)
+            logger.error("Error during ActuatorManagementService shutdown: %s", e, exc_info=True)
 
 
 __all__ = ["ActuatorManagementService"]

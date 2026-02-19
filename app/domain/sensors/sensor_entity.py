@@ -4,106 +4,19 @@ Sensor Domain Entity
 Rich domain model representing a sensor with business logic.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
+
+from app.enums.device import Protocol, SensorType
 
 if TYPE_CHECKING:
     from app.domain.sensors.calibration import CalibrationData
     from app.domain.sensors.health_status import HealthStatus
     from app.domain.sensors.reading import SensorReading
     from app.domain.sensors.sensor_config import SensorConfig
-
-
-class SensorType(str, Enum):
-    """
-    Sensor categories.
-
-    Two categories that group all sensors:
-    - ENVIRONMENTAL: temperature, humidity, co2, lux, voc, smoke, pressure, air_quality
-    - PLANT: soil_moisture, ph, ec
-
-    The specific metrics each sensor provides are defined in `primary_metrics` field,
-    allowing maximum flexibility (e.g., a plant sensor can provide lux readings).
-    """
-
-    ENVIRONMENTAL = "environmental"
-    PLANT = "plant"
-
-    @classmethod
-    def _missing_(cls, value: object) -> "SensorType | None":
-        """Map legacy sensor type values to new categories."""
-        if not isinstance(value, str):
-            return None
-
-        # Map old individual types to new categories
-        environmental_types = {
-            "environment_sensor",
-            "temperature",
-            "temperature_sensor",
-            "humidity",
-            "humidity_sensor",
-            "co2",
-            "lux_sensor",
-            "light",
-            "light_sensor",
-            "voc",
-            "smoke_sensor",
-            "pressure",
-            "pressure_sensor",
-            "air_quality",
-            "air_quality_sensor",
-        }
-        plant_types = {
-            "plant_sensor",
-            "soil_moisture",
-            "soil_moisture_sensor",
-            "ph",
-            "ec",
-        }
-
-        if value in environmental_types:
-            return cls.ENVIRONMENTAL
-        if value in plant_types:
-            return cls.PLANT
-
-        return None
-
-
-class Protocol(str, Enum):
-    """Communication protocols"""
-
-    GPIO = "GPIO"
-    I2C = "I2C"
-    ADC = "ADC"
-    MQTT = "mqtt"
-    ZIGBEE = "zigbee"
-    ZIGBEE2MQTT = "zigbee2mqtt"
-    HTTP = "http"
-    MODBUS = "Modbus"
-    WIRELESS = "wireless"
-
-    @classmethod
-    def _missing_(cls, value: object) -> "Protocol | None":
-        """Backwards-compatible mapping for legacy protocol values."""
-        if not isinstance(value, str):
-            return None
-
-        legacy_map = {
-            "MQTT": cls.MQTT.value,
-            "ZIGBEE": cls.ZIGBEE.value,
-            "ZIGBEE2MQTT": cls.ZIGBEE2MQTT.value,
-            "HTTP": cls.HTTP.value,
-            "MODBUS": cls.MODBUS.value,
-            "WIRELESS": cls.WIRELESS.value,
-        }
-
-        mapped = legacy_map.get(value)
-        if mapped is None:
-            return None
-
-        return cls(mapped)
 
 
 @dataclass
@@ -124,11 +37,11 @@ class SensorEntity:
     # Runtime state
     _adapter: Any | None = field(default=None, repr=False)
     _processor: Any | None = field(default=None, repr=False)
-    _last_reading: Optional["SensorReading"] = None
+    _last_reading: "SensorReading" | None = None
     _last_read_time: datetime | None = None
     _error_count: int = 0
-    _health_status: Optional["HealthStatus"] = None
-    _calibration: Optional["CalibrationData"] = None
+    _health_status: "HealthStatus" | None = None
+    _calibration: "CalibrationData" | None = None
 
     def __post_init__(self):
         """Initialize health status"""
@@ -189,7 +102,7 @@ class SensorEntity:
         except Exception as e:
             self._error_count += 1
             self._update_health_status(success=False, error=str(e))
-            raise SensorReadError(f"Failed to read sensor {self.id} ({self.name}): {e}")
+            raise SensorReadError(f"Failed to read sensor {self.id} ({self.name}): {e}") from e
 
     def _create_reading_from_raw(self, raw_data: dict) -> "SensorReading":
         """Create reading from raw data without processor"""
@@ -238,7 +151,7 @@ class SensorEntity:
         """Check if sensor uses wireless communication"""
         return self.protocol in (Protocol.MQTT, Protocol.ZIGBEE, Protocol.ZIGBEE2MQTT, Protocol.WIRELESS)
 
-    def get_last_reading(self) -> Optional["SensorReading"]:
+    def get_last_reading(self) -> "SensorReading" | None:
         """Get last successful reading"""
         return self._last_reading
 

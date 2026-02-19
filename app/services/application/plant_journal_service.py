@@ -14,6 +14,7 @@ Provides data for AI analysis of nutrient-health correlations.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 from datetime import datetime
@@ -103,12 +104,12 @@ class PlantJournalService:
             )
 
             if entry_id:
-                logger.info(f"Recorded observation for plant {plant_id}: {entry_id}")
+                logger.info("Recorded observation for plant %s: %s", plant_id, entry_id)
 
             return entry_id
 
         except Exception as e:
-            logger.error(f"Failed to record observation: {e}")
+            logger.error("Failed to record observation: %s", e)
             return None
 
     def record_watering(
@@ -307,12 +308,12 @@ class PlantJournalService:
             )
 
             if entry_id:
-                logger.info(f"Recorded nutrient for plant {plant_id}: {nutrient_type} ({amount}{unit})")
+                logger.info("Recorded nutrient for plant %s: %s (%s%s)", plant_id, nutrient_type, amount, unit)
 
             return entry_id
 
         except Exception as e:
-            logger.error(f"Failed to record nutrient: {e}")
+            logger.error("Failed to record nutrient: %s", e)
             return None
 
     def record_bulk_nutrient_application(
@@ -359,7 +360,7 @@ class PlantJournalService:
             return {"success": True, "entries_created": len(created_ids), "entry_ids": created_ids}
 
         except Exception as e:
-            logger.error(f"Failed bulk nutrient application: {e}")
+            logger.error("Failed bulk nutrient application: %s", e)
             return {"success": False, "entries_created": 0, "error": str(e)}
 
     # ========================================================================
@@ -392,12 +393,12 @@ class PlantJournalService:
             )
 
             if entry_id:
-                logger.info(f"Recorded treatment for plant {plant_id}: {treatment_type}")
+                logger.info("Recorded treatment for plant %s: %s", plant_id, treatment_type)
 
             return entry_id
 
         except Exception as e:
-            logger.error(f"Failed to record treatment: {e}")
+            logger.error("Failed to record treatment: %s", e)
             return None
 
     # ========================================================================
@@ -423,12 +424,12 @@ class PlantJournalService:
             entry_id = self.repo.create_note(plant_id=plant_id, notes=notes, image_path=image_path, user_id=user_id)
 
             if entry_id:
-                logger.info(f"Added note for plant {plant_id}")
+                logger.info("Added note for plant %s", plant_id)
 
             return entry_id
 
         except Exception as e:
-            logger.error(f"Failed to add note: {e}")
+            logger.error("Failed to add note: %s", e)
             return None
 
     # ========================================================================
@@ -463,10 +464,8 @@ class PlantJournalService:
         # Parse JSON fields
         for entry in entries:
             if entry.get("symptoms"):
-                try:
+                with contextlib.suppress(ValueError, TypeError):
                     entry["symptoms"] = json.loads(entry["symptoms"])
-                except (ValueError, TypeError):
-                    pass
 
         return entries
 
@@ -564,7 +563,7 @@ class PlantJournalService:
             return correlation
 
         except Exception as e:
-            logger.error(f"Failed to analyze correlation: {e}")
+            logger.error("Failed to analyze correlation: %s", e)
             return {}
 
     def get_nutrient_recommendations(self, plant_id: int) -> dict[str, Any]:
@@ -613,7 +612,7 @@ class PlantJournalService:
             return recommendations
 
         except Exception as e:
-            logger.error(f"Failed to get recommendations: {e}")
+            logger.error("Failed to get recommendations: %s", e)
             return {}
 
     # ========================================================================
@@ -692,12 +691,12 @@ class PlantJournalService:
             )
 
             if entry_id:
-                logger.info(f"Recorded pruning for plant {plant_id}: {pruning_type}")
+                logger.info("Recorded pruning for plant %s: %s", plant_id, pruning_type)
 
             return entry_id
 
         except Exception as e:
-            logger.error(f"Failed to record pruning: {e}")
+            logger.error("Failed to record pruning: %s", e)
             return None
 
     def record_stage_change(
@@ -734,12 +733,12 @@ class PlantJournalService:
             )
 
             if entry_id:
-                logger.info(f"Recorded stage change for plant {plant_id}: {from_stage} -> {to_stage}")
+                logger.info("Recorded stage change for plant %s: %s -> %s", plant_id, from_stage, to_stage)
 
             return entry_id
 
         except Exception as e:
-            logger.error(f"Failed to record stage change: {e}")
+            logger.error("Failed to record stage change: %s", e)
             return None
 
     def record_harvest(
@@ -786,7 +785,7 @@ class PlantJournalService:
             return entry_id
 
         except Exception as e:
-            logger.error(f"Failed to record harvest: {e}")
+            logger.error("Failed to record harvest: %s", e)
             return None
 
     def record_environmental_adjustment(
@@ -831,7 +830,7 @@ class PlantJournalService:
             return entry_id
 
         except Exception as e:
-            logger.error(f"Failed to record environmental adjustment: {e}")
+            logger.error("Failed to record environmental adjustment: %s", e)
             return None
 
     def record_transplant(
@@ -868,12 +867,12 @@ class PlantJournalService:
             )
 
             if entry_id:
-                logger.info(f"Recorded transplant for plant {plant_id}: {from_container} -> {to_container}")
+                logger.info("Recorded transplant for plant %s: %s -> %s", plant_id, from_container, to_container)
 
             return entry_id
 
         except Exception as e:
-            logger.error(f"Failed to record transplant: {e}")
+            logger.error("Failed to record transplant: %s", e)
             return None
 
     # ========================================================================
@@ -907,10 +906,10 @@ class PlantJournalService:
                 trigger="automatic",
                 notes=f"Auto-recorded stage update to '{new_stage}' (day {days_in_stage})",
             )
-            logger.debug(f"Auto-journaled stage update for plant {plant_id} → {new_stage}")
+            logger.debug("Auto-journaled stage update for plant %s → %s", plant_id, new_stage)
 
         except Exception as e:
-            logger.error(f"Auto-journal stage update failed: {e}", exc_info=True)
+            logger.error("Auto-journal stage update failed: %s", e, exc_info=True)
 
     def handle_plant_added_event(self, payload) -> None:
         """
@@ -933,10 +932,10 @@ class PlantJournalService:
                 plant_id=plant_id,
                 notes=f"Plant added to unit {unit_id or 'unknown'}",
             )
-            logger.debug(f"Auto-journaled plant added: {plant_id}")
+            logger.debug("Auto-journaled plant added: %s", plant_id)
 
         except Exception as e:
-            logger.error(f"Auto-journal plant added failed: {e}", exc_info=True)
+            logger.error("Auto-journal plant added failed: %s", e, exc_info=True)
 
     def handle_plant_removed_event(self, payload) -> None:
         """
@@ -959,10 +958,10 @@ class PlantJournalService:
                 plant_id=plant_id,
                 notes=f"Plant removed from unit {unit_id or 'unknown'}",
             )
-            logger.debug(f"Auto-journaled plant removed: {plant_id}")
+            logger.debug("Auto-journaled plant removed: %s", plant_id)
 
         except Exception as e:
-            logger.error(f"Auto-journal plant removed failed: {e}", exc_info=True)
+            logger.error("Auto-journal plant removed failed: %s", e, exc_info=True)
 
     def handle_active_plant_changed_event(self, payload) -> None:
         """
@@ -985,7 +984,7 @@ class PlantJournalService:
                 plant_id=plant_id,
                 notes=f"Plant set as active in unit {unit_id or 'unknown'}",
             )
-            logger.debug(f"Auto-journaled active plant changed: {plant_id}")
+            logger.debug("Auto-journaled active plant changed: %s", plant_id)
 
         except Exception as e:
-            logger.error(f"Auto-journal active plant changed failed: {e}", exc_info=True)
+            logger.error("Auto-journal active plant changed failed: %s", e, exc_info=True)

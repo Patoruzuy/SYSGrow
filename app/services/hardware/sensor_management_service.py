@@ -33,6 +33,7 @@ Memory-First:
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import threading
 from typing import TYPE_CHECKING, Any
@@ -157,11 +158,8 @@ class SensorManagementService:
         # Memory cache for sensor metadata (reduces DB queries)
         self._sensor_cache = TTLCache(enabled=True, ttl_seconds=cache_ttl_seconds, maxsize=cache_maxsize)
         # Register cache for monitoring
-        try:
+        with contextlib.suppress(ValueError):
             CacheRegistry.get_instance().register("sensor_management.sensors", self._sensor_cache)
-        except ValueError:
-            # Cache already registered (e.g., during testing)
-            pass
 
         # Track which sensors are registered in runtime (for compatibility)
         self._registered_sensors: set[int] = set()
@@ -211,10 +209,8 @@ class SensorManagementService:
             )
 
         # Notify listeners (e.g. MQTTSensorService) to refresh any friendly-name caches.
-        try:
+        with contextlib.suppress(Exception):
             self.event_bus.publish(DeviceEvent.SENSOR_CREATED, {"sensor_id": int(sensor_id), "unit_id": unit_id})
-        except Exception:
-            pass
 
         return int(sensor_id)
 
@@ -246,14 +242,12 @@ class SensorManagementService:
                     if friendly_name:
                         try:
                             self._zigbee_service.remove_device(friendly_name=friendly_name)
-                            logger.info(f"Removed sensor {sensor_id} from Zigbee network: {friendly_name}")
+                            logger.info("Removed sensor %s from Zigbee network: %s", sensor_id, friendly_name)
                         except Exception as e:
-                            logger.warning(f"Failed to remove sensor {sensor_id} from Zigbee network: {e}")
+                            logger.warning("Failed to remove sensor %s from Zigbee network: %s", sensor_id, e)
 
-            try:
+            with contextlib.suppress(Exception):
                 self.event_bus.publish(DeviceEvent.SENSOR_DELETED, {"sensor_id": int(sensor_id)})
-            except Exception:
-                pass
 
     def read_sensor(self, sensor_id: int) -> SensorReading | None:
         """
@@ -277,10 +271,10 @@ class SensorManagementService:
                 sensor = self._sensors.get(sensor_id)
 
             if not sensor:
-                logger.warning(f"Sensor {sensor_id} not registered in runtime, attempting auto-registration")
+                logger.warning("Sensor %s not registered in runtime, attempting auto-registration", sensor_id)
                 # Attempt auto-registration
                 if not self._auto_register_sensor(sensor_id):
-                    logger.error(f"Failed to auto-register sensor {sensor_id}")
+                    logger.error("Failed to auto-register sensor %s", sensor_id)
                     return None
 
                 with self._sensors_lock:
@@ -299,7 +293,7 @@ class SensorManagementService:
                 expected_range = (float(sensor.config.min_threshold), float(sensor.config.max_threshold))
 
             for field_name, value in (reading.data or {}).items():
-                if not isinstance(value, (int, float)):
+                if not isinstance(value, int | float):
                     continue
                 anomaly = self.anomaly_service.check_reading(
                     sensor_id=sensor_id,
@@ -326,11 +320,11 @@ class SensorManagementService:
                     f"Anomaly detected in sensor {sensor_id}: {anomaly.anomaly_type.value} - {anomaly.description}"
                 )
 
-            logger.debug(f"Sensor {sensor_id} reading: {reading.data}")
+            logger.debug("Sensor %s reading: %s", sensor_id, reading.data)
             return reading
 
         except Exception as e:
-            logger.error(f"Error reading sensor {sensor_id}: {e}", exc_info=True)
+            logger.error("Error reading sensor %s: %s", sensor_id, e, exc_info=True)
 
             # Emit error event
             self.event_bus.publish("sensor_error", {"sensor_id": sensor_id, "error": str(e)})
@@ -405,7 +399,7 @@ class SensorManagementService:
             # Check if already registered
             with self._sensors_lock:
                 if sensor_id in self._sensors:
-                    logger.warning(f"Sensor {sensor_id} already registered")
+                    logger.warning("Sensor %s already registered", sensor_id)
                     return True
 
             protocol_obj = Protocol(protocol)
@@ -475,12 +469,14 @@ class SensorManagementService:
                 "sensor_registered", {"sensor_id": sensor_id, "name": name, "type": sensor_type, "protocol": protocol}
             )
 
-            logger.info(f"Registered sensor {sensor_id} (type={sensor_type}, protocol={protocol}, unit={unit_id})")
+            logger.info(
+                "Registered sensor %s (type=%s, protocol=%s, unit=%s)", sensor_id, sensor_type, protocol, unit_id
+            )
 
             return True
 
         except Exception as e:
-            logger.error(f"Error registering sensor {sensor_id}: {e}", exc_info=True)
+            logger.error("Error registering sensor %s: %s", sensor_id, e, exc_info=True)
             return False
 
     def register_sensor_config(self, sensor_config: dict[str, Any]) -> bool:
@@ -526,16 +522,14 @@ class SensorManagementService:
                 if sensor._adapter is not None:
                     try:
                         sensor._adapter.cleanup()
-                        logger.debug(f"Cleaned up adapter for sensor {sensor_id}")
+                        logger.debug("Cleaned up adapter for sensor %s", sensor_id)
                     except Exception as e:
-                        logger.warning(f"Adapter cleanup failed for sensor {sensor_id}: {e}")
+                        logger.warning("Adapter cleanup failed for sensor %s: %s", sensor_id, e)
 
                 # Remove from type index
                 if sensor.sensor_type in self._sensors_by_type:
-                    try:
+                    with contextlib.suppress(ValueError):
                         self._sensors_by_type[sensor.sensor_type].remove(sensor)
-                    except ValueError:
-                        pass
 
                 # Remove from protocol index
                 if sensor_id in self._gpio_sensors:
@@ -559,11 +553,11 @@ class SensorManagementService:
             # Emit event
             self.event_bus.publish("sensor_unregistered", {"sensor_id": sensor_id})
 
-            logger.info(f"Unregistered sensor {sensor_id}")
+            logger.info("Unregistered sensor %s", sensor_id)
             return True
 
         except Exception as e:
-            logger.error(f"Error unregistering sensor {sensor_id}: {e}", exc_info=True)
+            logger.error("Error unregistering sensor %s: %s", sensor_id, e, exc_info=True)
             return False
 
     # ==================== Sensor Polling ====================
@@ -588,7 +582,7 @@ class SensorManagementService:
 
             sensor_count = len(sensor_ids) if sensor_ids else len(self._registered_sensors)
             if started:
-                logger.info(f"Started sensor polling for {sensor_count} sensors (interval={interval_seconds}s)")
+                logger.info("Started sensor polling for %s sensors (interval=%ss)", sensor_count, interval_seconds)
             else:
                 logger.info(
                     "Sensor polling not started (no GPIO/I2C/ADC/SPI sensors registered). "
@@ -598,7 +592,7 @@ class SensorManagementService:
             return started
 
         except Exception as e:
-            logger.error(f"Error starting sensor polling: {e}", exc_info=True)
+            logger.error("Error starting sensor polling: %s", e, exc_info=True)
             return False
 
     def stop_polling(self) -> bool:
@@ -613,7 +607,7 @@ class SensorManagementService:
             logger.info("Stopped sensor polling")
             return True
         except Exception as e:
-            logger.error(f"Error stopping sensor polling: {e}", exc_info=True)
+            logger.error("Error stopping sensor polling: %s", e, exc_info=True)
             return False
 
     # ==================== Queries (Memory-First) ====================
@@ -634,7 +628,7 @@ class SensorManagementService:
             cached = self._sensor_cache.get(cache_key)
 
             if cached:
-                logger.debug(f"Sensor {sensor_id} metadata from cache")
+                logger.debug("Sensor %s metadata from cache", sensor_id)
                 return cached
 
             # Fallback to database
@@ -644,14 +638,14 @@ class SensorManagementService:
                 # Cache for next time
                 self._sensor_cache.set(cache_key, sensor)
 
-                logger.debug(f"Sensor {sensor_id} metadata from database (cached)")
+                logger.debug("Sensor %s metadata from database (cached)", sensor_id)
                 return sensor
 
-            logger.warning(f"Sensor {sensor_id} not found")
+            logger.warning("Sensor %s not found", sensor_id)
             return None
 
         except Exception as e:
-            logger.error(f"Error getting sensor {sensor_id}: {e}", exc_info=True)
+            logger.error("Error getting sensor %s: %s", sensor_id, e, exc_info=True)
             return None
 
     def list_sensors(self, unit_id: int | None = None) -> list[dict[str, Any]]:
@@ -668,7 +662,7 @@ class SensorManagementService:
             return self.repository.list_sensor_configs(unit_id=unit_id)
 
         except Exception as e:
-            logger.error(f"Error listing sensors: {e}", exc_info=True)
+            logger.error("Error listing sensors: %s", e, exc_info=True)
             return []
 
     def get_registered_sensor_ids(self) -> list[int]:
@@ -783,7 +777,7 @@ class SensorManagementService:
             "sensor_calibrated", {"sensor_id": sensor_id, "calibration_type": calibration_data.type.value}
         )
 
-        logger.info(f"Applied calibration to sensor {sensor_id}")
+        logger.info("Applied calibration to sensor %s", sensor_id)
         return True
 
     def send_command(self, sensor_id: int, command: dict[str, Any]) -> bool:
@@ -802,22 +796,24 @@ class SensorManagementService:
         """
         sensor = self.get_sensor_entity(sensor_id)
         if not sensor:
-            logger.warning(f"Sensor {sensor_id} not found for send_command")
+            logger.warning("Sensor %s not found for send_command", sensor_id)
             return False
 
         adapter = sensor._adapter
         if not adapter:
-            logger.warning(f"Sensor {sensor_id} has no adapter for send_command")
+            logger.warning("Sensor %s has no adapter for send_command", sensor_id)
             return False
 
         if not hasattr(adapter, "send_command"):
-            logger.warning(f"Adapter for sensor {sensor_id} ({type(adapter).__name__}) does not support send_command")
+            logger.warning(
+                "Adapter for sensor %s (%s) does not support send_command", sensor_id, type(adapter).__name__
+            )
             return False
 
         try:
             return adapter.send_command(command)
         except Exception as e:
-            logger.error(f"Error sending command to sensor {sensor_id}: {e}")
+            logger.error("Error sending command to sensor %s: %s", sensor_id, e)
             return False
 
     def send_command_by_name(self, friendly_name: str, command: dict[str, Any]) -> bool:
@@ -846,7 +842,7 @@ class SensorManagementService:
                 if friendly_name in mqtt_topic:
                     return self.send_command(sensor.id, command)
 
-        logger.warning(f"No sensor found with friendly name: {friendly_name}")
+        logger.warning("No sensor found with friendly name: %s", friendly_name)
         return False
 
     def identify_sensor(self, sensor_id: int, duration: int = 10) -> bool:
@@ -862,21 +858,21 @@ class SensorManagementService:
         """
         sensor = self.get_sensor_entity(sensor_id)
         if not sensor or not sensor._adapter:
-            logger.warning(f"Sensor {sensor_id} not found or has no adapter")
+            logger.warning("Sensor %s not found or has no adapter", sensor_id)
             return False
 
         if hasattr(sensor._adapter, "identify"):
             try:
                 return sensor._adapter.identify(duration)
             except Exception as e:
-                logger.error(f"Error identifying sensor {sensor_id}: {e}")
+                logger.error("Error identifying sensor %s: %s", sensor_id, e)
                 return False
 
         # Fallback: try send_command with identify
         if hasattr(sensor._adapter, "send_command"):
             return sensor._adapter.send_command({"identify": duration})
 
-        logger.warning(f"Sensor {sensor_id} does not support identification")
+        logger.warning("Sensor %s does not support identification", sensor_id)
         return False
 
     def get_sensor_device_info(self, sensor_id: int) -> dict[str, Any] | None:
@@ -897,7 +893,7 @@ class SensorManagementService:
             try:
                 return sensor._adapter.get_device_info()
             except Exception as e:
-                logger.error(f"Error getting device info for sensor {sensor_id}: {e}")
+                logger.error("Error getting device info for sensor %s: %s", sensor_id, e)
                 return None
 
         # Return basic info from sensor entity
@@ -921,7 +917,7 @@ class SensorManagementService:
             try:
                 return sensor._adapter.get_state()
             except Exception as e:
-                logger.error(f"Error getting state for sensor {sensor_id}: {e}")
+                logger.error("Error getting state for sensor %s: %s", sensor_id, e)
 
         # Fallback to last reading
         if sensor._last_reading:
@@ -950,17 +946,17 @@ class SensorManagementService:
         """
         sensor = self.get_sensor_entity(sensor_id)
         if not sensor or not sensor._adapter:
-            logger.warning(f"Sensor {sensor_id} not found or has no adapter")
+            logger.warning("Sensor %s not found or has no adapter", sensor_id)
             return False
 
         if hasattr(sensor._adapter, "rename"):
             try:
                 return sensor._adapter.rename(new_name)
             except Exception as e:
-                logger.error(f"Error renaming sensor {sensor_id}: {e}")
+                logger.error("Error renaming sensor %s: %s", sensor_id, e)
                 return False
 
-        logger.warning(f"Sensor {sensor_id} does not support rename")
+        logger.warning("Sensor %s does not support rename", sensor_id)
         return False
 
     def remove_sensor_from_network(self, sensor_id: int) -> bool:
@@ -978,17 +974,17 @@ class SensorManagementService:
         """
         sensor = self.get_sensor_entity(sensor_id)
         if not sensor or not sensor._adapter:
-            logger.warning(f"Sensor {sensor_id} not found or has no adapter")
+            logger.warning("Sensor %s not found or has no adapter", sensor_id)
             return False
 
         if hasattr(sensor._adapter, "remove_from_network"):
             try:
                 return sensor._adapter.remove_from_network()
             except Exception as e:
-                logger.error(f"Error removing sensor {sensor_id} from network: {e}")
+                logger.error("Error removing sensor %s from network: %s", sensor_id, e)
                 return False
 
-        logger.warning(f"Sensor {sensor_id} does not support network removal")
+        logger.warning("Sensor %s does not support network removal", sensor_id)
         return False
 
     def get_health_report(self):
@@ -1057,7 +1053,7 @@ class SensorManagementService:
             return status
 
         except Exception as e:
-            logger.error(f"Error getting sensor {sensor_id} status: {e}", exc_info=True)
+            logger.error("Error getting sensor %s status: %s", sensor_id, e, exc_info=True)
             return {"sensor_id": sensor_id, "error": str(e)}
 
     # ==================== Internal Helpers ====================
@@ -1077,14 +1073,14 @@ class SensorManagementService:
             sensor = self.repository.find_sensor_config_by_id(sensor_id)
 
             if not sensor:
-                logger.error(f"Sensor {sensor_id} not found in database")
+                logger.error("Sensor %s not found in database", sensor_id)
                 return False
 
             # Register in runtime
             return self.register_sensor_config(sensor)
 
         except Exception as e:
-            logger.error(f"Error auto-registering sensor {sensor_id}: {e}", exc_info=True)
+            logger.error("Error auto-registering sensor %s: %s", sensor_id, e, exc_info=True)
             return False
 
     def _on_sensor_discovered(self, device_info):
@@ -1110,9 +1106,9 @@ class SensorManagementService:
             friendly = data.get("friendly_name", "unknown")
             dev_type = data.get("type", data.get("device_type", "unknown"))
 
-            logger.info(f"Auto-discovered sensor: {friendly} ({dev_type})")
+            logger.info("Auto-discovered sensor: %s (%s)", friendly, dev_type)
         except Exception as exc:
-            logger.error(f"Failed to handle sensor discovery payload: {exc}", exc_info=True)
+            logger.error("Failed to handle sensor discovery payload: %s", exc, exc_info=True)
             return
 
         # Emit event for user notification
@@ -1165,7 +1161,7 @@ class SensorManagementService:
             logger.info("SensorManagementService shutdown complete")
 
         except Exception as e:
-            logger.error(f"Error during SensorManagementService shutdown: {e}", exc_info=True)
+            logger.error("Error during SensorManagementService shutdown: %s", e, exc_info=True)
 
 
 __all__ = ["SensorManagementService"]

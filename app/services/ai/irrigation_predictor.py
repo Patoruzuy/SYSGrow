@@ -15,6 +15,7 @@ Date: January 2026
 
 from __future__ import annotations
 
+import contextlib
 import logging
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
@@ -24,6 +25,7 @@ from app.domain.irrigation import (
     DurationPrediction,
     IrrigationPrediction,
     MoistureDeclinePrediction,
+    PredictionConfidence,
     ThresholdPrediction,
     TimingPrediction,
     UserResponsePrediction,
@@ -37,6 +39,16 @@ if TYPE_CHECKING:
     from infrastructure.database.repositories.irrigation_ml import IrrigationMLRepository
 
 logger = logging.getLogger(__name__)
+
+__all__ = [
+    "DurationPrediction",
+    "IrrigationPrediction",
+    "IrrigationPredictor",
+    "PredictionConfidence",
+    "ThresholdPrediction",
+    "TimingPrediction",
+    "UserResponsePrediction",
+]
 
 
 class IrrigationPredictor:
@@ -142,14 +154,14 @@ class IrrigationPredictor:
                         self._timing_model = model
 
                 loaded = len(self._model_bundles)
-                logger.info(f"Loaded {loaded}/4 trained ML models")
+                logger.info("Loaded %s/4 trained ML models", loaded)
 
             self._models_loaded = True
             logger.info("✅ Irrigation prediction models ready")
             return True
 
         except Exception as e:
-            logger.error(f"Failed to load irrigation models: {e}", exc_info=True)
+            logger.error("Failed to load irrigation models: %s", e, exc_info=True)
             self._models_loaded = False
             return False
 
@@ -229,15 +241,13 @@ class IrrigationPredictor:
         metrics: dict[str, float],
         reason: str,
     ) -> None:
-        try:
+        with contextlib.suppress(Exception):
             logger.info(
                 "Irrigation ML gated off: model=%s reason=%s metrics=%s",
                 model_key,
                 reason,
                 metrics,
             )
-        except Exception:
-            pass
 
     def get_model_status(self, model_key: str) -> dict[str, Any]:
         """Return gating status and metadata for a specific irrigation model key."""
@@ -532,7 +542,7 @@ class IrrigationPredictor:
             )
 
         except Exception as e:
-            logger.error(f"Threshold prediction failed: {e}", exc_info=True)
+            logger.error("Threshold prediction failed: %s", e, exc_info=True)
             return ThresholdPrediction(
                 optimal_threshold=current_threshold,
                 current_threshold=current_threshold,
@@ -643,7 +653,7 @@ class IrrigationPredictor:
             )
 
         except Exception as e:
-            logger.error(f"Response prediction failed: {e}", exc_info=True)
+            logger.error("Response prediction failed: %s", e, exc_info=True)
             return UserResponsePrediction(
                 approve_probability=0.5,
                 delay_probability=0.3,
@@ -732,7 +742,7 @@ class IrrigationPredictor:
             )
 
         except Exception as e:
-            logger.error(f"Duration prediction failed: {e}", exc_info=True)
+            logger.error("Duration prediction failed: %s", e, exc_info=True)
             return DurationPrediction(
                 recommended_seconds=current_default_seconds,
                 current_default_seconds=current_default_seconds,
@@ -869,7 +879,7 @@ class IrrigationPredictor:
             )
 
         except Exception as e:
-            logger.error(f"Timing prediction failed: {e}", exc_info=True)
+            logger.error("Timing prediction failed: %s", e, exc_info=True)
             return TimingPrediction(
                 preferred_time="09:00",
                 preferred_hour=9,
@@ -1134,7 +1144,7 @@ class IrrigationPredictor:
             vpd = environmental_data.get("vpd")
 
             if soil_moisture is None:
-                logger.debug(f"No soil moisture data for plant {plant_id}, cannot predict volume")
+                logger.debug("No soil moisture data for plant %s, cannot predict volume", plant_id)
                 return None
 
             # Phase 3.1: Try trained ML model first
@@ -1159,17 +1169,17 @@ class IrrigationPredictor:
                     # Predict using trained model
                     prediction = self._duration_model.predict([features])[0]
                     if prediction > 0:
-                        logger.info(f"Using trained ML model for plant {plant_id}: {prediction:.1f}ml")
+                        logger.info("Using trained ML model for plant %s: %sml", plant_id, prediction)
                         return max(20.0, min(prediction, 500.0))
                 except Exception as e:
-                    logger.debug(f"Trained model prediction failed, using algorithmic: {e}")
+                    logger.debug("Trained model prediction failed, using algorithmic: %s", e)
 
             # Phase 3.2: Algorithmic fallback with enhancements
             target_moisture = 65.0  # Default target
             moisture_deficit = target_moisture - soil_moisture
 
             if moisture_deficit <= 0:
-                logger.debug(f"No irrigation needed for plant {plant_id} (moisture={soil_moisture}%)")
+                logger.debug("No irrigation needed for plant %s (moisture=%s%)", plant_id, soil_moisture)
                 return None
 
             # Base volume: ~50ml per 10% moisture deficit
@@ -1208,7 +1218,7 @@ class IrrigationPredictor:
             return predicted_volume
 
         except Exception as e:
-            logger.warning(f"Water volume prediction failed for plant {plant_id}: {e}")
+            logger.warning("Water volume prediction failed for plant %s: %s", plant_id, e)
             return None
 
     def get_adjustment_factor(
@@ -1236,7 +1246,7 @@ class IrrigationPredictor:
         try:
             # Phase 3.3: Plant-specific learning
             if not historical_feedback:
-                logger.debug(f"No historical feedback provided for plant {plant_id}")
+                logger.debug("No historical feedback provided for plant %s", plant_id)
                 return 1.0
 
             # Count feedback types
@@ -1247,7 +1257,7 @@ class IrrigationPredictor:
             total_feedback = too_little_count + too_much_count + just_right_count
 
             if total_feedback == 0:
-                logger.debug(f"No feedback data for plant {plant_id}, using neutral factor")
+                logger.debug("No feedback data for plant %s, using neutral factor", plant_id)
                 return 1.0
 
             # Calculate feedback ratios
@@ -1293,7 +1303,7 @@ class IrrigationPredictor:
                 return max(0.9, min(adjustment, 1.1))  # Clamp to ±10%
 
         except Exception as e:
-            logger.warning(f"Adjustment factor calculation failed for plant {plant_id}: {e}")
+            logger.warning("Adjustment factor calculation failed for plant %s: %s", plant_id, e)
             return 1.0  # Neutral on error
 
     def get_feedback_for_plant(
@@ -1325,11 +1335,11 @@ class IrrigationPredictor:
             # Phase 3.3: Filter for specific plant if requested
             if plant_id and training_data:
                 training_data = [record for record in training_data if record.get("plant_id") == plant_id]
-                logger.debug(f"Filtered to {len(training_data)} records for plant {plant_id}")
+                logger.debug("Filtered to %s records for plant %s", len(training_data), plant_id)
 
             return training_data
         except Exception as e:
-            logger.error(f"Failed to get feedback for unit {unit_id}: {e}")
+            logger.error("Failed to get feedback for unit %s: %s", unit_id, e)
             return []
 
     def _get_seasonal_adjustment(self) -> float:
@@ -1432,7 +1442,7 @@ class IrrigationPredictor:
             history = self._repo.get_moisture_history(plant_id, cutoff)
 
             if len(history) < 5:
-                logger.debug(f"Insufficient moisture history for plant {plant_id} ({len(history)} samples)")
+                logger.debug("Insufficient moisture history for plant %s (%s samples)", plant_id, len(history))
                 return None
 
             # Calculate decline rate using linear regression
@@ -1474,7 +1484,7 @@ class IrrigationPredictor:
 
             # Only predict if moisture is declining (negative slope)
             if decline_rate >= 0:
-                logger.debug(f"Moisture not declining for plant {plant_id} (rate={decline_rate:.3f})")
+                logger.debug("Moisture not declining for plant %s (rate=%s)", plant_id, decline_rate)
                 return None
 
             # Calculate R² for confidence
@@ -1529,5 +1539,5 @@ class IrrigationPredictor:
             )
 
         except Exception as e:
-            logger.error(f"Failed to predict next irrigation for plant {plant_id}: {e}", exc_info=True)
+            logger.error("Failed to predict next irrigation for plant %s: %s", plant_id, e, exc_info=True)
             return None

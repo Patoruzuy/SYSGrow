@@ -1,3 +1,4 @@
+import contextlib
 import logging
 from pathlib import Path
 
@@ -82,10 +83,8 @@ def test_create_alert_end_to_end():
     assert "sensor_anomaly" in types
 
     # Cleanup DB file
-    try:
+    with contextlib.suppress(Exception):
         dbpath.unlink()
-    except Exception:
-        pass
 
 
 if __name__ == "__main__":

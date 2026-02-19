@@ -2,14 +2,44 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import sqlite3
 from datetime import timedelta
 from typing import Any
 
 from app.utils.time import coerce_datetime, iso_now, utc_now
+from infrastructure.database.sql_safety import build_insert_parts, build_set_clause, safe_columns
 
 logger = logging.getLogger(__name__)
+
+# Columns that may be written via upsert_workflow_config.
+_WORKFLOW_CONFIG_COLUMNS: frozenset[str] = frozenset(
+    {
+        "workflow_enabled",
+        "auto_irrigation_enabled",
+        "manual_mode_enabled",
+        "require_approval",
+        "default_scheduled_time",
+        "delay_increment_minutes",
+        "max_delay_hours",
+        "expiration_hours",
+        "send_reminder_before_execution",
+        "reminder_minutes_before",
+        "request_feedback_enabled",
+        "feedback_delay_minutes",
+        "ml_learning_enabled",
+        "ml_threshold_adjustment_enabled",
+        "ml_response_predictor_enabled",
+        "ml_threshold_optimizer_enabled",
+        "ml_duration_optimizer_enabled",
+        "ml_timing_predictor_enabled",
+        "ml_response_predictor_notified_at",
+        "ml_threshold_optimizer_notified_at",
+        "ml_duration_optimizer_notified_at",
+        "ml_timing_predictor_notified_at",
+    }
+)
 
 
 class IrrigationWorkflowOperations:
@@ -203,8 +233,8 @@ class IrrigationWorkflowOperations:
                 db.commit()
                 return []
 
-            placeholders = ",".join("?" for _ in request_ids)
-            params = [now, now, "executing", now] + request_ids
+            placeholders = ",".join("?" for _ in request_ids)  # nosec B608 — only '?' chars
+            params = [now, now, "executing", now, *request_ids]
             cur.execute(
                 f"""
                 UPDATE PendingIrrigationRequest
@@ -214,11 +244,11 @@ class IrrigationWorkflowOperations:
                     attempt_count = COALESCE(attempt_count, 0) + 1,
                     updated_at = ?
                 WHERE request_id IN ({placeholders})
-                """,
+                """,  # nosec B608
                 params,
             )
             cur.execute(
-                f"SELECT * FROM PendingIrrigationRequest WHERE request_id IN ({placeholders})",
+                f"SELECT * FROM PendingIrrigationRequest WHERE request_id IN ({placeholders})",  # nosec B608
                 request_ids,
             )
             rows = cur.fetchall()
@@ -227,10 +257,8 @@ class IrrigationWorkflowOperations:
         except sqlite3.Error as exc:
             logger.error(f"Failed to claim due requests: {exc}")
             if db is not None:
-                try:
+                with contextlib.suppress(Exception):
                     db.rollback()
-                except Exception:
-                    pass
             return []
 
     def mark_execution_started(
@@ -385,7 +413,7 @@ class IrrigationWorkflowOperations:
                     ORDER BY id DESC
                     LIMIT 1
                 )
-                """,
+                """,  # nosec B608 — updates list built from hardcoded column names above
                 params,
             )
             db.commit()
@@ -846,10 +874,8 @@ class IrrigationWorkflowOperations:
         except sqlite3.Error as exc:
             logger.error("Failed to acquire irrigation lock for unit %s: %s", unit_id, exc)
             if db is not None:
-                try:
+                with contextlib.suppress(Exception):
                     db.rollback()
-                except Exception:
-                    pass
             return False
 
     def release_unit_lock(self, unit_id: int) -> bool:
@@ -1200,50 +1226,36 @@ class IrrigationWorkflowOperations:
     def upsert_workflow_config(self, unit_id: int, config: dict[str, Any]) -> bool:
         """Insert or update workflow configuration for a unit."""
         try:
+            cols = safe_columns(config, _WORKFLOW_CONFIG_COLUMNS, context="upsert_workflow_config")
+            if not cols:
+                return True  # nothing to write
+
             db = self.get_db()
             existing = self.get_workflow_config(unit_id)
             now = iso_now()
 
             if existing:
-                # Update
-                set_clauses = []
-                params = []
-                for key, value in config.items():
-                    if key not in ("id", "unit_id", "created_at"):
-                        set_clauses.append(f"{key} = ?")
-                        params.append(value)
-                set_clauses.append("updated_at = ?")
-                params.append(now)
+                cols["updated_at"] = now
+                set_sql, params = build_set_clause(cols)
                 params.append(unit_id)
-
-                if set_clauses:
-                    query = f"UPDATE IrrigationWorkflowConfig SET {', '.join(set_clauses)} WHERE unit_id = ?"
-                    db.execute(query, params)
-            else:
-                # Insert
-                columns = ["unit_id"]
-                values = [unit_id]
-                placeholders = ["?"]
-
-                for key, value in config.items():
-                    if key not in ("id", "unit_id", "created_at"):
-                        columns.append(key)
-                        values.append(value)
-                        placeholders.append("?")
-
-                columns.extend(["created_at", "updated_at"])
-                values.extend([now, now])
-                placeholders.extend(["?", "?"])
-
-                query = (
-                    f"INSERT INTO IrrigationWorkflowConfig ({', '.join(columns)}) VALUES ({', '.join(placeholders)})"
+                db.execute(
+                    f"UPDATE IrrigationWorkflowConfig SET {set_sql} WHERE unit_id = ?",  # nosec B608
+                    params,
                 )
-                db.execute(query, values)
+            else:
+                cols["unit_id"] = unit_id
+                cols["created_at"] = now
+                cols["updated_at"] = now
+                col_sql, ph_sql, values = build_insert_parts(cols)
+                db.execute(
+                    f"INSERT INTO IrrigationWorkflowConfig ({col_sql}) VALUES ({ph_sql})",  # nosec B608
+                    values,
+                )
 
             db.commit()
             return True
         except sqlite3.Error as exc:
-            logger.error(f"Failed to upsert workflow config: {exc}")
+            logger.error("Failed to upsert workflow config: %s", exc)
             return False
 
     # ========== IrrigationUserPreference Operations ==========

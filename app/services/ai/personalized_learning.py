@@ -11,6 +11,7 @@ Features:
 - Adaptive recommendations based on user's history
 """
 
+import contextlib
 import hmac
 import json
 import logging
@@ -342,7 +343,7 @@ class PersonalizedLearningService:
         self._save_profile(profile)
         self._profile_cache[unit_id] = profile
 
-        logger.info(f"Created environment profile for user {user_id}, unit {unit_id}")
+        logger.info("Created environment profile for user %s, unit %s", user_id, unit_id)
         return profile
 
     def get_profile(self, unit_id: int) -> EnvironmentProfile | None:
@@ -371,7 +372,7 @@ class PersonalizedLearningService:
                     self._profile_cache[unit_id] = profile
                     return profile
             except Exception as e:
-                logger.error(f"Error loading profile: {e}")
+                logger.error("Error loading profile: %s", e)
 
         return None
 
@@ -379,7 +380,7 @@ class PersonalizedLearningService:
         """Update environment profile with new learnings."""
         profile = self.get_profile(unit_id)
         if not profile:
-            logger.warning(f"No profile found for unit {unit_id}")
+            logger.warning("No profile found for unit %s", unit_id)
             return
 
         # Update fields
@@ -499,10 +500,8 @@ class PersonalizedLearningService:
             if env_payload:
                 existing.environment_thresholds.update(env_payload)
             if soil_moisture_threshold is not None:
-                try:
+                with contextlib.suppress(TypeError, ValueError):
                     existing.soil_moisture_threshold = float(soil_moisture_threshold)
-                except (TypeError, ValueError):
-                    pass
             if name:
                 existing.name = name
             if image_url is not None:
@@ -795,10 +794,10 @@ class PersonalizedLearningService:
                 profile.updated_at = datetime.now()
                 self._save_profile(profile)
 
-            logger.info(f"Recorded successful grow for unit {success.unit_id}")
+            logger.info("Recorded successful grow for unit %s", success.unit_id)
 
         except Exception as e:
-            logger.error(f"Error recording success: {e}", exc_info=True)
+            logger.error("Error recording success: %s", e, exc_info=True)
 
     def get_personalized_recommendations(
         self, unit_id: int, plant_type: str, growth_stage: str, current_conditions: dict[str, float]
@@ -905,7 +904,7 @@ class PersonalizedLearningService:
                     )
 
             except Exception as e:
-                logger.error(f"Error reading success file: {e}")
+                logger.error("Error reading success file: %s", e)
                 continue
 
         # Sort by similarity and return top matches
@@ -936,7 +935,7 @@ class PersonalizedLearningService:
             return False
         if pot_size_liters is not None:
             if profile.pot_size_liters is None:
-                return False if require_exact else True
+                return not require_exact
             if abs(float(profile.pot_size_liters) - float(pot_size_liters)) > 0.1:
                 return False
         if require_exact:
@@ -1099,7 +1098,7 @@ class PersonalizedLearningService:
             return patterns
 
         except Exception as e:
-            logger.error(f"Error analyzing patterns: {e}")
+            logger.error("Error analyzing patterns: %s", e)
             return {}
 
     def _detect_location_characteristics(self, unit_id: int) -> dict[str, Any]:
@@ -1176,7 +1175,7 @@ class PersonalizedLearningService:
                         )
                         successes.append(success)
             except Exception as e:
-                logger.error(f"Error loading success: {e}")
+                logger.error("Error loading success: %s", e)
 
         return successes
 

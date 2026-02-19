@@ -11,6 +11,7 @@ Date: January 2026
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import sqlite3
@@ -137,8 +138,8 @@ class ScheduleOperations:
         try:
             rows = db.execute(
                 """
-                SELECT * FROM DeviceSchedules 
-                WHERE unit_id = ? 
+                SELECT * FROM DeviceSchedules
+                WHERE unit_id = ?
                 ORDER BY device_type, priority DESC, start_time
                 """,
                 (unit_id,),
@@ -166,7 +167,7 @@ class ScheduleOperations:
         try:
             rows = db.execute(
                 """
-                SELECT * FROM DeviceSchedules 
+                SELECT * FROM DeviceSchedules
                 WHERE unit_id = ? AND device_type = ?
                 ORDER BY priority DESC, start_time
                 """,
@@ -194,7 +195,7 @@ class ScheduleOperations:
         try:
             rows = db.execute(
                 """
-                SELECT * FROM DeviceSchedules 
+                SELECT * FROM DeviceSchedules
                 WHERE actuator_id = ?
                 ORDER BY priority DESC, start_time
                 """,
@@ -346,7 +347,7 @@ class ScheduleOperations:
         try:
             cursor = db.execute(
                 """
-                UPDATE DeviceSchedules 
+                UPDATE DeviceSchedules
                 SET enabled = ?, updated_at = ?
                 WHERE schedule_id = ?
                 """,
@@ -378,7 +379,7 @@ class ScheduleOperations:
         try:
             rows = db.execute(
                 """
-                SELECT * FROM DeviceSchedules 
+                SELECT * FROM DeviceSchedules
                 WHERE unit_id = ? AND enabled = 1
                 ORDER BY device_type, priority DESC, start_time
                 """,
@@ -406,7 +407,7 @@ class ScheduleOperations:
         try:
             row = db.execute(
                 """
-                SELECT * FROM DeviceSchedules 
+                SELECT * FROM DeviceSchedules
                 WHERE unit_id = ? AND device_type = 'light' AND enabled = 1
                 ORDER BY priority DESC
                 LIMIT 1
@@ -431,39 +432,29 @@ class ScheduleOperations:
         # Parse JSON fields
         days_of_week = [0, 1, 2, 3, 4, 5, 6]
         if row.get("days_of_week"):
-            try:
+            with contextlib.suppress(json.JSONDecodeError, TypeError):
                 days_of_week = json.loads(row["days_of_week"])
-            except (json.JSONDecodeError, TypeError):
-                pass
 
         photoperiod = None
         if row.get("photoperiod_config"):
-            try:
+            with contextlib.suppress(json.JSONDecodeError, TypeError):
                 photoperiod = PhotoperiodConfig.from_dict(json.loads(row["photoperiod_config"]))
-            except (json.JSONDecodeError, TypeError):
-                pass
 
         metadata = {}
         if row.get("metadata"):
-            try:
+            with contextlib.suppress(json.JSONDecodeError, TypeError):
                 metadata = json.loads(row["metadata"])
-            except (json.JSONDecodeError, TypeError):
-                pass
 
         # Parse timestamps
         created_at = datetime.now()
         if row.get("created_at"):
-            try:
+            with contextlib.suppress(ValueError, TypeError):
                 created_at = datetime.fromisoformat(row["created_at"])
-            except (ValueError, TypeError):
-                pass
 
         updated_at = datetime.now()
         if row.get("updated_at"):
-            try:
+            with contextlib.suppress(ValueError, TypeError):
                 updated_at = datetime.fromisoformat(row["updated_at"])
-            except (ValueError, TypeError):
-                pass
 
         return Schedule(
             schedule_id=row.get("schedule_id"),

@@ -12,6 +12,7 @@ Provides unified access to:
 
 from __future__ import annotations
 
+import contextlib
 import logging
 from typing import Any
 
@@ -649,10 +650,8 @@ class PlantJournalRepository:
 
             for row in rows:
                 if row.get("extra_data"):
-                    try:
+                    with contextlib.suppress(json.JSONDecodeError, TypeError):
                         row["extra_data"] = json.loads(row["extra_data"])
-                    except (json.JSONDecodeError, TypeError):
-                        pass
             return rows
         except Exception as e:
             logger.error(f"Failed to get watering history: {e}")
@@ -818,10 +817,8 @@ class PlantJournalRepository:
 
             dates = []
             for ts in rows:
-                try:
+                with contextlib.suppress(Exception):
                     dates.append(dt.fromisoformat(ts.replace("Z", "+00:00")))
-                except Exception:
-                    pass
 
             if len(dates) < 2:
                 return {
@@ -886,7 +883,7 @@ class PlantJournalRepository:
                 cursor = conn.execute(count_query, params)
                 total_count = dict(cursor.fetchone())["cnt"]
 
-                cursor = conn.execute(data_query, params + [per_page, offset])
+                cursor = conn.execute(data_query, [*params, per_page, offset])
                 items = [dict(row) for row in cursor.fetchall()]
 
             # Parse extra_data and JSON fields
@@ -895,10 +892,8 @@ class PlantJournalRepository:
             for item in items:
                 for field in ("extra_data", "symptoms", "affected_parts", "environmental_factors"):
                     if item.get(field) and isinstance(item[field], str):
-                        try:
+                        with contextlib.suppress(json.JSONDecodeError, TypeError):
                             item[field] = json.loads(item[field])
-                        except (json.JSONDecodeError, TypeError):
-                            pass
 
             import math
 

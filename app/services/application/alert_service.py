@@ -1,5 +1,6 @@
 """Alert and notification service for system monitoring."""
 
+import contextlib
 import json
 import logging
 from collections import OrderedDict
@@ -57,11 +58,8 @@ class AlertService:
         # Enable DB-backed dedupe to support multi-process deployments
         self._dedupe_db_enabled = True
         self._dedupe_db_seconds = self._dedupe_ttl_seconds
-        try:
+        with contextlib.suppress(ValueError):
             CacheRegistry.get_instance().register("alert_service.dedupe", self._dedupe_cache)
-        except ValueError:
-            # ignore already-registered
-            pass
 
         # In-memory alert store to reduce DB reads on constrained devices (Raspberry Pi)
         # Maps alert_id -> alert row dict — bounded to _ALERTS_CACHE_MAXSIZE (LRU eviction)
@@ -80,7 +78,7 @@ class AlertService:
             if row.get("metadata"):
                 try:
                     meta = json.loads(row.get("metadata") or "{}") or {}
-                except Exception as e:
+                except (KeyError, TypeError, ValueError, AttributeError) as e:
                     logger.debug("Failed to parse alert metadata for caching: %s", e)
                     meta = {}
             # Build cache entry
@@ -102,9 +100,9 @@ class AlertService:
             if dk:
                 try:
                     self._alerts_by_dedup[str(dk)] = alert_id
-                except Exception as e:
+                except (KeyError, TypeError, ValueError, AttributeError) as e:
                     logger.debug("Failed to index alert by dedup key: %s", e)
-        except Exception as e:
+        except Exception as e:  # TODO(narrow): truly defensive — wraps complex cache logic
             # Non-fatal caching errors
             logger.debug("_cache_alert_row failed: %s", e)
             return
@@ -118,7 +116,7 @@ class AlertService:
             if row:
                 self._cache_alert_row(dict(row))
                 return self._alerts.get(alert_id)
-        except Exception as e:
+        except (KeyError, TypeError, ValueError, OSError) as e:
             logger.debug("_get_cached_alert failed: %s", e)
             pass
         return None
@@ -145,12 +143,12 @@ class AlertService:
             return None
         try:
             return datetime.fromisoformat(ts)
-        except Exception:
+        except (KeyError, TypeError, ValueError, AttributeError):
             try:
                 from dateutil import parser as _parser
 
                 return _parser.parse(ts)
-            except Exception:
+            except Exception:  # TODO(narrow): needs ImportError + dateutil parse errors
                 return None
 
     def _increment_occurrences(
@@ -165,18 +163,16 @@ class AlertService:
         existing_meta["last_seen"] = now_iso
         try:
             self.alert_repo.update_metadata(existing_id, json.dumps(existing_meta))
-        except Exception:
+        except (KeyError, TypeError, ValueError, OSError):
             logger.warning("Failed persisting dedupe metadata for alert %s", existing_id)
         try:
             row = self.alert_repo.get_by_id(existing_id)
             if row:
                 self._cache_alert_row(dict(row))
-        except Exception:
+        except (KeyError, TypeError, ValueError, OSError):
             logger.debug("Cache refresh after dedup hit failed for alert %s", existing_id)
-        try:
+        with contextlib.suppress(KeyError, TypeError, ValueError, AttributeError):
             self._dedupe_cache.set(cache_key, existing_id)
-        except Exception:
-            pass
         return existing_id
 
     def _try_deduplicate(
@@ -214,7 +210,7 @@ class AlertService:
                                 cache_key,
                                 now_iso,
                             )
-        except Exception:
+        except (KeyError, TypeError, ValueError, AttributeError):
             logger.debug("In-memory dedup fast-path failed")
 
         # --- Layer 2: TTLCache ---
@@ -232,7 +228,7 @@ class AlertService:
                     )
                 # DB layer available — invalidate cache so DB check runs below
                 self._dedupe_cache.invalidate(cache_key)
-        except Exception:
+        except (KeyError, TypeError, ValueError, AttributeError):
             logger.debug("TTLCache dedup check failed for key %s", cache_key)
 
         # --- Layer 3: DB query ---
@@ -251,7 +247,7 @@ class AlertService:
                         if cand.get("metadata"):
                             try:
                                 existing_meta = json.loads(cand["metadata"]) or {}
-                            except Exception:
+                            except (KeyError, TypeError, ValueError, AttributeError):
                                 existing_meta = {}
                         return self._increment_occurrences(
                             int(cand["alert_id"]),
@@ -259,7 +255,7 @@ class AlertService:
                             cache_key,
                             now_iso,
                         )
-            except Exception:
+            except (KeyError, TypeError, ValueError, OSError):
                 logger.warning("DB dedup check failed for %s", cache_key)
 
         return None
@@ -369,21 +365,19 @@ class AlertService:
             )
             if alert_id is None:
                 raise RuntimeError("DB insert returned no id")
-            logger.info(f"Alert created: [{severity}] {title}")
+            logger.info("Alert created: [%s] %s", severity, title)
             if dedupe:
-                try:
+                with contextlib.suppress(KeyError, TypeError, ValueError, AttributeError):
                     self._dedupe_cache.set(_key, alert_id)
-                except Exception:
-                    pass
             try:
                 r = self.alert_repo.get_by_id(alert_id)
                 if r:
                     self._cache_alert_row(dict(r))
-            except Exception:
+            except (KeyError, TypeError, ValueError, OSError):
                 logger.debug("Failed caching alert row after create")
             return alert_id
-        except Exception as e:
-            logger.error(f"Failed to create alert: {e}")
+        except (KeyError, TypeError, ValueError, RuntimeError, OSError) as e:
+            logger.error("Failed to create alert: %s", e)
             raise
 
     def get_active_alerts(
@@ -417,7 +411,7 @@ class AlertService:
                         results.append(a)
                         if len(results) >= limit:
                             break
-                    except Exception:
+                    except (KeyError, TypeError, ValueError, AttributeError):
                         continue
 
             if results:
@@ -435,13 +429,11 @@ class AlertService:
                         alert["metadata"] = None
                 alerts.append(alert)
                 # cache for later
-                try:
+                with contextlib.suppress(KeyError, TypeError, ValueError, AttributeError):
                     self._cache_alert_row(alert)
-                except Exception:
-                    pass
             return alerts
-        except Exception as e:
-            logger.error(f"Failed to retrieve active alerts: {e}")
+        except (KeyError, TypeError, ValueError, OSError) as e:
+            logger.error("Failed to retrieve active alerts: %s", e)
             return []
 
     def acknowledge_alert(self, alert_id: int, user_id: int | None = None) -> bool:
@@ -456,8 +448,8 @@ class AlertService:
         """
         try:
             return self.alert_repo.acknowledge(alert_id, user_id)
-        except Exception as e:
-            logger.error(f"Failed to acknowledge alert: {e}")
+        except (KeyError, TypeError, ValueError, OSError) as e:
+            logger.error("Failed to acknowledge alert: %s", e)
             return False
 
     def resolve_alert(self, alert_id: int) -> bool:
@@ -471,14 +463,13 @@ class AlertService:
         """
         try:
             success = self.alert_repo.resolve(alert_id)
-            if success:
+            if success and alert_id in self._alerts:
                 # Invalidate cache for this alert
-                if alert_id in self._alerts:
-                    self._alerts[alert_id]["resolved"] = True
-                    self._alerts[alert_id]["resolved_at"] = iso_now()
+                self._alerts[alert_id]["resolved"] = True
+                self._alerts[alert_id]["resolved_at"] = iso_now()
             return success
-        except Exception as e:
-            logger.error(f"Failed to resolve alert: {e}")
+        except (KeyError, TypeError, ValueError, OSError) as e:
+            logger.error("Failed to resolve alert: %s", e)
             return False
 
     def get_alert_summary(self) -> dict[str, Any]:
@@ -489,8 +480,8 @@ class AlertService:
         """
         try:
             return self.alert_repo.summary()
-        except Exception as e:
-            logger.error(f"Failed to get alert summary: {e}")
+        except (KeyError, TypeError, ValueError, OSError) as e:
+            logger.error("Failed to get alert summary: %s", e)
             return {
                 "total_active": 0,
                 "total_resolved": 0,
@@ -514,8 +505,10 @@ class AlertService:
             cutoff_iso = cutoff_dt.isoformat()
 
             deleted = self.alert_repo.purge_old(cutoff_iso, resolved_only=resolved_only)
-            logger.info(f"Purged {deleted} alert(s) older than {retention_days} day(s) (resolved_only={resolved_only})")
+            logger.info(
+                "Purged %s alert(s) older than %s day(s) (resolved_only=%s)", deleted, retention_days, resolved_only
+            )
             return {"success": True, "deleted_rows": deleted}
-        except Exception as e:
-            logger.error(f"Failed to purge old alerts: {e}")
+        except (KeyError, TypeError, ValueError, OSError) as e:
+            logger.error("Failed to purge old alerts: %s", e)
             return {"success": False, "error": str(e)}

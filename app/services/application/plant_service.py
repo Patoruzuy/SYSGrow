@@ -57,7 +57,7 @@ def _row_to_dict(row) -> dict[str, Any]:
         return {}
     if isinstance(row, dict):
         return row
-    return {k: row[k] for k in row.keys()}
+    return {k: row[k] for k in row}
 
 
 class PlantViewService:
@@ -292,7 +292,7 @@ class PlantViewService:
         if growth_stages is None:
             try:
                 growth_stages = self.plant_json_handler.get_growth_stages(plant_type)
-            except Exception as e:
+            except (KeyError, TypeError, ValueError, OSError) as e:
                 logger.warning(
                     "Could not load growth stages for %s: %s",
                     plant_type,
@@ -304,7 +304,7 @@ class PlantViewService:
         if lighting_schedule is None:
             try:
                 lighting_schedule = self.plant_json_handler.get_lighting_schedule(plant_type)
-            except Exception as e:
+            except (KeyError, TypeError, ValueError, OSError) as e:
                 logger.debug(
                     "Could not load lighting schedule for %s: %s",
                     plant_type,
@@ -316,7 +316,7 @@ class PlantViewService:
         if gdd_base_temp_c is None:
             try:
                 gdd_base_temp_c = self.plant_json_handler.get_gdd_base_temp_c(plant_type)
-            except Exception as e:
+            except (KeyError, TypeError, ValueError, OSError) as e:
                 logger.debug(
                     "Could not load gdd_base_temp_c for %s: %s",
                     plant_type,
@@ -455,7 +455,7 @@ class PlantViewService:
             logger.info("Loaded %d plants for unit %s", loaded_count, unit_id)
             return loaded_count
 
-        except Exception as e:
+        except (KeyError, TypeError, ValueError, OSError) as e:
             logger.error("Error loading plants for unit %s: %s", unit_id, e, exc_info=True)
             return 0
 
@@ -485,8 +485,8 @@ class PlantViewService:
                 unit_plants = self._plants.get(unit_id, {})
                 return list(unit_plants.values())
 
-        except Exception as e:
-            logger.error(f"Error listing plants for unit {unit_id}: {e}", exc_info=True)
+        except (KeyError, TypeError, ValueError, OSError) as e:
+            logger.error("Error listing plants for unit %s: %s", unit_id, e, exc_info=True)
             return []
 
     def list_plants_as_dicts(self, unit_id: int) -> list[dict[str, Any]]:
@@ -529,8 +529,8 @@ class PlantViewService:
 
             return result
 
-        except Exception as e:
-            logger.error(f"Error listing plants as dicts for unit {unit_id}: {e}", exc_info=True)
+        except (KeyError, TypeError, ValueError, AttributeError) as e:
+            logger.error("Error listing plants as dicts for unit %s: %s", unit_id, e, exc_info=True)
             return []
 
     def _resolve_initial_soil_moisture_threshold(
@@ -545,7 +545,7 @@ class PlantViewService:
                 continue
             try:
                 value = self.plant_json_handler.get_soil_moisture_trigger(name)
-            except Exception as exc:
+            except (KeyError, TypeError, ValueError, OSError) as exc:
                 logger.debug("Failed to resolve soil moisture trigger for %s: %s", name, exc, exc_info=True)
                 continue
             if value is None:
@@ -650,8 +650,8 @@ class PlantViewService:
             if condition_profile_mode and not isinstance(condition_profile_mode, ConditionProfileMode):
                 try:
                     condition_profile_mode = ConditionProfileMode(str(condition_profile_mode))
-                except ValueError:
-                    raise ValueError("Invalid condition profile mode")
+                except ValueError as e:
+                    raise ValueError("Invalid condition profile mode") from e
 
             historical_overrides = self._resolve_historical_threshold_overrides(
                 unit_id=unit_id,
@@ -705,17 +705,16 @@ class PlantViewService:
                                 user_id=user_id,
                                 profile_id=link.profile_id,
                             )
-                            if unit_profile:
-                                if (
-                                    str(unit_profile.plant_type or "").strip().lower()
-                                    == str(plant_type or "").strip().lower()
-                                    and str(unit_profile.growth_stage or "").strip().lower()
-                                    == str(current_stage or "").strip().lower()
-                                ):
-                                    profile_present = True
-                                    profile_override = unit_profile.soil_moisture_threshold
-                                    selected_profile_id = unit_profile.profile_id
-                                    selected_profile_mode = link.mode
+                            if unit_profile and (
+                                str(unit_profile.plant_type or "").strip().lower()
+                                == str(plant_type or "").strip().lower()
+                                and str(unit_profile.growth_stage or "").strip().lower()
+                                == str(current_stage or "").strip().lower()
+                            ):
+                                profile_present = True
+                                profile_override = unit_profile.soil_moisture_threshold
+                                selected_profile_id = unit_profile.profile_id
+                                selected_profile_mode = link.mode
 
                     if not profile_present:
                         profile = self.threshold_service.get_condition_profile(
@@ -767,7 +766,7 @@ class PlantViewService:
             )
 
             if not plant_id:
-                logger.error(f"Failed to create plant '{plant_name}' in DB")
+                logger.error("Failed to create plant '%s' in DB", plant_name)
                 return None
 
             if selected_profile_id and user_id and profile_service:
@@ -782,8 +781,8 @@ class PlantViewService:
             # Assign plant to unit
             try:
                 self.plant_repo.assign_plant_to_unit(unit_id, plant_id)
-            except Exception as exc:
-                logger.debug(f"Failed to assign plant {plant_id} to unit {unit_id}: {exc}", exc_info=True)
+            except (KeyError, TypeError, ValueError, OSError) as exc:
+                logger.debug("Failed to assign plant %s to unit %s: %s", plant_id, unit_id, exc, exc_info=True)
 
             # Create PlantProfile in memory
             plant_profile = self.create_plant_profile(
@@ -844,7 +843,7 @@ class PlantViewService:
                 stage=current_stage,
             )
 
-            logger.info(f"Created plant {plant_id}: '{plant_name}' in unit {unit_id}")
+            logger.info("Created plant %s: '%s' in unit %s", plant_id, plant_name, unit_id)
 
             # Activity logging
             if self.activity_logger:
@@ -867,9 +866,9 @@ class PlantViewService:
                 for sensor_id in sensor_ids:
                     if self.link_plant_sensor(plant_id, sensor_id):
                         linked_sensors.append(sensor_id)
-                        logger.info(f"Linked sensor {sensor_id} to plant {plant_id}")
+                        logger.info("Linked sensor %s to plant %s", sensor_id, plant_id)
                     else:
-                        logger.warning(f"  x Failed to link sensor {sensor_id} to plant {plant_id}")
+                        logger.warning("  x Failed to link sensor %s to plant %s", sensor_id, plant_id)
 
             # Return the newly created plant as dict with additional data
             plant_dict = self.get_plant_as_dict(plant_id, unit_id=unit_id)
@@ -884,8 +883,8 @@ class PlantViewService:
 
             return None
 
-        except Exception as e:
-            logger.error(f"Error creating plant '{plant_name}': {e}", exc_info=True)
+        except Exception as e:  # TODO(narrow): large method with DB + service + profile + event ops
+            logger.error("Error creating plant '%s': %s", plant_name, e, exc_info=True)
             return None
 
     def update_plant(
@@ -926,7 +925,7 @@ class PlantViewService:
             # 1. Validate plant exists
             plant = self.get_plant(plant_id)
             if not plant:
-                logger.error(f"Plant {plant_id} not found")
+                logger.error("Plant %s not found", plant_id)
                 return None
 
             # 2. Validate inputs
@@ -973,7 +972,7 @@ class PlantViewService:
                     try:
                         plant.growth_stages = self.plant_json_handler.get_growth_stages(plant_type)
                         plant.refresh_growth_metadata()
-                    except Exception as exc:
+                    except (KeyError, TypeError, ValueError, OSError) as exc:
                         logger.warning(
                             "Failed to refresh growth stages for plant %s (%s): %s",
                             plant_id,
@@ -1004,7 +1003,7 @@ class PlantViewService:
                         metadata=update_fields,
                     )
 
-                logger.info(f"Updated plant {plant_id}: {update_fields}")
+                logger.info("Updated plant %s: %s", plant_id, update_fields)
 
             # 7. Return updated plant as dict (for API compatibility)
             # Find unit_id for the plant
@@ -1020,8 +1019,8 @@ class PlantViewService:
         except ValueError:
             # Re-raise validation errors
             raise
-        except Exception as e:
-            logger.error(f"Error updating plant {plant_id}: {e}", exc_info=True)
+        except Exception as e:  # TODO(narrow): DB + memory sync + activity logging
+            logger.error("Error updating plant %s: %s", plant_id, e, exc_info=True)
             return None
 
     def update_soil_moisture_threshold(
@@ -1078,7 +1077,7 @@ class PlantViewService:
                         return unit_plants.get(plant_id)
                 else:
                     # Search all units for the plant
-                    for uid, unit_plants in self._plants.items():
+                    for _uid, unit_plants in self._plants.items():
                         if plant_id in unit_plants:
                             return unit_plants.get(plant_id)
 
@@ -1144,8 +1143,8 @@ class PlantViewService:
 
             return plant
 
-        except Exception as e:
-            logger.error(f"Error getting plant {plant_id}: {e}", exc_info=True)
+        except (KeyError, TypeError, ValueError, OSError) as e:
+            logger.error("Error getting plant %s: %s", plant_id, e, exc_info=True)
             return None
 
     def apply_condition_profile_to_plant(
@@ -1184,7 +1183,7 @@ class PlantViewService:
                     return unit_id
         try:
             row = self.plant_repo.get_plant(plant_id)
-        except Exception:
+        except (KeyError, TypeError, ValueError, OSError):
             return None
         if not row:
             return None
@@ -1192,7 +1191,7 @@ class PlantViewService:
             return row.get("unit_id")
         try:
             return row["unit_id"]
-        except Exception:
+        except (KeyError, TypeError):
             return None
 
     def get_plant_as_dict(self, plant_id: int, unit_id: int | None = None) -> dict[str, Any] | None:
@@ -1244,8 +1243,8 @@ class PlantViewService:
 
             return plant_dict
 
-        except Exception as e:
-            logger.error(f"Error getting plant {plant_id} as dict: {e}", exc_info=True)
+        except (KeyError, TypeError, ValueError, AttributeError) as e:
+            logger.error("Error getting plant %s as dict: %s", plant_id, e, exc_info=True)
             return None
 
     def remove_plant(self, unit_id: int, plant_id: int) -> bool:
@@ -1294,8 +1293,8 @@ class PlantViewService:
                     self.plant_repo.remove_plant_from_unit(unit_id, plant_id)
                 self.plant_repo.remove_plant(plant_id)
                 db_removed = True
-            except Exception as exc:
-                logger.debug(f"Failed to remove plant {plant_id} from DB: {exc}", exc_info=True)
+            except (KeyError, TypeError, ValueError, OSError) as exc:
+                logger.debug("Failed to remove plant %s from DB: %s", plant_id, exc, exc_info=True)
 
             success = removed_from_memory or db_removed
 
@@ -1313,7 +1312,7 @@ class PlantViewService:
                             target_type=ConditionProfileTarget.PLANT,
                             target_id=int(plant_id),
                         )
-                except Exception:
+                except (KeyError, TypeError, ValueError, AttributeError):
                     logger.debug("Failed to unlink condition profile for plant %s", plant_id, exc_info=True)
                 # Emit event (GrowthService may subscribe for cache invalidation)
                 self.event_bus.publish(
@@ -1338,7 +1337,7 @@ class PlantViewService:
 
             return success
 
-        except Exception as exc:
+        except Exception as exc:  # TODO(narrow): large method with memory + DB + event + logging ops
             logger.error(
                 f"Failed to remove plant {plant_id} from unit {unit_id}: {exc}",
                 exc_info=True,
@@ -1424,14 +1423,14 @@ class PlantViewService:
             # Verify plant exists and belongs to unit
             plant = self.get_plant(plant_id, unit_id=unit_id)
             if not plant:
-                logger.error(f"Plant {plant_id} not found")
+                logger.error("Plant %s not found", plant_id)
                 return False
 
             # Update in-memory active plant tracking
             with self._plants_lock:
                 unit_plants = self._plants.get(unit_id, {})
                 if plant_id not in unit_plants:
-                    logger.error(f"Plant {plant_id} does not belong to unit {unit_id}")
+                    logger.error("Plant %s does not belong to unit %s", plant_id, unit_id)
                     return False
                 self._active_plants[unit_id] = plant_id
                 logger.debug("Set active plant to %s for unit %s", plant_id, unit_id)
@@ -1440,8 +1439,8 @@ class PlantViewService:
             try:
                 if hasattr(self.plant_repo, "set_active_plant"):
                     self.plant_repo.set_active_plant(plant_id)
-            except Exception as exc:
-                logger.debug(f"Failed to persist active plant {plant_id}: {exc}", exc_info=True)
+            except (KeyError, TypeError, ValueError, OSError) as exc:
+                logger.debug("Failed to persist active plant %s: %s", plant_id, exc, exc_info=True)
 
             # Notify GrowthService to apply plant overrides to runtime and trigger AI conditions
             # GrowthService subscribes to this event
@@ -1463,11 +1462,11 @@ class PlantViewService:
                     metadata={"plant_type": getattr(plant, "plant_type", "Unknown") or "Unknown", "unit_id": unit_id},
                 )
 
-            logger.info(f"Set plant {plant_id} as active in unit {unit_id}")
+            logger.info("Set plant %s as active in unit %s", plant_id, unit_id)
             return True
 
-        except Exception as e:
-            logger.error(f"Error setting active plant {plant_id} in unit {unit_id}: {e}", exc_info=True)
+        except Exception as e:  # TODO(narrow): memory + DB + event publish + activity logging
+            logger.error("Error setting active plant %s in unit %s: %s", plant_id, unit_id, e, exc_info=True)
             return False
 
     def update_plant_stage(
@@ -1483,7 +1482,7 @@ class PlantViewService:
         """
         plant = self.get_plant(plant_id)
         if not plant:
-            logger.error(f"Plant {plant_id} not found")
+            logger.error("Plant %s not found", plant_id)
             return False
 
         return self._stage_manager.update_plant_stage(
@@ -1548,7 +1547,7 @@ class PlantViewService:
                 return unit["user_id"]
             except (TypeError, KeyError):
                 return getattr(unit, "user_id", None)
-        except Exception as e:
+        except (KeyError, TypeError, ValueError, OSError) as e:
             logger.error("Error getting unit owner for %s: %s", unit_id, e)
         return None
 
@@ -1576,13 +1575,16 @@ class PlantViewService:
 
             # Check if unit is loaded in memory
             if not self.is_unit_loaded(unit_id):
-                logger.warning(f"Unit {unit_id} not loaded in memory; cannot update soil moisture")
+                logger.warning("Unit %s not loaded in memory; cannot update soil moisture", unit_id)
                 return
 
             plant_ids = self.plant_repo.get_plants_for_sensor(sensor_id)
-            for plant_id in plant_ids:
-                self.plant_repo.update_plant_moisture_by_id(plant_id, moisture_level)
 
+            # Batch DB write — single transaction instead of N individual writes
+            if plant_ids:
+                self.plant_repo.bulk_update_plant_moisture(plant_ids, moisture_level)
+
+            for plant_id in plant_ids:
                 # Update in-memory PlantProfile directly
                 plant = self.get_plant(plant_id, unit_id)
                 if plant:
@@ -1592,14 +1594,9 @@ class PlantViewService:
                         plant_id,
                         moisture_level,
                     )
-                logger.debug(
-                    "Updated moisture level for plant %s to %.2f%% in database",
-                    plant_id,
-                    moisture_level,
-                )
 
-        except Exception as e:
-            logger.error(f"Error handling soil moisture update: {e}", exc_info=True)
+        except (KeyError, TypeError, ValueError, OSError) as e:
+            logger.error("Error handling soil moisture update: %s", e, exc_info=True)
 
     def _generate_friendly_name(self, sensor: dict[str, Any]) -> str:
         """Generate a user-friendly sensor name.  Delegates to PlantDeviceLinker."""
@@ -1686,8 +1683,8 @@ class PlantViewService:
                         context["actuator_id"] = actuator_id
 
                     return context
-        except Exception as exc:
-            logger.debug(f"Failed to resolve plant ids for sensor {sensor_id}: {exc}", exc_info=True)
+        except Exception as exc:  # TODO(narrow): plant iteration + moisture/actuator resolution + runtime access
+            logger.debug("Failed to resolve plant ids for sensor %s: %s", sensor_id, exc, exc_info=True)
             return {}
 
     def _resolve_target_moisture(

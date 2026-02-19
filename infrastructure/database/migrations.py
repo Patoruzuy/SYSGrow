@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 
@@ -73,10 +74,8 @@ def run_startup_migrations(db_handler) -> int:
                     last_seen = md.get("last_seen") or row.get("timestamp") or iso_now()
 
                     # Update Alert metadata if needed
-                    try:
+                    with contextlib.suppress(Exception):
                         conn.execute("UPDATE Alert SET metadata = ? WHERE alert_id = ?", (json.dumps(md), aid))
-                    except Exception:
-                        pass
 
                     # Upsert AlertDedupe
                     cur2 = conn.execute("SELECT dedupe_id, occurrences FROM AlertDedupe WHERE dedup_key = ?", (dk,))

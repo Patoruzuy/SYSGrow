@@ -21,14 +21,16 @@ Architecture:
                        → Hardware Services (sensor_service, actuator_service)
 """
 
+from __future__ import annotations
+
+import contextlib
 import logging
-from typing import TYPE_CHECKING, Any, Optional
+from datetime import UTC
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from app.services.application.alert_service import AlertService
     from app.services.hardware import ActuatorManagementService, SensorManagementService
-
-from datetime import UTC
 
 from app.enums.events import DeviceEvent
 from app.schemas.events import (
@@ -38,6 +40,7 @@ from app.schemas.events import (
 )
 from app.services.utilities.anomaly_detection_service import AnomalyDetectionService
 from app.services.utilities.calibration_service import CalibrationService
+from app.utils.cache import CacheRegistry, TTLCache
 from app.utils.event_bus import EventBus
 from infrastructure.database.repositories.devices import DeviceRepository
 
@@ -60,10 +63,10 @@ class DeviceHealthService:
         repository: DeviceRepository,
         event_bus: EventBus | None = None,
         mqtt_client: Any | None = None,
-        alert_service: Optional["AlertService"] = None,
+        alert_service: "AlertService" | None = None,
         system_health_service: Any | None = None,
-        sensor_management_service: Optional["SensorManagementService"] = None,
-        actuator_management_service: Optional["ActuatorManagementService"] = None,
+        sensor_management_service: "SensorManagementService" | None = None,
+        actuator_management_service: "ActuatorManagementService" | None = None,
         zigbee_service: Any | None = None,  # Shared ZigbeeManagementService
         offline_threshold_minutes: int = 15,
     ):
@@ -96,6 +99,11 @@ class DeviceHealthService:
         self.discovery_service = zigbee_service
         # Threshold (minutes) to consider a device offline when no recent readings
         self.offline_threshold_minutes = int(offline_threshold_minutes or 15)
+
+        # Short-lived cache for repeated sensor-health lookups (e.g. dashboard polls)
+        self._health_cache: TTLCache = TTLCache(maxsize=128, ttl_seconds=15)
+        with contextlib.suppress(ValueError):
+            CacheRegistry.get_instance().register("device_health_service.health", self._health_cache)
 
         logger.info("DeviceHealthService initialized (pure delegator)")
 
@@ -131,10 +139,10 @@ class DeviceHealthService:
             # Validate inputs
             if not isinstance(sensor_id, int) or sensor_id <= 0:
                 raise ValueError(f"Invalid sensor_id: {sensor_id}")
-            if not isinstance(reference_value, (int, float)):
+            if not isinstance(reference_value, int | float):
                 raise ValueError(f"Invalid reference_value: {reference_value}")
             if calibration_type not in ["linear", "polynomial", "lookup"]:
-                logger.warning(f"Unknown calibration_type '{calibration_type}', using 'linear'")
+                logger.warning("Unknown calibration_type '%s', using 'linear'", calibration_type)
                 calibration_type = "linear"
 
             # Find unit and verify sensor exists
@@ -152,7 +160,7 @@ class DeviceHealthService:
 
             measured_value = reading.value if not isinstance(reading.value, dict) else list(reading.value.values())[0]
 
-            if not isinstance(measured_value, (int, float)):
+            if not isinstance(measured_value, int | float):
                 raise ValueError(f"Invalid measured value: {measured_value}")
 
             # Add calibration point to utility service
@@ -162,7 +170,7 @@ class DeviceHealthService:
 
             # Persist to database (already done by CalibrationService with repository)
 
-            logger.info(f"Calibrated sensor {sensor_id}: measured={measured_value}, reference={reference_value}")
+            logger.info("Calibrated sensor %s: measured=%s, reference=%s", sensor_id, measured_value, reference_value)
 
             return {
                 "success": True,
@@ -173,10 +181,10 @@ class DeviceHealthService:
             }
 
         except ValueError as ve:
-            logger.error(f"Validation error calibrating sensor {sensor_id}: {ve}")
+            logger.error("Validation error calibrating sensor %s: %s", sensor_id, ve)
             return {"success": False, "error": str(ve), "error_type": "validation"}
         except Exception as e:
-            logger.error(f"Error calibrating sensor {sensor_id}: {e}", exc_info=True)
+            logger.error("Error calibrating sensor %s: %s", sensor_id, e, exc_info=True)
             return {"success": False, "error": str(e), "error_type": "runtime"}
 
     def get_sensor_health(self, sensor_id: int) -> dict[str, Any]:
@@ -184,6 +192,8 @@ class DeviceHealthService:
         Get health status for a sensor.
 
         Calls health monitoring service directly (no UnitRuntimeManager wrapper).
+        Results are cached for 15 s to avoid redundant DB/service calls on
+        rapid-fire dashboard polls.
 
         Args:
             sensor_id: ID of sensor to check
@@ -195,6 +205,11 @@ class DeviceHealthService:
             # Validate input
             if not isinstance(sensor_id, int) or sensor_id <= 0:
                 raise ValueError(f"Invalid sensor_id: {sensor_id}")
+
+            # Check short-lived cache first
+            cached = self._health_cache.get(sensor_id)
+            if cached is not None:
+                return cached
 
             # Verify sensor exists
             unit_id = self._get_sensor_unit_id(sensor_id)
@@ -216,7 +231,7 @@ class DeviceHealthService:
                     # Only use history if it has actual readings data
                     # Otherwise treat as no data (avoids false alerts from empty history rows)
                     if total_readings > 0:
-                        return {
+                        result = {
                             "success": True,
                             "sensor_id": sensor_id,
                             "health_score": float(latest.get("health_score", 0)),
@@ -227,6 +242,8 @@ class DeviceHealthService:
                             "failed_readings": int(latest.get("failed_readings", 0) or 0),
                             "source": "history_cache",
                         }
+                        self._health_cache.set(sensor_id, result)
+                        return result
 
                 return {
                     "success": True,
@@ -284,7 +301,7 @@ class DeviceHealthService:
 
             health_score = health_dict.get("health_score", success_rate)
             # Convert fractional scores (0-1) to percentage when applicable
-            if isinstance(health_score, (int, float)) and 0 < health_score <= 1:
+            if isinstance(health_score, int | float) and 0 < health_score <= 1:
                 health_score = health_score * 100.0
             health_score = float(health_score or 0.0)
             health_score = max(0.0, min(health_score, 100.0))
@@ -313,7 +330,7 @@ class DeviceHealthService:
 
             # Persist health snapshot to database
             try:
-                health_score_int = int(round(health_score))
+                health_score_int = round(health_score)
                 health_score_int = max(0, min(100, health_score_int))  # Clamp to 0-100
 
                 total_for_snapshot = total_reads
@@ -328,17 +345,18 @@ class DeviceHealthService:
                     failed_readings=failed_for_snapshot,
                 )
             except Exception as db_error:
-                logger.warning(f"Failed to persist health snapshot: {db_error}")
+                logger.warning("Failed to persist health snapshot: %s", db_error)
                 # Don't fail the whole operation if DB save fails
 
-            logger.debug(f"Retrieved health for sensor {sensor_id}: {health_data['status']}")
+            logger.debug("Retrieved health for sensor %s: %s", sensor_id, health_data["status"])
+            self._health_cache.set(sensor_id, health_data)
             return health_data
 
         except ValueError as ve:
-            logger.error(f"Validation error getting health for sensor {sensor_id}: {ve}")
+            logger.error("Validation error getting health for sensor %s: %s", sensor_id, ve)
             return {"success": False, "error": str(ve), "error_type": "validation"}
         except Exception as e:
-            logger.error(f"Error getting health for sensor {sensor_id}: {e}", exc_info=True)
+            logger.error("Error getting health for sensor %s: %s", sensor_id, e, exc_info=True)
             return {"success": False, "error": str(e), "error_type": "runtime"}
 
     def check_sensor_anomalies(self, sensor_id: int) -> dict[str, Any]:
@@ -373,7 +391,7 @@ class DeviceHealthService:
 
             value = reading.value if not isinstance(reading.value, dict) else list(reading.value.values())[0]
 
-            if not isinstance(value, (int, float)):
+            if not isinstance(value, int | float):
                 raise ValueError(f"Invalid sensor value: {value}")
 
             # Check for anomalies using utility service
@@ -435,9 +453,9 @@ class DeviceHealthService:
                                         "AlertService.create_alert returned id=%s for sensor %s", alert_id, sensor_id
                                     )
                                 except Exception as alert_error:
-                                    logger.warning(f"Failed to create alert for sensor anomaly: {alert_error}")
+                                    logger.warning("Failed to create alert for sensor anomaly: %s", alert_error)
                             except Exception as alert_error:
-                                logger.warning(f"Failed to prepare alert for sensor anomaly: {alert_error}")
+                                logger.warning("Failed to prepare alert for sensor anomaly: %s", alert_error)
                     else:
                         logger.warning(
                             "Insufficient statistics to compute z-score for sensor %s: std_dev=%s, stats=%s",
@@ -446,9 +464,9 @@ class DeviceHealthService:
                             stats,
                         )
                 except Exception as log_error:
-                    logger.warning(f"Failed to log anomaly for sensor {sensor_id}: {log_error}")
+                    logger.warning("Failed to log anomaly for sensor %s: %s", sensor_id, log_error)
 
-            logger.debug(f"Checked anomalies for sensor {sensor_id}: anomaly={is_anomaly}")
+            logger.debug("Checked anomalies for sensor %s: anomaly=%s", sensor_id, is_anomaly)
             result = {
                 "success": True,
                 "sensor_id": sensor_id,
@@ -464,10 +482,10 @@ class DeviceHealthService:
             return result
 
         except ValueError as ve:
-            logger.error(f"Validation error checking anomalies for sensor {sensor_id}: {ve}")
+            logger.error("Validation error checking anomalies for sensor %s: %s", sensor_id, ve)
             return {"success": False, "error": str(ve), "error_type": "validation"}
         except Exception as e:
-            logger.error(f"Error checking anomalies for sensor {sensor_id}: {e}", exc_info=True)
+            logger.error("Error checking anomalies for sensor %s: %s", sensor_id, e, exc_info=True)
             return {"success": False, "error": str(e), "error_type": "runtime"}
 
     def get_sensor_statistics(self, sensor_id: int) -> dict[str, Any]:
@@ -504,14 +522,14 @@ class DeviceHealthService:
 
             result = {"success": True, "sensor_id": sensor_id, **stats}
 
-            logger.debug(f"Retrieved statistics for sensor {sensor_id}")
+            logger.debug("Retrieved statistics for sensor %s", sensor_id)
             return result
 
         except ValueError as ve:
-            logger.error(f"Validation error getting statistics for sensor {sensor_id}: {ve}")
+            logger.error("Validation error getting statistics for sensor %s: %s", sensor_id, ve)
             return {"success": False, "error": str(ve), "error_type": "validation"}
         except Exception as e:
-            logger.error(f"Error getting statistics for sensor {sensor_id}: {e}", exc_info=True)
+            logger.error("Error getting statistics for sensor %s: %s", sensor_id, e, exc_info=True)
             return {"success": False, "error": str(e), "error_type": "runtime"}
 
     def get_sensor_calibration_history(self, sensor_id: int, limit: int = 20) -> list[dict[str, Any]]:
@@ -530,31 +548,31 @@ class DeviceHealthService:
         try:
             # Validate inputs
             if not isinstance(sensor_id, int) or sensor_id <= 0:
-                logger.warning(f"Invalid sensor_id: {sensor_id}, returning empty history")
+                logger.warning("Invalid sensor_id: %s, returning empty history", sensor_id)
                 return []
 
             if not isinstance(limit, int) or limit <= 0:
-                logger.warning(f"Invalid limit: {limit}, using default 20")
+                logger.warning("Invalid limit: %s, using default 20", limit)
                 limit = 20
 
             # Verify sensor exists
             unit_id = self._get_sensor_unit_id(sensor_id)
             if not unit_id:
-                logger.warning(f"Sensor {sensor_id} not found, returning empty history")
+                logger.warning("Sensor %s not found, returning empty history", sensor_id)
                 return []
 
             # Get history from repository
             history = self.repository.get_calibrations(sensor_id, limit)
 
             if not isinstance(history, list):
-                logger.warning(f"Repository returned non-list: {type(history)}")
+                logger.warning("Repository returned non-list: %s", type(history))
                 return []
 
-            logger.debug(f"Retrieved {len(history)} calibration records for sensor {sensor_id}")
+            logger.debug("Retrieved %s calibration records for sensor %s", len(history), sensor_id)
             return history
 
         except Exception as e:
-            logger.error(f"Error getting calibration history for sensor {sensor_id}: {e}", exc_info=True)
+            logger.error("Error getting calibration history for sensor %s: %s", sensor_id, e, exc_info=True)
             return []
 
     def get_sensor_health_history(self, sensor_id: int, limit: int = 100) -> list[dict[str, Any]]:
@@ -573,32 +591,31 @@ class DeviceHealthService:
         try:
             # Validate inputs
             if not isinstance(sensor_id, int) or sensor_id <= 0:
-                logger.warning(f"Invalid sensor_id: {sensor_id}, returning empty history")
+                logger.warning("Invalid sensor_id: %s, returning empty history", sensor_id)
                 return []
 
             if not isinstance(limit, int) or limit <= 0:
-                logger.warning(f"Invalid limit: {limit}, using default 100")
+                logger.warning("Invalid limit: %s, using default 100", limit)
                 limit = 100
 
             # Verify sensor exists
             unit_id = self._get_sensor_unit_id(sensor_id)
             if not unit_id:
-                logger.warning(f"Sensor {sensor_id} not found, returning empty history")
+                logger.warning("Sensor %s not found, returning empty history", sensor_id)
                 return []
 
             # Get history from repository
             history = self.repository.get_health_history(sensor_id, limit)
 
             if not isinstance(history, list):
-                logger.warning(f"Repository returned non-list: {type(history)}")
+                logger.warning("Repository returned non-list: %s", type(history))
                 return []
 
-            logger.debug(f"Retrieved {len(history)} health records for sensor {sensor_id}")
+            logger.debug("Retrieved %s health records for sensor %s", len(history), sensor_id)
             return history
 
         except Exception as e:
-            logger.error(f"Error getting health history for sensor {sensor_id}: {e}", exc_info=True)
-            return []
+            logger.error("Error getting health history for sensor %s: %s", sensor_id, e, exc_info=True)
             return []
 
     def get_sensor_anomaly_history(self, sensor_id: int, limit: int = 100) -> list[dict[str, Any]]:
@@ -622,19 +639,19 @@ class DeviceHealthService:
             # Verify sensor exists
             sensor = self.repository.get_sensor_by_id(sensor_id)
             if not sensor:
-                logger.warning(f"Sensor {sensor_id} not found")
+                logger.warning("Sensor %s not found", sensor_id)
                 return []
 
             # Call repository directly for historical data (no utility service needed)
             history = self.repository.get_anomaly_history(sensor_id, limit)
-            logger.debug(f"Retrieved {len(history)} anomaly records for sensor {sensor_id}")
+            logger.debug("Retrieved %s anomaly records for sensor %s", len(history), sensor_id)
             return history
 
         except ValueError as ve:
-            logger.warning(f"Validation error in get_sensor_anomaly_history: {ve}")
+            logger.warning("Validation error in get_sensor_anomaly_history: %s", ve)
             return []
         except Exception as e:
-            logger.error(f"Error getting anomaly history for sensor {sensor_id}: {e}", exc_info=True)
+            logger.error("Error getting anomaly history for sensor %s: %s", sensor_id, e, exc_info=True)
             return []
 
     # ==================== Actuator Health Operations ====================
@@ -671,10 +688,10 @@ class DeviceHealthService:
                 failed_operations=failed_operations,
                 average_response_time=average_response_time,
             )
-            logger.info(f"Saved health snapshot for actuator {actuator_id}: {status} ({health_score}/100)")
+            logger.info("Saved health snapshot for actuator %s: %s (%s/100)", actuator_id, status, health_score)
             return history_id
         except Exception as e:
-            logger.error(f"Error saving actuator health for {actuator_id}: {e}", exc_info=True)
+            logger.error("Error saving actuator health for %s: %s", actuator_id, e, exc_info=True)
             return None
 
     def get_actuator_health_history(self, actuator_id: int, limit: int = 100) -> list[dict[str, Any]]:
@@ -690,10 +707,10 @@ class DeviceHealthService:
         """
         try:
             history = self.repository.get_actuator_health_history(actuator_id, limit)
-            logger.debug(f"Retrieved {len(history)} health records for actuator {actuator_id}")
+            logger.debug("Retrieved %s health records for actuator %s", len(history), actuator_id)
             return history
         except Exception as e:
-            logger.error(f"Error getting health history for actuator {actuator_id}: {e}", exc_info=True)
+            logger.error("Error getting health history for actuator %s: %s", actuator_id, e, exc_info=True)
             return []
 
     # ==================== Actuator Anomaly Detection ====================
@@ -717,7 +734,7 @@ class DeviceHealthService:
             anomaly_id = self.repository.log_actuator_anomaly(
                 actuator_id=actuator_id, anomaly_type=anomaly_type, severity=severity, details=details
             )
-            logger.warning(f"Logged actuator anomaly {anomaly_id}: {anomaly_type} (severity: {severity})")
+            logger.warning("Logged actuator anomaly %s: %s (severity: %s)", anomaly_id, anomaly_type, severity)
 
             # Create alert for actuator anomaly
             if self.alert_service:
@@ -749,9 +766,9 @@ class DeviceHealthService:
                         unit_id=unit_id,
                         metadata={"anomaly_type": anomaly_type, "severity": severity, "details": details},
                     )
-                    logger.info(f"Created alert for actuator {actuator_id} anomaly: {anomaly_type}")
+                    logger.info("Created alert for actuator %s anomaly: %s", actuator_id, anomaly_type)
                 except Exception as alert_error:
-                    logger.warning(f"Failed to create alert for actuator anomaly: {alert_error}")
+                    logger.warning("Failed to create alert for actuator anomaly: %s", alert_error)
 
             # Publish event for real-time alerts (typed payload)
             self.event_bus.publish(
@@ -767,7 +784,7 @@ class DeviceHealthService:
 
             return anomaly_id
         except Exception as e:
-            logger.error(f"Error logging actuator anomaly for {actuator_id}: {e}", exc_info=True)
+            logger.error("Error logging actuator anomaly for %s: %s", actuator_id, e, exc_info=True)
             return None
 
     def get_actuator_anomalies(self, actuator_id: int, limit: int = 100) -> list[dict[str, Any]]:
@@ -783,10 +800,10 @@ class DeviceHealthService:
         """
         try:
             anomalies = self.repository.get_actuator_anomalies(actuator_id, limit)
-            logger.debug(f"Retrieved {len(anomalies)} anomalies for actuator {actuator_id}")
+            logger.debug("Retrieved %s anomalies for actuator %s", len(anomalies), actuator_id)
             return anomalies
         except Exception as e:
-            logger.error(f"Error getting anomalies for actuator {actuator_id}: {e}", exc_info=True)
+            logger.error("Error getting anomalies for actuator %s: %s", actuator_id, e, exc_info=True)
             return []
 
     def resolve_actuator_anomaly(self, anomaly_id: int) -> bool:
@@ -802,14 +819,14 @@ class DeviceHealthService:
         try:
             success = self.repository.resolve_actuator_anomaly(anomaly_id)
             if success:
-                logger.info(f"Resolved actuator anomaly {anomaly_id}")
+                logger.info("Resolved actuator anomaly %s", anomaly_id)
                 self.event_bus.publish(
                     DeviceEvent.ACTUATOR_ANOMALY_RESOLVED,
                     ActuatorAnomalyResolvedPayload(anomaly_id=anomaly_id),
                 )
             return success
         except Exception as e:
-            logger.error(f"Error resolving actuator anomaly {anomaly_id}: {e}", exc_info=True)
+            logger.error("Error resolving actuator anomaly %s: %s", anomaly_id, e, exc_info=True)
             return False
 
     # ==================== Actuator Calibration ====================
@@ -832,7 +849,7 @@ class DeviceHealthService:
             calibration_id = self.repository.save_actuator_calibration(
                 actuator_id=actuator_id, calibration_type=calibration_type, calibration_data=calibration_data
             )
-            logger.info(f"Saved {calibration_type} calibration for actuator {actuator_id}")
+            logger.info("Saved %s calibration for actuator %s", calibration_type, actuator_id)
 
             # Publish event for actuator manager to update (typed payload)
             self.event_bus.publish(
@@ -846,7 +863,7 @@ class DeviceHealthService:
 
             return calibration_id
         except Exception as e:
-            logger.error(f"Error saving calibration for actuator {actuator_id}: {e}", exc_info=True)
+            logger.error("Error saving calibration for actuator %s: %s", actuator_id, e, exc_info=True)
             return None
 
     def get_actuator_calibrations(self, actuator_id: int) -> list[dict[str, Any]]:
@@ -861,10 +878,10 @@ class DeviceHealthService:
         """
         try:
             calibrations = self.repository.get_actuator_calibrations(actuator_id)
-            logger.debug(f"Retrieved {len(calibrations)} calibrations for actuator {actuator_id}")
+            logger.debug("Retrieved %s calibrations for actuator %s", len(calibrations), actuator_id)
             return calibrations
         except Exception as e:
-            logger.error(f"Error getting calibrations for actuator {actuator_id}: {e}", exc_info=True)
+            logger.error("Error getting calibrations for actuator %s: %s", actuator_id, e, exc_info=True)
             return []
 
     # ==================== Actuator Power Readings ====================
@@ -910,10 +927,10 @@ class DeviceHealthService:
                 temperature=temperature,
                 is_estimated=is_estimated,
             )
-            logger.debug(f"Saved power reading for actuator {actuator_id}: {power_watts}W")
+            logger.debug("Saved power reading for actuator %s: %sW", actuator_id, power_watts)
             return reading_id
         except Exception as e:
-            logger.error(f"Error saving power reading for actuator {actuator_id}: {e}", exc_info=True)
+            logger.error("Error saving power reading for actuator %s: %s", actuator_id, e, exc_info=True)
             return None
 
     def get_actuator_power_readings(
@@ -932,10 +949,10 @@ class DeviceHealthService:
         """
         try:
             readings = self.repository.get_actuator_power_readings(actuator_id, limit, hours)
-            logger.debug(f"Retrieved {len(readings)} power readings for actuator {actuator_id}")
+            logger.debug("Retrieved %s power readings for actuator %s", len(readings), actuator_id)
             return readings
         except Exception as e:
-            logger.error(f"Error getting power readings for actuator {actuator_id}: {e}", exc_info=True)
+            logger.error("Error getting power readings for actuator %s: %s", actuator_id, e, exc_info=True)
             return []
 
     # ==================== Health Monitoring & Alerting ====================
@@ -1053,7 +1070,7 @@ class DeviceHealthService:
                             "AlertService.create_alert returned id=%s for offline sensor %s", alert_id, sensor_id
                         )
                     except Exception as alert_error:
-                        logger.warning(f"Failed to create offline alert: {alert_error}")
+                        logger.warning("Failed to create offline alert: %s", alert_error)
 
                 # Create alert for critical health status. Only consider numeric
                 # health/error values; if missing, treat as "unknown" and avoid
@@ -1064,49 +1081,52 @@ class DeviceHealthService:
 
                 # Only alert if we have actual sensor data (not just empty/default values)
                 # Sensors with 0 total_readings haven't sent data yet and shouldn't trigger alerts
-                if source not in ["empty", "unknown"] and total_readings > 0:
-                    if (
+                if (
+                    source not in ["empty", "unknown"]
+                    and total_readings > 0
+                    and (
                         (health_score is not None and health_score < 50)
                         or (error_rate is not None and error_rate > 0.5)
                         or status in ["critical", "unhealthy"]
+                    )
+                ):
+                    critical_sensors.append(sensor_name)
+
+                    # Determine severity
+                    if (
+                        (health_score is not None and health_score < 25)
+                        or (error_rate is not None and error_rate > 0.75)
+                        or status == "critical"
                     ):
-                        critical_sensors.append(sensor_name)
+                        severity = "critical"
+                    else:
+                        severity = "warning"
 
-                        # Determine severity
-                        if (
-                            (health_score is not None and health_score < 25)
-                            or (error_rate is not None and error_rate > 0.75)
-                            or status == "critical"
-                        ):
-                            severity = "critical"
-                        else:
-                            severity = "warning"
-
-                        try:
-                            logger.info("Creating health alert for sensor %s (score=%s)", sensor_id, health_score)
-                            alert_id = self.alert_service.create_alert(
-                                alert_type=self.alert_service.DEVICE_MALFUNCTION,
-                                severity=severity,
-                                title=f"Sensor Health Critical: {sensor_name}",
-                                # Format health/error strings safely when values may be None
-                                message=(
-                                    f"Sensor {sensor_name} health score is "
-                                    f"{(f'{health_score:.0f}%' if health_score is not None else 'N/A')} "
-                                    f"with {(f'{error_rate * 100:.1f}%' if error_rate is not None else 'N/A')} error rate"
-                                ),
-                                source_type="sensor",
-                                source_id=sensor_id,
-                                unit_id=sensor_unit_id,
-                                metadata={"health_score": health_score, "error_rate": error_rate, "status": status},
-                            )
-                            alerts_created += 1
-                            logger.info(
-                                "AlertService.create_alert returned id=%s for health alert sensor %s",
-                                alert_id,
-                                sensor_id,
-                            )
-                        except Exception as alert_error:
-                            logger.warning(f"Failed to create health alert: {alert_error}")
+                    try:
+                        logger.info("Creating health alert for sensor %s (score=%s)", sensor_id, health_score)
+                        alert_id = self.alert_service.create_alert(
+                            alert_type=self.alert_service.DEVICE_MALFUNCTION,
+                            severity=severity,
+                            title=f"Sensor Health Critical: {sensor_name}",
+                            # Format health/error strings safely when values may be None
+                            message=(
+                                f"Sensor {sensor_name} health score is "
+                                f"{(f'{health_score:.0f}%' if health_score is not None else 'N/A')} "
+                                f"with {(f'{error_rate * 100:.1f}%' if error_rate is not None else 'N/A')} error rate"
+                            ),
+                            source_type="sensor",
+                            source_id=sensor_id,
+                            unit_id=sensor_unit_id,
+                            metadata={"health_score": health_score, "error_rate": error_rate, "status": status},
+                        )
+                        alerts_created += 1
+                        logger.info(
+                            "AlertService.create_alert returned id=%s for health alert sensor %s",
+                            alert_id,
+                            sensor_id,
+                        )
+                    except Exception as alert_error:
+                        logger.warning("Failed to create health alert: %s", alert_error)
 
             return {
                 "success": True,
@@ -1117,7 +1137,7 @@ class DeviceHealthService:
             }
 
         except Exception as e:
-            logger.error(f"Error checking device health: {e}", exc_info=True)
+            logger.error("Error checking device health: %s", e, exc_info=True)
             return {"success": False, "error": str(e)}
 
     # -------------------- batch-check helpers --------------------------------
@@ -1211,7 +1231,7 @@ class DeviceHealthService:
             success_rate = (float(success_reads) / float(total_reads)) * 100.0
 
         health_score = health_dict.get("health_score", success_rate)
-        if isinstance(health_score, (int, float)) and 0 < health_score <= 1:
+        if isinstance(health_score, int | float) and 0 < health_score <= 1:
             health_score = health_score * 100.0
         health_score = float(health_score or 0.0)
         health_score = max(0.0, min(health_score, 100.0))

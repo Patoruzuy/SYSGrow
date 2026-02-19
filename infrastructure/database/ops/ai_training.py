@@ -11,6 +11,7 @@ Provides methods to:
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import sqlite3
@@ -217,10 +218,8 @@ class AITrainingOperations:
                 # Parse stored environmental factors if available
                 env_factors = {}
                 if obs.get("environmental_factors"):
-                    try:
+                    with contextlib.suppress(TypeError, ValueError):
                         env_factors = json.loads(obs["environmental_factors"])
-                    except (TypeError, ValueError):
-                        pass
 
                 # Get environmental snapshot at observation time
                 if not env_factors:

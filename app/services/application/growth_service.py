@@ -27,11 +27,12 @@ This module is intended to be reviewed under SOC2-style change controls:
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import threading
 from typing import TYPE_CHECKING, Any
 
-from app.controllers import ClimateController, ControlLogic, PlantSensorController
+from app.control_loops import ClimateController, ControlLogic, PlantSensorController
 from app.domain.plant_profile import PlantProfile
 from app.domain.unit_runtime import UnitRuntime
 from app.domain.unit_runtime_factory import UnitRuntimeFactory
@@ -69,7 +70,11 @@ logger = logging.getLogger(__name__)
 
 
 class GrowthServiceError(RuntimeError):
-    """Base exception for GrowthService failures."""
+    """Base exception for GrowthService failures.
+
+    Also registered as a :class:`~app.domain.exceptions.ServiceError` so the
+    global error handler maps it to HTTP 500.
+    """
 
 
 class NotFoundError(GrowthServiceError):
@@ -85,7 +90,7 @@ def _row_to_dict(row) -> dict[str, Any]:
         return {}
     if isinstance(row, dict):
         return row
-    return {k: row[k] for k in row.keys()}
+    return {k: row[k] for k in row}
 
 
 # Import threshold constants from ThresholdService (single source of truth)
@@ -189,15 +194,15 @@ class GrowthService:
             maxsize=cache_maxsize,
         )
         # Register cache for monitoring
-        try:
+        with contextlib.suppress(ValueError):
             CacheRegistry.get_instance().register("growth_service.units", self._unit_cache)
-        except ValueError:
-            # Cache already registered (e.g., during testing)
-            pass
 
         # Registry of active unit runtimes
         self._unit_runtimes: dict[int, UnitRuntime] = {}
-        self._runtime_lock = threading.Lock()
+        # Lightweight lock protecting _unit_runtimes dict mutations (add/remove).
+        # Per-unit data access uses _get_unit_lock(unit_id) for finer granularity.
+        self._registry_lock = threading.Lock()
+        self._unit_locks: dict[int, threading.Lock] = {}
 
         # Per-unit infrastructure
         # unit_id -> SensorPollingService
@@ -214,6 +219,13 @@ class GrowthService:
         # Subscribe to runtime events for persistence
         self._subscribe_to_runtime_events()
         self._subscribe_to_plant_events()
+
+    def _get_unit_lock(self, unit_id: int) -> threading.Lock:
+        """Return (or create) a per-unit lock for fine-grained synchronisation."""
+        with self._registry_lock:
+            if unit_id not in self._unit_locks:
+                self._unit_locks[unit_id] = threading.Lock()
+            return self._unit_locks[unit_id]
 
         # Wire up ThresholdService event handling and cache invalidation
         self._setup_threshold_service_integration()
@@ -277,7 +289,7 @@ class GrowthService:
             try:
                 if self._plant_service:
                     self._plant_service.unlink_all_sensors_from_plant(plant_id)
-            except Exception as exc:
+            except (KeyError, TypeError, ValueError, OSError) as exc:
                 logger.debug(
                     "Failed to unlink sensors from plant %s prior to removal: %s",
                     plant_id,
@@ -338,8 +350,8 @@ class GrowthService:
                 action_data=action_data,
             )
 
-        except Exception as e:
-            logger.error(f"Error handling THRESHOLDS_PROPOSED event: {e}", exc_info=True)
+        except Exception as e:  # TODO(narrow): event handler with payload parsing, service calls, notifications
+            logger.error("Error handling THRESHOLDS_PROPOSED event: %s", e, exc_info=True)
 
     def _handle_active_plant_set(self, payload: ActivePlantSetPayload) -> None:
         """Handle RuntimeEvent.ACTIVE_PLANT_SET from UnitRuntime."""
@@ -358,7 +370,7 @@ class GrowthService:
             try:
                 if self._plant_service:
                     self._plant_service.set_active_plant(unit_id, plant_id)
-            except Exception as exc:
+            except (KeyError, TypeError, ValueError, OSError) as exc:
                 logger.debug("Failed to persist active plant %s: %s", plant_id, exc, exc_info=True)
 
             # Emit ACTIVE_PLANT_CHANGED event for subscribers
@@ -388,10 +400,10 @@ class GrowthService:
                             entity_id=plant_id,
                             metadata={"plant_type": plant.plant_type or "Unknown", "unit_id": unit_id},
                         )
-                    logger.debug(f"Activated plant {plant_id} in unit {unit_id}")
+                    logger.debug("Activated plant %s in unit %s", plant_id, unit_id)
 
-        except Exception as e:
-            logger.error(f"Error handling ACTIVE_PLANT_SET event: {e}", exc_info=True)
+        except Exception as e:  # TODO(narrow): event handler with payload parsing, service calls, activity logging
+            logger.error("Error handling ACTIVE_PLANT_SET event: %s", e, exc_info=True)
 
     def _handle_plant_stage_update(self, payload: PlantStageUpdatePayload) -> None:
         """
@@ -416,13 +428,13 @@ class GrowthService:
             unit_id = self._find_unit_for_plant(plant_id)
             if unit_id is not None:
                 self.propose_ai_conditions(unit_id)
-        except Exception as e:
+        except Exception as e:  # TODO(narrow): event handler with payload parsing and service orchestration
             logger.error("Error handling PLANT_STAGE_UPDATE: %s", e, exc_info=True)
 
     def _find_unit_for_plant(self, plant_id: int) -> int | None:
         """Resolve the unit_id that owns a given plant_id."""
         # Check active runtimes first (fast path)
-        with self._runtime_lock:
+        with self._registry_lock:
             for uid, runtime in self._unit_runtimes.items():
                 if runtime.active_plant and runtime.active_plant.plant_id == plant_id:
                     return uid
@@ -482,7 +494,7 @@ class GrowthService:
             }
 
             # Filter insignificant changes
-            filtered_current, filtered_proposed = self.threshold_service.filter_threshold_changes(
+            _filtered_current, filtered_proposed = self.threshold_service.filter_threshold_changes(
                 current_thresholds,
                 proposed,
             )
@@ -518,7 +530,7 @@ class GrowthService:
                 plant.current_stage,
             )
 
-        except Exception as e:
+        except Exception as e:  # TODO(narrow): multi-service orchestration with threshold + event publishing
             logger.error("Error proposing AI conditions for unit %s: %s", unit_id, e, exc_info=True)
 
     def _handle_active_plant_changed(self, payload: PlantLifecyclePayload) -> None:
@@ -540,7 +552,7 @@ class GrowthService:
                 require_empty=False,
                 reason="active_plant_changed",
             )
-        except Exception as e:
+        except Exception as e:  # TODO(narrow): event handler with payload parsing and schedule orchestration
             logger.error("Error handling ACTIVE_PLANT_CHANGED event: %s", e, exc_info=True)
 
     def _apply_active_plant_overrides(self, runtime: UnitRuntime, plant: PlantProfile) -> None:
@@ -580,7 +592,7 @@ class GrowthService:
             return None, None
         try:
             actuators = self.devices_repo.list_actuator_configs(unit_id=unit_id)
-        except Exception as exc:
+        except (KeyError, TypeError, ValueError, OSError) as exc:
             logger.debug(
                 "Failed to list actuators for unit %s: %s",
                 unit_id,
@@ -831,7 +843,7 @@ class GrowthService:
         """Invalidate cached unit payloads after writes."""
         try:
             self._unit_cache.invalidate(unit_id)
-        except Exception:
+        except (KeyError, TypeError, ValueError, AttributeError):
             logger.debug("Cache invalidation failed for unit %s", unit_id, exc_info=True)
 
     def _require_runtime(self, unit_id: int) -> UnitRuntime:
@@ -878,8 +890,8 @@ class GrowthService:
                 unit_id=unit_id,
                 sensor_id=sensor_id,
             )
-        except Exception as exc:
-            logger.debug(f"Failed to resolve plant context for sensor {sensor_id}: {exc}", exc_info=True)
+        except (KeyError, TypeError, ValueError, OSError) as exc:
+            logger.debug("Failed to resolve plant context for sensor %s: %s", sensor_id, exc, exc_info=True)
             return {}
 
     # ==================== Unit Registry Management ====================
@@ -903,7 +915,7 @@ class GrowthService:
         """
         runtime = self.get_unit_runtime(unit_id)
         if not runtime:
-            logger.error(f"Cannot start unit {unit_id}: not found")
+            logger.error("Cannot start unit %s: not found", unit_id)
             return False
 
         try:
@@ -922,22 +934,22 @@ class GrowthService:
                     for sensor in sensors:
                         try:
                             self.sensor_service.register_sensor_config(sensor)
-                            logger.debug(f"   Registered sensor {sensor.get('sensor_id')} for unit {unit_id}")
-                        except Exception as e:
-                            logger.warning(f"Failed to register sensor {sensor.get('sensor_id')}: {e}")
+                            logger.debug("   Registered sensor %s for unit %s", sensor.get("sensor_id"), unit_id)
+                        except (KeyError, TypeError, ValueError, RuntimeError, OSError) as e:
+                            logger.warning("Failed to register sensor %s: %s", sensor.get("sensor_id"), e)
 
                     for actuator in actuators:
                         try:
                             self.actuator_service.register_actuator_config(actuator)
-                            logger.debug(f"   Registered actuator {actuator.get('actuator_id')} for unit {unit_id}")
-                        except Exception as e:
-                            logger.warning(f"Failed to register actuator {actuator.get('actuator_id')}: {e}")
+                            logger.debug("   Registered actuator %s for unit %s", actuator.get("actuator_id"), unit_id)
+                        except (KeyError, TypeError, ValueError, RuntimeError, OSError) as e:
+                            logger.warning("Failed to register actuator %s: %s", actuator.get("actuator_id"), e)
 
                     # 3. Sensor polling is managed by SensorManagementService
                     # It auto-starts when GPIO/WiFi sensors are registered
                     polling_service = self.sensor_service.polling_service
                     self._polling_services[unit_id] = polling_service
-                    logger.debug(f"   Sensor polling service referenced for unit {unit_id}")
+                    logger.debug("   Sensor polling service referenced for unit %s", unit_id)
 
                     # 4. Initialize climate control (per-unit)
                     # Note: Primary sensor filtering is done by CompositeProcessor before events
@@ -989,14 +1001,14 @@ class GrowthService:
                     climate_controller.start()
                     self._climate_controllers[unit_id] = climate_controller
                     self._plant_sensor_controllers[unit_id] = plant_sensor_controller
-                    logger.debug(f"   Climate controller started for unit {unit_id}")
+                    logger.debug("   Climate controller started for unit %s", unit_id)
 
                     # 5. Load schedules into memory (memory-first pattern)
                     # Schedules are owned by SchedulingService via ActuatorManager
                     scheduling_service = self._get_scheduling_service()
                     if scheduling_service:
                         schedule_count = scheduling_service.load_schedules_for_unit(unit_id)
-                        logger.debug(f"   Loaded {schedule_count} schedules for unit {unit_id}")
+                        logger.debug("   Loaded %s schedules for unit %s", schedule_count, unit_id)
 
                     # 6. Mark hardware as running on runtime
                     # Note: Plant growth scheduling is handled globally by UnifiedScheduler
@@ -1012,8 +1024,8 @@ class GrowthService:
             )
             return False
 
-        except Exception as e:
-            logger.error(f"Error starting runtime for unit {unit_id}: {e}", exc_info=True)
+        except Exception as e:  # TODO(narrow): complex hardware init with DB, device registration, and controller setup
+            logger.error("Error starting runtime for unit %s: %s", unit_id, e, exc_info=True)
             return False
 
     def stop_unit_runtime(self, unit_id: int) -> bool:
@@ -1033,11 +1045,11 @@ class GrowthService:
         Returns:
             True if successful
         """
-        with self._runtime_lock:
+        with self._registry_lock:
             runtime = self._unit_runtimes.get(unit_id)
 
         if not runtime:
-            logger.warning(f"Unit {unit_id} not in runtime registry")
+            logger.warning("Unit %s not in runtime registry", unit_id)
             return False
 
         try:
@@ -1046,34 +1058,35 @@ class GrowthService:
             if unit_id in self._polling_services:
                 self._polling_services[unit_id].stop_polling()
                 del self._polling_services[unit_id]
-                logger.debug(f"   Stopped sensor polling for unit {unit_id}")
+                logger.debug("   Stopped sensor polling for unit %s", unit_id)
 
             # 2. Stop climate control (no explicit stop needed - event-driven)
             if unit_id in self._climate_controllers:
                 del self._climate_controllers[unit_id]
-                logger.debug(f"   Stopped climate controller for unit {unit_id}")
+                logger.debug("   Stopped climate controller for unit %s", unit_id)
             if unit_id in self._plant_sensor_controllers:
                 del self._plant_sensor_controllers[unit_id]
-                logger.debug(f"   Stopped plant sensor controller for unit {unit_id}")
+                logger.debug("   Stopped plant sensor controller for unit %s", unit_id)
 
             # 3. Clear schedules from memory (memory-first cleanup)
             scheduling_service = self._get_scheduling_service()
             if scheduling_service:
                 scheduling_service.clear_unit_schedules(unit_id)
-                logger.debug(f"   Cleared schedules from memory for unit {unit_id}")
+                logger.debug("   Cleared schedules from memory for unit %s", unit_id)
 
             # 4. Mark hardware as not running on runtime
             runtime.set_hardware_running(False)
 
             # Remove from registry
-            with self._runtime_lock:
+            with self._registry_lock:
                 del self._unit_runtimes[unit_id]
+                self._unit_locks.pop(unit_id, None)
 
-            logger.info(f"Stopped and removed unit {unit_id} from registry")
+            logger.info("Stopped and removed unit %s from registry", unit_id)
             return True
 
-        except Exception as e:
-            logger.error(f"Error stopping runtime for unit {unit_id}: {e}", exc_info=True)
+        except Exception as e:  # TODO(narrow): complex cleanup with polling, controllers, schedules, and registry
+            logger.error("Error stopping runtime for unit %s: %s", unit_id, e, exc_info=True)
             return False
 
     def is_unit_hardware_running(self, unit_id: int) -> bool:
@@ -1091,7 +1104,7 @@ class GrowthService:
         Returns:
             Dictionary of {unit_id: UnitRuntime}
         """
-        with self._runtime_lock:
+        with self._registry_lock:
             return dict(self._unit_runtimes)
 
     def get_unit_runtime(self, unit_id: int) -> UnitRuntime | None:
@@ -1101,7 +1114,7 @@ class GrowthService:
         Attempts the in-memory registry first, then loads from the database and
         constructs a runtime if necessary. Plants are loaded via PlantService.
         """
-        with self._runtime_lock:
+        with self._registry_lock:
             if unit_id in self._unit_runtimes:
                 return self._unit_runtimes[unit_id]
 
@@ -1118,12 +1131,12 @@ class GrowthService:
             if self._plant_service:
                 active_plant_id = unit_data.get("active_plant_id")
                 plant_count = self._plant_service.load_plants_for_unit(unit_id, active_plant_id)
-                logger.debug(f"PlantService loaded {plant_count} plants for unit {unit_id}")
+                logger.debug("PlantService loaded %s plants for unit %s", plant_count, unit_id)
 
-            with self._runtime_lock:
+            with self._registry_lock:
                 self._unit_runtimes[unit_id] = runtime
             return runtime
-        except Exception as exc:
+        except (KeyError, TypeError, ValueError, OSError) as exc:
             logger.error("Error loading runtime for unit %s: %s", unit_id, exc, exc_info=True)
             return None
 
@@ -1207,8 +1220,8 @@ class GrowthService:
 
             return success
 
-        except Exception as exc:
-            logger.error(f"Failed to set active plant via PlantViewService: {exc}", exc_info=True)
+        except (KeyError, TypeError, ValueError, OSError) as exc:
+            logger.error("Failed to set active plant via PlantViewService: %s", exc, exc_info=True)
             return False
 
     def add_plant_to_unit(
@@ -1281,8 +1294,8 @@ class GrowthService:
                 return result.get("plant_id")
             return None
 
-        except Exception as exc:
-            logger.error(f"Failed to create plant via PlantViewService: {exc}", exc_info=True)
+        except (KeyError, TypeError, ValueError, OSError) as exc:
+            logger.error("Failed to create plant via PlantViewService: %s", exc, exc_info=True)
             return None
 
     def remove_plant_from_unit(self, unit_id: int, plant_id: int) -> bool:
@@ -1312,8 +1325,8 @@ class GrowthService:
 
             return success
 
-        except Exception as exc:
-            logger.error(f"Failed to remove plant via PlantViewService: {exc}", exc_info=True)
+        except (KeyError, TypeError, ValueError, OSError) as exc:
+            logger.error("Failed to remove plant via PlantViewService: %s", exc, exc_info=True)
             return False
 
     # ==================== Unit CRUD Operations ====================
@@ -1332,7 +1345,7 @@ class GrowthService:
             units_by_id: dict[int, dict[str, Any]] = {}
 
             # First: populate from in-memory runtime registry
-            with self._runtime_lock:
+            with self._registry_lock:
                 for unit_id, runtime in self._unit_runtimes.items():
                     # Apply user filter if specified
                     if user_id is not None and runtime.user_id != user_id:
@@ -1340,7 +1353,7 @@ class GrowthService:
                     try:
                         data = runtime.to_dict()
                         units_by_id[unit_id] = data
-                    except Exception as exc:
+                    except (KeyError, TypeError, ValueError, AttributeError) as exc:
                         logger.debug("Unable to serialize runtime for unit %s: %s", unit_id, exc)
             # Second: only fetch from database if no units found in memory
             if not units_by_id:
@@ -1355,14 +1368,14 @@ class GrowthService:
                         # Optionally create runtime for units not yet loaded
                         try:
                             runtime = self.factory.create_runtime(unit_dict)
-                            with self._runtime_lock:
+                            with self._registry_lock:
                                 self._unit_runtimes[unit_id] = runtime
                             logger.info("Loaded unit %s into runtime registry during list_units", unit_id)
-                        except Exception as exc:
+                        except (KeyError, TypeError, ValueError, AttributeError) as exc:
                             logger.debug("Failed to create runtime for unit %s: %s", unit_id, exc)
 
             return list(units_by_id.values())
-        except Exception as e:
+        except (KeyError, TypeError, ValueError, OSError) as e:
             logger.error("Error listing units: %s", e, exc_info=True)
             return []
 
@@ -1395,15 +1408,33 @@ class GrowthService:
 
             try:
                 runtime = self.factory.create_runtime(unit_data)
-                with self._runtime_lock:
+                with self._registry_lock:
                     self._unit_runtimes[unit_id] = runtime
                 logger.info("Loaded unit %s into registry", unit_id)
-            except Exception as e:
+            except (KeyError, TypeError, ValueError, AttributeError) as e:
                 logger.error("Error creating runtime for unit %s: %s", unit_id, e, exc_info=True)
 
             return unit_data
-        except Exception as e:
-            logger.error(f"Error fetching unit {unit_id} from runtime cache: {e}", exc_info=True)
+        except (KeyError, TypeError, ValueError, OSError) as e:
+            logger.error("Error fetching unit %s from runtime cache: %s", unit_id, e, exc_info=True)
+
+    # ── Unit statistics (Sprint 4 – layer violation fix) ─────────────
+
+    def get_unit_stats(self, unit_id: int) -> dict[str, Any]:
+        """Return aggregate hardware statistics for a unit.
+
+        Provides sensor/actuator counts, camera status, last activity and
+        uptime information.  This replaces direct repository access in the
+        UI layer.
+        """
+        repo = self.unit_repo
+        return {
+            "sensor_count": repo.count_sensors_in_unit(unit_id) if hasattr(repo, "count_sensors_in_unit") else 0,
+            "actuator_count": repo.count_actuators_in_unit(unit_id) if hasattr(repo, "count_actuators_in_unit") else 0,
+            "camera_active": repo.is_camera_active(unit_id) if hasattr(repo, "is_camera_active") else False,
+            "last_activity": repo.get_unit_last_activity(unit_id) if hasattr(repo, "get_unit_last_activity") else None,
+            "uptime_hours": repo.get_unit_uptime_hours(unit_id) if hasattr(repo, "get_unit_uptime_hours") else 0,
+        }
 
     def create_unit(
         self,
@@ -1473,13 +1504,13 @@ class GrowthService:
             runtime = self.factory.create_runtime(unit_data)
 
             logger.debug("Runtime created for unit_id=%s; adding to _unit_runtimes", unit_id)
-            with self._runtime_lock:
+            with self._registry_lock:
                 self._unit_runtimes[unit_id] = runtime
 
             self._invalidate_unit_cache(unit_id)
 
             # Start hardware runtime
-            logger.info(f"Starting hardware runtime for new unit {unit_id} ({name})")
+            logger.info("Starting hardware runtime for new unit %s (%s)", unit_id, name)
             self.start_unit_runtime(unit_id)
 
             self._auto_apply_plant_stage_schedules(
@@ -1500,8 +1531,8 @@ class GrowthService:
             logger.info("Growth unit created successfully with unit_id=%s", unit_id)
             return unit_id
 
-        except Exception as e:
-            logger.error(f"Error creating unit: {e}", exc_info=True)
+        except Exception as e:  # TODO(narrow): complex unit creation with DB, factory, hardware start, and audit
+            logger.error("Error creating unit: %s", e, exc_info=True)
             return None
 
     def update_unit(
@@ -1545,7 +1576,7 @@ class GrowthService:
             self.unit_repo.update_unit(unit_id, **unit_data)
 
             # Update runtime if exists
-            with self._runtime_lock:
+            with self._get_unit_lock(unit_id):
                 if unit_id in self._unit_runtimes:
                     runtime = self._unit_runtimes[unit_id]
                     if name:
@@ -1580,7 +1611,7 @@ class GrowthService:
             unit_id: Unit identifier
         """
         # Stop hardware runtime first
-        logger.info(f"Stopping hardware runtime for unit {unit_id}")
+        logger.info("Stopping hardware runtime for unit %s", unit_id)
         try:
             self.stop_unit_runtime(unit_id)
             self._invalidate_unit_cache(unit_id)
@@ -1597,8 +1628,8 @@ class GrowthService:
                 resource=f"growth_unit:{unit_id}",
                 outcome="success",
             )
-        except Exception as e:
-            logger.error(f"Error deleting unit {unit_id}: {e}", exc_info=True)
+        except Exception as e:  # TODO(narrow): complex cleanup with runtime stop, DB delete, and audit
+            logger.error("Error deleting unit %s: %s", unit_id, e, exc_info=True)
 
     # ==================== Unit Settings & Thresholds ====================
     def get_thresholds(self, unit_id: int) -> dict[str, Any]:
@@ -1720,7 +1751,7 @@ class GrowthService:
         """
         try:
             settings_dict = settings.to_dict() if hasattr(settings, "to_dict") else dict(settings)
-        except Exception:
+        except (KeyError, TypeError, ValueError, AttributeError):
             settings_dict = {}
 
         if not settings_dict:
@@ -1738,9 +1769,9 @@ class GrowthService:
                 self.update_unit_thresholds(unit_id, changes)
 
         repo_payload = dict(settings_dict)
-        if isinstance(repo_payload.get("device_schedules"), (dict, list)):
+        if isinstance(repo_payload.get("device_schedules"), dict | list):
             repo_payload["device_schedules"] = dump_json_field(repo_payload["device_schedules"])
-        if isinstance(repo_payload.get("dimensions"), (dict, list)):
+        if isinstance(repo_payload.get("dimensions"), dict | list):
             repo_payload["dimensions"] = dump_json_field(repo_payload["dimensions"])
         if self.threshold_service:
             for key in THRESHOLD_KEYS:
@@ -1749,7 +1780,7 @@ class GrowthService:
         ok = self.unit_repo.update_unit_settings(unit_id, repo_payload)
         if ok:
             self._invalidate_unit_cache(unit_id)
-            with self._runtime_lock:
+            with self._get_unit_lock(unit_id):
                 runtime = self._unit_runtimes.get(unit_id)
                 if runtime and hasattr(runtime, "settings"):
                     # Keep runtime in sync with persisted settings (write-through).
@@ -1799,10 +1830,11 @@ class GrowthService:
         Args:
             unit_id: Unit identifier
         """
-        with self._runtime_lock:
+        with self._registry_lock:
             if unit_id in self._unit_runtimes:
                 del self._unit_runtimes[unit_id]
-                logger.info(f"Removed unit {unit_id} from runtime registry")
+                self._unit_locks.pop(unit_id, None)
+                logger.info("Removed unit %s from runtime registry", unit_id)
 
     def shutdown(self) -> None:
         """
@@ -1812,13 +1844,13 @@ class GrowthService:
         """
         logger.info("Shutting down all unit runtimes...")
 
-        with self._runtime_lock:
+        with self._registry_lock:
             unit_ids = list(self._unit_runtimes.keys())
 
         for unit_id in unit_ids:
             try:
                 self.stop_unit_runtime(unit_id)
-            except Exception as e:
-                logger.error(f"Error stopping unit {unit_id} during shutdown: {e}")
+            except Exception as e:  # TODO(narrow): delegates to stop_unit_runtime which has complex cleanup
+                logger.error("Error stopping unit %s during shutdown: %s", unit_id, e)
 
         logger.info("All unit runtimes stopped")

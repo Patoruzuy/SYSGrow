@@ -43,11 +43,14 @@ from app.hardware.sensors.processors.base_processor import IDataProcessor, Proce
 
 if TYPE_CHECKING:
     from app.services.hardware.sensor_management_service import SensorManagementService
+import contextlib
+
 from app.domain.sensors.sensor_entity import SensorEntity
 from app.enums.events import DeviceEvent
 from app.schemas.events import (
     UnregisteredSensorPayload,
 )
+from app.utils.cache import TTLCache
 from app.utils.emitters import EmitterService
 from app.utils.event_bus import EventBus
 from app.utils.time import iso_now, utc_now
@@ -115,7 +118,7 @@ class MQTTSensorService:
         self._trace_messages = trace_env in {"1", "true", "yes", "on"}
 
         # Local state and caches
-        self._friendly_name_cache: dict[str, int] = {}
+        self._friendly_name_cache: TTLCache = TTLCache(enabled=True, ttl_seconds=300, maxsize=256)
         self._unmapped_last_logged_at: dict[str, float] = {}
 
         # Basic health tracking (routing state; not “processing” logic)
@@ -179,10 +182,8 @@ class MQTTSensorService:
         self.metrics.inc("mqtt_messages_total", source=source)
 
         if self._trace_messages:
-            try:
+            with contextlib.suppress(Exception):
                 logger.info("MQTT [%s] -> %s", topic, payload_bytes.decode(errors="ignore")[:250])
-            except Exception:
-                pass
 
         try:
             if topic.startswith("zigbee2mqtt/"):
@@ -270,12 +271,12 @@ class MQTTSensorService:
             self.metrics.inc("mqtt_zigbee_availability_total", status=payload_str)
 
             # Update adapter availability if sensor is registered
-            sensor_id, sensor = self._resolve_registered_sensor(friendly_name)
+            _sensor_id, sensor = self._resolve_registered_sensor(friendly_name)
             if sensor is not None and hasattr(sensor, "_adapter"):
                 adapter = sensor._adapter
                 if hasattr(adapter, "_device_available"):
                     adapter._device_available = is_online
-                    logger.info(f"Zigbee2MQTT device '{friendly_name}' is {payload_str}")
+                    logger.info("Zigbee2MQTT device '%s' is %s", friendly_name, payload_str)
 
             # Emit availability event for UI updates
             if self.event_bus:
@@ -295,7 +296,7 @@ class MQTTSensorService:
                     logger.debug("Failed to publish availability event: %s", exc)
 
         except Exception as e:
-            logger.error(f"Error handling Zigbee availability for {friendly_name}: {e}")
+            logger.error("Error handling Zigbee availability for %s: %s", friendly_name, e)
 
     def _log_unregistered_zigbee(self, friendly_name: str) -> None:
         """Throttled logging for unregistered Zigbee devices to prevent log spam."""
@@ -585,9 +586,13 @@ class MQTTSensorService:
             # Sync with hardware-level adapter (if registered) to support on-demand /read API
             try:
                 active_sensor = self._get_sensor_entity(sensor_id)
-                if active_sensor and hasattr(active_sensor, "_adapter") and active_sensor._adapter:
-                    if hasattr(active_sensor._adapter, "update_data"):
-                        active_sensor._adapter.update_data(raw_data)
+                if (
+                    active_sensor
+                    and hasattr(active_sensor, "_adapter")
+                    and active_sensor._adapter
+                    and hasattr(active_sensor._adapter, "update_data")
+                ):
+                    active_sensor._adapter.update_data(raw_data)
             except Exception as e:
                 logger.debug("Failed to sync adapter for sensor %s: %s", sensor_id, e)
 
@@ -696,7 +701,7 @@ class MQTTSensorService:
                 self.processor._priority._snapshot_cache.clear()
                 logger.info("MQTTSensorService: PriorityProcessor state cleared")
         except Exception as e:
-            logger.warning(f"Failed to clear PriorityProcessor state: {e}")
+            logger.warning("Failed to clear PriorityProcessor state: %s", e)
 
         logger.info("MQTTSensorService: Resolution caches cleared")
 
@@ -730,7 +735,7 @@ class MQTTSensorService:
             if sensor:
                 return cached_id, sensor
             # Cache is stale, clear it
-            self._friendly_name_cache.pop(friendly_name, None)
+            self._friendly_name_cache.invalidate(friendly_name)
 
         # Delegate to sensor_manager
         try:
@@ -738,7 +743,7 @@ class MQTTSensorService:
             if sensor:
                 sensor_id = _safe_int(getattr(sensor, "id", 0))
                 if sensor_id > 0:
-                    self._friendly_name_cache[friendly_name] = sensor_id
+                    self._friendly_name_cache.set(friendly_name, sensor_id)
                     return sensor_id, sensor
         except Exception:
             pass

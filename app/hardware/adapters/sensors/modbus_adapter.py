@@ -66,9 +66,9 @@ class ModbusAdapter(ISensorAdapter):
                 # Try to read one register to test connection
                 self._test_connection()
                 self._available = True
-                logger.info(f"Modbus adapter initialized for slave {slave_id}")
+                logger.info("Modbus adapter initialized for slave %s", slave_id)
             except Exception as e:
-                logger.error(f"Failed to initialize Modbus connection: {e}")
+                logger.error("Failed to initialize Modbus connection: %s", e)
                 self._available = False
 
     def _test_connection(self):
@@ -79,7 +79,7 @@ class ModbusAdapter(ISensorAdapter):
             if result.isError():
                 raise AdapterError(f"Modbus test read failed: {result}")
         except Exception as e:
-            raise AdapterError(f"Modbus connection test failed: {e}")
+            raise AdapterError(f"Modbus connection test failed: {e}") from e
 
     def read(self) -> dict[str, Any]:
         """
@@ -117,8 +117,8 @@ class ModbusAdapter(ISensorAdapter):
             }
 
         except Exception as e:
-            logger.error(f"Modbus adapter read error: {e}")
-            raise AdapterError(f"Failed to read Modbus sensor: {e}")
+            logger.error("Modbus adapter read error: %s", e)
+            raise AdapterError(f"Failed to read Modbus sensor: {e}") from e
 
     def _convert_registers(self, registers: list) -> float:
         """
@@ -195,9 +195,9 @@ class ModbusAdapter(ISensorAdapter):
             self._test_connection()
             self._available = True
         except Exception as e:
-            logger.error(f"Failed to apply Modbus configuration: {e}")
+            logger.error("Failed to apply Modbus configuration: %s", e)
             self._available = False
-            raise AdapterError(f"Configuration failed: {e}")
+            raise AdapterError(f"Configuration failed: {e}") from e
 
     def is_available(self) -> bool:
         """

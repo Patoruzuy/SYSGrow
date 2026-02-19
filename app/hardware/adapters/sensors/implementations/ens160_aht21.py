@@ -46,7 +46,7 @@ class ENS160AHT21Adapter(BaseSensorAdapter):
             self._initialize_sensor()
             self._available = True
         except Exception as e:
-            logger.error(f"Failed to initialize ENS160+AHT21: {e}")
+            logger.error("Failed to initialize ENS160+AHT21: %s", e)
             self._available = False
 
     def _initialize_sensor(self):
@@ -85,13 +85,13 @@ class ENS160AHT21Adapter(BaseSensorAdapter):
             required_fields = ["eco2", "tvoc", "temperature", "humidity"]
             for field in required_fields:
                 if field not in data:
-                    logger.warning(f"Missing field '{field}' in ENS160+AHT21 reading")
+                    logger.warning("Missing field '%s' in ENS160+AHT21 reading", field)
 
             return data
 
         except Exception as e:
-            logger.error(f"ENS160+AHT21 read error: {e}")
-            raise AdapterError(f"Failed to read ENS160+AHT21: {e}")
+            logger.error("ENS160+AHT21 read error: %s", e)
+            raise AdapterError(f"Failed to read ENS160+AHT21: {e}") from e
 
     def configure(self, config: dict[str, Any]) -> None:
         """
@@ -112,9 +112,9 @@ class ENS160AHT21Adapter(BaseSensorAdapter):
                 self._initialize_sensor()
                 self._available = True
             except Exception as e:
-                logger.error(f"Failed to reconfigure ENS160+AHT21: {e}")
+                logger.error("Failed to reconfigure ENS160+AHT21: %s", e)
                 self._available = False
-                raise AdapterError(f"Configuration failed: {e}")
+                raise AdapterError(f"Configuration failed: {e}") from e
 
     def is_available(self) -> bool:
         """Check if sensor is available"""
@@ -130,4 +130,4 @@ class ENS160AHT21Adapter(BaseSensorAdapter):
             try:
                 self._sensor.cleanup()
             except Exception as e:
-                logger.warning(f"Error during ENS160+AHT21 cleanup: {e}")
+                logger.warning("Error during ENS160+AHT21 cleanup: %s", e)

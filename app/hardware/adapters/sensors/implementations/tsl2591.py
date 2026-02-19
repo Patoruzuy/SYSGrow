@@ -46,7 +46,7 @@ class TSL2591Adapter(BaseSensorAdapter):
             self._initialize_sensor()
             self._available = True
         except Exception as e:
-            logger.error(f"Failed to initialize TSL2591: {e}")
+            logger.error("Failed to initialize TSL2591: %s", e)
             self._available = False
 
     def _initialize_sensor(self):
@@ -85,13 +85,13 @@ class TSL2591Adapter(BaseSensorAdapter):
             required_fields = ["lux", "full_spectrum", "infrared", "visible"]
             for field in required_fields:
                 if field not in data:
-                    logger.warning(f"Missing field '{field}' in TSL2591 reading")
+                    logger.warning("Missing field '%s' in TSL2591 reading", field)
 
             return data
 
         except Exception as e:
-            logger.error(f"TSL2591 read error: {e}")
-            raise AdapterError(f"Failed to read TSL2591: {e}")
+            logger.error("TSL2591 read error: %s", e)
+            raise AdapterError(f"Failed to read TSL2591: {e}") from e
 
     def configure(self, config: dict[str, Any]) -> None:
         """
@@ -112,9 +112,9 @@ class TSL2591Adapter(BaseSensorAdapter):
                 self._initialize_sensor()
                 self._available = True
             except Exception as e:
-                logger.error(f"Failed to reconfigure TSL2591: {e}")
+                logger.error("Failed to reconfigure TSL2591: %s", e)
                 self._available = False
-                raise AdapterError(f"Configuration failed: {e}")
+                raise AdapterError(f"Configuration failed: {e}") from e
 
     def is_available(self) -> bool:
         """Check if sensor is available"""
@@ -130,4 +130,4 @@ class TSL2591Adapter(BaseSensorAdapter):
             try:
                 self._sensor.cleanup()
             except Exception as e:
-                logger.warning(f"Error during TSL2591 cleanup: {e}")
+                logger.warning("Error during TSL2591 cleanup: %s", e)

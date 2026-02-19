@@ -48,7 +48,7 @@ class BME280Adapter(BaseSensorAdapter):
             self._initialize_sensor()
             self._available = True
         except Exception as e:
-            logger.error(f"Failed to initialize BME280: {e}")
+            logger.error("Failed to initialize BME280: %s", e)
             self._available = False
 
     def _initialize_sensor(self):
@@ -87,13 +87,13 @@ class BME280Adapter(BaseSensorAdapter):
             required_fields = ["temperature", "humidity", "pressure"]
             for field in required_fields:
                 if field not in data:
-                    logger.warning(f"Missing field '{field}' in BME280 reading")
+                    logger.warning("Missing field '%s' in BME280 reading", field)
 
             return data
 
         except Exception as e:
-            logger.error(f"BME280 read error: {e}")
-            raise AdapterError(f"Failed to read BME280: {e}")
+            logger.error("BME280 read error: %s", e)
+            raise AdapterError(f"Failed to read BME280: {e}") from e
 
     def configure(self, config: dict[str, Any]) -> None:
         """
@@ -116,7 +116,7 @@ class BME280Adapter(BaseSensorAdapter):
             try:
                 self._sensor.set_sea_level_pressure(config["sea_level_pressure"])
             except Exception as e:
-                logger.warning(f"Failed to set sea level pressure: {e}")
+                logger.warning("Failed to set sea level pressure: %s", e)
 
         # Reinitialize if requested
         if config.get("reinitialize", False):
@@ -124,9 +124,9 @@ class BME280Adapter(BaseSensorAdapter):
                 self._initialize_sensor()
                 self._available = True
             except Exception as e:
-                logger.error(f"Failed to reconfigure BME280: {e}")
+                logger.error("Failed to reconfigure BME280: %s", e)
                 self._available = False
-                raise AdapterError(f"Configuration failed: {e}")
+                raise AdapterError(f"Configuration failed: {e}") from e
 
     def is_available(self) -> bool:
         """Check if sensor is available"""
@@ -142,4 +142,4 @@ class BME280Adapter(BaseSensorAdapter):
             try:
                 self._sensor.cleanup()
             except Exception as e:
-                logger.warning(f"Error during BME280 cleanup: {e}")
+                logger.warning("Error during BME280 cleanup: %s", e)

@@ -46,7 +46,7 @@ class SoilMoistureAdapter(BaseSensorAdapter):
             self._initialize_sensor()
             self._available = True
         except Exception as e:
-            logger.error(f"Failed to initialize soil moisture sensor: {e}")
+            logger.error("Failed to initialize soil moisture sensor: %s", e)
             self._available = False
 
     def _initialize_sensor(self):
@@ -97,8 +97,8 @@ class SoilMoistureAdapter(BaseSensorAdapter):
             return data
 
         except Exception as e:
-            logger.error(f"Soil moisture read error: {e}")
-            raise AdapterError(f"Failed to read soil moisture: {e}")
+            logger.error("Soil moisture read error: %s", e)
+            raise AdapterError(f"Failed to read soil moisture: {e}") from e
 
     def configure(self, config: dict[str, Any]) -> None:
         """
@@ -130,9 +130,9 @@ class SoilMoistureAdapter(BaseSensorAdapter):
                 self._initialize_sensor()
                 self._available = True
             except Exception as e:
-                logger.error(f"Failed to reconfigure soil moisture sensor: {e}")
+                logger.error("Failed to reconfigure soil moisture sensor: %s", e)
                 self._available = False
-                raise AdapterError(f"Configuration failed: {e}")
+                raise AdapterError(f"Configuration failed: {e}") from e
 
     def is_available(self) -> bool:
         """Check if sensor is available"""
@@ -148,4 +148,4 @@ class SoilMoistureAdapter(BaseSensorAdapter):
             try:
                 self._sensor.cleanup()
             except Exception as e:
-                logger.warning(f"Error during soil moisture cleanup: {e}")
+                logger.warning("Error during soil moisture cleanup: %s", e)

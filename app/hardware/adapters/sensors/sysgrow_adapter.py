@@ -21,6 +21,7 @@ import json
 import logging
 import uuid
 from collections import deque
+from contextlib import suppress
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
@@ -465,7 +466,7 @@ class SYSGrowAdapter(ISensorAdapter):
             # Update local state optimistically
             old_name = self.friendly_name
             self.friendly_name = new_name
-            logger.info(f"SYSGrow: Renamed {old_name} -> {new_name}")
+            logger.info("SYSGrow: Renamed %s -> %s", old_name, new_name)
             return True
         return False
 
@@ -593,10 +594,8 @@ class SYSGrowAdapter(ISensorAdapter):
                 if cmd.is_expired():
                     logger.warning("Queued command '%s' expired, discarding", cmd.command)
                     if cmd.callback:
-                        try:
+                        with suppress(Exception):
                             cmd.callback("timeout", {})
-                        except Exception:
-                            pass
                     continue
 
                 # Send command
@@ -618,10 +617,8 @@ class SYSGrowAdapter(ISensorAdapter):
                 cmd.status = CommandStatus.TIMEOUT
                 logger.warning("Command '%s' timed out (transaction: %s)", cmd.command, tid)
                 if cmd.callback:
-                    try:
+                    with suppress(Exception):
                         cmd.callback("timeout", {})
-                    except Exception:
-                        pass
 
     # =========================================================================
     # Device Commands
@@ -714,7 +711,7 @@ class SYSGrowAdapter(ISensorAdapter):
         elif sensor_type == "humidity":
             self.set_calibration(humidity_offset=offset)
         else:
-            logger.warning(f"SYSGrow: Unknown sensor type for calibration: {sensor_type}")
+            logger.warning("SYSGrow: Unknown sensor type for calibration: %s", sensor_type)
 
     def restart_device(self, callback: Callable | None = None) -> str | None:
         """

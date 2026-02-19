@@ -46,7 +46,7 @@ class DHT11Adapter(BaseSensorAdapter):
             self._initialize_sensor()
             self._available = True
         except Exception as e:
-            logger.error(f"Failed to initialize DHT11: {e}")
+            logger.error("Failed to initialize DHT11: %s", e)
             self._available = False
 
     def _initialize_sensor(self):
@@ -83,8 +83,8 @@ class DHT11Adapter(BaseSensorAdapter):
             return data
 
         except Exception as e:
-            logger.error(f"DHT11 read error: {e}")
-            raise AdapterError(f"Failed to read DHT11: {e}")
+            logger.error("DHT11 read error: %s", e)
+            raise AdapterError(f"Failed to read DHT11: {e}") from e
 
     def configure(self, config: dict[str, Any]) -> None:
         """
@@ -107,9 +107,9 @@ class DHT11Adapter(BaseSensorAdapter):
                 self._initialize_sensor()
                 self._available = True
             except Exception as e:
-                logger.error(f"Failed to reconfigure DHT11: {e}")
+                logger.error("Failed to reconfigure DHT11: %s", e)
                 self._available = False
-                raise AdapterError(f"Configuration failed: {e}")
+                raise AdapterError(f"Configuration failed: {e}") from e
 
     def is_available(self) -> bool:
         """Check if sensor is available"""
@@ -125,4 +125,4 @@ class DHT11Adapter(BaseSensorAdapter):
             try:
                 self._sensor.cleanup()
             except Exception as e:
-                logger.warning(f"Error during DHT11 cleanup: {e}")
+                logger.warning("Error during DHT11 cleanup: %s", e)

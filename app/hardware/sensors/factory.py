@@ -128,7 +128,9 @@ class SensorFactory:
             _processor=processors[0] if processors else None,
         )
 
-        logger.info(f"Created sensor: {name} (ID: {sensor_id}, Type: {sensor_type_str}, Protocol: {protocol.value})")
+        logger.info(
+            "Created sensor: %s (ID: %s, Type: %s, Protocol: %s)", name, sensor_id, sensor_type_str, protocol.value
+        )
 
         return sensor
 
@@ -153,11 +155,11 @@ class SensorFactory:
         # Create adapter with params
         try:
             adapter = adapter_class(**params)
-            logger.debug(f"Created {adapter_class.__name__} for protocol {protocol.value}")
+            logger.debug("Created %s for protocol %s", adapter_class.__name__, protocol.value)
             return adapter
         except Exception as e:
-            logger.error(f"Failed to create adapter: {e}")
-            raise ValueError(f"Failed to create adapter for protocol '{protocol.value}': {e}")
+            logger.error("Failed to create adapter: %s", e)
+            raise ValueError(f"Failed to create adapter for protocol '{protocol.value}': {e}") from e
 
     def _create_processors(self, sensor_type: str, params: dict[str, Any]) -> list[IDataProcessor]:
         """
@@ -182,7 +184,7 @@ class SensorFactory:
                     processor = processor_class()
                 processors.append(processor)
             except Exception as e:
-                logger.error(f"Failed to create processor {processor_class.__name__}: {e}")
+                logger.error("Failed to create processor %s: %s", processor_class.__name__, e)
 
         return processors
 

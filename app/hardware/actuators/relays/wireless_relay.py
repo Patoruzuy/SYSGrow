@@ -75,7 +75,7 @@ class WirelessRelay(RelayBase):
                 RelayStatePayload(device=self.device, state="on"),
             )
         except Exception as e:
-            logger.error(f"Error turning on relay {self.device}: {e}")
+            logger.error("Error turning on relay %s: %s", self.device, e)
 
     def turn_off(self):
         """
@@ -93,7 +93,7 @@ class WirelessRelay(RelayBase):
                 RelayStatePayload(device=self.device, state="off"),
             )
         except Exception as e:
-            logger.error(f"Error turning off relay {self.device}: {e}")
+            logger.error("Error turning off relay %s: %s", self.device, e)
 
     def set_connection_mode(self, mode: str):
         """
@@ -128,7 +128,7 @@ class WirelessRelay(RelayBase):
             response = requests.get(url, timeout=5)
             response.raise_for_status()
         except requests.RequestException as e:
-            raise Exception(f"Error sending HTTP command to {url}: {e}")
+            raise Exception(f"Error sending HTTP command to {url}: {e}") from e
 
     def _send_ble_command(self, state: str):
         """
@@ -141,7 +141,7 @@ class WirelessRelay(RelayBase):
             try:
                 self.ble_client.write(f"{self.device},{state}")
             except Exception as e:
-                raise Exception(f"BLE command error: {e}")
+                raise Exception(f"BLE command error: {e}") from e
 
     def update_wifi_credentials(self, topic, encrypted_payload):
         """

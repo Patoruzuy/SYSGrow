@@ -51,7 +51,7 @@ class GPIOAdapter(ISensorAdapter):
             self._initialize_sensor()
             self._available = True
         except Exception as e:
-            logger.error(f"Failed to initialize GPIO sensor {sensor_model}: {e}")
+            logger.error("Failed to initialize GPIO sensor %s: %s", sensor_model, e)
             self._available = False
 
     def _initialize_sensor(self) -> None:
@@ -134,8 +134,8 @@ class GPIOAdapter(ISensorAdapter):
                 raise AdapterError(f"Expected dict from sensor, got {type(data)}")
             return data
         except Exception as e:
-            logger.error(f"GPIO adapter read error for {self.sensor_model}: {e}")
-            raise AdapterError(f"Failed to read GPIO sensor: {e}")
+            logger.error("GPIO adapter read error for %s: %s", self.sensor_model, e)
+            raise AdapterError(f"Failed to read GPIO sensor: {e}") from e
 
     def configure(self, config: dict[str, Any]) -> None:
         """
@@ -154,9 +154,9 @@ class GPIOAdapter(ISensorAdapter):
                 self._initialize_sensor()
                 self._available = True
             except Exception as e:
-                logger.error(f"Failed to reconfigure sensor: {e}")
+                logger.error("Failed to reconfigure sensor: %s", e)
                 self._available = False
-                raise AdapterError(f"Configuration failed: {e}")
+                raise AdapterError(f"Configuration failed: {e}") from e
 
     def is_available(self) -> bool:
         """
@@ -183,4 +183,4 @@ class GPIOAdapter(ISensorAdapter):
             try:
                 self._sensor_impl.cleanup()
             except Exception as e:
-                logger.warning(f"Error during GPIO cleanup: {e}")
+                logger.warning("Error during GPIO cleanup: %s", e)

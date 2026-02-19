@@ -65,9 +65,9 @@ class ZigbeeAdapter(ISensorAdapter):
             try:
                 self.mqtt_client.subscribe(self.mqtt_topic, self._on_mqtt_message)
                 self._available = True
-                logger.info(f"Zigbee adapter subscribed to: {self.mqtt_topic}")
+                logger.info("Zigbee adapter subscribed to: %s", self.mqtt_topic)
             except Exception as e:
-                logger.error(f"Failed to subscribe to Zigbee topic: {e}")
+                logger.error("Failed to subscribe to Zigbee topic: %s", e)
                 self._available = False
 
     def _on_mqtt_message(self, client, userdata, msg):
@@ -86,12 +86,12 @@ class ZigbeeAdapter(ISensorAdapter):
             if payload.get("ieee") == self.zigbee_ieee:
                 self._last_data = payload.get("data", payload)
                 self._last_update = datetime.now()
-                logger.debug(f"Zigbee sensor {self.zigbee_ieee} data: {self._last_data}")
+                logger.debug("Zigbee sensor %s data: %s", self.zigbee_ieee, self._last_data)
 
         except json.JSONDecodeError as e:
-            logger.error(f"Failed to decode Zigbee MQTT message: {e}")
+            logger.error("Failed to decode Zigbee MQTT message: %s", e)
         except Exception as e:
-            logger.error(f"Error processing Zigbee message: {e}")
+            logger.error("Error processing Zigbee message: %s", e)
 
     def read(self) -> dict[str, Any]:
         """
@@ -124,9 +124,9 @@ class ZigbeeAdapter(ISensorAdapter):
             try:
                 command = {"cmd": "read", "ieee": self.zigbee_ieee, "sensor_type": self.sensor_type}
                 self.mqtt_client.publish(self.command_topic, json.dumps(command))
-                logger.debug(f"Requested Zigbee sensor read from {self.zigbee_ieee}")
+                logger.debug("Requested Zigbee sensor read from %s", self.zigbee_ieee)
             except Exception as e:
-                logger.error(f"Failed to request Zigbee sensor read: {e}")
+                logger.error("Failed to request Zigbee sensor read: %s", e)
 
     def configure(self, config: dict[str, Any]) -> None:
         """
@@ -144,7 +144,7 @@ class ZigbeeAdapter(ISensorAdapter):
                 try:
                     self.mqtt_client.unsubscribe(self.mqtt_topic)
                 except Exception as e:
-                    logger.warning(f"Failed to unsubscribe from {self.mqtt_topic}: {e}")
+                    logger.warning("Failed to unsubscribe from %s: %s", self.mqtt_topic, e)
 
             # Update IEEE and topics
             self.zigbee_ieee = config["zigbee_ieee"]
@@ -155,10 +155,10 @@ class ZigbeeAdapter(ISensorAdapter):
             if self.mqtt_client:
                 try:
                     self.mqtt_client.subscribe(self.mqtt_topic, self._on_mqtt_message)
-                    logger.info(f"Resubscribed to Zigbee topic: {self.mqtt_topic}")
+                    logger.info("Resubscribed to Zigbee topic: %s", self.mqtt_topic)
                 except Exception as e:
-                    logger.error(f"Failed to subscribe to new Zigbee topic: {e}")
-                    raise AdapterError(f"Failed to reconfigure Zigbee: {e}")
+                    logger.error("Failed to subscribe to new Zigbee topic: %s", e)
+                    raise AdapterError(f"Failed to reconfigure Zigbee: {e}") from e
 
     def is_available(self) -> bool:
         """
@@ -186,6 +186,6 @@ class ZigbeeAdapter(ISensorAdapter):
         if self.mqtt_client:
             try:
                 self.mqtt_client.unsubscribe(self.mqtt_topic)
-                logger.info(f"Unsubscribed from Zigbee topic: {self.mqtt_topic}")
+                logger.info("Unsubscribed from Zigbee topic: %s", self.mqtt_topic)
             except Exception as e:
-                logger.warning(f"Error during Zigbee cleanup: {e}")
+                logger.warning("Error during Zigbee cleanup: %s", e)

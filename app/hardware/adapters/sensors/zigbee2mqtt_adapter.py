@@ -85,7 +85,7 @@ class Zigbee2MQTTAdapter(ISensorAdapter):
         # NOTE: MQTT subscriptions are now handled by MQTTSensorService (unified)
         # This adapter is passive - it only provides the read() interface
         # MQTTSensorService will call update_data() when messages arrive
-        logger.info(f"Zigbee2MQTT adapter initialized for: {self.mqtt_topic} (passive mode)")
+        logger.info("Zigbee2MQTT adapter initialized for: %s (passive mode)", self.mqtt_topic)
 
     def update_data(self, payload: dict[str, Any]) -> None:
         """
@@ -145,10 +145,10 @@ class Zigbee2MQTTAdapter(ISensorAdapter):
             self._last_update = datetime.now()
             self._device_available = True
 
-            logger.debug(f"Zigbee2MQTT {self.friendly_name} data updated: {filtered_data}")
+            logger.debug("Zigbee2MQTT %s data updated: %s", self.friendly_name, filtered_data)
 
         except Exception as e:
-            logger.error(f"Error updating Zigbee2MQTT data for {self.friendly_name}: {e}")
+            logger.error("Error updating Zigbee2MQTT data for %s: %s", self.friendly_name, e)
 
     def _on_mqtt_message(self, client, userdata, msg):
         """
@@ -163,7 +163,7 @@ class Zigbee2MQTTAdapter(ISensorAdapter):
             payload = json.loads(msg.payload.decode())
             self.update_data(payload)
         except Exception as e:
-            logger.error(f"Error in legacy _on_mqtt_message handler: {e}")
+            logger.error("Error in legacy _on_mqtt_message handler: %s", e)
 
     def _on_availability_message(self, client, userdata, msg):
         """
@@ -181,16 +181,16 @@ class Zigbee2MQTTAdapter(ISensorAdapter):
             if payload_str.startswith("{"):
                 # This is bridge health data, not availability status
                 # Log it once but don't treat as availability
-                logger.debug(f"Received bridge health data on availability topic for {self.friendly_name}")
+                logger.debug("Received bridge health data on availability topic for %s", self.friendly_name)
                 # Don't update device_available based on health data
                 return
 
             # Normal availability message: "online" or "offline"
             status = payload_str.lower()
             self._device_available = status == "online"
-            logger.info(f"Zigbee2MQTT device {self.friendly_name} is {status}")
+            logger.info("Zigbee2MQTT device %s is %s", self.friendly_name, status)
         except Exception as e:
-            logger.error(f"Error processing availability message: {e}")
+            logger.error("Error processing availability message: %s", e)
 
     def read(self) -> dict[str, Any]:
         """
@@ -209,7 +209,7 @@ class Zigbee2MQTTAdapter(ISensorAdapter):
         if self._last_data is None:
             # No data received yet - return empty result with warning flag
             # This is normal on startup before sensor reports
-            logger.debug(f"No Zigbee2MQTT data received yet from {self.friendly_name}")
+            logger.debug("No Zigbee2MQTT data received yet from %s", self.friendly_name)
             return {"_no_data": True, "_waiting": True}
 
         result = self._last_data.copy()
@@ -248,7 +248,7 @@ class Zigbee2MQTTAdapter(ISensorAdapter):
                     self.mqtt_client.unsubscribe(self.mqtt_topic)
                     self.mqtt_client.unsubscribe(self.availability_topic)
                 except Exception as e:
-                    logger.warning(f"Failed to unsubscribe from old topics: {e}")
+                    logger.warning("Failed to unsubscribe from old topics: %s", e)
 
             # Update friendly name and topics
             self.friendly_name = config["friendly_name"]
@@ -260,10 +260,10 @@ class Zigbee2MQTTAdapter(ISensorAdapter):
                 try:
                     self.mqtt_client.subscribe(self.mqtt_topic, self._on_mqtt_message)
                     self.mqtt_client.subscribe(self.availability_topic, self._on_availability_message)
-                    logger.info(f"Resubscribed to Zigbee2MQTT: {self.mqtt_topic}")
+                    logger.info("Resubscribed to Zigbee2MQTT: %s", self.mqtt_topic)
                 except Exception as e:
-                    logger.error(f"Failed to subscribe to new topics: {e}")
-                    raise AdapterError(f"Failed to reconfigure Zigbee2MQTT: {e}")
+                    logger.error("Failed to subscribe to new topics: %s", e)
+                    raise AdapterError(f"Failed to reconfigure Zigbee2MQTT: {e}") from e
 
     def is_available(self) -> bool:
         """
@@ -345,9 +345,9 @@ class Zigbee2MQTTAdapter(ISensorAdapter):
             # Update local cache
             self._calibration_offsets[sensor_type] = offset
 
-            logger.info(f"Set {calibration_key} = {offset} for {self.friendly_name}")
+            logger.info("Set %s = %s for %s", calibration_key, offset, self.friendly_name)
         except Exception as e:
-            raise AdapterError(f"Failed to set calibration: {e}")
+            raise AdapterError(f"Failed to set calibration: {e}") from e
 
     def send_command(self, command: dict[str, Any]) -> bool:
         """
@@ -370,10 +370,10 @@ class Zigbee2MQTTAdapter(ISensorAdapter):
         try:
             payload = json.dumps(command)
             self.mqtt_client.publish(set_topic, payload)
-            logger.debug(f"Sent command to {self.friendly_name}: {command}")
+            logger.debug("Sent command to %s: %s", self.friendly_name, command)
             return True
         except Exception as e:
-            logger.error(f"Failed to send command to {self.friendly_name}: {e}")
+            logger.error("Failed to send command to %s: %s", self.friendly_name, e)
             return False
 
     # ==================== Device Operations ====================
@@ -463,7 +463,7 @@ class Zigbee2MQTTAdapter(ISensorAdapter):
         try:
             topic = f"{self._bridge_topic}/bridge/request/device/rename"
             self.mqtt_client.publish(topic, json.dumps(payload))
-            logger.info(f"Sent rename request for {device_id} -> {new_name}")
+            logger.info("Sent rename request for %s -> %s", device_id, new_name)
 
             # Update local state (actual success depends on bridge response)
             old_name = self.friendly_name
@@ -471,11 +471,11 @@ class Zigbee2MQTTAdapter(ISensorAdapter):
             self.mqtt_topic = f"zigbee2mqtt/{new_name}"
             self.availability_topic = f"{self.mqtt_topic}/availability"
 
-            logger.info(f"Updated adapter friendly_name: {old_name} -> {new_name}")
+            logger.info("Updated adapter friendly_name: %s -> %s", old_name, new_name)
             return True
 
         except Exception as e:
-            logger.error(f"Failed to rename device: {e}")
+            logger.error("Failed to rename device: %s", e)
             return False
 
     def remove_from_network(self) -> bool:
@@ -502,11 +502,11 @@ class Zigbee2MQTTAdapter(ISensorAdapter):
         try:
             topic = f"{self._bridge_topic}/bridge/request/device/remove"
             self.mqtt_client.publish(topic, json.dumps(payload))
-            logger.info(f"Sent remove request for device: {device_id}")
+            logger.info("Sent remove request for device: %s", device_id)
             return True
 
         except Exception as e:
-            logger.error(f"Failed to remove device: {e}")
+            logger.error("Failed to remove device: %s", e)
             return False
 
     def update_device_info(self, info: dict[str, Any]) -> None:
@@ -530,6 +530,6 @@ class Zigbee2MQTTAdapter(ISensorAdapter):
             try:
                 self.mqtt_client.unsubscribe(self.mqtt_topic)
                 self.mqtt_client.unsubscribe(self.availability_topic)
-                logger.info(f"Unsubscribed from Zigbee2MQTT: {self.mqtt_topic}")
+                logger.info("Unsubscribed from Zigbee2MQTT: %s", self.mqtt_topic)
             except Exception as e:
-                logger.warning(f"Error during Zigbee2MQTT cleanup: {e}")
+                logger.warning("Error during Zigbee2MQTT cleanup: %s", e)

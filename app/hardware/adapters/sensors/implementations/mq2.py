@@ -50,7 +50,7 @@ class MQ2Adapter(BaseSensorAdapter):
             self._initialize_sensor()
             self._available = True
         except Exception as e:
-            logger.error(f"Failed to initialize MQ2: {e}")
+            logger.error("Failed to initialize MQ2: %s", e)
             self._available = False
 
     def _initialize_sensor(self):
@@ -88,8 +88,8 @@ class MQ2Adapter(BaseSensorAdapter):
             return data
 
         except Exception as e:
-            logger.error(f"MQ2 read error: {e}")
-            raise AdapterError(f"Failed to read MQ2: {e}")
+            logger.error("MQ2 read error: %s", e)
+            raise AdapterError(f"Failed to read MQ2: {e}") from e
 
     def configure(self, config: dict[str, Any]) -> None:
         """
@@ -120,9 +120,9 @@ class MQ2Adapter(BaseSensorAdapter):
                 self._initialize_sensor()
                 self._available = True
             except Exception as e:
-                logger.error(f"Failed to reconfigure MQ2: {e}")
+                logger.error("Failed to reconfigure MQ2: %s", e)
                 self._available = False
-                raise AdapterError(f"Configuration failed: {e}")
+                raise AdapterError(f"Configuration failed: {e}") from e
 
     def is_available(self) -> bool:
         """Check if sensor is available"""
@@ -138,4 +138,4 @@ class MQ2Adapter(BaseSensorAdapter):
             try:
                 self._sensor.cleanup()
             except Exception as e:
-                logger.warning(f"Error during MQ2 cleanup: {e}")
+                logger.warning("Error during MQ2 cleanup: %s", e)

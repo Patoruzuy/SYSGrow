@@ -90,7 +90,7 @@ def _row_to_dict(row) -> dict[str, Any]:
         return {}
     if isinstance(row, dict):
         return row
-    return {k: row[k] for k in row}
+    return dict(row)
 
 
 # Import threshold constants from ThresholdService (single source of truth)

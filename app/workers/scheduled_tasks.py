@@ -75,7 +75,7 @@ def plant_grow_task(container: "ServiceContainer") -> dict[str, Any]:
         # Get all unit runtimes (snapshot for safe iteration)
         last_runs = load_growth_last_runs()
 
-        for unit_id, runtime in growth_service.get_unit_runtimes().items():
+        for unit_id, _runtime in growth_service.get_unit_runtimes().items():
             unit_lock = _unit_locks.setdefault(unit_id, threading.Lock())
             try:
                 # Serialize processing per-unit in-process to avoid races
@@ -99,7 +99,7 @@ def plant_grow_task(container: "ServiceContainer") -> dict[str, Any]:
                         delta = (today - last_date).days
                         if delta <= 0:
                             # Already processed today
-                            logger.debug(f"Skipping unit {unit_id} growth check; already processed today")
+                            logger.debug("Skipping unit %s growth check; already processed today", unit_id)
                             continue
                         days_to_advance = max(1, delta)
 
@@ -114,7 +114,7 @@ def plant_grow_task(container: "ServiceContainer") -> dict[str, Any]:
                             except Exception:
                                 workers = 1
 
-                        def _process_plant(p):
+                        def _process_plant(p, days_to_advance=days_to_advance):
                             # Advance plant locally
                             for _ in range(days_to_advance):
                                 p.grow()
@@ -135,27 +135,35 @@ def plant_grow_task(container: "ServiceContainer") -> dict[str, Any]:
                                         p = fut.result()
                                         results["plants_processed"] += 1
                                         logger.debug(
-                                            f"Plant {p.plant_name} (ID: {p.id}) advanced: "
-                                            f"Stage '{p.current_stage}' - Day {p.days_in_stage} (advanced {days_to_advance} day(s))"
+                                            "Plant %s (ID: %s) advanced: Stage '%s' - Day %s (advanced %s day(s))",
+                                            p.plant_name,
+                                            p.id,
+                                            p.current_stage,
+                                            p.days_in_stage,
+                                            days_to_advance,
                                         )
                                     except Exception as e:
                                         results["errors"].append(str(e))
-                                        logger.error(f"Error growing plant in parallel for unit {unit_id}: {e}")
+                                        logger.error("Error growing plant in parallel for unit %s: %s", unit_id, e)
                         else:
                             for plant in plants:
                                 try:
                                     _process_plant(plant)
                                     results["plants_processed"] += 1
                                     logger.debug(
-                                        f"Plant {plant.plant_name} (ID: {plant.id}) advanced: "
-                                        f"Stage '{plant.current_stage}' - Day {plant.days_in_stage} (advanced {days_to_advance} day(s))"
+                                        "Plant %s (ID: %s) advanced: Stage '%s' - Day %s (advanced %s day(s))",
+                                        plant.plant_name,
+                                        plant.id,
+                                        plant.current_stage,
+                                        plant.days_in_stage,
+                                        days_to_advance,
                                     )
                                 except Exception as e:
                                     results["errors"].append(f"Plant {plant.id}: {e!s}")
-                                    logger.error(f"Error growing plant {plant.id}: {e}")
+                                    logger.error("Error growing plant %s: %s", plant.id, e)
                     except Exception as e:
                         results["errors"].append(f"Unit {unit_id} plant processing error: {e!s}")
-                        logger.error(f"Error processing plants for unit {unit_id}: {e}")
+                        logger.error("Error processing plants for unit %s: %s", unit_id, e)
 
                     # Persist last run date for this unit so restarts can detect missed days
                     last_runs[str(unit_id)] = today.isoformat()
@@ -163,12 +171,12 @@ def plant_grow_task(container: "ServiceContainer") -> dict[str, Any]:
 
             except Exception as e:
                 results["errors"].append(f"Unit {unit_id}: {e!s}")
-                logger.error(f"Error processing unit {unit_id}: {e}")
+                logger.error("Error processing unit %s: %s", unit_id, e)
 
-        logger.info(f"Plant growth task complete: {results['plants_processed']} plants processed")
+        logger.info("Plant growth task complete: %s plants processed", results["plants_processed"])
 
     except Exception as e:
-        logger.error(f"Plant growth task failed: {e}", exc_info=True)
+        logger.error("Plant growth task failed: %s", e, exc_info=True)
         results["errors"].append(str(e))
 
     return results
@@ -207,7 +215,7 @@ def plant_health_check_task(container: "ServiceContainer") -> dict[str, Any]:
 
         event_bus = getattr(growth_service, "event_bus", None)
 
-        for unit_id, runtime in growth_service.get_unit_runtimes().items():
+        for unit_id, _runtime in growth_service.get_unit_runtimes().items():
             try:
                 # Get plants from PlantService (single source of truth)
                 plants = plant_service.list_plants(unit_id)
@@ -239,22 +247,24 @@ def plant_health_check_task(container: "ServiceContainer") -> dict[str, Any]:
                                     },
                                 )
 
-                            logger.debug(f"Health check for plant {plant.plant_name}: {status}")
+                            logger.debug("Health check for plant %s: %s", plant.plant_name, status)
 
                     except Exception as e:
                         results["errors"].append(f"Plant {plant.id}: {e!s}")
-                        logger.error(f"Failed to check health for plant {plant.id}: {e}")
+                        logger.error("Failed to check health for plant %s: %s", plant.id, e)
 
             except Exception as e:
                 results["errors"].append(f"Unit {unit_id}: {e!s}")
-                logger.error(f"Failed to check plants in unit {unit_id}: {e}")
+                logger.error("Failed to check plants in unit %s: %s", unit_id, e)
 
         logger.info(
-            f"Plant health check complete: {results['plants_checked']} plants, {results['issues_found']} issues found"
+            "Plant health check complete: %s plants, %s issues found",
+            results["plants_checked"],
+            results["issues_found"],
         )
 
     except Exception as e:
-        logger.error(f"Plant health check failed: {e}", exc_info=True)
+        logger.error("Plant health check failed: %s", e, exc_info=True)
         results["errors"].append(str(e))
 
     return results
@@ -324,12 +334,13 @@ def actuator_startup_sync_task(container: "ServiceContainer") -> dict[str, Any]:
 
         results.update(sync_results)
         logger.info(
-            f"Startup sync completed: {results['units_synced']} units, "
-            f"{results['actuators_synced']} actuators synchronized"
+            "Startup sync completed: %s units, %s actuators synchronized",
+            results["units_synced"],
+            results["actuators_synced"],
         )
 
     except Exception as e:
-        logger.error(f"Startup sync failed: {e}", exc_info=True)
+        logger.error("Startup sync failed: %s", e, exc_info=True)
         results["errors"].append(str(e))
 
     return results
@@ -524,17 +535,18 @@ def actuator_schedule_check_task(container: "ServiceContainer") -> dict[str, Any
             except Exception as e:
                 error_msg = f"Unit {unit_id}: {e}"
                 results["errors"].append(error_msg)
-                logger.error(f"Error processing unit schedules: {error_msg}")
+                logger.error("Error processing unit schedules: %s", error_msg)
 
         if results["transitions"] > 0:
             logger.debug(
-                f"Schedule check: {results['units_checked']} units, "
-                f"{results['schedules_checked']} schedules, "
-                f"{results['transitions']} transitions"
+                "Schedule check: %s units, %s schedules, %s transitions",
+                results["units_checked"],
+                results["schedules_checked"],
+                results["transitions"],
             )
 
     except Exception as e:
-        logger.error(f"Actuator schedule check failed: {e}", exc_info=True)
+        logger.error("Actuator schedule check failed: %s", e, exc_info=True)
         results["errors"].append(str(e))
 
     return results
@@ -556,7 +568,7 @@ def _get_active_unit_ids(growth_service) -> list:
         return [u.get("unit_id") or u.get("id") for u in units if u]
 
     except Exception as e:
-        logger.warning(f"Failed to get unit IDs: {e}")
+        logger.warning("Failed to get unit IDs: %s", e)
         return []
 
 
@@ -588,7 +600,7 @@ def _get_lux_reading(analytics_service, unit_id: int) -> float | None:
         return None
 
     except Exception as e:
-        logger.debug(f"Could not get lux reading for unit {unit_id}: {e}")
+        logger.debug("Could not get lux reading for unit %s: %s", unit_id, e)
         return None
 
 
@@ -610,7 +622,10 @@ def _handle_schedule_activation(
             if result.success:
                 results["transitions"] += 1
                 logger.info(
-                    f"Schedule {schedule.schedule_id} ({schedule.device_type}) activated -> actuator {actuator_id}"
+                    "Schedule %s (%s) activated -> actuator %s",
+                    schedule.schedule_id,
+                    schedule.device_type,
+                    actuator_id,
                 )
                 return True
             else:
@@ -625,11 +640,13 @@ def _handle_schedule_activation(
             actuator_service.turn_off(actuator_id)
 
         results["transitions"] += 1
-        logger.info(f"Schedule {schedule.schedule_id} ({schedule.device_type}) activated -> actuator {actuator_id}")
+        logger.info(
+            "Schedule %s (%s) activated -> actuator %s", schedule.schedule_id, schedule.device_type, actuator_id
+        )
         return True
     except Exception as e:
         results["errors"].append(f"Actuator {actuator_id} on: {e!s}")
-        logger.error(f"Failed to activate schedule for actuator {actuator_id}: {e}")
+        logger.error("Failed to activate schedule for actuator %s: %s", actuator_id, e)
         return False
 
 
@@ -651,8 +668,10 @@ def _handle_schedule_deactivation(
             if result.success:
                 results["transitions"] += 1
                 logger.info(
-                    f"Schedule {schedule.schedule_id} ({schedule.device_type}) deactivated "
-                    f"-> actuator {actuator_id} OFF"
+                    "Schedule %s (%s) deactivated -> actuator %s OFF",
+                    schedule.schedule_id,
+                    schedule.device_type,
+                    actuator_id,
                 )
                 return True
             else:
@@ -662,12 +681,15 @@ def _handle_schedule_deactivation(
         actuator_service.turn_off(actuator_id)
         results["transitions"] += 1
         logger.info(
-            f"Schedule {schedule.schedule_id} ({schedule.device_type}) deactivated -> actuator {actuator_id} OFF"
+            "Schedule %s (%s) deactivated -> actuator %s OFF",
+            schedule.schedule_id,
+            schedule.device_type,
+            actuator_id,
         )
         return True
     except Exception as e:
         results["errors"].append(f"Actuator {actuator_id} off: {e!s}")
-        logger.error(f"Failed to deactivate schedule for actuator {actuator_id}: {e}")
+        logger.error("Failed to deactivate schedule for actuator %s: %s", actuator_id, e)
         return False
 
 
@@ -706,7 +728,7 @@ def ml_drift_check_task(container: "ServiceContainer") -> dict[str, Any]:
             results["retraining_triggered"] = len(drift_events)
         except Exception as e:
             results["errors"].append(f"Drift check: {e!s}")
-            logger.error(f"Error checking drift triggers: {e}")
+            logger.error("Error checking drift triggers: %s", e)
 
         # Check scheduled jobs
         for job in list(retraining_service.jobs.values()):
@@ -717,7 +739,7 @@ def ml_drift_check_task(container: "ServiceContainer") -> dict[str, Any]:
                 if job.next_run and now >= job.next_run:
                     from app.services.ai.automated_retraining import RetrainingTrigger
 
-                    logger.info(f"Triggering scheduled retraining job: {job.job_id}")
+                    logger.info("Triggering scheduled retraining job: %s", job.job_id)
                     retraining_service.trigger_retraining(
                         model_type=job.model_type,
                         trigger=RetrainingTrigger.SCHEDULED,
@@ -726,16 +748,17 @@ def ml_drift_check_task(container: "ServiceContainer") -> dict[str, Any]:
                     results["scheduled_runs"] += 1
             except Exception as e:
                 results["errors"].append(f"Job {job.job_id}: {e!s}")
-                logger.error(f"Error triggering job {job.job_id}: {e}")
+                logger.error("Error triggering job %s: %s", job.job_id, e)
 
         if results["retraining_triggered"] > 0 or results["scheduled_runs"] > 0:
             logger.info(
-                f"ML drift check: {results['retraining_triggered']} drift-triggered, "
-                f"{results['scheduled_runs']} scheduled"
+                "ML drift check: %s drift-triggered, %s scheduled",
+                results["retraining_triggered"],
+                results["scheduled_runs"],
             )
 
     except Exception as e:
-        logger.error(f"ML drift check failed: {e}", exc_info=True)
+        logger.error("ML drift check failed: %s", e, exc_info=True)
         results["errors"].append(str(e))
 
     return results
@@ -789,14 +812,15 @@ def ml_readiness_check_task(container: "ServiceContainer") -> dict[str, Any]:
 
         if results["notifications_sent"] > 0:
             logger.info(
-                f"ML readiness check: Sent {results['notifications_sent']} "
-                f"notifications for {results['units_checked']} units"
+                "ML readiness check: Sent %s notifications for %s units",
+                results["notifications_sent"],
+                results["units_checked"],
             )
         else:
             logger.debug("ML readiness check: No new models ready for activation")
 
     except Exception as e:
-        logger.error(f"ML readiness check failed: {e}", exc_info=True)
+        logger.error("ML readiness check failed: %s", e, exc_info=True)
         results["errors"].append(str(e))
 
     return results
@@ -892,56 +916,54 @@ def plant_harvest_readiness_task(container: "ServiceContainer") -> dict[str, Any
                         # Check if we should send a notification
                         notification_days = [7, 3, 0, -3]  # Days before/after harvest
 
-                        if days_until_harvest in notification_days:
-                            if notifications_service:
-                                if days_until_harvest > 0:
-                                    title = "Harvest Reminder"
-                                    message = f"{plant_name} will be ready for harvest in {days_until_harvest} days"
-                                    severity = "info"
-                                elif days_until_harvest == 0:
-                                    title = "Harvest Ready!"
-                                    message = f"{plant_name} is ready for harvest today!"
-                                    severity = "success"
-                                else:
-                                    title = "Harvest Overdue"
-                                    message = (
-                                        f"{plant_name} is {abs(days_until_harvest)} days past optimal harvest time"
-                                    )
-                                    severity = "warning"
-                                    results["overdue_plants"] += 1
+                        if days_until_harvest in notification_days and notifications_service:
+                            if days_until_harvest > 0:
+                                title = "Harvest Reminder"
+                                message = f"{plant_name} will be ready for harvest in {days_until_harvest} days"
+                                severity = "info"
+                            elif days_until_harvest == 0:
+                                title = "Harvest Ready!"
+                                message = f"{plant_name} is ready for harvest today!"
+                                severity = "success"
+                            else:
+                                title = "Harvest Overdue"
+                                message = f"{plant_name} is {abs(days_until_harvest)} days past optimal harvest time"
+                                severity = "warning"
+                                results["overdue_plants"] += 1
 
-                                try:
-                                    notifications_service.create_notification(
-                                        user_id=runtime.user_id if hasattr(runtime, "user_id") else 1,
-                                        notification_type="harvest_ready",
-                                        title=title,
-                                        message=message,
-                                        severity=severity,
-                                        unit_id=unit_id,
-                                        source_type="plant",
-                                        source_id=plant_id,
-                                    )
-                                    results["notifications_sent"] += 1
-                                    logger.info(f"Harvest notification sent: {message}")
-                                except Exception as e:
-                                    logger.warning(f"Failed to send harvest notification: {e}")
+                            try:
+                                notifications_service.create_notification(
+                                    user_id=runtime.user_id if hasattr(runtime, "user_id") else 1,
+                                    notification_type="harvest_ready",
+                                    title=title,
+                                    message=message,
+                                    severity=severity,
+                                    unit_id=unit_id,
+                                    source_type="plant",
+                                    source_id=plant_id,
+                                )
+                                results["notifications_sent"] += 1
+                                logger.info("Harvest notification sent: %s", message)
+                            except Exception as e:
+                                logger.warning("Failed to send harvest notification: %s", e)
 
                     except Exception as e:
                         results["errors"].append(f"Plant {plant_id}: {e!s}")
-                        logger.warning(f"Error checking harvest readiness for plant: {e}")
+                        logger.warning("Error checking harvest readiness for plant: %s", e)
 
             except Exception as e:
                 results["errors"].append(f"Unit {unit_id}: {e!s}")
-                logger.warning(f"Error processing unit {unit_id}: {e}")
+                logger.warning("Error processing unit %s: %s", unit_id, e)
 
         if results["notifications_sent"] > 0:
             logger.info(
-                f"Harvest readiness check complete: {results['notifications_sent']} notifications sent, "
-                f"{results['overdue_plants']} overdue plants"
+                "Harvest readiness check complete: %s notifications sent, %s overdue plants",
+                results["notifications_sent"],
+                results["overdue_plants"],
             )
 
     except Exception as e:
-        logger.error(f"Harvest readiness check failed: {e}", exc_info=True)
+        logger.error("Harvest readiness check failed: %s", e, exc_info=True)
         results["errors"].append(str(e))
 
     return results
@@ -991,7 +1013,9 @@ def maintenance_aggregate_sensor_data_task(container: "ServiceContainer") -> dic
 
             if summaries > 0:
                 logger.info(
-                    f"Aggregated {summaries} sensor reading summaries (data older than {aggregation_threshold} days)"
+                    "Aggregated %s sensor reading summaries (data older than %s days)",
+                    summaries,
+                    aggregation_threshold,
                 )
             else:
                 logger.debug("No sensor readings needed aggregation")
@@ -1000,7 +1024,7 @@ def maintenance_aggregate_sensor_data_task(container: "ServiceContainer") -> dic
             results["errors"].append("method_not_available")
 
     except Exception as e:
-        logger.error(f"Sensor data aggregation task failed: {e}", exc_info=True)
+        logger.error("Sensor data aggregation task failed: %s", e, exc_info=True)
         results["errors"].append(str(e))
 
     return results
@@ -1033,10 +1057,12 @@ def maintenance_prune_state_history_task(container: "ServiceContainer") -> dict[
         if hasattr(device_repo, "prune_actuator_state_history"):
             deleted = device_repo.prune_actuator_state_history(results["prune_days"])
             results["deleted_rows"] = deleted or 0
-            logger.info(f"Pruned {results['deleted_rows']} actuator state rows older than {results['prune_days']} days")
+            logger.info(
+                "Pruned %s actuator state rows older than %s days", results["deleted_rows"], results["prune_days"]
+            )
 
     except Exception as e:
-        logger.error(f"State history prune failed: {e}", exc_info=True)
+        logger.error("State history prune failed: %s", e, exc_info=True)
         results["errors"].append(str(e))
 
     return results
@@ -1064,7 +1090,7 @@ def maintenance_prune_old_data_task(container: "ServiceContainer") -> dict[str, 
     try:
         config = getattr(container, "config", None)
         device_repo = getattr(container, "device_repo", None)
-        database = getattr(container, "database", None)
+        getattr(container, "database", None)
 
         if not device_repo:
             logger.debug("Device repository not available - skipping data prune")
@@ -1080,14 +1106,14 @@ def maintenance_prune_old_data_task(container: "ServiceContainer") -> dict[str, 
             deleted = device_repo.prune_sensor_readings(sensor_retention_days)
             results["sensor_readings_deleted"] = deleted or 0
             if deleted:
-                logger.info(f"Pruned {deleted} sensor readings older than {sensor_retention_days} days")
+                logger.info("Pruned %s sensor readings older than %s days", deleted, sensor_retention_days)
 
         # Prune actuator state history
         if hasattr(device_repo, "prune_actuator_state_history"):
             deleted = device_repo.prune_actuator_state_history(actuator_retention_days)
             results["actuator_states_deleted"] = deleted or 0
             if deleted:
-                logger.info(f"Pruned {deleted} actuator state records older than {actuator_retention_days} days")
+                logger.info("Pruned %s actuator state records older than %s days", deleted, actuator_retention_days)
 
         # Note: VACUUM now runs as a separate scheduled task (maintenance.vacuum_database)
         # at 04:00 on Sundays to reclaim disk space after pruning
@@ -1095,12 +1121,13 @@ def maintenance_prune_old_data_task(container: "ServiceContainer") -> dict[str, 
         total_deleted = results["sensor_readings_deleted"] + results["actuator_states_deleted"]
         if total_deleted > 0:
             logger.info(
-                f"Data pruning complete: {results['sensor_readings_deleted']} sensor readings, "
-                f"{results['actuator_states_deleted']} actuator states deleted"
+                "Data pruning complete: %s sensor readings, %s actuator states deleted",
+                results["sensor_readings_deleted"],
+                results["actuator_states_deleted"],
             )
 
     except Exception as e:
-        logger.error(f"Data pruning task failed: {e}", exc_info=True)
+        logger.error("Data pruning task failed: %s", e, exc_info=True)
         results["errors"].append(str(e))
 
     return results
@@ -1136,7 +1163,7 @@ def maintenance_purge_old_alerts_task(container: "ServiceContainer") -> dict[str
             results["errors"].append(resp.get("error", "unknown"))
 
     except Exception as e:
-        logger.error(f"Failed to run purge_old_alerts task: {e}")
+        logger.error("Failed to run purge_old_alerts task: %s", e)
         results["success"] = False
         results["errors"].append(str(e))
 
@@ -1184,7 +1211,7 @@ def maintenance_vacuum_database_task(container: "ServiceContainer") -> dict[str,
             if os.path.exists(db_path):
                 results["db_size_before_mb"] = round(os.path.getsize(db_path) / (1024 * 1024), 2)
         except Exception as e:
-            logger.warning(f"Could not measure database size: {e}")
+            logger.warning("Could not measure database size: %s", e)
 
         # Run VACUUM
         try:
@@ -1195,7 +1222,7 @@ def maintenance_vacuum_database_task(container: "ServiceContainer") -> dict[str,
             logger.info("Database VACUUM completed successfully")
         except Exception as e:
             results["errors"].append(f"vacuum_failed: {e!s}")
-            logger.error(f"VACUUM failed: {e}")
+            logger.error("VACUUM failed: %s", e)
             return results
 
         # Measure size after VACUUM
@@ -1206,14 +1233,16 @@ def maintenance_vacuum_database_task(container: "ServiceContainer") -> dict[str,
                     results["space_reclaimed_mb"] = round(results["db_size_before_mb"] - results["db_size_after_mb"], 2)
                     if results["space_reclaimed_mb"] > 0:
                         logger.info(
-                            f"VACUUM reclaimed {results['space_reclaimed_mb']} MB "
-                            f"(before: {results['db_size_before_mb']} MB, after: {results['db_size_after_mb']} MB)"
+                            "VACUUM reclaimed %s MB (before: %s MB, after: %s MB)",
+                            results["space_reclaimed_mb"],
+                            results["db_size_before_mb"],
+                            results["db_size_after_mb"],
                         )
         except Exception as e:
-            logger.warning(f"Could not measure database size after VACUUM: {e}")
+            logger.warning("Could not measure database size after VACUUM: %s", e)
 
     except Exception as e:
-        logger.error(f"VACUUM task failed: {e}", exc_info=True)
+        logger.error("VACUUM task failed: %s", e, exc_info=True)
         results["errors"].append(str(e))
 
     return results
@@ -1250,7 +1279,7 @@ def maintenance_system_health_check_task(container: "ServiceContainer") -> dict[
             results["storage_checked"] = True
         except Exception as e:
             results["errors"].append(f"Storage check: {e!s}")
-            logger.warning(f"Storage check failed: {e}")
+            logger.warning("Storage check failed: %s", e)
 
         # Check database health
         if database:
@@ -1259,7 +1288,7 @@ def maintenance_system_health_check_task(container: "ServiceContainer") -> dict[
                 results["database_checked"] = True
             except Exception as e:
                 results["errors"].append(f"Database check: {e!s}")
-                logger.warning(f"Database check failed: {e}")
+                logger.warning("Database check failed: %s", e)
 
         # Check and create alerts
         try:
@@ -1267,16 +1296,16 @@ def maintenance_system_health_check_task(container: "ServiceContainer") -> dict[
             results["alerts_created"] = len(alert_ids) if alert_ids else 0
 
             if results["alerts_created"] > 0:
-                logger.warning(f"Health check created {results['alerts_created']} alerts")
+                logger.warning("Health check created %s alerts", results["alerts_created"])
             else:
                 logger.debug("Health check complete - no issues detected")
 
         except Exception as e:
             results["errors"].append(f"Alert check: {e!s}")
-            logger.warning(f"Alert check failed: {e}")
+            logger.warning("Alert check failed: %s", e)
 
     except Exception as e:
-        logger.error(f"System health check failed: {e}", exc_info=True)
+        logger.error("System health check failed: %s", e, exc_info=True)
         results["errors"].append(str(e))
 
     return results
@@ -1306,7 +1335,7 @@ def register_all_tasks(
             try:
                 return task_fn(container)
             except Exception as e:
-                logger.exception(f"Scheduled task {task_fn.__name__} raised: {e}")
+                logger.exception("Scheduled task %s raised: %s", task_fn.__name__, e)
                 # Surface an alert if AlertService available
                 try:
                     alert_svc = getattr(container, "alert_service", None)
@@ -1360,7 +1389,7 @@ def register_all_tasks(
         # If AlertService not available at registration time, skip registration (will log at runtime)
         logger.debug("AlertService not available for task registration: maintenance.purge_old_alerts")
 
-    logger.info(f"Registered {len(scheduler._tasks)} tasks")
+    logger.info("Registered %s tasks", len(scheduler._tasks))
 
 
 def schedule_default_jobs(scheduler: "UnifiedScheduler") -> None:
@@ -1477,10 +1506,10 @@ def schedule_default_jobs(scheduler: "UnifiedScheduler") -> None:
     )
 
     jobs = scheduler.get_jobs()
-    logger.info(f"Scheduled {len(jobs)} default jobs")
+    logger.info("Scheduled %s default jobs", len(jobs))
 
     for job in jobs:
-        logger.debug(f"  - {job.job_id}: {job.schedule_type.value} ({job.namespace})")
+        logger.debug("  - %s: %s (%s)", job.job_id, job.schedule_type.value, job.namespace)
 
 
 def configure_scheduler(

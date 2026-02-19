@@ -462,14 +462,12 @@ class SmartAgricultureManager:
 
     def _get_harvest_recommendation(self, status: str, days_to_harvest: int, days_overdue: int) -> str:
         """Generate harvest recommendation text"""
-        if status == "ready":
-            return "Plant is ready for harvest! Check indicators and harvest soon for best quality."
-        elif status == "not_ready":
-            return f"Plant needs {days_to_harvest} more days to reach harvest window."
-        elif status == "overdue":
-            return f"Plant is {days_overdue} days past optimal harvest time. Quality may be declining."
-        else:
-            return "Unable to determine harvest status."
+        recommendations = {
+            "ready": "Plant is ready for harvest! Check indicators and harvest soon for best quality.",
+            "not_ready": f"Plant needs {days_to_harvest} more days to reach harvest window.",
+            "overdue": f"Plant is {days_overdue} days past optimal harvest time. Quality may be declining.",
+        }
+        return recommendations.get(status, "Unable to determine harvest status.")
 
     def _get_lighting_recommendations(self, stage_lighting: dict, light_spectrum: dict) -> list[str]:
         """Generate lighting recommendations"""
@@ -505,44 +503,24 @@ def demo_smart_agriculture():
     """Demonstrate the Smart Agriculture Manager capabilities"""
     manager = SmartAgricultureManager()
 
-    print("🌱 SYSGrow Smart Agriculture Demo")
-    print("=" * 50)
-
     # Test watering decisions
-    print("\n💧 Watering Decision Test:")
-    watering = manager.get_watering_decisions(plant_id=2, current_moisture=65)
-    print(f"Plant: {watering.get('plant_name')}")
-    print(f"Should water: {watering.get('should_water')}")
-    print(f"Amount: {watering.get('water_amount_ml')}ml")
-    print(f"Reasoning: {watering.get('reasoning')}")
+    manager.get_watering_decisions(plant_id=2, current_moisture=65)
 
     # Test environmental alerts
-    print("\n🌡️ Environmental Alert Test:")
     alerts = manager.check_environmental_alerts(plant_id=2, temperature=35, humidity=85)
-    for alert in alerts:
-        print(f"Alert: {alert['type']} - {alert['message']}")
-        print(f"Recommendation: {alert['recommendation']}")
+    for _alert in alerts:
+        pass
 
     # Test problem diagnosis
-    print("\n🔍 Problem Diagnosis Test:")
     problems = manager.diagnose_problems(plant_id=2, symptoms=["yellowing leaves", "brown spots"])
-    for problem in problems:
-        print(f"Problem: {problem['problem']} ({problem['confidence_percent']}% confidence)")
-        print(f"Solutions: {', '.join(problem['solutions'])}")
+    for _problem in problems:
+        pass
 
     # Test yield projection
-    print("\n📊 Yield Projection Test:")
-    yield_proj = manager.calculate_yield_projection(plant_id=2, plants_count=10)
-    print(f"Plant: {yield_proj.get('plant_name')}")
-    print(f"Expected yield: {yield_proj['yield_projection_kg']['realistic']} kg")
-    print(f"Economic value: ${yield_proj['economic_value']['realistic']}")
+    manager.calculate_yield_projection(plant_id=2, plants_count=10)
 
     # Test harvest recommendations
-    print("\n🌾 Harvest Recommendation Test:")
-    harvest = manager.get_harvest_recommendations(plant_id=2, days_since_planting=75)
-    print(f"Plant: {harvest.get('plant_name')}")
-    print(f"Status: {harvest.get('status')}")
-    print(f"Recommendation: {harvest.get('recommendation')}")
+    manager.get_harvest_recommendations(plant_id=2, days_since_planting=75)
 
 
 if __name__ == "__main__":

@@ -160,15 +160,14 @@ class ScheduledJob:
                 h, m = self.time_of_day.split(":")
                 schedule_config["schedule_crontab"] = {"hour": int(h), "minute": int(m)}
 
-        elif self.schedule_type == ScheduleType.WEEKLY:
+        elif self.schedule_type == ScheduleType.WEEKLY and self.time_of_day and self.day_of_week is not None:
             # Celery: schedule=crontab(hour=H, minute=M, day_of_week=D)
-            if self.time_of_day and self.day_of_week is not None:
-                h, m = self.time_of_day.split(":")
-                schedule_config["schedule_crontab"] = {
-                    "hour": int(h),
-                    "minute": int(m),
-                    "day_of_week": self.day_of_week,
-                }
+            h, m = self.time_of_day.split(":")
+            schedule_config["schedule_crontab"] = {
+                "hour": int(h),
+                "minute": int(m),
+                "day_of_week": self.day_of_week,
+            }
 
         return schedule_config
 
@@ -279,7 +278,7 @@ class UnifiedScheduler:
 
         def decorator(func: Callable) -> Callable:
             self._tasks[name] = func
-            logger.debug(f"Registered task: {name}")
+            logger.debug("Registered task: %s", name)
 
             @wraps(func)
             def wrapper(*args, **kwargs):
@@ -298,7 +297,7 @@ class UnifiedScheduler:
     def register_task(self, name: str, func: Callable) -> None:
         """Register a task function programmatically."""
         self._tasks[name] = func
-        logger.debug(f"Registered task: {name}")
+        logger.debug("Registered task: %s", name)
 
     def clear_jobs(self) -> None:
         """Remove all scheduled jobs and pending heap entries."""
@@ -375,7 +374,7 @@ class UnifiedScheduler:
         )
 
         self._add_job(job)
-        logger.info(f"Scheduled interval job: {job_id} (every {interval_seconds}s)")
+        logger.info("Scheduled interval job: %s (every %ss)", job_id, interval_seconds)
         return job
 
     def schedule_daily(
@@ -411,7 +410,7 @@ class UnifiedScheduler:
         )
 
         self._add_job(job)
-        logger.info(f"Scheduled daily job: {job_id} (at {time_of_day})")
+        logger.info("Scheduled daily job: %s (at %s)", job_id, time_of_day)
         return job
 
     def schedule_weekly(
@@ -450,7 +449,7 @@ class UnifiedScheduler:
         )
 
         self._add_job(job)
-        logger.info(f"Scheduled weekly job: {job_id} (day {day_of_week} at {time_of_day})")
+        logger.info("Scheduled weekly job: %s (day %s at %s)", job_id, day_of_week, time_of_day)
         return job
 
     def schedule_once(
@@ -483,7 +482,7 @@ class UnifiedScheduler:
         )
 
         self._add_job(job)
-        logger.info(f"Scheduled one-time job: {job_id} (at {run_at})")
+        logger.info("Scheduled one-time job: %s (at %s)", job_id, run_at)
         return job
 
     def run_now(
@@ -500,7 +499,7 @@ class UnifiedScheduler:
         """
         func = self._tasks.get(task_name)
         if func is None:
-            logger.error(f"Task not found: {task_name}")
+            logger.error("Task not found: %s", task_name)
             return None
 
         started_at = datetime.now()
@@ -520,7 +519,7 @@ class UnifiedScheduler:
 
         except Exception as e:
             completed_at = datetime.now()
-            logger.error(f"Immediate task {task_name} failed: {e}", exc_info=True)
+            logger.error("Immediate task %s failed: %s", task_name, e, exc_info=True)
 
             job_result = JobResult(
                 job_id=f"{task_name}_immediate_{int(started_at.timestamp())}",
@@ -546,7 +545,7 @@ class UnifiedScheduler:
             if job_id in self._jobs:
                 del self._jobs[job_id]
                 # Note: we do not delete heap entries in-place; they will be skipped as stale.
-                logger.info(f"Removed job: {job_id}")
+                logger.info("Removed job: %s", job_id)
                 return True
         return False
 
@@ -565,7 +564,7 @@ class UnifiedScheduler:
                     self._schedule_next_run(job, reference_time=datetime.now())
                 self._push_heap(job)
 
-            logger.info(f"Job {job_id} {'enabled' if job.enabled else 'disabled'}")
+            logger.info("Job %s %s", job_id, "enabled" if job.enabled else "disabled")
             return True
 
     def pause_job(self, job_id: str) -> bool:
@@ -659,7 +658,7 @@ class UnifiedScheduler:
                 self._process_due_jobs()
                 time.sleep(self._check_interval)
             except Exception as e:
-                logger.error(f"Error in scheduler loop: {e}", exc_info=True)
+                logger.error("Error in scheduler loop: %s", e, exc_info=True)
                 time.sleep(1)
 
         logger.debug("Scheduler loop ended")
@@ -709,7 +708,7 @@ class UnifiedScheduler:
                 try:
                     self._executor.submit(self._execute_job, job_id, scheduled_for)
                 except Exception as e:
-                    logger.error(f"Failed to submit job {job_id} to executor: {e}", exc_info=True)
+                    logger.error("Failed to submit job %s to executor: %s", job_id, e, exc_info=True)
 
     def _execute_job(self, job_id: str, scheduled_for: datetime) -> None:
         """
@@ -733,7 +732,7 @@ class UnifiedScheduler:
             try:
                 self._on_job_start(job)
             except Exception as e:
-                logger.warning(f"Job start callback failed: {e}")
+                logger.warning("Job start callback failed: %s", e)
 
         try:
             func = job.func or self._tasks.get(job.task_name)
@@ -764,11 +763,13 @@ class UnifiedScheduler:
                 try:
                     self._on_job_complete(job, job_result)
                 except Exception as e:
-                    logger.warning(f"Job complete callback failed: {e}")
+                    logger.warning("Job complete callback failed: %s", e)
 
             logger.debug(
-                f"Job {job.job_id} completed in {job_result.duration_seconds:.2f}s "
-                f"(scheduled_for={scheduled_for.isoformat()})"
+                "Job %s completed in %.2fs (scheduled_for=%s)",
+                job.job_id,
+                job_result.duration_seconds,
+                scheduled_for.isoformat(),
             )
 
         except Exception as e:
@@ -794,9 +795,9 @@ class UnifiedScheduler:
                 try:
                     self._on_job_error(job, e)
                 except Exception as cb_e:
-                    logger.warning(f"Job error callback failed: {cb_e}")
+                    logger.warning("Job error callback failed: %s", cb_e)
 
-            logger.error(f"Job {job.job_id} failed: {e}", exc_info=True)
+            logger.error("Job %s failed: %s", job.job_id, e, exc_info=True)
 
     def _schedule_next_run(
         self,

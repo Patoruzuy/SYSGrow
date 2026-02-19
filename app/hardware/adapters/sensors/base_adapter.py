@@ -83,7 +83,7 @@ class ISensorAdapter(ABC):
         Cleanup resources (optional, override if needed).
         Called when sensor is removed or system shuts down.
         """
-        pass
+        return None
 
     def send_command(self, command: dict[str, Any]) -> bool:
         """

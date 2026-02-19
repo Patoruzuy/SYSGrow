@@ -34,9 +34,6 @@ class FakeGrowthService:
 
 
 class FakePlantService:
-    def __init__(self):
-        self.updated = []
-
     def __init__(self, growth_service=None):
         self.updated = []
         self.growth_service = growth_service

@@ -115,12 +115,12 @@ class PlantHealthMonitor:
             if entry_id:
                 # Perform AI-specific analysis
                 self.analyze_environmental_correlation(observation)
-                logger.info(f"Recorded health observation via journal: {entry_id}")
+                logger.info("Recorded health observation via journal: %s", entry_id)
 
             return entry_id
 
         except Exception as e:
-            logger.error(f"Failed to record health observation: {e}", exc_info=True)
+            logger.error("Failed to record health observation: %s", e, exc_info=True)
             return None
 
     def analyze_environmental_correlation(self, observation: PlantHealthObservation) -> list[EnvironmentalCorrelation]:
@@ -165,7 +165,7 @@ class PlantHealthMonitor:
             env_data = self._get_recent_environmental_data(observation.unit_id)
 
             if not env_data:
-                logger.warning(f"No environmental data for unit {observation.unit_id}")
+                logger.warning("No environmental data for unit %s", observation.unit_id)
                 return correlations
 
             # Analyze each environmental factor
@@ -201,7 +201,7 @@ class PlantHealthMonitor:
             self._store_correlations(observation, correlations)
 
         except Exception as e:
-            logger.error(f"Failed to analyze environmental correlation: {e}", exc_info=True)
+            logger.error("Failed to analyze environmental correlation: %s", e, exc_info=True)
 
         return correlations
 
@@ -272,7 +272,7 @@ class PlantHealthMonitor:
             }
 
         except Exception as e:
-            logger.error(f"Failed to get health recommendations: {e}", exc_info=True)
+            logger.error("Failed to get health recommendations: %s", e, exc_info=True)
             return {"status": "unknown", "recommendations": []}
 
     def _get_thresholds(self, observation: PlantHealthObservation) -> dict[str, dict[str, Any]]:
@@ -308,7 +308,7 @@ class PlantHealthMonitor:
             return result
 
         except Exception as e:
-            logger.error(f"Failed to get environmental data: {e}", exc_info=True)
+            logger.error("Failed to get environmental data: %s", e, exc_info=True)
             return {}
 
     def _calculate_confidence(self, factor: str, symptoms: list[str]) -> float:
@@ -316,9 +316,8 @@ class PlantHealthMonitor:
         confidence = 0.5
 
         for symptom in symptoms:
-            if symptom in self.SYMPTOM_DATABASE:
-                if factor in self.SYMPTOM_DATABASE[symptom]["environmental_factors"]:
-                    confidence += 0.2
+            if symptom in self.SYMPTOM_DATABASE and factor in self.SYMPTOM_DATABASE[symptom]["environmental_factors"]:
+                confidence += 0.2
 
         return min(1.0, confidence)
 
@@ -350,7 +349,7 @@ class PlantHealthMonitor:
                 return "stable"
 
         except Exception as e:
-            logger.error(f"Failed to analyze trend: {e}", exc_info=True)
+            logger.error("Failed to analyze trend: %s", e, exc_info=True)
             return "stable"
 
     def _store_correlations(self, observation: PlantHealthObservation, correlations: list[EnvironmentalCorrelation]):
@@ -381,7 +380,7 @@ class PlantHealthMonitor:
             )
 
         except Exception as e:
-            logger.error(f"Failed to store correlations: {e}", exc_info=True)
+            logger.error("Failed to store correlations: %s", e, exc_info=True)
 
     def _analyze_environmental_issues(
         self, env_data: dict[str, float], plant_type: str | None, growth_stage: str | None
@@ -453,5 +452,5 @@ class PlantHealthMonitor:
                 return "stable"
 
         except Exception as e:
-            logger.error(f"Failed to analyze health trend: {e}", exc_info=True)
+            logger.error("Failed to analyze health trend: %s", e, exc_info=True)
             return "unknown"

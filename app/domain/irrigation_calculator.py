@@ -26,7 +26,30 @@ from app.constants import (
 
 if TYPE_CHECKING:
     from app.domain.plant_profile import PlantProfile
-    from app.services.application.plant_service import PlantViewService
+
+
+# ── Domain Protocols (avoid importing service layer) ─────────────────
+
+
+class WateringScheduleProvider(Protocol):
+    """Minimal interface for looking up plant-type watering data."""
+
+    def get_watering_schedule(self, plant_type: str) -> dict[str, Any]: ...
+
+
+class PlantDataProvider(Protocol):
+    """
+    Domain-side contract for plant data access.
+
+    Implemented by PlantViewService (service layer) — the domain never
+    imports the concrete class, keeping the dependency arrow clean.
+    """
+
+    @property
+    def plant_json_handler(self) -> WateringScheduleProvider: ...
+
+    def get_plant(self, plant_id: int, unit_id: int | None = None) -> "PlantProfile | None": ...
+
 
 logger = logging.getLogger(__name__)
 
@@ -144,7 +167,7 @@ class IrrigationCalculator:
 
     def __init__(
         self,
-        plant_service: "PlantViewService",
+        plant_service: PlantDataProvider,
         ml_predictor: MLPredictorProtocol | None = None,
         feedback_callback: Callable[[int, str, float], None] | None = None,
     ):
@@ -152,7 +175,7 @@ class IrrigationCalculator:
         Initialize calculator with plant service for data access.
 
         Args:
-            plant_service: PlantViewService for accessing plant and watering data
+            plant_service: Any object satisfying PlantDataProvider (e.g. PlantViewService)
             ml_predictor: Optional ML service for predictions and adjustments
             feedback_callback: Optional callback for recording irrigation feedback
                               Signature: (plant_id, feedback_type, volume_ml) -> None
@@ -208,7 +231,7 @@ class IrrigationCalculator:
 
         # Calculate final volume
         volume_ml = base_ml * pot_factor * medium_factor * stage_factor
-        reasoning = " × ".join(factors) + f" = {volume_ml:.1f}ml"
+        reasoning = " x ".join(factors) + f" = {volume_ml:.1f}ml"
 
         return volume_ml, reasoning
 
@@ -508,7 +531,7 @@ class IrrigationCalculator:
                         plant_id=plant_id,  # Phase 3: Plant-specific learning
                     )
             except Exception as e:
-                logger.debug(f"Could not fetch historical feedback for plant {plant_id}: {e}")
+                logger.debug("Could not fetch historical feedback for plant %s: %s", plant_id, e)
 
             # Phase 3.3: Get adjustment factor with plant-specific learning
             adjustment_factor = self._ml_predictor.get_adjustment_factor(plant_id, historical_feedback)

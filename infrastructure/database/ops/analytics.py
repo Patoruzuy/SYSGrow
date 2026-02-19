@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import sqlite3
 from datetime import UTC, datetime
 from typing import Any
@@ -164,16 +165,9 @@ class AnalyticsOperations:
         self,
         plant_id: int | None = None,
         unit_id: int | None = None,
-        temperature: float | None = None,
-        humidity: float | None = None,
         soil_moisture: float | None = None,
         ph: float | None = None,
         ec: float | None = None,
-        co2: float | None = None,
-        voc: float | None = None,
-        air_quality: int | None = None,
-        pressure: float | None = None,
-        lux: float | None = None,
         timestamp: str | None = None,
     ) -> int | None:
         """
@@ -187,13 +181,6 @@ class AnalyticsOperations:
         ts = timestamp or iso_now()
 
         # Only plant sensor metrics are persisted in PlantReadings.
-        temperature = None
-        humidity = None
-        co2 = None
-        voc = None
-        air_quality = None
-        pressure = None
-        lux = None
 
         try:
             target_plant_ids = []
@@ -218,24 +205,17 @@ class AnalyticsOperations:
                 cursor = db.execute(
                     """
                     INSERT INTO PlantReadings (
-                        plant_id, unit_id, temperature, humidity, soil_moisture,
-                        ph, ec, co2, voc, air_quality, pressure, lux, timestamp
+                        plant_id, unit_id, soil_moisture,
+                        ph, ec, timestamp
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?)
                     """,
                     (
                         p_id,
                         unit_id,
-                        temperature,
-                        humidity,
                         soil_moisture,
                         ph,
                         ec,
-                        co2,
-                        voc,
-                        air_quality,
-                        pressure,
-                        lux,
                         ts,
                     ),
                 )
@@ -245,9 +225,6 @@ class AnalyticsOperations:
             return last_id
         except sqlite3.Error as e:
             logger.error(f"Failed to insert plant reading: {e}")
-            return None
-        except sqlite3.Error as e:
-            logging.error(f"Failed to insert plant reading: {e}")
             return None
 
     def get_plant_id_for_sensor(self, sensor_id: int) -> int | None:
@@ -549,31 +526,98 @@ class AnalyticsOperations:
 
     def get_average_temperature(self, plant_id: int) -> float:
         try:
-            db = self.get_db()
-            query = """
-                SELECT AVG(temperature) AS avg_temp
-                FROM PlantReadings
-                WHERE plant_id = ? AND temperature IS NOT NULL
-                """
-            result = db.execute(query, (plant_id,)).fetchone()
-            return result["avg_temp"] if result and result["avg_temp"] is not None else 0.0
+            return self._get_average_environment_metric(plant_id, "temperature")
         except sqlite3.Error as exc:
             logging.error("Error calculating average temperature for plant %s: %s", plant_id, exc)
             return 0.0
 
     def get_average_humidity(self, plant_id: int) -> float:
         try:
-            db = self.get_db()
-            query = """
-                SELECT AVG(humidity) AS avg_humidity
-                FROM PlantReadings
-                WHERE plant_id = ? AND humidity IS NOT NULL
-                """
-            result = db.execute(query, (plant_id,)).fetchone()
-            return result["avg_humidity"] if result and result["avg_humidity"] is not None else 0.0
+            return self._get_average_environment_metric(plant_id, "humidity")
         except sqlite3.Error as exc:
             logging.error("Error calculating average humidity for plant %s: %s", plant_id, exc)
             return 0.0
+
+    def _get_average_environment_metric(self, plant_id: int, metric_key: str) -> float:
+        """Compute an environmental average from SensorReading payloads.
+
+        PlantReadings no longer stores environmental values such as temperature
+        and humidity, so harvest analytics now derive those values from
+        SensorReading JSON payloads.
+        """
+        db = self.get_db()
+
+        plant = db.execute(
+            """
+            SELECT
+                COALESCE(gup.unit_id, p.unit_id) AS unit_id,
+                COALESCE(p.planted_date, p.created_at) AS started_at
+            FROM Plants p
+            LEFT JOIN GrowthUnitPlants gup ON gup.plant_id = p.plant_id
+            WHERE p.plant_id = ?
+            LIMIT 1
+            """,
+            (plant_id,),
+        ).fetchone()
+        if not plant:
+            return 0.0
+
+        unit_id = plant["unit_id"]
+        started_at = plant["started_at"]
+
+        sensor_rows = db.execute(
+            """
+            SELECT sensor_id
+            FROM PlantSensors
+            WHERE plant_id = ?
+            """,
+            (plant_id,),
+        ).fetchall()
+        sensor_ids = [row["sensor_id"] for row in sensor_rows if row["sensor_id"] is not None]
+
+        params: list[Any] = []
+        if sensor_ids:
+            placeholders = ", ".join("?" for _ in sensor_ids)
+            query = f"""
+                SELECT sr.reading_data
+                FROM SensorReading sr
+                WHERE sr.sensor_id IN ({placeholders})
+            """
+            params.extend(sensor_ids)
+        elif unit_id is not None:
+            query = """
+                SELECT sr.reading_data
+                FROM SensorReading sr
+                JOIN Sensor s ON s.sensor_id = sr.sensor_id
+                WHERE s.unit_id = ?
+            """
+            params.append(unit_id)
+        else:
+            return 0.0
+
+        if started_at:
+            query += " AND sr.timestamp >= ?"
+            params.append(started_at)
+
+        total = 0.0
+        count = 0
+        for row in db.execute(query, params):
+            payload = self._decode_reading_payload(dict(row))
+            raw_value = payload.get(metric_key)
+            if raw_value is None or isinstance(raw_value, bool):
+                continue
+            try:
+                value = float(raw_value)
+            except (TypeError, ValueError):
+                continue
+            if not math.isfinite(value):
+                continue
+            total += value
+            count += 1
+
+        if count == 0:
+            return 0.0
+        return total / count
 
     def get_total_light_hours(self, plant_id: int) -> float:
         try:
@@ -742,8 +786,8 @@ class AnalyticsOperations:
             cursor = db.execute(
                 """
                 INSERT INTO EnergyReadings (
-                    device_id, unit_id, plant_id, growth_stage, timestamp, 
-                    voltage, current, power_watts, energy_kwh, frequency, 
+                    device_id, unit_id, plant_id, growth_stage, timestamp,
+                    voltage, current, power_watts, energy_kwh, frequency,
                     power_factor, temperature, source_type
                 )
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -987,7 +1031,7 @@ class AnalyticsOperations:
             query = """
                 SELECT
                     p.plant_id,
-                    p.name, 
+                    p.name,
                     p.plant_type,
                     p.current_stage,
                     p.days_in_stage,

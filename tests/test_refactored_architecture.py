@@ -50,6 +50,14 @@ def test_imports():
         from infrastructure.database.sqlite_handler import SQLiteDatabaseHandler
 
         logger.info("✅ SQLiteDatabaseHandler imported successfully")
+        _ = (
+            GrowthService,
+            UnitDimensions,
+            UnitRuntime,
+            UnitSettings,
+            PlantProfile,
+            SQLiteDatabaseHandler,
+        )
 
         logger.info("\n✅ ALL IMPORTS SUCCESSFUL\n")
         return True

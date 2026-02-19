@@ -480,9 +480,12 @@ class CreatePlantRequest(BaseModel):
     @model_validator(mode="after")
     def validate_harvest_date(self):
         """Ensure harvest date is after planted date"""
-        if self.expected_harvest_date is not None and self.planted_date is not None:
-            if self.expected_harvest_date <= self.planted_date:
-                raise ValueError("expected_harvest_date must be after planted_date")
+        if (
+            self.expected_harvest_date is not None
+            and self.planted_date is not None
+            and self.expected_harvest_date <= self.planted_date
+        ):
+            raise ValueError("expected_harvest_date must be after planted_date")
         return self
 
     model_config = ConfigDict(

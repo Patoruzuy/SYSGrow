@@ -133,7 +133,7 @@ def validate_id(value: Any, name: str = "id") -> int:
     try:
         id_val = int(value)
     except (TypeError, ValueError):
-        raise ValueError(f"{name} must be a valid integer")
+        raise ValueError(f"{name} must be a valid integer") from None
 
     if id_val < 1:
         raise ValueError(f"{name} must be a positive integer")
@@ -216,7 +216,7 @@ def validate_date_string(value: str | None, name: str = "date") -> str | None:
 
         datetime.strptime(value, "%Y-%m-%d")
     except ValueError:
-        raise ValueError(f"{name} is not a valid date")
+        raise ValueError(f"{name} is not a valid date") from None
 
     return value
 
@@ -337,7 +337,7 @@ def validate_number_range(
     try:
         num = float(value)
     except (TypeError, ValueError):
-        raise ValueError(f"{name} must be a valid number")
+        raise ValueError(f"{name} must be a valid number") from None
 
     if min_val is not None and num < min_val:
         raise ValueError(f"{name} must be at least {min_val}")
@@ -422,7 +422,7 @@ def validate_request(
                 return func(*args, **kwargs)
 
             except Exception as e:
-                logger.error(f"Request validation error: {e}")
+                logger.error("Request validation error: %s", e)
                 return jsonify({"ok": False, "data": None, "error": {"message": "Invalid request"}}), 400
 
         return wrapper

@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from app.enums import (
+from app.enums.growth import (
     PhotoperiodSource,
     ScheduleState,
     ScheduleType,
@@ -275,7 +275,6 @@ class Schedule:
             return False
 
         now = self._normalize_check_time(check_time, timezone)
-        weekday = now.weekday()  # 0=Monday
 
         minutes_since_start = self._minutes_since_start(now)
         if minutes_since_start is None:

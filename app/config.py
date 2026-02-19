@@ -8,6 +8,7 @@ Setups the logging configuration as well.
 """
 
 import os
+from contextlib import suppress
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -27,7 +28,7 @@ def _env_int(name: str, default: int) -> int:
     try:
         return int(value)
     except ValueError:
-        raise ValueError(f"Environment variable {name} must be an integer.")
+        raise ValueError(f"Environment variable {name} must be an integer.") from None
 
 
 def _env_int_multi(names: tuple[str, ...], default: int) -> int:
@@ -38,7 +39,7 @@ def _env_int_multi(names: tuple[str, ...], default: int) -> int:
         try:
             return int(value)
         except ValueError:
-            raise ValueError(f"Environment variable {name} must be an integer.")
+            raise ValueError(f"Environment variable {name} must be an integer.") from None
     return default
 
 
@@ -126,12 +127,8 @@ class AppConfig:
     max_upload_mb: int = field(default_factory=lambda: _env_int("SYSGROW_MAX_UPLOAD_MB", 16))
 
     # Login brute-force protection
-    login_max_attempts: int = field(
-        default_factory=lambda: _env_int("SYSGROW_LOGIN_MAX_ATTEMPTS", 5)
-    )
-    login_lockout_minutes: int = field(
-        default_factory=lambda: _env_int("SYSGROW_LOGIN_LOCKOUT_MINUTES", 15)
-    )
+    login_max_attempts: int = field(default_factory=lambda: _env_int("SYSGROW_LOGIN_MAX_ATTEMPTS", 5))
+    login_lockout_minutes: int = field(default_factory=lambda: _env_int("SYSGROW_LOGIN_LOCKOUT_MINUTES", 15))
 
     # AI Feature Flags
     enable_continuous_monitoring: bool = field(
@@ -661,7 +658,7 @@ def validate_ai_config(config: AppConfig) -> list[str]:
         )
 
     # Check directories exist
-    for path_name, path_value in [
+    for _path_name, path_value in [
         ("models_path", config.models_path),
         ("training_data_path", config.training_data_path),
         ("personalized_profiles_path", config.personalized_profiles_path),
@@ -692,10 +689,8 @@ def setup_logging(debug: bool = False) -> None:
 
     # Console handler (force UTF-8 to avoid UnicodeEncodeError on Windows terminals)
     stream = sys.stdout
-    try:
+    with suppress(AttributeError, ValueError):
         stream.reconfigure(encoding="utf-8", errors="replace")
-    except (AttributeError, ValueError):
-        pass
     formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
     if not has_console:
@@ -753,7 +748,7 @@ def load_config() -> AppConfig:
         optimizer = get_optimizer()
 
         if optimizer._is_raspberry_pi():
-            logger.info(f"Applying Raspberry Pi optimizations for {optimizer.profile.model}")
+            logger.info("Applying Raspberry Pi optimizations for %s", optimizer.profile.model)
 
             # Override config with optimized values if not explicitly set in env
             if not os.getenv("CONTINUOUS_MONITORING_INTERVAL"):
@@ -788,6 +783,6 @@ def load_config() -> AppConfig:
                 else:
                     config.db_mmap_size_bytes = 134_217_728  # 128 MB
     except Exception as e:
-        logger.warning(f"Could not apply Pi optimizations: {e}")
+        logger.warning("Could not apply Pi optimizations: %s", e)
 
     return config

@@ -7,7 +7,7 @@ name = "sysgrow-smart-agriculture"
 version = "3.0.0"
 description = "SYSGrow Smart Agriculture IoT System"
 readme = "README.md"
-requires-python = ">=3.8,<4"
+requires-python = ">=3.11,<4"
 license = { text = "MIT" }
 authors = [ { name = "Sebastian Gomez", email = "patoruzuy@tutanota.com" } ]
 keywords = ["raspberry", "RPi", "iot", "agriculture", "smart-farming", "plants", "esp32", "sensors", "automation", "machine-learning"]
@@ -19,10 +19,9 @@ classifiers = [
   "Topic :: Home Automation",
   "License :: OSI Approved :: MIT License",
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.8",
-  "Programming Language :: Python :: 3.9",
-  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
 ]
 
 # Dependencies: populated from requirements.txt (platform-specific markers removed)

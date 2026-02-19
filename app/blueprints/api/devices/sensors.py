@@ -14,13 +14,12 @@ from __future__ import annotations
 
 import logging
 
-from flask import request
+from flask import Response, request
 from pydantic import ValidationError
 
 from app.hardware.sensors.processors.utils import DASHBOARD_METRICS
 from app.schemas.device import CreateSensorRequest, UpdateSensorRequest
-
-from app.utils.http import safe_error
+from app.utils.http import safe_error, safe_route
 
 from . import devices_api
 from .utils import (
@@ -128,31 +127,28 @@ def _update_primary_metrics(
 
 
 @devices_api.get("/v2/sensors")
-def get_all_sensors():
+@safe_route("Failed to list all sensors")
+def get_all_sensors() -> Response:
     """Endpoint returning SensorResponse objects for all sensors."""
-    try:
-        sensor_svc = _sensor_service()
-        sensors = sensor_svc.list_sensors()
-        typed = [_sensor_to_response(sensor) for sensor in sensors]
-        return _success([s.model_dump() for s in typed])
-    except Exception as e:
-        return safe_error(e, 500)
+    sensor_svc = _sensor_service()
+    sensors = sensor_svc.list_sensors()
+    typed = [_sensor_to_response(sensor) for sensor in sensors]
+    return _success([s.model_dump() for s in typed])
 
 
 @devices_api.get("/v2/sensors/unit/<int:unit_id>")
-def get_unit_sensors(unit_id: int):
+@safe_route("Failed to list unit sensors")
+def get_unit_sensors(unit_id: int) -> Response:
     """Endpoint returning sensors for a specific unit."""
-    try:
-        sensor_svc = _sensor_service()
-        sensors = sensor_svc.list_sensors(unit_id=unit_id)
-        typed = [_sensor_to_response(sensor) for sensor in sensors]
-        return _success([s.model_dump() for s in typed])
-    except Exception as e:
-        return safe_error(e, 500)
+    sensor_svc = _sensor_service()
+    sensors = sensor_svc.list_sensors(unit_id=unit_id)
+    typed = [_sensor_to_response(sensor) for sensor in sensors]
+    return _success([s.model_dump() for s in typed])
 
 
 @devices_api.post("/v2/sensors")
-def add_sensor():
+@safe_route("Failed to create sensor")
+def add_sensor() -> Response:
     """
     Typed sensor creation endpoint using CreateSensorRequest.
     Validates the payload with Pydantic and delegates to SensorManagementService.
@@ -262,29 +258,26 @@ def add_sensor():
         )
     except ValueError as e:
         return safe_error(e, 400)
-    except Exception as e:
-        return safe_error(e, 500)
 
 
 @devices_api.delete("/v2/sensors/<int:sensor_id>")
-def remove_sensor(sensor_id: int):
+@safe_route("Failed to remove sensor")
+def remove_sensor(sensor_id: int) -> Response:
     """
     Remove a sensor.
 
     Query params:
         remove_from_zigbee: If true, also remove from Zigbee network (default: false)
     """
-    try:
-        remove_from_zigbee = request.args.get("remove_from_zigbee", "false").lower() == "true"
-        sensor_svc = _sensor_service()
-        sensor_svc.delete_sensor(sensor_id, remove_from_zigbee=remove_from_zigbee)
-        return _success({"sensor_id": sensor_id, "message": "Sensor removed"})
-    except Exception as e:
-        return safe_error(e, 500)
+    remove_from_zigbee = request.args.get("remove_from_zigbee", "false").lower() == "true"
+    sensor_svc = _sensor_service()
+    sensor_svc.delete_sensor(sensor_id, remove_from_zigbee=remove_from_zigbee)
+    return _success({"sensor_id": sensor_id, "message": "Sensor removed"})
 
 
 @devices_api.post("/v2/sensors/primary-metrics/resolve")
-def resolve_primary_metrics_conflicts():
+@safe_route("Failed to resolve primary metrics conflicts")
+def resolve_primary_metrics_conflicts() -> Response:
     """Remove conflicting primary metrics from selected sensors."""
     try:
         raw = request.get_json() or {}
@@ -318,12 +311,11 @@ def resolve_primary_metrics_conflicts():
         return _success({"message": "Conflicts resolved"})
     except ValueError as e:
         return safe_error(e, 400)
-    except Exception as e:
-        return safe_error(e, 500)
 
 
 @devices_api.patch("/v2/sensors/<int:sensor_id>/primary-metrics")
-def update_primary_metrics(sensor_id: int):
+@safe_route("Failed to update primary metrics")
+def update_primary_metrics(sensor_id: int) -> Response:
     """Update primary metrics for a sensor with conflict checking."""
     try:
         raw = request.get_json() or {}
@@ -357,63 +349,57 @@ def update_primary_metrics(sensor_id: int):
         return _success({"sensor_id": sensor_id, "primary_metrics": desired_metrics})
     except ValueError as e:
         return safe_error(e, 400)
-    except Exception as e:
-        return safe_error(e, 500)
 
 
 @devices_api.patch("/v2/sensors/<int:sensor_id>")
-def update_sensor(sensor_id: int):
+@safe_route("Failed to update sensor")
+def update_sensor(sensor_id: int) -> Response:
     """Update sensor details (name/config)."""
+    raw = request.get_json() or {}
     try:
-        raw = request.get_json() or {}
-        try:
-            body = UpdateSensorRequest(**raw)
-        except ValidationError as ve:
-            logger.warning("Validation error updating sensor: %s raw=%s", ve.errors(), raw)
-            return _fail("Invalid sensor payload", 400, details={"errors": ve.errors()})
+        body = UpdateSensorRequest(**raw)
+    except ValidationError as ve:
+        logger.warning("Validation error updating sensor: %s raw=%s", ve.errors(), raw)
+        return _fail("Invalid sensor payload", 400, details={"errors": ve.errors()})
 
-        device_repo = _device_repo()
-        sensor_svc = _sensor_service()
-        sensor_config = device_repo.find_sensor_config_by_id(sensor_id)
-        if not sensor_config:
-            return _fail("Sensor not found", 404)
+    device_repo = _device_repo()
+    sensor_svc = _sensor_service()
+    sensor_config = device_repo.find_sensor_config_by_id(sensor_id)
+    if not sensor_config:
+        return _fail("Sensor not found", 404)
 
-        updates = {}
-        if body.name is not None:
-            updates["name"] = body.name
-        if body.type is not None:
-            updates["sensor_type"] = body.type.value
-        if body.communication_type is not None:
-            updates["protocol"] = body.communication_type.value
-        if body.model is not None:
-            updates["model"] = body.model.value if hasattr(body.model, "value") else str(body.model)
+    updates = {}
+    if body.name is not None:
+        updates["name"] = body.name
+    if body.type is not None:
+        updates["sensor_type"] = body.type.value
+    if body.communication_type is not None:
+        updates["protocol"] = body.communication_type.value
+    if body.model is not None:
+        updates["model"] = body.model.value if hasattr(body.model, "value") else str(body.model)
 
-        if updates:
-            if not device_repo.update_sensor_fields(sensor_id=sensor_id, **updates):
-                return _fail("Failed to update sensor fields", 500)
+    if updates and not device_repo.update_sensor_fields(sensor_id=sensor_id, **updates):
+        return _fail("Failed to update sensor fields", 500)
 
-        config = dict(sensor_config.get("config") or {})
-        config_updated = False
+    config = dict(sensor_config.get("config") or {})
+    config_updated = False
 
-        if "friendly_name" in raw and raw.get("friendly_name"):
-            config["friendly_name"] = raw.get("friendly_name")
-            config_updated = True
-        if "mqtt_topic" in raw and raw.get("mqtt_topic"):
-            config["mqtt_topic"] = raw.get("mqtt_topic")
-            config_updated = True
+    if "friendly_name" in raw and raw.get("friendly_name"):
+        config["friendly_name"] = raw.get("friendly_name")
+        config_updated = True
+    if "mqtt_topic" in raw and raw.get("mqtt_topic"):
+        config["mqtt_topic"] = raw.get("mqtt_topic")
+        config_updated = True
 
-        if config_updated:
-            if not device_repo.update_sensor_config(sensor_id=sensor_id, config_data=config):
-                return _fail("Failed to update sensor config", 500)
+    if config_updated and not device_repo.update_sensor_config(sensor_id=sensor_id, config_data=config):
+        return _fail("Failed to update sensor config", 500)
 
-        refreshed = dict(sensor_config)
-        refreshed.update(updates)
-        refreshed["config"] = config
-        sensor_svc.register_sensor_config(refreshed)
+    refreshed = dict(sensor_config)
+    refreshed.update(updates)
+    refreshed["config"] = config
+    sensor_svc.register_sensor_config(refreshed)
 
-        return _success({"sensor_id": sensor_id, **updates, "config": config})
-    except Exception as e:
-        return safe_error(e, 500)
+    return _success({"sensor_id": sensor_id, **updates, "config": config})
 
 
 # =====================================
@@ -422,7 +408,8 @@ def update_sensor(sensor_id: int):
 
 
 @devices_api.post("/sensors/<int:sensor_id>/calibrate")
-def calibrate_sensor(sensor_id: int):
+@safe_route("Failed to calibrate sensor")
+def calibrate_sensor(sensor_id: int) -> Response:
     """
     Calibrate a sensor with a known reference value.
 
@@ -432,40 +419,36 @@ def calibrate_sensor(sensor_id: int):
             "calibration_type": "linear"  // optional: linear, polynomial, lookup
         }
     """
+    data = request.get_json() if request.is_json else {}
+
+    reference_value = data.get("reference_value")
+    calibration_type = data.get("calibration_type", "linear")
+
+    if reference_value is None:
+        return _fail("reference_value is required", 400)
+
     try:
-        data = request.get_json() if request.is_json else {}
+        reference_value = float(reference_value)
+    except (TypeError, ValueError):
+        return _fail("reference_value must be numeric", 400)
 
-        reference_value = data.get("reference_value")
-        calibration_type = data.get("calibration_type", "linear")
+    device_health = _device_health_service()
+    result = device_health.calibrate_sensor(
+        sensor_id=sensor_id, reference_value=reference_value, calibration_type=calibration_type
+    )
 
-        if reference_value is None:
-            return _fail("reference_value is required", 400)
+    if result.get("success"):
+        return _success(result)
+    else:
+        error_msg = result.get("error", "Calibration failed")
+        error_type = result.get("error_type", "unknown")
 
-        try:
-            reference_value = float(reference_value)
-        except (TypeError, ValueError):
-            return _fail("reference_value must be numeric", 400)
-
-        device_health = _device_health_service()
-        result = device_health.calibrate_sensor(
-            sensor_id=sensor_id, reference_value=reference_value, calibration_type=calibration_type
-        )
-
-        if result.get("success"):
-            return _success(result)
+        if error_type == "not_found":
+            return _fail(error_msg, 404)
+        elif error_type in ["service_unavailable", "runtime_unavailable"]:
+            return _fail(error_msg, 503)
         else:
-            error_msg = result.get("error", "Calibration failed")
-            error_type = result.get("error_type", "unknown")
-
-            if error_type == "not_found":
-                return _fail(error_msg, 404)
-            elif error_type in ["service_unavailable", "runtime_unavailable"]:
-                return _fail(error_msg, 503)
-            else:
-                return _fail(error_msg, 400)
-
-    except Exception as e:
-        return safe_error(e, 500)
+            return _fail(error_msg, 400)
 
 
 # =====================================
@@ -476,51 +459,45 @@ def calibrate_sensor(sensor_id: int):
 
 
 @devices_api.get("/sensors/<int:sensor_id>/anomalies")
-def check_sensor_anomalies(sensor_id: int):
+@safe_route("Failed to check sensor anomalies")
+def check_sensor_anomalies(sensor_id: int) -> Response:
     """Check if sensor's recent readings contain anomalies."""
-    try:
-        device_health = _device_health_service()
-        result = device_health.check_sensor_anomalies(sensor_id)
+    device_health = _device_health_service()
+    result = device_health.check_sensor_anomalies(sensor_id)
 
-        if result.get("success"):
-            return _success(result)
+    if result.get("success"):
+        return _success(result)
+    else:
+        error_msg = result.get("error", "Failed to check anomalies")
+        error_type = result.get("error_type", "unknown")
+
+        if error_type == "not_found":
+            return _fail(error_msg, 404)
+        elif error_type in ["service_unavailable", "runtime_unavailable"]:
+            return _fail(error_msg, 503)
         else:
-            error_msg = result.get("error", "Failed to check anomalies")
-            error_type = result.get("error_type", "unknown")
-
-            if error_type == "not_found":
-                return _fail(error_msg, 404)
-            elif error_type in ["service_unavailable", "runtime_unavailable"]:
-                return _fail(error_msg, 503)
-            else:
-                return _fail(error_msg, 400)
-
-    except Exception as e:
-        return safe_error(e, 500)
+            return _fail(error_msg, 400)
 
 
 @devices_api.get("/sensors/<int:sensor_id>/statistics")
-def get_sensor_statistics(sensor_id: int):
+@safe_route("Failed to get sensor statistics")
+def get_sensor_statistics(sensor_id: int) -> Response:
     """Get statistical analysis of sensor readings."""
-    try:
-        device_health = _device_health_service()
-        result = device_health.get_sensor_statistics(sensor_id)
+    device_health = _device_health_service()
+    result = device_health.get_sensor_statistics(sensor_id)
 
-        if result.get("success"):
-            return _success(result)
+    if result.get("success"):
+        return _success(result)
+    else:
+        error_msg = result.get("error", "Failed to get statistics")
+        error_type = result.get("error_type", "unknown")
+
+        if error_type == "not_found":
+            return _fail(error_msg, 404)
+        elif error_type in ["service_unavailable", "runtime_unavailable"]:
+            return _fail(error_msg, 503)
         else:
-            error_msg = result.get("error", "Failed to get statistics")
-            error_type = result.get("error_type", "unknown")
-
-            if error_type == "not_found":
-                return _fail(error_msg, 404)
-            elif error_type in ["service_unavailable", "runtime_unavailable"]:
-                return _fail(error_msg, 503)
-            else:
-                return _fail(error_msg, 400)
-
-    except Exception as e:
-        return safe_error(e, 500)
+            return _fail(error_msg, 400)
 
 
 # =====================================
@@ -529,7 +506,8 @@ def get_sensor_statistics(sensor_id: int):
 
 
 @devices_api.post("/sensors/discover")
-def discover_mqtt_sensors():
+@safe_route("Failed to discover MQTT sensors")
+def discover_mqtt_sensors() -> Response:
     """
     Discover available MQTT sensors for a unit.
 
@@ -539,45 +517,38 @@ def discover_mqtt_sensors():
             "mqtt_topic_prefix": "growtent"  // optional
         }
     """
+    data = request.get_json() if request.is_json else {}
+
+    unit_id = data.get("unit_id")
+    mqtt_topic_prefix = data.get("mqtt_topic_prefix", "growtent")
+
+    if unit_id is None:
+        return _fail("unit_id is required", 400)
+
     try:
-        data = request.get_json() if request.is_json else {}
+        unit_id = int(unit_id)
+    except (TypeError, ValueError):
+        return _fail("unit_id must be an integer", 400)
 
-        unit_id = data.get("unit_id")
-        mqtt_topic_prefix = data.get("mqtt_topic_prefix", "growtent")
-
-        if unit_id is None:
-            return _fail("unit_id is required", 400)
-
-        try:
-            unit_id = int(unit_id)
-        except (TypeError, ValueError):
-            return _fail("unit_id must be an integer", 400)
-
-        logger.info(
-            "MQTT discovery requested for unit %s (prefix=%s) - not implemented",
-            unit_id,
-            mqtt_topic_prefix,
-        )
-        return _success({"sensors": [], "count": 0})
-
-    except Exception as e:
-        return safe_error(e, 500)
+    logger.info(
+        "MQTT discovery requested for unit %s (prefix=%s) - not implemented",
+        unit_id,
+        mqtt_topic_prefix,
+    )
+    return _success({"sensors": [], "count": 0})
 
 
 @devices_api.get("/sensors/<int:sensor_id>/read")
-def read_sensor_value(sensor_id: int):
+@safe_route("Failed to read sensor value")
+def read_sensor_value(sensor_id: int) -> Response:
     """Get current reading from a sensor."""
-    try:
-        sensor_svc = _sensor_service()
-        reading = sensor_svc.read_sensor(sensor_id)
+    sensor_svc = _sensor_service()
+    reading = sensor_svc.read_sensor(sensor_id)
 
-        if reading:
-            return _success(reading.to_dict())
+    if reading:
+        return _success(reading.to_dict())
 
-        return _fail(f"Sensor {sensor_id} not found or unavailable", 404)
-
-    except Exception as e:
-        return safe_error(e, 500)
+    return _fail(f"Sensor {sensor_id} not found or unavailable", 404)
 
 
 # =====================================
@@ -586,55 +557,47 @@ def read_sensor_value(sensor_id: int):
 
 
 @devices_api.get("/sensors/<int:sensor_id>/history/calibration")
-def get_sensor_calibration_history(sensor_id: int):
+@safe_route("Failed to get sensor calibration history")
+def get_sensor_calibration_history(sensor_id: int) -> Response:
     """Get calibration history for a sensor."""
-    try:
-        limit = request.args.get("limit", 20, type=int)
+    limit = request.args.get("limit", 20, type=int)
 
-        device_health = _device_health_service()
-        history = device_health.get_sensor_calibration_history(sensor_id, limit)
+    device_health = _device_health_service()
+    history = device_health.get_sensor_calibration_history(sensor_id, limit)
 
-        return _success({"history": history, "count": len(history)})
-
-    except Exception as e:
-        return safe_error(e, 500)
+    return _success({"history": history, "count": len(history)})
 
 
 @devices_api.get("/sensors/<int:sensor_id>/history/health")
-def get_sensor_health_history(sensor_id: int):
+@safe_route("Failed to get sensor health history")
+def get_sensor_health_history(sensor_id: int) -> Response:
     """Get health history for a sensor."""
-    try:
-        limit = request.args.get("limit", 100, type=int)
+    limit = request.args.get("limit", 100, type=int)
 
-        device_health = _device_health_service()
-        history = device_health.get_sensor_health_history(sensor_id, limit)
+    device_health = _device_health_service()
+    history = device_health.get_sensor_health_history(sensor_id, limit)
 
-        return _success({"history": history, "count": len(history)})
-
-    except Exception as e:
-        return safe_error(e, 500)
+    return _success({"history": history, "count": len(history)})
 
 
 @devices_api.get("/sensors/<int:sensor_id>/history/anomalies")
-def get_sensor_anomaly_history(sensor_id: int):
+@safe_route("Failed to get sensor anomaly history")
+def get_sensor_anomaly_history(sensor_id: int) -> Response:
     """Get anomaly history for a sensor."""
-    try:
-        limit = request.args.get("limit", 100, type=int)
+    limit = request.args.get("limit", 100, type=int)
 
-        device_health = _device_health_service()
-        history = device_health.get_sensor_anomaly_history(sensor_id, limit)
+    device_health = _device_health_service()
+    history = device_health.get_sensor_anomaly_history(sensor_id, limit)
 
-        return _success({"history": history, "count": len(history)})
-
-    except Exception as e:
-        return safe_error(e, 500)
+    return _success({"history": history, "count": len(history)})
 
 
 # ======================== DEVICE OPERATIONS ========================
 
 
 @devices_api.post("/v2/sensors/<int:sensor_id>/identify")
-def identify_sensor(sensor_id: int):
+@safe_route("Failed to identify sensor")
+def identify_sensor(sensor_id: int) -> Response:
     """
     Trigger identification on a sensor (e.g., flash LED).
 
@@ -650,26 +613,22 @@ def identify_sensor(sensor_id: int):
             "message": "Identification triggered"
         }
     """
-    try:
-        duration = request.args.get("duration", 10, type=int)
+    duration = request.args.get("duration", 10, type=int)
 
-        sensor_svc = _sensor_service()
-        success = sensor_svc.identify_sensor(sensor_id, duration)
+    sensor_svc = _sensor_service()
+    success = sensor_svc.identify_sensor(sensor_id, duration)
 
-        if success:
-            return _success(
-                {"sensor_id": sensor_id, "success": True, "message": f"Identification triggered for {duration}s"}
-            )
-        else:
-            return _fail(f"Sensor {sensor_id} does not support identification", 400)
-
-    except Exception as e:
-        logger.error(f"Error identifying sensor {sensor_id}: {e}")
-        return safe_error(e, 500)
+    if success:
+        return _success(
+            {"sensor_id": sensor_id, "success": True, "message": f"Identification triggered for {duration}s"}
+        )
+    else:
+        return _fail(f"Sensor {sensor_id} does not support identification", 400)
 
 
 @devices_api.get("/v2/sensors/<int:sensor_id>/device-info")
-def get_sensor_device_info(sensor_id: int):
+@safe_route("Failed to get sensor device info")
+def get_sensor_device_info(sensor_id: int) -> Response:
     """
     Get device information for a sensor.
 
@@ -687,22 +646,18 @@ def get_sensor_device_info(sensor_id: int):
             ...
         }
     """
-    try:
-        sensor_svc = _sensor_service()
-        info = sensor_svc.get_sensor_device_info(sensor_id)
+    sensor_svc = _sensor_service()
+    info = sensor_svc.get_sensor_device_info(sensor_id)
 
-        if info:
-            return _success(info)
-        else:
-            return _fail(f"Sensor {sensor_id} not found or has no device info", 404)
-
-    except Exception as e:
-        logger.error(f"Error getting device info for sensor {sensor_id}: {e}")
-        return safe_error(e, 500)
+    if info:
+        return _success(info)
+    else:
+        return _fail(f"Sensor {sensor_id} not found or has no device info", 404)
 
 
 @devices_api.get("/v2/sensors/<int:sensor_id>/state")
-def get_sensor_state(sensor_id: int):
+@safe_route("Failed to get sensor state")
+def get_sensor_state(sensor_id: int) -> Response:
     """
     Get current state of a sensor.
 
@@ -719,22 +674,18 @@ def get_sensor_state(sensor_id: int):
             "last_update": "2025-01-24T10:30:00"
         }
     """
-    try:
-        sensor_svc = _sensor_service()
-        state = sensor_svc.get_sensor_state(sensor_id)
+    sensor_svc = _sensor_service()
+    state = sensor_svc.get_sensor_state(sensor_id)
 
-        if state:
-            return _success(state)
-        else:
-            return _fail(f"Sensor {sensor_id} not found or has no state", 404)
-
-    except Exception as e:
-        logger.error(f"Error getting state for sensor {sensor_id}: {e}")
-        return safe_error(e, 500)
+    if state:
+        return _success(state)
+    else:
+        return _fail(f"Sensor {sensor_id} not found or has no state", 404)
 
 
 @devices_api.post("/v2/sensors/<int:sensor_id>/rename")
-def rename_sensor_device(sensor_id: int):
+@safe_route("Failed to rename sensor device")
+def rename_sensor_device(sensor_id: int) -> Response:
     """
     Rename sensor device on its network (e.g., Zigbee2MQTT).
 
@@ -753,34 +704,30 @@ def rename_sensor_device(sensor_id: int):
             "message": "Device renamed on network"
         }
     """
-    try:
-        data = request.get_json() if request.is_json else {}
-        new_name = data.get("new_name")
+    data = request.get_json() if request.is_json else {}
+    new_name = data.get("new_name")
 
-        if not new_name:
-            return _fail("new_name is required", 400)
+    if not new_name:
+        return _fail("new_name is required", 400)
 
-        # Validate name
-        if not new_name.replace("_", "").replace("-", "").isalnum():
-            return _fail("Device name can only contain letters, numbers, underscores and hyphens", 400)
+    # Validate name
+    if not new_name.replace("_", "").replace("-", "").isalnum():
+        return _fail("Device name can only contain letters, numbers, underscores and hyphens", 400)
 
-        sensor_svc = _sensor_service()
-        success = sensor_svc.rename_sensor_device(sensor_id, new_name)
+    sensor_svc = _sensor_service()
+    success = sensor_svc.rename_sensor_device(sensor_id, new_name)
 
-        if success:
-            return _success(
-                {"sensor_id": sensor_id, "new_name": new_name, "success": True, "message": "Device renamed on network"}
-            )
-        else:
-            return _fail(f"Sensor {sensor_id} does not support rename", 400)
-
-    except Exception as e:
-        logger.error(f"Error renaming sensor {sensor_id}: {e}")
-        return safe_error(e, 500)
+    if success:
+        return _success(
+            {"sensor_id": sensor_id, "new_name": new_name, "success": True, "message": "Device renamed on network"}
+        )
+    else:
+        return _fail(f"Sensor {sensor_id} does not support rename", 400)
 
 
 @devices_api.post("/v2/sensors/<int:sensor_id>/remove-from-network")
-def remove_sensor_from_network(sensor_id: int):
+@safe_route("Failed to remove sensor from network")
+def remove_sensor_from_network(sensor_id: int) -> Response:
     """
     Remove sensor device from its network (e.g., Zigbee network).
 
@@ -795,22 +742,18 @@ def remove_sensor_from_network(sensor_id: int):
             "message": "Device removal initiated"
         }
     """
-    try:
-        sensor_svc = _sensor_service()
-        success = sensor_svc.remove_sensor_from_network(sensor_id)
+    sensor_svc = _sensor_service()
+    success = sensor_svc.remove_sensor_from_network(sensor_id)
 
-        if success:
-            return _success({"sensor_id": sensor_id, "success": True, "message": "Device removal initiated"})
-        else:
-            return _fail(f"Sensor {sensor_id} does not support network removal", 400)
-
-    except Exception as e:
-        logger.error(f"Error removing sensor {sensor_id} from network: {e}")
-        return safe_error(e, 500)
+    if success:
+        return _success({"sensor_id": sensor_id, "success": True, "message": "Device removal initiated"})
+    else:
+        return _fail(f"Sensor {sensor_id} does not support network removal", 400)
 
 
 @devices_api.post("/v2/sensors/<int:sensor_id>/command")
-def send_sensor_command(sensor_id: int):
+@safe_route("Failed to send sensor command")
+def send_sensor_command(sensor_id: int) -> Response:
     """
     Send a command to a sensor device.
 
@@ -840,20 +783,15 @@ def send_sensor_command(sensor_id: int):
             "message": "Command sent successfully"
         }
     """
-    try:
-        data = request.get_json() if request.is_json else {}
+    data = request.get_json() if request.is_json else {}
 
-        if not data:
-            return _fail("Request body is required", 400)
+    if not data:
+        return _fail("Request body is required", 400)
 
-        sensor_svc = _sensor_service()
-        success = sensor_svc.send_command(sensor_id, data)
+    sensor_svc = _sensor_service()
+    success = sensor_svc.send_command(sensor_id, data)
 
-        if success:
-            return _success({"sensor_id": sensor_id, "success": True, "message": "Command sent successfully"})
-        else:
-            return _fail(f"Sensor {sensor_id} does not support commands", 400)
-
-    except Exception as e:
-        logger.error(f"Error sending command to sensor {sensor_id}: {e}")
-        return safe_error(e, 500)
+    if success:
+        return _success({"sensor_id": sensor_id, "success": True, "message": "Command sent successfully"})
+    else:
+        return _fail(f"Sensor {sensor_id} does not support commands", 400)

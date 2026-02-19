@@ -5,7 +5,7 @@ Analytics API Helper Functions
 Shared utility functions used across analytics submodules.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any
 
 from app.blueprints.api._common import (
@@ -71,9 +71,9 @@ def calculate_correlations(readings: list[dict]) -> dict[str, Any]:
 def sqlite_timestamp(dt: datetime) -> str:
     """Format a datetime for safe use with SQLite datetime() comparisons."""
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=UTC)
+        dt = dt.replace(tzinfo=datetime.UTC)
     else:
-        dt = dt.astimezone(UTC)
+        dt = dt.astimezone(datetime.UTC)
     return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 
@@ -81,7 +81,7 @@ def volatility_ratio(metric: dict[str, Any], *, default: float) -> float:
     """Calculate volatility ratio from metric dict."""
     avg = metric.get("average")
     std_dev = metric.get("std_dev")
-    if not isinstance(avg, (int, float)) or not isinstance(std_dev, (int, float)):
+    if not isinstance(avg, int | float) or not isinstance(std_dev, int | float):
         return default
     if avg == 0:
         return default

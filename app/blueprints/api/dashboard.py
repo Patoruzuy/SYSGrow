@@ -11,7 +11,7 @@ These handlers are responsible only for:
 """
 
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 
 from flask import Blueprint, Response, current_app, request, session
 
@@ -21,6 +21,7 @@ from app.blueprints.api._common import (
     success as _success,
 )
 from app.utils.http import safe_route
+from app.utils.time import utc_now
 
 dashboard_api = Blueprint("dashboard_api", __name__)
 logger = logging.getLogger(__name__)
@@ -213,7 +214,7 @@ def get_timeseries() -> Response:
         if not svc:
             return _fail("Container unavailable", 503)
 
-        now = datetime.now(UTC)
+        now = utc_now()
         hours = request.args.get("hours", type=int)
         end_param = request.args.get("end")
         start_param = request.args.get("start")

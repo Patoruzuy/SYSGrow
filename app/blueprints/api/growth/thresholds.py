@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 
-from flask import request, session
+from flask import Response, request, session
 from pydantic import ValidationError
 
 from app.blueprints.api._common import (
@@ -28,6 +28,7 @@ from app.schemas.growth import (
     UnitThresholdUpdateV2,
 )
 from app.services.application.threshold_service import THRESHOLD_KEYS
+from app.utils.http import safe_error, safe_route
 
 from . import growth_api
 
@@ -98,115 +99,99 @@ def _unit_to_response(unit: dict) -> GrowthUnitResponse:
 
 
 @growth_api.get("/units/<int:unit_id>/thresholds")
-def get_thresholds(unit_id: int):
+@safe_route("Failed to get thresholds")
+def get_thresholds(unit_id: int) -> Response:
     """Get sensor thresholds for a growth unit"""
-    logger.info(f"Getting thresholds for growth unit {unit_id}")
-    try:
-        if not _service().get_unit(unit_id):
-            return _fail(f"Growth unit {unit_id} not found", 404)
+    logger.info("Getting thresholds for growth unit %s", unit_id)
+    if not _service().get_unit(unit_id):
+        return _fail(f"Growth unit {unit_id} not found", 404)
 
-        data = _service().get_thresholds(unit_id)
+    data = _service().get_thresholds(unit_id)
 
-        return _success(data)
-
-    except Exception as e:
-        logger.exception(f"Error getting thresholds for unit {unit_id}: {e}")
-        return _fail("Failed to get thresholds", 500)
+    return _success(data)
 
 
 @growth_api.post("/units/<int:unit_id>/thresholds")
-def set_thresholds(unit_id: int):
+@safe_route("Failed to set thresholds")
+def set_thresholds(unit_id: int) -> Response:
     """Set sensor thresholds for a growth unit"""
-    logger.info(f"Setting thresholds for growth unit {unit_id}")
+    logger.info("Setting thresholds for growth unit %s", unit_id)
+    raw = request.get_json() or {}
     try:
-        raw = request.get_json() or {}
-        try:
-            payload = UnitThresholdUpdate(**raw)
-        except ValidationError as ve:
-            return _fail("Invalid threshold payload", 400, details={"errors": ve.errors()})
+        payload = UnitThresholdUpdate(**raw)
+    except ValidationError as ve:
+        return _fail("Invalid threshold payload", 400, details={"errors": ve.errors()})
 
-        if not _service().get_unit(unit_id):
-            return _fail(f"Growth unit {unit_id} not found", 404)
+    if not _service().get_unit(unit_id):
+        return _fail(f"Growth unit {unit_id} not found", 404)
 
-        unit = _service().set_thresholds(
-            unit_id,
-            temperature_threshold=payload.temperature_threshold,
-            humidity_threshold=payload.humidity_threshold,
-        )
-        unit = unit or {}
-        return _success(
-            {
-                "unit_id": unit.get("unit_id", unit_id),
-                "temperature_threshold": unit.get("temperature_threshold", payload.temperature_threshold),
-                "humidity_threshold": unit.get("humidity_threshold", payload.humidity_threshold),
-            }
-        )
-
-    except (TypeError, ValueError) as e:
-        logger.warning(f"Validation error setting thresholds: {e}")
-        return _fail("Threshold values must be numeric", 400)
-    except Exception as e:
-        logger.exception(f"Error setting thresholds for unit {unit_id}: {e}")
-        return _fail("Failed to set thresholds", 500)
+    unit = _service().set_thresholds(
+        unit_id,
+        temperature_threshold=payload.temperature_threshold,
+        humidity_threshold=payload.humidity_threshold,
+    )
+    unit = unit or {}
+    return _success(
+        {
+            "unit_id": unit.get("unit_id", unit_id),
+            "temperature_threshold": unit.get("temperature_threshold", payload.temperature_threshold),
+            "humidity_threshold": unit.get("humidity_threshold", payload.humidity_threshold),
+        }
+    )
 
 
 @growth_api.post("/v2/units/<int:unit_id>/thresholds")
-def update_unit_thresholds_v2(unit_id: int):
+@safe_route("Failed to update thresholds")
+def update_unit_thresholds_v2(unit_id: int) -> Response:
     """Typed v2 endpoint for updating thresholds."""
     logger.info("Updating thresholds for growth unit %s via v2 endpoint", unit_id)
+    raw = request.get_json() or {}
     try:
-        raw = request.get_json() or {}
-        try:
-            body = UnitThresholdUpdateV2(**raw)
-        except ValidationError as ve:
-            return _fail("Invalid threshold payload", 400, details={"errors": ve.errors()})
+        body = UnitThresholdUpdateV2(**raw)
+    except ValidationError as ve:
+        return _fail("Invalid threshold payload", 400, details={"errors": ve.errors()})
 
-        updates = {
-            "temperature_threshold": body.temperature_threshold,
-            "humidity_threshold": body.humidity_threshold,
-        }
-        if body.co2_threshold is not None:
-            updates["co2_threshold"] = body.co2_threshold
-        if body.voc_threshold is not None:
-            updates["voc_threshold"] = body.voc_threshold
-        if body.lux_threshold is not None:
-            updates["lux_threshold"] = body.lux_threshold
-        if body.air_quality_threshold is not None:
-            updates["air_quality_threshold"] = body.air_quality_threshold
+    updates = {
+        "temperature_threshold": body.temperature_threshold,
+        "humidity_threshold": body.humidity_threshold,
+    }
+    if body.co2_threshold is not None:
+        updates["co2_threshold"] = body.co2_threshold
+    if body.voc_threshold is not None:
+        updates["voc_threshold"] = body.voc_threshold
+    if body.lux_threshold is not None:
+        updates["lux_threshold"] = body.lux_threshold
+    if body.air_quality_threshold is not None:
+        updates["air_quality_threshold"] = body.air_quality_threshold
 
-        ok = _service().update_unit_thresholds(
-            unit_id,
-            updates,
-        )
-        if not ok:
-            return _fail("Failed to update thresholds", 500)
-
-        updated = _service().get_unit(unit_id)
-        if not updated:
-            return _success({"unit_id": unit_id})
-        return _success(_unit_to_response(updated).model_dump())
-    except Exception as e:
-        logger.exception("Error updating thresholds for unit %s: %s", unit_id, e)
+    ok = _service().update_unit_thresholds(
+        unit_id,
+        updates,
+    )
+    if not ok:
         return _fail("Failed to update thresholds", 500)
+
+    updated = _service().get_unit(unit_id)
+    if not updated:
+        return _success({"unit_id": unit_id})
+    return _success(_unit_to_response(updated).model_dump())
 
 
 @growth_api.get("/v2/units/<int:unit_id>/thresholds")
-def get_unit_thresholds_v2(unit_id: int):
+@safe_route("Failed to fetch thresholds")
+def get_unit_thresholds_v2(unit_id: int) -> Response:
     """Typed v2 getter for unit thresholds."""
     logger.info("Getting thresholds for growth unit %s via v2 endpoint", unit_id)
-    try:
-        if not _service().get_unit(unit_id):
-            return _fail(f"Growth unit {unit_id} not found", 404)
+    if not _service().get_unit(unit_id):
+        return _fail(f"Growth unit {unit_id} not found", 404)
 
-        payload = _service().get_thresholds(unit_id)
-        return _success(payload)
-    except Exception as e:
-        logger.exception("Error fetching thresholds for unit %s: %s", unit_id, e)
-        return _fail("Failed to fetch thresholds", 500)
+    payload = _service().get_thresholds(unit_id)
+    return _success(payload)
 
 
 @growth_api.post("/v2/units/<int:unit_id>/thresholds/apply-profile")
-def apply_condition_profile_to_unit(unit_id: int):
+@safe_route("Failed to apply condition profile")
+def apply_condition_profile_to_unit(unit_id: int) -> Response:
     """
     Apply a condition profile to unit environment thresholds.
 
@@ -216,51 +201,48 @@ def apply_condition_profile_to_unit(unit_id: int):
       - mode (optional): active or template
       - name (optional): name for cloned profile
     """
+    raw = request.get_json() or {}
+    user_id = raw.get("user_id")
+    if user_id is None:
+        user_id = request.args.get("user_id")
+    if user_id is None:
+        user_id = get_user_id()
     try:
-        raw = request.get_json() or {}
-        user_id = raw.get("user_id")
-        if user_id is None:
-            user_id = request.args.get("user_id")
-        if user_id is None:
-            user_id = get_user_id()
+        user_id = int(user_id)
+    except (TypeError, ValueError):
+        return _fail("Invalid user_id", 400)
+
+    profile_id = raw.get("profile_id")
+    if not profile_id:
+        return _fail("profile_id is required", 400)
+
+    mode = raw.get("mode")
+    mode_enum = None
+    if mode:
         try:
-            user_id = int(user_id)
-        except (TypeError, ValueError):
-            return _fail("Invalid user_id", 400)
+            mode_enum = ConditionProfileMode(mode)
+        except ValueError:
+            return _fail("Invalid mode", 400)
 
-        profile_id = raw.get("profile_id")
-        if not profile_id:
-            return _fail("profile_id is required", 400)
+    name = raw.get("name")
 
-        mode = raw.get("mode")
-        mode_enum = None
-        if mode:
-            try:
-                mode_enum = ConditionProfileMode(mode)
-            except ValueError:
-                return _fail("Invalid mode", 400)
+    try:
+        profile = _apply_condition_profile_to_unit(
+            unit_id=unit_id,
+            user_id=user_id,
+            profile_id=profile_id,
+            mode=mode_enum,
+            name=name,
+        )
+    except ValueError as exc:
+        return safe_error(exc, 404)
 
-        name = raw.get("name")
-
-        try:
-            profile = _apply_condition_profile_to_unit(
-                unit_id=unit_id,
-                user_id=user_id,
-                profile_id=profile_id,
-                mode=mode_enum,
-                name=name,
-            )
-        except ValueError as exc:
-            return safe_error(exc, 404)
-
-        return _success({"unit_id": unit_id, "condition_profile": profile})
-    except Exception as e:
-        logger.exception("Error applying condition profile to unit %s: %s", unit_id, e)
-        return _fail("Failed to apply condition profile", 500)
+    return _success({"unit_id": unit_id, "condition_profile": profile})
 
 
 @growth_api.get("/thresholds/recommended")
-def get_recommended_thresholds():
+@safe_route("Failed to get recommended thresholds")
+def get_recommended_thresholds() -> Response:
     """
     Get recommended environmental threshold ranges for a plant type.
 
@@ -348,7 +330,8 @@ def get_recommended_thresholds():
 
 
 @growth_api.post("/thresholds/proposal/respond")
-def respond_to_threshold_proposal():
+@safe_route("Failed to process threshold proposal response")
+def respond_to_threshold_proposal() -> Response:
     """
     Handle user response to a stage transition threshold proposal.
 
@@ -381,177 +364,172 @@ def respond_to_threshold_proposal():
     if action not in valid_actions:
         return _fail(f"Invalid action. Must be one of: {valid_actions}", 400)
 
-    try:
-        container = _container()
-        plant_service = getattr(container, "plant_service", None)
-        threshold_service = getattr(container, "threshold_service", None)
+    container = _container()
+    plant_service = getattr(container, "plant_service", None)
+    threshold_service = getattr(container, "threshold_service", None)
 
-        def _extract_threshold_values(payload: dict) -> dict:
-            values: dict = {}
-            if not isinstance(payload, dict):
-                return values
-
-            def _get_value(entry):
-                if isinstance(entry, dict):
-                    return entry.get("proposed")
-                return entry
-
-            # Legacy payload shape
-            if "soil_moisture" in payload:
-                values["soil_moisture_threshold"] = _get_value(payload.get("soil_moisture", {}))
-            if "soil_moisture_threshold" in payload:
-                values["soil_moisture_threshold"] = _get_value(payload.get("soil_moisture_threshold"))
-            for key in THRESHOLD_KEYS:
-                if key in payload:
-                    values[key] = _get_value(payload.get(key))
+    def _extract_threshold_values(payload: dict) -> dict:
+        values: dict = {}
+        if not isinstance(payload, dict):
             return values
 
-        if action == "keep_current":
-            # User wants to keep current thresholds - no DB update needed
-            logger.info("User chose to keep current thresholds for unit %s (plant %s)", unit_id, plant_id)
+        def _get_value(entry):
+            if isinstance(entry, dict):
+                return entry.get("proposed")
+            return entry
+
+        # Legacy payload shape
+        if "soil_moisture" in payload:
+            values["soil_moisture_threshold"] = _get_value(payload.get("soil_moisture", {}))
+        if "soil_moisture_threshold" in payload:
+            values["soil_moisture_threshold"] = _get_value(payload.get("soil_moisture_threshold"))
+        for key in THRESHOLD_KEYS:
+            if key in payload:
+                values[key] = _get_value(payload.get(key))
+        return values
+
+    if action == "keep_current":
+        # User wants to keep current thresholds - no DB update needed
+        logger.info("User chose to keep current thresholds for unit %s (plant %s)", unit_id, plant_id)
+        return _success(
+            {
+                "action": "keep_current",
+                "message": "Current thresholds retained",
+                "unit_id": unit_id,
+            }
+        )
+    elif action == "delay_stage":
+        if not plant_id:
+            return _fail("Missing plant_id for delay_stage action", 400)
+        if not plant_service:
+            return _fail("Plant service not available", 503)
+        old_stage = raw.get("old_stage")
+        if not old_stage:
+            return _fail("Missing old_stage for delay_stage action", 400)
+        ok = plant_service.update_plant_stage(
+            int(plant_id),
+            old_stage,
+            days_in_stage=0,
+            skip_threshold_proposal=True,
+        )
+        if ok:
             return _success(
                 {
-                    "action": "keep_current",
-                    "message": "Current thresholds retained",
+                    "action": "delay_stage",
+                    "message": f"Plant stage reverted to {old_stage}",
                     "unit_id": unit_id,
+                    "plant_id": plant_id,
                 }
             )
-        elif action == "delay_stage":
+        return _fail("Failed to delay stage change", 500)
+
+    elif action == "apply":
+        proposed = raw.get("proposed_thresholds", {})
+        if not proposed:
+            return _fail("Missing 'proposed_thresholds' for apply action", 400)
+
+        values = _extract_threshold_values(proposed)
+        if not values:
+            return _fail("No thresholds found in proposal", 400)
+
+        applied: dict = {}
+        env_payload: dict = {}
+        for key in THRESHOLD_KEYS:
+            if values.get(key) is None:
+                continue
+            try:
+                env_payload[key] = float(values[key])
+            except (TypeError, ValueError):
+                return _fail("Invalid proposed threshold value", 400)
+
+        if env_payload:
+            if not threshold_service:
+                return _fail("Threshold service not available", 503)
+            if not threshold_service.update_unit_thresholds(int(unit_id), env_payload):
+                return _fail("Failed to apply environment thresholds", 500)
+            applied.update(env_payload)
+
+        soil_value = values.get("soil_moisture_threshold")
+        if soil_value is not None:
             if not plant_id:
-                return _fail("Missing plant_id for delay_stage action", 400)
+                return _fail("Missing plant_id for soil moisture threshold", 400)
             if not plant_service:
                 return _fail("Plant service not available", 503)
-            old_stage = raw.get("old_stage")
-            if not old_stage:
-                return _fail("Missing old_stage for delay_stage action", 400)
-            ok = plant_service.update_plant_stage(
+            try:
+                soil_value = float(soil_value)
+            except (TypeError, ValueError):
+                return _fail("Invalid soil moisture threshold value", 400)
+            ok = plant_service.update_soil_moisture_threshold(
                 int(plant_id),
-                old_stage,
-                days_in_stage=0,
-                skip_threshold_proposal=True,
+                soil_value,
+                unit_id=unit_id,
             )
-            if ok:
-                return _success(
-                    {
-                        "action": "delay_stage",
-                        "message": f"Plant stage reverted to {old_stage}",
-                        "unit_id": unit_id,
-                        "plant_id": plant_id,
-                    }
-                )
-            return _fail("Failed to delay stage change", 500)
+            if not ok:
+                return _fail("Failed to apply soil moisture threshold", 500)
+            applied["soil_moisture_threshold"] = soil_value
 
-        elif action == "apply":
-            proposed = raw.get("proposed_thresholds", {})
-            if not proposed:
-                return _fail("Missing 'proposed_thresholds' for apply action", 400)
+        return _success(
+            {
+                "action": "apply",
+                "message": "Thresholds updated",
+                "unit_id": unit_id,
+                "plant_id": plant_id,
+                "applied_thresholds": applied,
+            }
+        )
 
-            values = _extract_threshold_values(proposed)
-            if not values:
-                return _fail("No thresholds found in proposal", 400)
+    elif action == "customize":
+        custom = raw.get("custom_thresholds", {})
+        if not custom:
+            return _fail("Missing 'custom_thresholds' for customize action", 400)
+        values = _extract_threshold_values(custom)
+        if not values:
+            return _fail("No thresholds found in custom_thresholds", 400)
 
-            applied: dict = {}
-            env_payload: dict = {}
-            for key in THRESHOLD_KEYS:
-                if values.get(key) is None:
-                    continue
-                try:
-                    env_payload[key] = float(values[key])
-                except (TypeError, ValueError):
-                    return _fail("Invalid proposed threshold value", 400)
+        applied: dict = {}
+        env_payload: dict = {}
+        for key in THRESHOLD_KEYS:
+            if values.get(key) is None:
+                continue
+            try:
+                env_payload[key] = float(values[key])
+            except (TypeError, ValueError):
+                return _fail("Invalid custom threshold value", 400)
+        if env_payload:
+            if not threshold_service:
+                return _fail("Threshold service not available", 503)
+            if not threshold_service.update_unit_thresholds(int(unit_id), env_payload):
+                return _fail("Failed to apply environment thresholds", 500)
+            applied.update(env_payload)
 
-            if env_payload:
-                if not threshold_service:
-                    return _fail("Threshold service not available", 503)
-                if not threshold_service.update_unit_thresholds(int(unit_id), env_payload):
-                    return _fail("Failed to apply environment thresholds", 500)
-                applied.update(env_payload)
+        soil_threshold = values.get("soil_moisture_threshold")
+        if soil_threshold is not None:
+            if not plant_id:
+                return _fail("Missing plant_id for soil moisture threshold", 400)
+            if not plant_service:
+                return _fail("Plant service not available", 503)
+            try:
+                soil_threshold = float(soil_threshold)
+                if not (0 <= soil_threshold <= 100):
+                    return _fail("Soil moisture threshold must be between 0 and 100", 400)
+            except (TypeError, ValueError):
+                return _fail("Invalid soil moisture threshold value", 400)
 
-            soil_value = values.get("soil_moisture_threshold")
-            if soil_value is not None:
-                if not plant_id:
-                    return _fail("Missing plant_id for soil moisture threshold", 400)
-                if not plant_service:
-                    return _fail("Plant service not available", 503)
-                try:
-                    soil_value = float(soil_value)
-                except (TypeError, ValueError):
-                    return _fail("Invalid soil moisture threshold value", 400)
-                ok = plant_service.update_soil_moisture_threshold(
-                    int(plant_id),
-                    soil_value,
-                    unit_id=unit_id,
-                )
-                if not ok:
-                    return _fail("Failed to apply soil moisture threshold", 500)
-                applied["soil_moisture_threshold"] = soil_value
-
-            return _success(
-                {
-                    "action": "apply",
-                    "message": "Thresholds updated",
-                    "unit_id": unit_id,
-                    "plant_id": plant_id,
-                    "applied_thresholds": applied,
-                }
+            ok = plant_service.update_soil_moisture_threshold(
+                int(plant_id),
+                soil_threshold,
+                unit_id=unit_id,
             )
+            if not ok:
+                return _fail("Failed to apply soil moisture threshold", 500)
+            applied["soil_moisture_threshold"] = soil_threshold
 
-        elif action == "customize":
-            custom = raw.get("custom_thresholds", {})
-            if not custom:
-                return _fail("Missing 'custom_thresholds' for customize action", 400)
-            values = _extract_threshold_values(custom)
-            if not values:
-                return _fail("No thresholds found in custom_thresholds", 400)
-
-            applied: dict = {}
-            env_payload: dict = {}
-            for key in THRESHOLD_KEYS:
-                if values.get(key) is None:
-                    continue
-                try:
-                    env_payload[key] = float(values[key])
-                except (TypeError, ValueError):
-                    return _fail("Invalid custom threshold value", 400)
-            if env_payload:
-                if not threshold_service:
-                    return _fail("Threshold service not available", 503)
-                if not threshold_service.update_unit_thresholds(int(unit_id), env_payload):
-                    return _fail("Failed to apply environment thresholds", 500)
-                applied.update(env_payload)
-
-            soil_threshold = values.get("soil_moisture_threshold")
-            if soil_threshold is not None:
-                if not plant_id:
-                    return _fail("Missing plant_id for soil moisture threshold", 400)
-                if not plant_service:
-                    return _fail("Plant service not available", 503)
-                try:
-                    soil_threshold = float(soil_threshold)
-                    if not (0 <= soil_threshold <= 100):
-                        return _fail("Soil moisture threshold must be between 0 and 100", 400)
-                except (TypeError, ValueError):
-                    return _fail("Invalid soil moisture threshold value", 400)
-
-                ok = plant_service.update_soil_moisture_threshold(
-                    int(plant_id),
-                    soil_threshold,
-                    unit_id=unit_id,
-                )
-                if not ok:
-                    return _fail("Failed to apply soil moisture threshold", 500)
-                applied["soil_moisture_threshold"] = soil_threshold
-
-            return _success(
-                {
-                    "action": "customize",
-                    "message": "Custom thresholds applied",
-                    "unit_id": unit_id,
-                    "plant_id": plant_id,
-                    "applied_thresholds": applied,
-                }
-            )
-
-    except Exception as e:
-        logger.exception("Error responding to threshold proposal: %s", e)
-        return _fail("Failed to process threshold proposal response", 500)
+        return _success(
+            {
+                "action": "customize",
+                "message": "Custom thresholds applied",
+                "unit_id": unit_id,
+                "plant_id": plant_id,
+                "applied_thresholds": applied,
+            }
+        )

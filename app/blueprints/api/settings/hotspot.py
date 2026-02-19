@@ -8,18 +8,22 @@ Includes security features for password masking and validation.
 
 from __future__ import annotations
 
+from flask import Response
+
 from app.blueprints.api._common import (
     fail as _fail,
     get_json as _json,
     get_settings_service as _service,
     success as _success,
 )
+from app.utils.http import safe_error, safe_route
 
 from . import settings_api
 
 
 @settings_api.get("/hotspot")
-def get_hotspot_settings():
+@safe_route("Failed to get hotspot settings")
+def get_hotspot_settings() -> Response:
     """
     Get hotspot settings with masked password for security.
 
@@ -43,7 +47,8 @@ def get_hotspot_settings():
 
 
 @settings_api.put("/hotspot")
-def update_hotspot_settings():
+@safe_route("Failed to update hotspot settings")
+def update_hotspot_settings() -> Response:
     """
     Update hotspot settings (SSID and/or password).
 

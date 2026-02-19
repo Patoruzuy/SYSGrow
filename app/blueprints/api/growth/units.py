@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from flask import request
+from flask import Response, request
 from pydantic import ValidationError
 
 from app.blueprints.api._common import (
@@ -32,6 +32,7 @@ from app.schemas.growth import (
     UpdateUnitPayload,
 )
 from app.security.auth import api_login_required
+from app.utils.http import safe_error, safe_route
 from infrastructure.utils.structured_fields import normalize_device_schedules, normalize_dimensions
 
 from . import growth_api
@@ -174,7 +175,8 @@ def _create_unit_device_schedules(
 
 
 @growth_api.get("/v2/units")
-def list_units():
+@safe_route("Failed to list growth units")
+def list_units() -> Response:
     """
     Endpoint for listing growth units.
 
@@ -209,7 +211,8 @@ def list_units():
 
 @growth_api.post("/v2/units")
 @api_login_required
-def create_unit():
+@safe_route("Failed to create growth unit")
+def create_unit() -> Response:
     """
     Endpoint for creating a growth unit.
 
@@ -301,9 +304,10 @@ def create_unit():
 
 
 @growth_api.get("/units/<int:unit_id>")
-def get_unit(unit_id: int):
+@safe_route("Failed to get growth unit")
+def get_unit(unit_id: int) -> Response:
     """Get a specific growth unit by ID"""
-    logger.info(f"Getting growth unit {unit_id}")
+    logger.info("Getting growth unit %s", unit_id)
     try:
         unit = _service().get_unit(unit_id)
 
@@ -313,15 +317,16 @@ def get_unit(unit_id: int):
         return _success(unit)
 
     except Exception as e:
-        logger.exception(f"Error getting unit {unit_id}: {e}")
+        logger.exception("Error getting unit %s: %s", unit_id, e)
         return _fail("Failed to get growth unit", 500)
 
 
 @growth_api.patch("/units/<int:unit_id>")
 @api_login_required
-def update_unit(unit_id: int):
+@safe_route("Failed to update growth unit")
+def update_unit(unit_id: int) -> Response:
     """Update an existing growth unit"""
-    logger.info(f"Updating growth unit {unit_id}")
+    logger.info("Updating growth unit %s", unit_id)
     try:
         raw = request.get_json() or {}
         if not raw:
@@ -360,18 +365,19 @@ def update_unit(unit_id: int):
         return _success({"message": "Growth unit updated successfully", "unit": unit})
 
     except ValueError as e:
-        logger.warning(f"Validation error updating unit: {e}")
+        logger.warning("Validation error updating unit: %s", e)
         return safe_error(e, 400)
     except Exception as e:
-        logger.exception(f"Error updating unit {unit_id}: {e}")
+        logger.exception("Error updating unit %s: %s", unit_id, e)
         return _fail("Failed to update growth unit", 500)
 
 
 @growth_api.delete("/units/<int:unit_id>")
 @api_login_required
-def delete_unit(unit_id: int):
+@safe_route("Failed to delete growth unit")
+def delete_unit(unit_id: int) -> Response:
     """Delete a growth unit"""
-    logger.info(f"Deleting growth unit {unit_id}")
+    logger.info("Deleting growth unit %s", unit_id)
     try:
         if not _service().get_unit(unit_id):
             return _fail(f"Growth unit {unit_id} not found", 404)
@@ -381,13 +387,14 @@ def delete_unit(unit_id: int):
         return _success({"message": "Growth unit removed successfully"})
 
     except Exception as e:
-        logger.exception(f"Error deleting unit {unit_id}: {e}")
+        logger.exception("Error deleting unit %s: %s", unit_id, e)
         return _fail("Failed to delete growth unit", 500)
 
 
 @growth_api.patch("/v2/units/<int:unit_id>")
 @api_login_required
-def update_unit_v2(unit_id: int):
+@safe_route("Failed to update growth unit")
+def update_unit_v2(unit_id: int) -> Response:
     """Typed v2 endpoint for updating a growth unit."""
     logger.info("Updating growth unit %s via v2 endpoint", unit_id)
     try:
@@ -440,7 +447,8 @@ def update_unit_v2(unit_id: int):
 
 @growth_api.delete("/v2/units/<int:unit_id>")
 @api_login_required
-def delete_unit_v2(unit_id: int):
+@safe_route("Failed to delete growth unit")
+def delete_unit_v2(unit_id: int) -> Response:
     """Typed v2 endpoint for deleting a growth unit."""
     logger.info("Deleting growth unit %s via v2 endpoint", unit_id)
     try:

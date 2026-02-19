@@ -18,12 +18,13 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
-from flask import request
+from flask import Response, request
 
 from app.blueprints.api._common import (
     fail as _fail,
     success as _success,
 )
+from app.utils.http import safe_route
 from app.utils.time import iso_now
 
 from . import plants_api
@@ -77,11 +78,12 @@ def validate_plant_id(plant_id_str: str):
             raise ValueError("Plant ID must be positive")
         return plant_id
     except (ValueError, TypeError):
-        raise ValueError("Invalid plant_id parameter")
+        raise ValueError("Invalid plant_id parameter") from None
 
 
 @plants_api.get("/watering-decision")
-def get_watering_decision():
+@safe_route("Failed to get watering decision")
+def get_watering_decision() -> Response:
     """
     Get watering decision for a plant based on current conditions.
 
@@ -117,13 +119,11 @@ def get_watering_decision():
 
     except ValueError as e:
         return handle_api_error(str(e))
-    except Exception as e:
-        logger.error("Error in watering decision: %s", e, exc_info=True)
-        return handle_api_error("Internal server error", 500)
 
 
 @plants_api.get("/environmental-alerts")
-def get_environmental_alerts():
+@safe_route("Failed to get environmental alerts")
+def get_environmental_alerts() -> Response:
     """
     Get environmental alerts for a plant based on current conditions.
 
@@ -158,13 +158,11 @@ def get_environmental_alerts():
 
     except ValueError as e:
         return handle_api_error(str(e))
-    except Exception as e:
-        logger.error("Error in environmental alerts: %s", e, exc_info=True)
-        return handle_api_error("Internal server error", 500)
 
 
 @plants_api.post("/problem-diagnosis")
-def get_problem_diagnosis():
+@safe_route("Failed to get problem diagnosis")
+def get_problem_diagnosis() -> Response:
     """
     Diagnose plant problems based on symptoms.
 
@@ -201,13 +199,11 @@ def get_problem_diagnosis():
 
     except ValueError as e:
         return handle_api_error(str(e))
-    except Exception as e:
-        logger.error("Error in problem diagnosis: %s", e, exc_info=True)
-        return handle_api_error("Internal server error", 500)
 
 
 @plants_api.get("/yield-projection")
-def get_yield_projection():
+@safe_route("Failed to get yield projection")
+def get_yield_projection() -> Response:
     """
     Get yield projection for a plant type.
 
@@ -239,13 +235,11 @@ def get_yield_projection():
 
     except ValueError as e:
         return handle_api_error(str(e))
-    except Exception as e:
-        logger.error("Error in yield projection: %s", e, exc_info=True)
-        return handle_api_error("Internal server error", 500)
 
 
 @plants_api.get("/harvest-recommendations")
-def get_harvest_recommendations():
+@safe_route("Failed to get harvest recommendations")
+def get_harvest_recommendations() -> Response:
     """
     Get harvest recommendations for a plant.
 
@@ -273,13 +267,11 @@ def get_harvest_recommendations():
 
     except ValueError as e:
         return handle_api_error(str(e))
-    except Exception as e:
-        logger.error("Error in harvest recommendations: %s", e, exc_info=True)
-        return handle_api_error("Internal server error", 500)
 
 
 @plants_api.get("/lighting-schedule")
-def get_lighting_schedule():
+@safe_route("Failed to get lighting schedule")
+def get_lighting_schedule() -> Response:
     """
     Get recommended lighting schedule for a plant growth stage.
 
@@ -304,13 +296,11 @@ def get_lighting_schedule():
 
     except ValueError as e:
         return handle_api_error(str(e))
-    except Exception as e:
-        logger.error("Error in lighting schedule: %s", e, exc_info=True)
-        return handle_api_error("Internal server error", 500)
 
 
 @plants_api.get("/automation-status")
-def get_automation_status():
+@safe_route("Failed to get automation status")
+def get_automation_status() -> Response:
     """
     Get automation status for a plant.
 
@@ -367,38 +357,31 @@ def get_automation_status():
 
     except ValueError as e:
         return handle_api_error(str(e))
-    except Exception as e:
-        logger.error("Error in automation status: %s", e, exc_info=True)
-        return handle_api_error("Internal server error", 500)
 
 
 @plants_api.get("/available-plants")
-def get_available_plants():
+@safe_route("Failed to get available plants")
+def get_available_plants() -> Response:
     """Get list of all available plants with basic info."""
     agriculture_manager = _get_agriculture_manager()
     if not agriculture_manager:
         return handle_api_error("Smart agriculture features not available", 503)
 
-    try:
-        plants = agriculture_manager.plants_data.get("plants_info", [])
+    plants = agriculture_manager.plants_data.get("plants_info", [])
 
-        plants_info = []
-        for plant in plants:
-            plants_info.append(
-                {
-                    "id": plant["id"],
-                    "common_name": plant["common_name"],
-                    "species": plant["species"],
-                    "variety": plant.get("variety", ""),
-                    "difficulty_level": plant.get("yield_data", {}).get("difficulty_level", "unknown"),
-                    "harvest_frequency": plant.get("yield_data", {}).get("harvest_frequency", "unknown"),
-                    "expected_yield_range": plant.get("yield_data", {}).get("expected_yield_per_plant", {}),
-                    "market_value_per_kg": plant.get("yield_data", {}).get("market_value_per_kg", 0),
-                }
-            )
+    plants_info = []
+    for plant in plants:
+        plants_info.append(
+            {
+                "id": plant["id"],
+                "common_name": plant["common_name"],
+                "species": plant["species"],
+                "variety": plant.get("variety", ""),
+                "difficulty_level": plant.get("yield_data", {}).get("difficulty_level", "unknown"),
+                "harvest_frequency": plant.get("yield_data", {}).get("harvest_frequency", "unknown"),
+                "expected_yield_range": plant.get("yield_data", {}).get("expected_yield_per_plant", {}),
+                "market_value_per_kg": plant.get("yield_data", {}).get("market_value_per_kg", 0),
+            }
+        )
 
-        return _success({"plants": plants_info, "plant_count": len(plants_info), "timestamp": iso_now()})
-
-    except Exception as e:
-        logger.error("Error getting available plants: %s", e, exc_info=True)
-        return handle_api_error("Internal server error", 500)
+    return _success({"plants": plants_info, "plant_count": len(plants_info), "timestamp": iso_now()})

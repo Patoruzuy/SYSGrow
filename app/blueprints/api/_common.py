@@ -22,12 +22,12 @@ This module centralizes:
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any
 
 from flask import current_app, request, session
 
-from app.utils.http import error_response, safe_error, success_response
+from app.utils.http import error_response, success_response
 from app.utils.time import coerce_datetime as _coerce_datetime_util
 
 logger = logging.getLogger("api._common")
@@ -162,7 +162,7 @@ def parse_datetime(param: str | None, default: datetime) -> datetime:
             raw = raw.replace("Z", "+00:00")
         parsed = datetime.fromisoformat(raw)
     except ValueError:
-        raise ValueError(f"Invalid datetime format: {param}. Expected ISO 8601.")
+        raise ValueError(f"Invalid datetime format: {param}. Expected ISO 8601.") from None
     return ensure_utc(parsed)
 
 
@@ -177,8 +177,8 @@ def ensure_utc(dt: datetime) -> datetime:
         Datetime with UTC timezone
     """
     if dt.tzinfo is None:
-        return dt.replace(tzinfo=UTC)
-    return dt.astimezone(UTC)
+        return dt.replace(tzinfo=datetime.UTC)
+    return dt.astimezone(datetime.UTC)
 
 
 def coerce_datetime(value: Any) -> datetime | None:

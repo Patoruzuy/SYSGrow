@@ -7,7 +7,7 @@ Dataclasses for sensor anomaly detection.
 from dataclasses import dataclass
 from datetime import datetime
 
-from app.enums import AnomalyType
+from app.enums.common import AnomalyType
 
 
 @dataclass

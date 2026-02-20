@@ -125,17 +125,17 @@ class EmailService:
                         server.login(cfg.smtp_username, cfg.smtp_password)
                     server.sendmail(cfg.sender, message.to_address, mime_msg.as_string())
 
-            logger.info(f"Email sent to {message.to_address}")
+            logger.info("Email sent to %s", message.to_address)
             return True
 
         except smtplib.SMTPAuthenticationError as e:
-            logger.error(f"SMTP authentication failed: {e}")
+            logger.error("SMTP authentication failed: %s", e)
             return False
         except smtplib.SMTPException as e:
-            logger.error(f"SMTP error sending email: {e}")
+            logger.error("SMTP error sending email: %s", e)
             return False
         except Exception as e:
-            logger.error(f"Failed to send email: {e}")
+            logger.error("Failed to send email: %s", e)
             return False
 
     def send_notification_email(

@@ -277,6 +277,11 @@ class PlantRepository:
         self._backend.update_plant_moisture_by_id(plant_id, moisture_level)
 
     @invalidates_caches
+    def bulk_update_plant_moisture(self, plant_ids: list[int], moisture_level: float) -> None:
+        """Batch-update moisture level for multiple plants (single transaction)."""
+        self._backend.bulk_update_plant_moisture(plant_ids, moisture_level)
+
+    @invalidates_caches
     def update_plant_progress(
         self, plant_id: int, current_stage: str, moisture_level: float, days_in_stage: int
     ) -> None:

@@ -306,13 +306,13 @@ class ValidationProcessor(IDataProcessor):
                     else:
                         warnings.append(rule.error_message)
             except Exception as e:
-                logger.error(f"Validation rule '{rule.name}' failed: {e}")
+                logger.error("Validation rule '%s' failed: %s", rule.name, e)
                 if rule.is_critical:
                     errors.append(f"{rule.error_message}: {e}")
 
         # Log warnings
         for warning in warnings:
-            logger.warning(f"Validation warning: {warning}")
+            logger.warning("Validation warning: %s", warning)
 
         # Raise error if critical validations failed
         if errors:
@@ -364,10 +364,7 @@ class ValidationProcessor(IDataProcessor):
 
             if min_val is not None and value < min_val:
                 return False
-            if max_val is not None and value > max_val:
-                return False
-
-            return True
+            return not (max_val is not None and value > max_val)
 
         elif rule.validation_type == ValidationType.CUSTOM:
             func = rule.params.get("function")
@@ -376,7 +373,7 @@ class ValidationProcessor(IDataProcessor):
             return func(data)
 
         else:
-            logger.warning(f"Unknown validation type: {rule.validation_type}")
+            logger.warning("Unknown validation type: %s", rule.validation_type)
             return True
 
     def transform(self, validated_data: dict[str, Any], sensor) -> Any:

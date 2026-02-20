@@ -32,6 +32,7 @@ def dashboard_api_module(monkeypatch):
 
     time_mod = types.ModuleType("app.utils.time")
     time_mod.iso_now = lambda: "2026-02-14T00:00:00Z"
+    time_mod.utc_now = lambda: datetime(2026, 2, 14, 0, 0, 0)
 
     common_mod = types.ModuleType("app.blueprints.api._common")
 
@@ -115,7 +116,7 @@ def test_build_devices_summary_counts_active_from_is_active_and_sensors(dashboar
 def test_dashboard_summary_preserves_actuators_and_passes_them_to_unit_settings(dashboard_api_module, monkeypatch):
     app = Flask(__name__)
     app.secret_key = "test-secret"
-    app.register_blueprint(dashboard_api_module.dashboard_api)
+    app.register_blueprint(dashboard_api_module.dashboard_api, url_prefix="/api/dashboard")
 
     app.config["CONTAINER"] = SimpleNamespace(
         growth_service=object(),
@@ -126,6 +127,11 @@ def test_dashboard_summary_preserves_actuators_and_passes_them_to_unit_settings(
     actuators_from_devices = [{"actuator_id": 200, "is_active": True}]
     captured = {}
 
+    monkeypatch.setattr(
+        dashboard_api_module,
+        "_get_service",
+        lambda: None,
+    )
     monkeypatch.setattr(
         dashboard_api_module,
         "_build_snapshot_or_analytics",

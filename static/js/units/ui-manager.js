@@ -2627,7 +2627,7 @@
 
       const streamContainer = modal.querySelector('.camera-stream');
       if (streamContainer) {
-        streamContainer.innerHTML = `<img src="/api/settings/camera/${unitId}/stream" alt="Camera stream" class="camera-feed" />`;
+        streamContainer.innerHTML = `<img src="/api/v1/settings/camera/${unitId}/stream" alt="Camera stream" class="camera-feed" />`;
       }
 
       this.openModal('camera-modal');

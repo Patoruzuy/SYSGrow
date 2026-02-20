@@ -140,7 +140,7 @@ class DeviceOperations:
             db = self.get_db()
             cursor = db.execute(
                 """
-                SELECT 
+                SELECT
                     a.actuator_id,
                     a.unit_id,
                     a.name,
@@ -179,6 +179,51 @@ class DeviceOperations:
         except sqlite3.Error as exc:
             logging.error("Error getting actuator config by ID: %s", exc)
             return None
+
+    def get_actuators_by_ids(self, actuator_ids: list[int]) -> dict[int, dict[str, Any]]:
+        """Batch-fetch actuator configs by a list of IDs.
+
+        Returns a dict keyed by ``actuator_id`` for O(1) lookup.
+        Eliminates N+1 queries when callers need multiple actuators.
+        """
+        if not actuator_ids:
+            return {}
+        try:
+            db = self.get_db()
+            placeholders = ",".join("?" for _ in actuator_ids)  # nosec B608
+            cursor = db.execute(
+                f"""
+                SELECT
+                    a.actuator_id, a.unit_id, a.name, a.actuator_type,
+                    a.protocol, a.model, a.ieee_address, a.is_active,
+                    a.created_at, a.updated_at, ac.config_data
+                FROM Actuator a
+                LEFT JOIN ActuatorConfig ac ON a.actuator_id = ac.actuator_id
+                WHERE a.actuator_id IN ({placeholders})
+                """,  # nosec B608 — only '?' placeholders
+                actuator_ids,
+            )
+            result: dict[int, dict[str, Any]] = {}
+            for row in cursor.fetchall():
+                config_data = json.loads(row["config_data"]) if row["config_data"] else {}
+                aid = row["actuator_id"]
+                result[aid] = {
+                    "actuator_id": aid,
+                    "unit_id": row["unit_id"],
+                    "name": row["name"],
+                    "actuator_type": row["actuator_type"],
+                    "protocol": row["protocol"],
+                    "model": row["model"],
+                    "ieee_address": row["ieee_address"],
+                    "is_active": row["is_active"],
+                    "created_at": row["created_at"],
+                    "updated_at": row["updated_at"],
+                    "config": config_data,
+                }
+            return result
+        except sqlite3.Error as exc:
+            logging.error("Error batch-fetching actuator configs: %s", exc)
+            return {}
 
     def get_all_actuators(
         self,
@@ -361,12 +406,12 @@ class DeviceOperations:
             if not updates:
                 return True
 
-            fields = ", ".join([f"{key} = ?" for key in updates])
-            values = list(updates.values()) + [sensor_id]
+            fields = ", ".join([f"{key} = ?" for key in updates])  # nosec B608 — keys from explicit kwargs
+            values = [*list(updates.values()), sensor_id]
 
             db = self.get_db()
             db.execute(
-                f"UPDATE Sensor SET {fields} WHERE sensor_id = ?",
+                f"UPDATE Sensor SET {fields} WHERE sensor_id = ?",  # nosec B608
                 values,
             )
             db.commit()
@@ -488,7 +533,7 @@ class DeviceOperations:
             db = self.get_db()
             cursor = db.execute(
                 """
-                SELECT 
+                SELECT
                     s.sensor_id,
                     s.unit_id,
                     s.name,
@@ -525,6 +570,50 @@ class DeviceOperations:
         except sqlite3.Error as exc:
             logging.error("Error getting sensor config by ID: %s", exc)
             return None
+
+    def get_sensors_by_ids(self, sensor_ids: list[int]) -> dict[int, dict[str, Any]]:
+        """Batch-fetch sensor configs by a list of IDs.
+
+        Returns a dict keyed by ``sensor_id`` for O(1) lookup.
+        Eliminates N+1 queries when callers need multiple sensors.
+        """
+        if not sensor_ids:
+            return {}
+        try:
+            db = self.get_db()
+            placeholders = ",".join("?" for _ in sensor_ids)  # nosec B608
+            cursor = db.execute(
+                f"""
+                SELECT
+                    s.sensor_id, s.unit_id, s.name, s.sensor_type,
+                    s.protocol, s.model, s.is_active,
+                    s.created_at, s.updated_at, sc.config_data
+                FROM Sensor s
+                LEFT JOIN SensorConfig sc ON s.sensor_id = sc.sensor_id
+                WHERE s.sensor_id IN ({placeholders})
+                """,  # nosec B608 — only '?' placeholders
+                sensor_ids,
+            )
+            result: dict[int, dict[str, Any]] = {}
+            for row in cursor.fetchall():
+                config_data = json.loads(row["config_data"]) if row["config_data"] else {}
+                sid = row["sensor_id"]
+                result[sid] = {
+                    "sensor_id": sid,
+                    "unit_id": row["unit_id"],
+                    "name": row["name"],
+                    "sensor_type": row["sensor_type"],
+                    "protocol": row["protocol"],
+                    "model": row["model"],
+                    "is_active": row["is_active"],
+                    "created_at": row["created_at"],
+                    "updated_at": row["updated_at"],
+                    "config": config_data,
+                }
+            return result
+        except sqlite3.Error as exc:
+            logging.error("Error batch-fetching sensor configs: %s", exc)
+            return {}
 
     # --- Actuator State History ----------------------------------------------
     def save_actuator_state(
@@ -778,7 +867,7 @@ class DeviceOperations:
             db = self.get_db()
             cursor = db.execute(
                 """
-                INSERT INTO SensorCalibration 
+                INSERT INTO SensorCalibration
                 (sensor_id, calibration_type, measured_value, reference_value)
                 VALUES (?, ?, ?, ?)
                 """,
@@ -797,7 +886,7 @@ class DeviceOperations:
             db = self.get_db()
             cursor = db.execute(
                 """
-                SELECT calibration_id, calibration_type, measured_value, 
+                SELECT calibration_id, calibration_type, measured_value,
                        reference_value, created_at
                 FROM SensorCalibration
                 WHERE sensor_id = ?
@@ -843,7 +932,7 @@ class DeviceOperations:
             db = self.get_db()
             cursor = db.execute(
                 """
-                SELECT history_id, health_score, status, error_rate, 
+                SELECT history_id, health_score, status, error_rate,
                        total_readings, failed_readings, recorded_at
                 FROM SensorHealthHistory
                 WHERE sensor_id = ?
@@ -987,7 +1076,7 @@ class DeviceOperations:
             cursor = db.execute(
                 """
                 INSERT INTO ActuatorHealthHistory
-                (actuator_id, health_score, status, total_operations, 
+                (actuator_id, health_score, status, total_operations,
                  failed_operations, average_response_time)
                 VALUES (?, ?, ?, ?, ?, ?)
                 """,
@@ -1006,7 +1095,7 @@ class DeviceOperations:
             cursor = db.execute(
                 """
                 SELECT history_id, health_score, status, total_operations,
-                       failed_operations, average_response_time, 
+                       failed_operations, average_response_time,
                        last_successful_operation, recorded_at
                 FROM ActuatorHealthHistory
                 WHERE actuator_id = ?
@@ -1052,7 +1141,7 @@ class DeviceOperations:
             db = self.get_db()
             cursor = db.execute(
                 """
-                SELECT anomaly_id, anomaly_type, severity, details, 
+                SELECT anomaly_id, anomaly_type, severity, details,
                        detected_at, resolved_at
                 FROM ActuatorAnomaly
                 WHERE actuator_id = ?
@@ -1133,7 +1222,7 @@ class DeviceOperations:
             cursor = db.execute(
                 """
                 INSERT INTO EnergyReadings (
-                    device_id, unit_id, plant_id, growth_stage, 
+                    device_id, unit_id, plant_id, growth_stage,
                     voltage, current, power_watts, energy_kwh,
                     power_factor, frequency, temperature, is_estimated, source_type
                 )
@@ -1269,6 +1358,37 @@ class DeviceOperations:
         except sqlite3.Error as exc:
             logging.error("Error inserting sensor reading: %s", exc)
             return None
+
+    def insert_sensor_readings_batch(
+        self,
+        readings: list[tuple[int, dict[str, Any], float]],
+    ) -> int:
+        """Batch-insert multiple sensor readings in a single transaction.
+
+        Parameters
+        ----------
+        readings:
+            List of ``(sensor_id, reading_data_dict, quality_score)`` tuples.
+
+        Returns
+        -------
+        int
+            Number of rows inserted.
+        """
+        if not readings:
+            return 0
+        try:
+            db = self.get_db()
+            rows = [(sid, json.dumps(data), qs) for sid, data, qs in readings]
+            db.executemany(
+                "INSERT INTO SensorReading (sensor_id, reading_data, quality_score) VALUES (?, ?, ?)",
+                rows,
+            )
+            db.commit()
+            return len(rows)
+        except sqlite3.Error as exc:
+            logging.error("Error batch-inserting %d sensor readings: %s", len(readings), exc)
+            return 0
 
     # --- Sensor Reading Aggregation (for Harvest Reports) -----------------------
     def aggregate_sensor_readings_for_period(

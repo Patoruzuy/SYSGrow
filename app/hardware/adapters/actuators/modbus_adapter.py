@@ -49,7 +49,7 @@ class ModbusActuatorAdapter:
         self.client.connect()
         self.client.write_coil(self.coil_address, True, unit=self.unit_id)
         self.client.close()
-        logger.info(f"Modbus: Turned ON {self.device_name} at {self.ip_address}")
+        logger.info("Modbus: Turned ON %s at %s", self.device_name, self.ip_address)
 
     def turn_off(self):
         """Turn actuator OFF via Modbus"""
@@ -59,7 +59,7 @@ class ModbusActuatorAdapter:
         self.client.connect()
         self.client.write_coil(self.coil_address, False, unit=self.unit_id)
         self.client.close()
-        logger.info(f"Modbus: Turned OFF {self.device_name} at {self.ip_address}")
+        logger.info("Modbus: Turned OFF %s at %s", self.device_name, self.ip_address)
 
     def get_device(self) -> str:
         """Get device identifier"""

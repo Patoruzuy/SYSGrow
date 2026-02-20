@@ -4,6 +4,8 @@ Training Data API
 Endpoints for managing ML training data collection and quality.
 """
 
+from __future__ import annotations
+
 import logging
 from contextlib import suppress
 

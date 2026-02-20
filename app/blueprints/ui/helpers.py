@@ -18,7 +18,6 @@ from app.services.application.plant_service import PlantViewService
 
 if TYPE_CHECKING:
     from app.services.application.growth_service import GrowthService
-    from infrastructure.database.repositories.growth import GrowthRepository
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +44,7 @@ def determine_landing_page(growth_service: "GrowthService", user_id: int) -> dic
         if len(units) == 0:
             # No units - create default and go to dashboard
             unit_id = growth_service.create_unit(name="My First Growth Unit", location="Indoor", user_id=user_id)
-            logger.info(f"Created default unit {unit_id} for new user {user_id}")
+            logger.info("Created default unit %s for new user %s", unit_id, user_id)
             return {"route": "dashboard", "unit_id": unit_id, "is_new_user": True}
 
         elif len(units) == 1:
@@ -57,12 +56,12 @@ def determine_landing_page(growth_service: "GrowthService", user_id: int) -> dic
             return {"route": "unit_selector", "units": units, "is_new_user": False}
 
     except Exception as e:
-        logger.error(f"Error determining landing page for user {user_id}: {e}", exc_info=True)
+        logger.error("Error determining landing page for user %s: %s", user_id, e, exc_info=True)
         return {"route": "dashboard", "error": True}
 
 
 def get_unit_card_data(
-    growth_service: "GrowthService", plant_service: "PlantViewService", growth_repo: "GrowthRepository", unit_id: int
+    growth_service: "GrowthService", plant_service: "PlantViewService", unit_id: int
 ) -> dict[str, Any]:
     """
     Get data formatted for unit selection card display.
@@ -70,7 +69,6 @@ def get_unit_card_data(
     Args:
         growth_service: GrowthService instance
         plant_service: PlantService instance
-        growth_repo: GrowthRepository for additional queries
         unit_id: Unit identifier
 
     Returns:
@@ -83,24 +81,15 @@ def get_unit_card_data(
 
         plants = plant_service.list_plants_as_dicts(unit_id)
 
-        # Get statistics
+        # Get statistics via service (no direct repo access)
+        hw_stats = growth_service.get_unit_stats(unit_id)
         stats = {
             "plant_count": len(plants),
-            "sensor_count": growth_repo.count_sensors_in_unit(unit_id)
-            if hasattr(growth_repo, "count_sensors_in_unit")
-            else 0,
-            "actuator_count": growth_repo.count_actuators_in_unit(unit_id)
-            if hasattr(growth_repo, "count_actuators_in_unit")
-            else 0,
-            "camera_active": growth_repo.is_camera_active(unit_id)
-            if hasattr(growth_repo, "is_camera_active")
-            else False,
-            "last_activity": growth_repo.get_unit_last_activity(unit_id)
-            if hasattr(growth_repo, "get_unit_last_activity")
-            else None,
-            "uptime_hours": growth_repo.get_unit_uptime_hours(unit_id)
-            if hasattr(growth_repo, "get_unit_uptime_hours")
-            else 0,
+            "sensor_count": hw_stats.get("sensor_count", 0),
+            "actuator_count": hw_stats.get("actuator_count", 0),
+            "camera_active": hw_stats.get("camera_active", False),
+            "last_activity": hw_stats.get("last_activity"),
+            "uptime_hours": hw_stats.get("uptime_hours", 0),
         }
 
         # Format plant data with moisture indicators
@@ -134,7 +123,7 @@ def get_unit_card_data(
         }
 
     except Exception as e:
-        logger.error(f"Error getting card data for unit {unit_id}: {e}", exc_info=True)
+        logger.error("Error getting card data for unit %s: %s", unit_id, e, exc_info=True)
         return {}
 
 

@@ -7,6 +7,7 @@ and provides simple predictions for next irrigation timing.
 
 from __future__ import annotations
 
+import itertools
 import logging
 import os
 import statistics
@@ -187,7 +188,7 @@ class PlantIrrigationModelService:
     ) -> list[float]:
         """Compute dry-down slopes excluding watering windows."""
         slopes: list[float] = []
-        for prev, curr in zip(readings, readings[1:]):
+        for prev, curr in itertools.pairwise(readings):
             prev_ts = coerce_datetime(prev.get("timestamp"))
             curr_ts = coerce_datetime(curr.get("timestamp"))
             if prev_ts is None or curr_ts is None or curr_ts <= prev_ts:
@@ -218,7 +219,4 @@ class PlantIrrigationModelService:
         windows: list[tuple[Any, Any]],
     ) -> bool:
         """Check if a time range overlaps any watering window."""
-        for win_start, win_end in windows:
-            if start <= win_end and end >= win_start:
-                return True
-        return False
+        return any(start <= win_end and end >= win_start for win_start, win_end in windows)

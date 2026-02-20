@@ -250,7 +250,9 @@ class MLReadinessMonitorService:
                 # Mark as notified
                 self._ml_repo.mark_ml_notification_sent(unit_id, model.model_name)
                 notified_models.append(model.model_name)
-                logger.info(f"Sent ML readiness notification for {model.display_name} (unit={unit_id}, user={user_id})")
+                logger.info(
+                    "Sent ML readiness notification for %s (unit=%s, user=%s)", model.display_name, unit_id, user_id
+                )
 
         return notified_models
 
@@ -278,10 +280,10 @@ class MLReadinessMonitorService:
             if results:
                 notified_units = [unit_id for unit_id, models in results.items() if models]
                 if notified_units:
-                    logger.info(f"ML readiness check complete: {len(notified_units)} units notified")
+                    logger.info("ML readiness check complete: %s units notified", len(notified_units))
 
         except Exception as exc:
-            logger.error(f"Error checking ML readiness for all units: {exc}")
+            logger.error("Error checking ML readiness for all units: %s", exc)
 
         return results
 
@@ -343,7 +345,7 @@ class MLReadinessMonitorService:
             return notification_id is not None
 
         except Exception as exc:
-            logger.error(f"Failed to send ML readiness notification: {exc}")
+            logger.error("Failed to send ML readiness notification: %s", exc)
             return False
 
     def activate_model(
@@ -366,13 +368,13 @@ class MLReadinessMonitorService:
             True if activation succeeded
         """
         if model_name not in MODEL_CONFIG:
-            logger.warning(f"Unknown model name: {model_name}")
+            logger.warning("Unknown model name: %s", model_name)
             return False
 
         success = self._ml_repo.enable_ml_model(unit_id, model_name, enabled=True)
 
         if success:
-            logger.info(f"Activated ML model {model_name} for unit {unit_id} (user={user_id})")
+            logger.info("Activated ML model %s for unit %s (user=%s)", model_name, unit_id, user_id)
 
             # Send confirmation notification
             self._send_activation_confirmation(user_id, unit_id, model_name)
@@ -397,13 +399,13 @@ class MLReadinessMonitorService:
             True if deactivation succeeded
         """
         if model_name not in MODEL_CONFIG:
-            logger.warning(f"Unknown model name: {model_name}")
+            logger.warning("Unknown model name: %s", model_name)
             return False
 
         success = self._ml_repo.enable_ml_model(unit_id, model_name, enabled=False)
 
         if success:
-            logger.info(f"Deactivated ML model {model_name} for unit {unit_id} (user={user_id})")
+            logger.info("Deactivated ML model %s for unit %s (user=%s)", model_name, unit_id, user_id)
 
         return success
 
@@ -440,7 +442,7 @@ class MLReadinessMonitorService:
                 unit_id=unit_id,
             )
         except Exception as exc:
-            logger.debug(f"Failed to send activation confirmation: {exc}")
+            logger.debug("Failed to send activation confirmation: %s", exc)
 
     def get_activation_status(self, unit_id: int) -> dict[str, bool]:
         """

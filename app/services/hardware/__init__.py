@@ -28,8 +28,8 @@ Migration Status:
     Phase 4: Delete UnitRuntimeManager (pending)
 """
 
-# Climate controller now in app.controllers package
-from app.controllers import ClimateController
+# Climate controller now in app.control_loops package
+from app.control_loops import ClimateController
 from app.services.hardware.actuator_management_service import ActuatorManagementService
 from app.services.hardware.sensor_management_service import SensorManagementService
 

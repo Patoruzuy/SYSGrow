@@ -8,6 +8,8 @@ Consolidates functionality from:
 - continuous_monitor.py (insights)
 """
 
+from __future__ import annotations
+
 import logging
 
 from flask import Blueprint, Response, request

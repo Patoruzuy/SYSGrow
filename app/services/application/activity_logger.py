@@ -132,7 +132,7 @@ class ActivityLogger:
             event_key = f"activity.{activity_type}"
             self.event_bus.publish(event_key, activity_data)
         except Exception as e:
-            logger.warning(f"Failed to publish activity event: {e}")
+            logger.warning("Failed to publish activity event: %s", e)
 
         # Log to database only for critical events
         activity_id = 0
@@ -140,19 +140,19 @@ class ActivityLogger:
             try:
                 activity_id = self._log_to_database(activity_data)
             except Exception as e:
-                logger.error(f"Failed to log critical activity to database: {e}")
+                logger.error("Failed to log critical activity to database: %s", e)
 
         return activity_id
 
     def _log_to_database(self, activity_data: dict[str, Any]) -> int:
         """Store critical activity in database for audit trail."""
-        metadata_json = json.dumps(activity_data.get("metadata", {})) if activity_data.get("metadata") else None
+        json.dumps(activity_data.get("metadata", {})) if activity_data.get("metadata") else None
 
         try:
             aid = self._repo.insert(activity_data)
             return aid or 0
         except Exception as e:
-            logger.error(f"Database logging failed: {e}")
+            logger.error("Database logging failed: %s", e)
             return 0
 
     def get_recent_activities(
@@ -197,7 +197,7 @@ class ActivityLogger:
         try:
             return self._repo.recent(limit=limit, activity_type=activity_type, severity=severity, user_id=user_id)
         except Exception as e:
-            logger.error(f"Failed to retrieve activities: {e}")
+            logger.error("Failed to retrieve activities: %s", e)
             return []
 
     def get_activities_for_entity(self, entity_type: str, entity_id: int, limit: int = 20) -> list[dict[str, Any]]:
@@ -205,7 +205,7 @@ class ActivityLogger:
         try:
             return self._repo.for_entity(entity_type, entity_id, limit)
         except Exception as e:
-            logger.error(f"Failed to retrieve entity activities: {e}")
+            logger.error("Failed to retrieve entity activities: %s", e)
             return []
 
     def get_activity_statistics(self) -> dict[str, Any]:
@@ -213,5 +213,5 @@ class ActivityLogger:
         try:
             return self._repo.statistics()
         except Exception as e:
-            logger.error(f"Failed to retrieve activity statistics: {e}")
+            logger.error("Failed to retrieve activity statistics: %s", e)
             return {"total": 0, "by_type": {}, "by_severity": {}}

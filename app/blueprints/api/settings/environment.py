@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 
-from flask import request
+from flask import Response, request
 
 from app.blueprints.api._common import (
     fail as _fail,
@@ -20,6 +20,7 @@ from app.blueprints.api._common import (
     success as _success,
 )
 from app.services.application.threshold_service import THRESHOLD_KEYS
+from app.utils.http import safe_route
 
 from . import settings_api
 
@@ -30,7 +31,8 @@ LEGACY_MESSAGE = "Legacy endpoint. Use /api/growth/v2/units/<unit_id>/thresholds
 
 
 @settings_api.get("/environment")
-def get_environment_thresholds():
+@safe_route("Failed to get environment thresholds")
+def get_environment_thresholds() -> Response:
     """
     Get environment monitoring thresholds for a unit.
 
@@ -58,7 +60,8 @@ def get_environment_thresholds():
 
 
 @settings_api.put("/environment")
-def update_environment_thresholds():
+@safe_route("Failed to update environment thresholds")
+def update_environment_thresholds() -> Response:
     """
     Update environment monitoring thresholds for a unit.
 

@@ -128,7 +128,7 @@ class MLTrainerService:
             )
 
             if not data_records:
-                self.logger.warning(f"No training data collected for {model_type}")
+                self.logger.warning("No training data collected for %s", model_type)
                 return pd.DataFrame()
 
             # Convert to DataFrame
@@ -138,11 +138,11 @@ class MLTrainerService:
             df = self._clean_data(df)
             df = self._engineer_features(df)
 
-            self.logger.info(f"Collected {len(df)} training samples for {model_type}")
+            self.logger.info("Collected %s training samples for %s", len(df), model_type)
             return df
 
         except Exception as e:
-            self.logger.error(f"Failed to collect training data: {e}", exc_info=True)
+            self.logger.error("Failed to collect training data: %s", e, exc_info=True)
             return pd.DataFrame()
 
     def _clean_data(self, df):
@@ -172,7 +172,7 @@ class MLTrainerService:
             return df
 
         except Exception as e:
-            self.logger.warning(f"Error cleaning data: {e}")
+            self.logger.warning("Error cleaning data: %s", e)
             return df
 
     def _engineer_features(self, df):
@@ -194,7 +194,7 @@ class MLTrainerService:
             return df
 
         except Exception as e:
-            self.logger.warning(f"Error engineering features: {e}")
+            self.logger.warning("Error engineering features: %s", e)
             return df
 
     def train_climate_model(
@@ -253,7 +253,7 @@ class MLTrainerService:
 
             # Prepare features
             feature_columns = [
-                col for col in self.environmental_features + ["hour", "day_of_week", "month"] if col in df.columns
+                col for col in [*self.environmental_features, "hour", "day_of_week", "month"] if col in df.columns
             ]
 
             results = {}
@@ -341,7 +341,7 @@ class MLTrainerService:
                     report_progress(progress_end, f"Completed target: {target}")
 
                 except Exception as e:
-                    self.logger.error(f"Failed to train {target} model: {e}")
+                    self.logger.error("Failed to train %s model: %s", target, e)
                     results[target] = {"error": str(e)}
 
             training_time = (datetime.now() - start_time).total_seconds()
@@ -359,7 +359,7 @@ class MLTrainerService:
         except Exception as e:
             if str(e) == "Training cancelled":
                 return {"success": False, "error": "cancelled"}
-            self.logger.error(f"Failed to train climate model: {e}", exc_info=True)
+            self.logger.error("Failed to train climate model: %s", e, exc_info=True)
             return {"success": False, "error": str(e)}
 
     def train_disease_model(
@@ -420,7 +420,7 @@ class MLTrainerService:
 
             # Check if we have enough disease occurrences
             if len(disease_df) < 10:
-                self.logger.warning(f"Insufficient confirmed disease occurrences ({len(disease_df)} < 10)")
+                self.logger.warning("Insufficient confirmed disease occurrences (%s < 10)", len(disease_df))
                 return {
                     "success": False,
                     "error": f"Insufficient disease data ({len(disease_df)} < 10 confirmed occurrences)",
@@ -578,8 +578,10 @@ class MLTrainerService:
             report_progress(100, "Disease model training complete")
 
             self.logger.info(
-                f"Trained disease classifier: {len(X_train)} samples, "
-                f"{len(disease_types)} disease types, accuracy={accuracy:.3f}"
+                "Trained disease classifier: %s samples, %s disease types, accuracy=%.3f",
+                len(X_train),
+                len(disease_types),
+                accuracy,
             )
 
             return {
@@ -598,7 +600,7 @@ class MLTrainerService:
             }
 
         except Exception as e:
-            self.logger.error(f"Failed to train disease model: {e}", exc_info=True)
+            self.logger.error("Failed to train disease model: %s", e, exc_info=True)
             return {"success": False, "error": str(e)}
 
     def _extract_disease_features(self, row) -> dict[str, float] | None:
@@ -626,7 +628,7 @@ class MLTrainerService:
                 "days_in_stage": row.get("days_in_stage", 0) or 0,
             }
         except Exception as e:
-            self.logger.warning(f"Failed to extract disease features: {e}")
+            self.logger.warning("Failed to extract disease features: %s", e)
             return None
 
     def _generate_healthy_samples(
@@ -675,7 +677,7 @@ class MLTrainerService:
             return samples
 
         except Exception as e:
-            self.logger.warning(f"Failed to generate healthy samples: {e}")
+            self.logger.warning("Failed to generate healthy samples: %s", e)
             return []
 
     def retrain_all_models(
@@ -737,7 +739,7 @@ class MLTrainerService:
             }
 
         except Exception as e:
-            self.logger.error(f"Failed to get training status: {e}")
+            self.logger.error("Failed to get training status: %s", e)
             return {"available": False, "error": str(e)}
 
     # ==================== Irrigation ML Training Methods ====================
@@ -915,7 +917,7 @@ class MLTrainerService:
         except Exception as e:
             if str(e) == "cancelled":
                 return {"success": False, "error": "cancelled"}
-            self.logger.error(f"Failed to train irrigation threshold model: {e}", exc_info=True)
+            self.logger.error("Failed to train irrigation threshold model: %s", e, exc_info=True)
             return {"success": False, "error": str(e)}
 
     def train_irrigation_response_model(
@@ -1046,8 +1048,8 @@ class MLTrainerService:
             train_score = model.score(X_train_scaled, y_train)
             test_score = model.score(X_test_scaled, y_test)
             y_pred = model.predict(X_test_scaled)
-            mae = mean_absolute_error(y_test, y_pred)
-            mape = float(np.mean(np.abs((y_test - y_pred) / np.maximum(y_test, 1.0))))
+            mean_absolute_error(y_test, y_pred)
+            float(np.mean(np.abs((y_test - y_pred) / np.maximum(y_test, 1.0))))
 
             # Cross-validation
             cv_scores = cross_val_score(
@@ -1118,7 +1120,7 @@ class MLTrainerService:
         except Exception as e:
             if str(e) == "cancelled":
                 return {"success": False, "error": "cancelled"}
-            self.logger.error(f"Failed to train irrigation response model: {e}", exc_info=True)
+            self.logger.error("Failed to train irrigation response model: %s", e, exc_info=True)
             return {"success": False, "error": str(e)}
 
     def train_irrigation_timing_model(
@@ -1319,7 +1321,7 @@ class MLTrainerService:
         except Exception as e:
             if str(e) == "cancelled":
                 return {"success": False, "error": "cancelled"}
-            self.logger.error(f"Failed to train irrigation timing model: {e}", exc_info=True)
+            self.logger.error("Failed to train irrigation timing model: %s", e, exc_info=True)
             return {"success": False, "error": str(e)}
 
     def train_irrigation_duration_model(
@@ -1491,7 +1493,7 @@ class MLTrainerService:
         except Exception as e:
             if str(e) == "cancelled":
                 return {"success": False, "error": "cancelled"}
-            self.logger.error(f"Failed to train irrigation duration model: {e}", exc_info=True)
+            self.logger.error("Failed to train irrigation duration model: %s", e, exc_info=True)
             return {"success": False, "error": str(e)}
 
     # ==================== Irrigation Data Collection Helpers ====================
@@ -1546,7 +1548,7 @@ class MLTrainerService:
             return df
 
         except Exception as e:
-            self.logger.error(f"Failed to collect threshold training data: {e}", exc_info=True)
+            self.logger.error("Failed to collect threshold training data: %s", e, exc_info=True)
             return pd.DataFrame()
 
     def _collect_irrigation_response_data(
@@ -1580,7 +1582,7 @@ class MLTrainerService:
             return df
 
         except Exception as e:
-            self.logger.error(f"Failed to collect response training data: {e}", exc_info=True)
+            self.logger.error("Failed to collect response training data: %s", e, exc_info=True)
             return pd.DataFrame()
 
     def _collect_irrigation_duration_data(
@@ -1617,7 +1619,7 @@ class MLTrainerService:
             return df
 
         except Exception as e:
-            self.logger.error(f"Failed to collect duration training data: {e}", exc_info=True)
+            self.logger.error("Failed to collect duration training data: %s", e, exc_info=True)
             return pd.DataFrame()
 
     @staticmethod
@@ -1722,7 +1724,7 @@ class MLTrainerService:
             return df
 
         except Exception as e:
-            self.logger.error(f"Failed to collect timing training data: {e}", exc_info=True)
+            self.logger.error("Failed to collect timing training data: %s", e, exc_info=True)
             return pd.DataFrame()
 
     # ==================== Plant-Specific Fine-Tuning ====================
@@ -1752,7 +1754,7 @@ class MLTrainerService:
             Fine-tuning results with metrics
         """
 
-        start_time = datetime.now()
+        datetime.now()
         specialized_name = f"{base_model_name}_{plant_type.lower().replace(' ', '_')}"
 
         try:
@@ -1765,7 +1767,10 @@ class MLTrainerService:
 
             if len(harvest_data) < min_samples:
                 self.logger.info(
-                    f"Insufficient harvest data for {plant_type} fine-tuning: {len(harvest_data)}/{min_samples}"
+                    "Insufficient harvest data for %s fine-tuning: %s/%s",
+                    plant_type,
+                    len(harvest_data),
+                    min_samples,
                 )
                 return {
                     "success": False,
@@ -1773,7 +1778,7 @@ class MLTrainerService:
                     "plant_type": plant_type,
                 }
 
-            self.logger.info(f"Fine-tuning {base_model_name} for {plant_type} with {len(harvest_data)} records")
+            self.logger.info("Fine-tuning %s for %s with %s records", base_model_name, plant_type, len(harvest_data))
 
             # Prepare features based on model type
             if base_model_name == "climate_optimizer":
@@ -1788,7 +1793,7 @@ class MLTrainerService:
                 }
 
         except Exception as e:
-            self.logger.error(f"Failed to fine-tune {base_model_name} for {plant_type}: {e}", exc_info=True)
+            self.logger.error("Failed to fine-tune %s for %s: %s", base_model_name, plant_type, e, exc_info=True)
             return {"success": False, "error": str(e), "plant_type": plant_type}
 
     def _fine_tune_climate_model(
@@ -1853,7 +1858,7 @@ class MLTrainerService:
                 }
                 self.model_registry.save_model(f"{model_name}_meta", metadata)
 
-            self.logger.info(f"✅ Fine-tuned climate model for {plant_type}: MAE={mae:.3f}, R²={r2:.3f}")
+            self.logger.info("✅ Fine-tuned climate model for %s: MAE=%.3f, R²=%.3f", plant_type, mae, r2)
 
             return {
                 "success": True,
@@ -1865,7 +1870,7 @@ class MLTrainerService:
             }
 
         except Exception as e:
-            self.logger.error(f"Climate fine-tuning error: {e}", exc_info=True)
+            self.logger.error("Climate fine-tuning error: %s", e, exc_info=True)
             return {"success": False, "error": str(e), "plant_type": plant_type}
 
     def _fine_tune_growth_model(
@@ -1931,7 +1936,7 @@ class MLTrainerService:
                 }
                 self.model_registry.save_model(f"{model_name}_meta", metadata)
 
-            self.logger.info(f"✅ Fine-tuned growth model for {plant_type}: MAE={mae:.1f} days, R²={r2:.3f}")
+            self.logger.info("✅ Fine-tuned growth model for %s: MAE=%.1f days, R²=%.3f", plant_type, mae, r2)
 
             return {
                 "success": True,
@@ -1943,7 +1948,7 @@ class MLTrainerService:
             }
 
         except Exception as e:
-            self.logger.error(f"Growth fine-tuning error: {e}", exc_info=True)
+            self.logger.error("Growth fine-tuning error: %s", e, exc_info=True)
             return {"success": False, "error": str(e), "plant_type": plant_type}
 
     def fine_tune_all_plant_types(
@@ -2002,7 +2007,7 @@ class MLTrainerService:
             }
 
         except Exception as e:
-            self.logger.error(f"Failed to fine-tune all plant types: {e}", exc_info=True)
+            self.logger.error("Failed to fine-tune all plant types: %s", e, exc_info=True)
             return {"success": False, "error": str(e)}
 
     # ========================================================================
@@ -2070,7 +2075,7 @@ class MLTrainerService:
                 return {"success": False, "error": "Training cancelled"}
 
             if len(harvest_data) < MIN_SAMPLES:
-                self.logger.warning(f"Insufficient training data: {len(harvest_data)} < {MIN_SAMPLES}")
+                self.logger.warning("Insufficient training data: %s < %s", len(harvest_data), MIN_SAMPLES)
                 return {
                     "success": False,
                     "error": f"Insufficient training data: {len(harvest_data)} samples (need {MIN_SAMPLES})",
@@ -2121,7 +2126,7 @@ class MLTrainerService:
             y_pred = model.predict(X_test_scaled)
             mae = mean_absolute_error(y_test, y_pred)
             rmse = np.sqrt(mean_squared_error(y_test, y_pred))
-            r2 = r2_score(y_test, y_pred)
+            r2_score(y_test, y_pred)
 
             # Cross-validation
             cv_scores = cross_val_score(model, X_train_scaled, y_train, cv=min(5, len(X_train) // 10))
@@ -2155,7 +2160,10 @@ class MLTrainerService:
             training_time = time.time() - start_time
 
             self.logger.info(
-                f"✅ Trained plant health regressor: R²={test_score:.3f}, MAE={mae:.1f}, samples={len(harvest_data)}"
+                "✅ Trained plant health regressor: R²=%.3f, MAE=%.1f, samples=%s",
+                test_score,
+                mae,
+                len(harvest_data),
             )
 
             if progress_callback:
@@ -2181,7 +2189,7 @@ class MLTrainerService:
             }
 
         except Exception as e:
-            self.logger.error(f"Health score model training error: {e}", exc_info=True)
+            self.logger.error("Health score model training error: %s", e, exc_info=True)
             return {"success": False, "error": str(e)}
 
     def train_health_status_classifier(
@@ -2248,7 +2256,7 @@ class MLTrainerService:
             all_samples = observation_data + healthy_samples
 
             if len(all_samples) < MIN_SAMPLES:
-                self.logger.warning(f"Insufficient training data: {len(all_samples)} < {MIN_SAMPLES}")
+                self.logger.warning("Insufficient training data: %s < %s", len(all_samples), MIN_SAMPLES)
                 return {
                     "success": False,
                     "error": f"Insufficient training data: {len(all_samples)} samples (need {MIN_SAMPLES})",
@@ -2341,8 +2349,10 @@ class MLTrainerService:
             training_time = time.time() - start_time
 
             self.logger.info(
-                f"✅ Trained plant health classifier: accuracy={test_accuracy:.3f}, "
-                f"samples={len(all_samples)}, classes={class_names}"
+                "✅ Trained plant health classifier: accuracy=%.3f, samples=%s, classes=%s",
+                test_accuracy,
+                len(all_samples),
+                class_names,
             )
 
             if progress_callback:
@@ -2375,5 +2385,5 @@ class MLTrainerService:
             }
 
         except Exception as e:
-            self.logger.error(f"Health status classifier training error: {e}", exc_info=True)
+            self.logger.error("Health status classifier training error: %s", e, exc_info=True)
             return {"success": False, "error": str(e)}

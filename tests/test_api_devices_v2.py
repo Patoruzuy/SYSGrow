@@ -16,7 +16,11 @@ def app(tmp_path, monkeypatch):
 
 @pytest.fixture()
 def client(app):
-    return app.test_client()
+    c = app.test_client()
+    with c.session_transaction() as sess:
+        sess["user"] = "testuser"
+        sess["user_id"] = 1
+    return c
 
 
 def _create_unit(client) -> int:

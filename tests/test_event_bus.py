@@ -28,8 +28,6 @@ class TestEventBus(unittest.TestCase):
 
     def test_multiple_subscribers(self):
         """Test multiple subscribers receiving events."""
-        listener_1_data = []
-        listener_2_data = []
 
         import time
         import unittest

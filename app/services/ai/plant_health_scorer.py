@@ -205,7 +205,7 @@ class PlantHealthScorer:
                 logger.info("Loaded plant health regressor model")
                 loaded = True
         except Exception as e:
-            logger.warning(f"Could not load health regressor: {e}")
+            logger.warning("Could not load health regressor: %s", e)
 
         try:
             # Load classifier
@@ -218,7 +218,7 @@ class PlantHealthScorer:
                 logger.info("Loaded plant health classifier model")
                 loaded = True
         except Exception as e:
-            logger.warning(f"Could not load health classifier: {e}")
+            logger.warning("Could not load health classifier: %s", e)
 
         self._models_loaded = loaded
         return loaded
@@ -351,7 +351,7 @@ class PlantHealthScorer:
             )
 
         except Exception as e:
-            logger.warning(f"ML prediction failed: {e}")
+            logger.warning("ML prediction failed: %s", e)
             return None
 
     def _generate_ml_recommendations(
@@ -561,7 +561,7 @@ class PlantHealthScorer:
             )
 
         except Exception as e:
-            logger.error(f"Failed to score plant {plant_id}: {e}", exc_info=True)
+            logger.error("Failed to score plant %s: %s", plant_id, e, exc_info=True)
             return self._get_default_score(plant_id, unit_id or 0)
 
     def score_plants_in_unit(self, unit_id: int) -> list[PlantHealthScore]:
@@ -581,7 +581,7 @@ class PlantHealthScorer:
             plants = self._get_plants_in_unit(unit_id)
 
             # Pre-fetch environmental data (shared across all plants)
-            env_metrics = self._get_environmental_metrics(unit_id)
+            self._get_environmental_metrics(unit_id)
 
             for plant in plants:
                 plant_id = plant.get("plant_id")
@@ -590,7 +590,7 @@ class PlantHealthScorer:
                     scores.append(score)
 
         except Exception as e:
-            logger.error(f"Failed to score plants in unit {unit_id}: {e}", exc_info=True)
+            logger.error("Failed to score plants in unit %s: %s", unit_id, e, exc_info=True)
 
         return scores
 
@@ -639,7 +639,7 @@ class PlantHealthScorer:
             attention_needed.sort(key=lambda x: x["overall_score"])
 
         except Exception as e:
-            logger.error(f"Failed to get plants needing attention: {e}", exc_info=True)
+            logger.error("Failed to get plants needing attention: %s", e, exc_info=True)
 
         return attention_needed
 
@@ -659,7 +659,7 @@ class PlantHealthScorer:
                         "sensor_id": getattr(plant, "sensor_id", None),
                     }
             except Exception as e:
-                logger.debug(f"PlantService lookup failed: {e}")
+                logger.debug("PlantService lookup failed: %s", e)
 
         # Fallback to repository
         if self.analytics_repo:
@@ -668,7 +668,7 @@ class PlantHealthScorer:
                 if info:
                     return info
             except Exception as e:
-                logger.debug(f"Repository lookup failed: {e}")
+                logger.debug("Repository lookup failed: %s", e)
 
         return {"plant_id": plant_id, "unit_id": 0}
 
@@ -687,7 +687,7 @@ class PlantHealthScorer:
                     for p in plants
                 ]
             except Exception as e:
-                logger.debug(f"PlantService list_plants failed: {e}")
+                logger.debug("PlantService list_plants failed: %s", e)
 
         return []
 
@@ -719,7 +719,7 @@ class PlantHealthScorer:
             try:
                 readings = self.analytics_repo.get_latest_plant_readings(plant_id, limit=10) or []
             except Exception as exc:
-                logger.debug(f"Failed to get plant readings: {exc}")
+                logger.debug("Failed to get plant readings: %s", exc)
 
         if readings:
             for metric in metrics:
@@ -780,7 +780,7 @@ class PlantHealthScorer:
                 metrics["vpd"] = self._calculate_vpd(temp, humidity)
 
         except Exception as e:
-            logger.debug(f"Failed to get environmental metrics: {e}")
+            logger.debug("Failed to get environmental metrics: %s", e)
 
         return metrics
 
@@ -826,7 +826,7 @@ class PlantHealthScorer:
                     "vpd": self.DEFAULT_THRESHOLDS["vpd"],
                 }
             except Exception as e:
-                logger.debug(f"Failed to get thresholds: {e}")
+                logger.debug("Failed to get thresholds: %s", e)
 
         return self.DEFAULT_THRESHOLDS
 
@@ -890,7 +890,7 @@ class PlantHealthScorer:
                 if risk:
                     return risk.level.value
             except Exception as e:
-                logger.debug(f"Disease predictor failed: {e}")
+                logger.debug("Disease predictor failed: %s", e)
 
         # Fallback to simple humidity-based assessment
         humidity = env_metrics.get("humidity")
@@ -923,9 +923,8 @@ class PlantHealthScorer:
                 return "excess"
 
         # pH affects nutrient availability
-        if ph is not None:
-            if ph < t["ph_urgent_low"] or ph > t["ph_urgent_high"]:
-                return "locked_out"  # Nutrients unavailable at extreme pH
+        if ph is not None and (ph < t["ph_urgent_low"] or ph > t["ph_urgent_high"]):
+            return "locked_out"  # Nutrients unavailable at extreme pH
 
         return "optimal"
 
@@ -972,7 +971,7 @@ class PlantHealthScorer:
 
         # Soil moisture
         moisture = raw_values.get("soil_moisture")
-        moisture_score = scores.get("soil_moisture", 50)
+        scores.get("soil_moisture", 50)
         if moisture is not None:
             optimal = thresholds.get("soil_moisture", {}).get("optimal", 60)
             if moisture < optimal - t["moisture_low_offset"]:
@@ -995,7 +994,7 @@ class PlantHealthScorer:
 
         # Temperature
         temp = raw_values.get("temperature")
-        temp_score = scores.get("temperature", 50)
+        scores.get("temperature", 50)
         if temp is not None:
             optimal = thresholds.get("temperature", {}).get("optimal", 24)
             if temp < t["temp_urgent_low"]:

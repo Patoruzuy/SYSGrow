@@ -36,7 +36,7 @@ def init_health_tracking(app: Flask, system_health_service) -> None:
     def before_request_handler():
         """Record request start time."""
         # Skip health endpoints to avoid circular tracking
-        if request.path.startswith("/api/health"):
+        if request.path.startswith(("/api/health", "/api/v1/health")):
             return
 
         # Store request start time
@@ -46,7 +46,7 @@ def init_health_tracking(app: Flask, system_health_service) -> None:
     def after_request_handler(response):
         """Record request completion and metrics."""
         # Skip health endpoints
-        if request.path.startswith("/api/health"):
+        if request.path.startswith(("/api/health", "/api/v1/health")):
             return response
 
         # Skip if start time not set (shouldn't happen, but safety check)
@@ -67,7 +67,7 @@ def init_health_tracking(app: Flask, system_health_service) -> None:
                 service.check_api_health()
         except Exception as e:
             # Don't fail the request if metrics recording fails
-            logger.error(f"Failed to record API metrics: {e}")
+            logger.error("Failed to record API metrics: %s", e)
 
         return response
 
@@ -75,7 +75,7 @@ def init_health_tracking(app: Flask, system_health_service) -> None:
     def teardown_request_handler(exception=None):
         """Handle request errors."""
         # Skip health endpoints
-        if request.path.startswith("/api/health"):
+        if request.path.startswith(("/api/health", "/api/v1/health")):
             return
 
         # If there was an exception and we have start time, record as failed request
@@ -87,6 +87,6 @@ def init_health_tracking(app: Flask, system_health_service) -> None:
                     service.record_api_request(False, response_time)
                     service.check_api_health()
             except Exception as e:
-                logger.error(f"Failed to record failed request metrics: {e}")
+                logger.error("Failed to record failed request metrics: %s", e)
 
     logger.info("Health tracking middleware initialized")

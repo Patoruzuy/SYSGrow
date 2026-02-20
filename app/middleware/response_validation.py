@@ -73,11 +73,11 @@ def init_response_validation(app: Flask, *, strict_mode: bool = False) -> None:
 
         except (ValueError, TypeError) as e:
             # JSON parsing failed - not a valid JSON response
-            logger.debug(f"Skipping validation for non-JSON response: {e}")
+            logger.debug("Skipping validation for non-JSON response: %s", e)
 
         return response
 
-    logger.info(f"Response validation middleware initialized (strict_mode={strict_mode})")
+    logger.info("Response validation middleware initialized (strict_mode=%s)", strict_mode)
 
 
 def _should_validate(path: str, content_type: str | None) -> bool:
@@ -96,14 +96,15 @@ def _should_validate(path: str, content_type: str | None) -> bool:
         return False
 
     # Skip health check endpoints (avoid circular validation)
-    if path.startswith("/api/health"):
+    if "/health" in path and (path.startswith("/api/health") or path.startswith("/api/v1/health")):
+        return False
+
+    # Skip OpenAPI docs endpoints (they return raw spec, not envelope)
+    if path.startswith("/api/v1/docs"):
         return False
 
     # Only validate JSON responses
-    if content_type is None or "application/json" not in content_type:
-        return False
-
-    return True
+    return not (content_type is None or "application/json" not in content_type)
 
 
 def _validate_envelope(data: dict) -> list[str]:

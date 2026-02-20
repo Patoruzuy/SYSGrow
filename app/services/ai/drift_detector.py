@@ -141,7 +141,7 @@ class ModelDriftDetectorService:
                 )
 
         except Exception as e:
-            self.logger.error(f"Error tracking prediction: {e}")
+            self.logger.error("Error tracking prediction: %s", e)
 
     def check_drift(self, model_name: str, window_size: int = 100) -> DriftMetrics:
         """
@@ -248,7 +248,7 @@ class ModelDriftDetectorService:
             )
 
         except Exception as e:
-            self.logger.error(f"Error checking drift for {model_name}: {e}", exc_info=True)
+            self.logger.error("Error checking drift for %s: %s", model_name, e, exc_info=True)
             return DriftMetrics(
                 model_name=model_name,
                 timestamp=datetime.now(),

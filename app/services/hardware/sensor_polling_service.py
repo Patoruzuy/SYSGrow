@@ -86,7 +86,7 @@ class SensorPollingService:
         self.base_backoff_s = 5.0
         self.max_backoff_s = 600.0  # 10 minutes max retry interval
 
-        logger.info(f"SensorPollingService initialized (interval={self.poll_interval_s}s)")
+        logger.info("SensorPollingService initialized (interval=%ss)", self.poll_interval_s)
 
     # -------------------------------------------------------------------------
     # Lifecycle Management
@@ -108,7 +108,7 @@ class SensorPollingService:
         self._worker_thread.start()
         self._is_running = True
 
-        logger.info(f"🚀 Started hardware polling for {len(local_sensor_ids)} sensors")
+        logger.info("🚀 Started hardware polling for %s sensors", len(local_sensor_ids))
         return True
 
     def stop_polling(self) -> None:

@@ -46,12 +46,6 @@ This directory contains all the documentation for the SYSGrow Smart Agriculture 
 - **[Release Notes](RELEASE_NOTES.md)** - Latest release notes and changelog
 - **[ESP32-C6 UX Recommendations](ESP32-C6-User-Experience-Recommendations.md)** - User experience guidelines
 
-### 🗄️ Legacy Documentation
-Historical documentation for reference:
-- **[Phase Reports](legacy/)** - Development phase reports (Phase 1, 2, 3)
-- **[Old Reviews](legacy/)** - Historical architecture reviews
-- **[Enhancement Summaries](legacy/)** - Previous enhancement documentation
-
 ---
 
 ## 📊 Documentation Structure
@@ -91,13 +85,6 @@ docs/
 │   ├── PLANT_PROFILE_ANALYSIS.md
 │   ├── PLANT_GROWTH_INTEGRATION.md
 │   └── CSRF_FIX_SUMMARY.md
-└── legacy/                        # Historical Documentation
-    ├── PHASE_1_*.md
-    ├── PHASE_2_*.md
-    ├── PHASE_3_*.md
-    ├── PHASES_1_2_3_COMPLETE.md
-    ├── COMPREHENSIVE_REVIEW.md
-    └── FILE_TREE.md
 ```
 
 ---

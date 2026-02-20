@@ -438,9 +438,8 @@ class PriorityProcessor:
             # These may report every 5-10 minutes, so extend their lifetime.
             reading = self.last_readings.get(sensor_id)
             data = getattr(reading, "data", None) or {}
-            if age <= self.MAX_STALE_SECONDS:
-                if "soil_moisture" in data or "lux" in data:
-                    continue
+            if age <= self.MAX_STALE_SECONDS and ("soil_moisture" in data or "lux" in data):
+                continue
 
             stale_ids.append(sensor_id)
 

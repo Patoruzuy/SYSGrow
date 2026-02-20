@@ -24,8 +24,6 @@ app = create_app(bootstrap_runtime=True)
 # Get port from environment or use default
 port = int(os.environ.get("FLASK_RUN_PORT", 8000))
 
-print(f"Server starting on http://0.0.0.0:{port}")
-print("Press Ctrl+C to stop\n")
 
 if __name__ == "__main__":
     try:
@@ -35,7 +33,6 @@ if __name__ == "__main__":
                 app, name="sysgrow", socketio=socketio, debug=False, use_reloader=False, allow_unsafe_werkzeug=True
             )
         else:
-            print("devhost_cli not installed; using built-in Flask SocketIO runner.")
             socketio.run(
                 app,
                 host="0.0.0.0",
@@ -45,9 +42,8 @@ if __name__ == "__main__":
                 allow_unsafe_werkzeug=True,
             )
     except KeyboardInterrupt:
-        print("\nServer stopped by user")
-    except Exception as e:
-        print(f"\nServer error: {e}")
+        pass
+    except Exception:
         import traceback
 
         traceback.print_exc()

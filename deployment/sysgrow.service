@@ -1,0 +1,46 @@
+# /etc/systemd/system/sysgrow.service
+# SYSGrow Smart Agriculture Backend — systemd unit
+#
+# Install:
+#   sudo cp deployment/sysgrow.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now sysgrow
+#
+# Logs:
+#   journalctl -u sysgrow -f
+
+[Unit]
+Description=SYSGrow Smart Agriculture Backend
+Documentation=https://github.com/sysgrow
+After=network-online.target mosquitto.service
+Wants=network-online.target
+
+[Service]
+Type=exec
+User=sysgrow
+Group=sysgrow
+WorkingDirectory=/opt/sysgrow
+EnvironmentFile=-/opt/sysgrow/ops.env
+
+ExecStart=/opt/sysgrow/.venv/bin/gunicorn \
+    --worker-class geventwebsocket.gunicorn.workers.GeventWebSocketWorker \
+    --bind 0.0.0.0:8000 \
+    --workers 2 \
+    --timeout 120 \
+    --access-logfile - \
+    smart_agriculture_app:app
+
+Restart=on-failure
+RestartSec=5
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+# Hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/opt/sysgrow/database /opt/sysgrow/logs /opt/sysgrow/var /opt/sysgrow/data
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

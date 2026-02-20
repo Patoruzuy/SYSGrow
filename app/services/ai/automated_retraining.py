@@ -294,7 +294,7 @@ class AutomatedRetrainingService:
         job.next_run = self._calculate_next_run(job)
 
         self.jobs[job_id] = job
-        logger.info(f"Added retraining job: {job_id} ({model_type}, {schedule_type})")
+        logger.info("Added retraining job: %s (%s, %s)", job_id, model_type, schedule_type)
 
         return job
 
@@ -302,7 +302,7 @@ class AutomatedRetrainingService:
         """Remove a retraining job."""
         if job_id in self.jobs:
             del self.jobs[job_id]
-            logger.info(f"Removed retraining job: {job_id}")
+            logger.info("Removed retraining job: %s", job_id)
             return True
         return False
 
@@ -310,7 +310,7 @@ class AutomatedRetrainingService:
         """Enable or disable a retraining job."""
         if job_id in self.jobs:
             self.jobs[job_id].enabled = enabled
-            logger.info(f"Job {job_id} {'enabled' if enabled else 'disabled'}")
+            logger.info("Job %s %s", job_id, "enabled" if enabled else "disabled")
             return True
         return False
 
@@ -420,7 +420,7 @@ class AutomatedRetrainingService:
             broadcast_training_started(event.model_type, event.old_version or "")
             broadcast_progress(5, "Starting retraining...")
 
-            logger.info(f"Starting retraining for {event.model_type} (trigger: {event.trigger.value})")
+            logger.info("Starting retraining for %s (trigger: %s)", event.model_type, event.trigger.value)
 
             # Perform retraining based on model type
             metrics: dict[str, Any] | None = None
@@ -461,7 +461,7 @@ class AutomatedRetrainingService:
                     progress_callback=lambda p, msg=None: broadcast_progress(p, msg),
                 )
             else:
-                logger.warning(f"Unknown model type for retraining: {event.model_type}")
+                logger.warning("Unknown model type for retraining: %s", event.model_type)
                 metrics = {"success": False, "error": f"Unknown model type: {event.model_type}"}
 
             check_cancel()
@@ -495,7 +495,7 @@ class AutomatedRetrainingService:
                 job.success_count += 1
                 job.next_run = self._calculate_next_run(job)
 
-            logger.info(f"Retraining completed for {event.model_type}: {event.old_version} → {event.new_version}")
+            logger.info("Retraining completed for %s: %s → %s", event.model_type, event.old_version, event.new_version)
 
             broadcast_progress(100, "Retraining complete")
             broadcast_training_complete(event.model_type, event.new_version or "", event.metrics)
@@ -508,7 +508,7 @@ class AutomatedRetrainingService:
             event.status = RetrainingStatus.CANCELLED
             event.error = str(e)
             event.completed_at = datetime.now()
-            logger.info(f"Retraining cancelled for {event.model_type}: {e}")
+            logger.info("Retraining cancelled for %s: %s", event.model_type, e)
             broadcast_training_cancelled(event.model_type, event.old_version or "", str(e))
 
             if job_id and job_id in self.jobs:
@@ -528,7 +528,7 @@ class AutomatedRetrainingService:
                 job.run_count += 1
                 job.failure_count += 1
 
-            logger.error(f"Retraining failed for {event.model_type}: {e}", exc_info=True)
+            logger.error("Retraining failed for %s: %s", event.model_type, e, exc_info=True)
             broadcast_training_failed(event.model_type, event.old_version or "", str(e))
 
         finally:
@@ -571,7 +571,7 @@ class AutomatedRetrainingService:
                         events.append(event)
 
             except Exception as e:
-                logger.error(f"Error checking drift for {job.model_type}: {e}")
+                logger.error("Error checking drift for %s: %s", job.model_type, e)
 
         return events
 
@@ -615,16 +615,15 @@ class AutomatedRetrainingService:
                     days_ahead += 7
                 return now + timedelta(days=days_ahead)
 
-        elif job.schedule_type == "monthly":
-            if job.schedule_day is not None:
-                next_run = now.replace(day=job.schedule_day, hour=0, minute=0, second=0)
-                if next_run <= now:
-                    # Move to next month
-                    if now.month == 12:
-                        next_run = next_run.replace(year=now.year + 1, month=1)
-                    else:
-                        next_run = next_run.replace(month=now.month + 1)
-                return next_run
+        elif job.schedule_type == "monthly" and job.schedule_day is not None:
+            next_run = now.replace(day=job.schedule_day, hour=0, minute=0, second=0)
+            if next_run <= now:
+                # Move to next month
+                if now.month == 12:
+                    next_run = next_run.replace(year=now.year + 1, month=1)
+                else:
+                    next_run = next_run.replace(month=now.month + 1)
+            return next_run
 
         return None
 

@@ -233,6 +233,35 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: tests requiring real database or external resources",
+    "smoke: lightweight import / instantiation checks",
+]
+
+# ---------------------------------------------------------------------------
+# Coverage
+# ---------------------------------------------------------------------------
+[tool.coverage.run]
+source = ["app"]
+omit = [
+    "app/__pycache__/*",
+    "app/*/migrations/*",
+    "app/hardware/*",          # hardware-specific; tested on-device
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true
+precision = 1
+fail_under = 35                 # baseline 36.8% — raise incrementally toward 70%
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "@overload",
+]
 
 # ---------------------------------------------------------------------------
 # Bandit — security linter

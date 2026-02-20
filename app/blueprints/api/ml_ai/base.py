@@ -8,6 +8,8 @@ Provides:
 - /api/ml/training/history - Training history across all models
 """
 
+from __future__ import annotations
+
 import logging
 
 from flask import Blueprint, Response, jsonify, request

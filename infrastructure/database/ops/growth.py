@@ -152,7 +152,7 @@ class GrowthOperations:
                 return
 
             values.append(unit_id)
-            query = f"UPDATE GrowthUnits SET {', '.join(updates)} WHERE unit_id = ?"
+            query = f"UPDATE GrowthUnits SET {', '.join(updates)} WHERE unit_id = ?"  # nosec B608 — allowed_fields allowlist above
 
             db = self.get_db()
             db.execute(query, values)
@@ -213,7 +213,7 @@ class GrowthOperations:
                 return True
 
             values.append(unit_id)
-            query = f"UPDATE GrowthUnits SET {', '.join(fields)} WHERE unit_id = ?"
+            query = f"UPDATE GrowthUnits SET {', '.join(fields)} WHERE unit_id = ?"  # nosec B608 — hardcoded field names above
             db.execute(query, values)
             db.commit()
             return True
@@ -327,7 +327,7 @@ class GrowthOperations:
                 return
 
             values.append(plant_id)
-            query = f"UPDATE Plants SET {', '.join(updates)} WHERE plant_id = ?"
+            query = f"UPDATE Plants SET {', '.join(updates)} WHERE plant_id = ?"  # nosec B608 — allowed_fields allowlist above
 
             db = self.get_db()
             db.execute(query, values)
@@ -348,7 +348,7 @@ class GrowthOperations:
             db = self.get_db()
             cursor = db.execute(
                 """
-                SELECT 
+                SELECT
                     p.*,
                     COALESCE(gup.unit_id, p.unit_id) AS unit_id,
                     gu.name AS unit_name
@@ -630,6 +630,20 @@ class GrowthOperations:
             db.commit()
         except sqlite3.Error as exc:
             logging.error("Error updating plant moisture for %s: %s", plant_id, exc)
+
+    def bulk_update_plant_moisture(self, plant_ids: list[int], moisture_level: float) -> None:
+        """Batch-update moisture_level for multiple plants in a single transaction."""
+        if not plant_ids:
+            return
+        try:
+            db = self.get_db()
+            db.executemany(
+                "UPDATE Plants SET moisture_level = ? WHERE plant_id = ?",
+                [(moisture_level, pid) for pid in plant_ids],
+            )
+            db.commit()
+        except sqlite3.Error as exc:
+            logging.error("Error bulk-updating moisture for %s plants: %s", len(plant_ids), exc)
 
     def update_plant_progress(
         self,
@@ -937,7 +951,7 @@ class GrowthOperations:
                 return True
 
             values.append(unit_id)
-            query = f"UPDATE GrowthUnits SET {', '.join(fields)} WHERE unit_id = ?"
+            query = f"UPDATE GrowthUnits SET {', '.join(fields)} WHERE unit_id = ?"  # nosec B608 — hardcoded field names above
             db.execute(query, values)
             db.commit()
             return True
@@ -1032,7 +1046,7 @@ class GrowthOperations:
                 (unit_id,),
             )
             result = cursor.fetchone()
-            return bool(result["camera_enabled"]) if result and "camera_enabled" in result.keys() else False
+            return bool(result["camera_enabled"]) if result and "camera_enabled" in result else False
         except sqlite3.Error as exc:
             logging.error("Error checking camera status for unit %s: %s", unit_id, exc)
             return False
@@ -1063,7 +1077,7 @@ class GrowthOperations:
             db = self.get_db()
             cursor = db.execute(
                 """
-                SELECT 
+                SELECT
                     CAST((julianday('now') - julianday(created_at)) * 24 AS INTEGER) as uptime_hours
                 FROM GrowthUnits
                 WHERE unit_id = ?

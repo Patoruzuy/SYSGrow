@@ -32,10 +32,7 @@ from Crypto.Random import get_random_bytes
 logger = logging.getLogger(__name__)
 
 # Default key for development ONLY — INSECURE
-_DEFAULT_KEY_HEX = (
-    "A1B2C3D4E5F6A7B8C9D0E1F2A3B4C5D6"
-    "A1B2C3D4E5F6A7B8C9D0E1F2A3B4C5D6"
-)
+_DEFAULT_KEY_HEX = "A1B2C3D4E5F6A7B8C9D0E1F2A3B4C5D6A1B2C3D4E5F6A7B8C9D0E1F2A3B4C5D6"
 _NONCE_BYTES = 12  # recommended nonce length for GCM
 _USING_DEFAULT_KEY = False
 
@@ -43,6 +40,7 @@ _USING_DEFAULT_KEY = False
 # ---------------------------------------------------------------------------
 # Key management
 # ---------------------------------------------------------------------------
+
 
 def _get_aes_key() -> bytes:
     """Load the 256-bit AES key from the environment (or fall back to the
@@ -61,25 +59,18 @@ def _get_aes_key() -> bytes:
         _USING_DEFAULT_KEY = True
         key_hex = _DEFAULT_KEY_HEX
         logger.warning(
-            "SECURITY WARNING: Using default AES key. "
-            "Set SYSGROW_AES_KEY environment variable for production!"
+            "SECURITY WARNING: Using default AES key. Set SYSGROW_AES_KEY environment variable for production!"
         )
     else:
         _USING_DEFAULT_KEY = False
         # Accept the old 128-bit (32 hex) key with a deprecation warning
         if len(key_hex) == 32:
-            logger.warning(
-                "SYSGROW_AES_KEY is 128-bit (32 hex chars). "
-                "Please upgrade to a 256-bit key (64 hex chars)."
-            )
+            logger.warning("SYSGROW_AES_KEY is 128-bit (32 hex chars). Please upgrade to a 256-bit key (64 hex chars).")
             # Pad by repeating to get 256-bit — ensures old setups still boot.
             key_hex = key_hex + key_hex
 
     if len(key_hex) != 64:
-        raise ValueError(
-            f"SYSGROW_AES_KEY must be 64 hex characters (256-bit). "
-            f"Got {len(key_hex)} characters."
-        )
+        raise ValueError(f"SYSGROW_AES_KEY must be 64 hex characters (256-bit). Got {len(key_hex)} characters.")
 
     try:
         return bytes.fromhex(key_hex)
@@ -99,6 +90,7 @@ AES_KEY: bytes = _get_aes_key()
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def _encrypt_bytes(plaintext: bytes) -> str:
     """Encrypt *plaintext* with AES-256-GCM.

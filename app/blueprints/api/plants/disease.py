@@ -5,6 +5,8 @@ Endpoints for recording, viewing, and managing disease occurrences.
 Completes the disease tracking feedback loop for ML model improvement.
 """
 
+from __future__ import annotations
+
 import logging
 
 from flask import Blueprint, Response, jsonify, request

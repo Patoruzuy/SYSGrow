@@ -99,7 +99,7 @@ class AnomalyDetectionService:
                     severity=self._calculate_range_severity(value, expected_range),
                     description=f"{field_name} {value} is outside expected range [{min_val}, {max_val}]",
                 )
-                logger.warning(f"Anomaly detected for sensor {sensor_id}: {anomaly.description}")
+                logger.warning("Anomaly detected for sensor %s: %s", sensor_id, anomaly.description)
                 history.append((timestamp, value))
                 return anomaly
 
@@ -307,4 +307,4 @@ class AnomalyDetectionService:
         if sensor_id in self._sensor_stats:
             del self._sensor_stats[sensor_id]
 
-        logger.info(f"Reset anomaly detection for sensor {sensor_id}")
+        logger.info("Reset anomaly detection for sensor %s", sensor_id)

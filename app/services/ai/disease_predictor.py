@@ -132,7 +132,7 @@ class DiseasePredictor:
             return True
 
         except Exception as e:
-            logger.error(f"Failed to load disease prediction model: {e}", exc_info=True)
+            logger.error("Failed to load disease prediction model: %s", e, exc_info=True)
             self.model_loaded = False
             return False
 
@@ -171,7 +171,7 @@ class DiseasePredictor:
             sensor_df = self.repo_health.get_sensor_time_series(unit_id, start_date, end_date, interval_hours=1)
 
             if sensor_df.empty:
-                logger.warning(f"No sensor data for unit {unit_id}")
+                logger.warning("No sensor data for unit %s", unit_id)
                 return []
 
             # Calculate environmental features
@@ -241,7 +241,7 @@ class DiseasePredictor:
             return risks
 
         except Exception as e:
-            logger.error(f"Error predicting disease risk: {e}", exc_info=True)
+            logger.error("Error predicting disease risk: %s", e, exc_info=True)
             return []
 
     def _predict_with_ml(
@@ -381,11 +381,11 @@ class DiseasePredictor:
                 recommendations=self._get_recommendations_for_disease(disease_type),
             )
 
-            logger.debug(f"ML disease prediction: {prediction} with confidence {confidence:.3f}")
+            logger.debug("ML disease prediction: %s with confidence %s", prediction, confidence)
             return [disease_risk]
 
         except Exception as e:
-            logger.warning(f"ML disease prediction failed, falling back to rules: {e}")
+            logger.warning("ML disease prediction failed, falling back to rules: %s", e)
             return []
 
     def _get_recommendations_for_disease(self, disease_type: DiseaseType) -> list[str]:
@@ -440,7 +440,7 @@ class DiseasePredictor:
             avg_temp = sensor_df["temperature"].mean() if "temperature" in sensor_df else 0
 
             current_humidity = current_conditions.get("humidity", 0)
-            current_temp = current_conditions.get("temperature", 0)
+            current_conditions.get("temperature", 0)
 
             risk_score = 0
             factors = []
@@ -523,7 +523,7 @@ class DiseasePredictor:
             )
 
         except Exception as e:
-            logger.warning(f"Error assessing fungal risk: {e}")
+            logger.warning("Error assessing fungal risk: %s", e)
             return None
 
     def _assess_bacterial_risk(
@@ -575,7 +575,7 @@ class DiseasePredictor:
             )
 
         except Exception as e:
-            logger.warning(f"Error assessing bacterial risk: {e}")
+            logger.warning("Error assessing bacterial risk: %s", e)
             return None
 
     def _assess_pest_risk(
@@ -625,7 +625,7 @@ class DiseasePredictor:
             )
 
         except Exception as e:
-            logger.warning(f"Error assessing pest risk: {e}")
+            logger.warning("Error assessing pest risk: %s", e)
             return None
 
     def _assess_nutrient_risk(
@@ -679,7 +679,7 @@ class DiseasePredictor:
             )
 
         except Exception as e:
-            logger.warning(f"Error assessing nutrient risk: {e}")
+            logger.warning("Error assessing nutrient risk: %s", e)
             return None
 
     def _score_to_risk_level(self, score: float) -> RiskLevel:
@@ -814,12 +814,12 @@ class DiseasePredictor:
                     multipliers["nutrient"] = 1.3
 
             if multipliers:
-                logger.debug(f"Applied historical risk multipliers for unit {unit_id}: {multipliers}")
+                logger.debug("Applied historical risk multipliers for unit %s: %s", unit_id, multipliers)
 
             return multipliers
 
         except Exception as e:
-            logger.warning(f"Error getting historical risk multipliers: {e}")
+            logger.warning("Error getting historical risk multipliers: %s", e)
             return {}
 
     def _apply_history_multiplier(self, risk: DiseaseRisk, multiplier: float, reason: str) -> DiseaseRisk:

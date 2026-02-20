@@ -52,7 +52,7 @@ class EnergyMonitoringService:
         # Callbacks
         self.power_threshold_callbacks: list[Callable[[int, float], None]] = []
 
-        logger.info(f"EnergyMonitoringService initialized (DB persistence: {analytics_repo is not None})")
+        logger.info("EnergyMonitoringService initialized (DB persistence: %s)", analytics_repo is not None)
 
     def register_power_profile(
         self,
@@ -81,7 +81,7 @@ class EnergyMonitoringService:
         )
 
         self.power_profiles[actuator_type] = profile
-        logger.info(f"Registered power profile for {actuator_type}: {rated_power_watts}W")
+        logger.info("Registered power profile for %s: %sW", actuator_type, rated_power_watts)
 
     def record_reading(self, reading: EnergyReading) -> None:
         """
@@ -110,7 +110,7 @@ class EnergyMonitoringService:
         if reading.power:
             self._check_power_thresholds(actuator_id, reading.power)
 
-        logger.debug(f"Recorded energy reading for actuator {actuator_id}: {reading.power}W")
+        logger.debug("Recorded energy reading for actuator %s: %sW", actuator_id, reading.power)
 
     def estimate_power(self, actuator_id: int, actuator_type: str, level: float, state: str) -> float | None:
         """
@@ -130,7 +130,7 @@ class EnergyMonitoringService:
 
         profile = self.power_profiles.get(actuator_type)
         if not profile:
-            logger.warning(f"No power profile for {actuator_type}")
+            logger.warning("No power profile for %s", actuator_type)
             return None
 
         return profile.estimate_power(level)
@@ -251,7 +251,7 @@ class EnergyMonitoringService:
                 try:
                     callback(actuator_id, power)
                 except Exception as e:
-                    logger.error(f"Error in power threshold callback: {e}")
+                    logger.error("Error in power threshold callback: %s", e)
 
     def clear_readings(self, actuator_id: int) -> None:
         """Clear readings for an actuator"""
@@ -259,7 +259,7 @@ class EnergyMonitoringService:
             del self.readings[actuator_id]
         if actuator_id in self.latest_readings:
             del self.latest_readings[actuator_id]
-        logger.info(f"Cleared energy readings for actuator {actuator_id}")
+        logger.info("Cleared energy readings for actuator %s", actuator_id)
 
     def get_efficiency_metrics(self, actuator_id: int) -> dict[str, Any] | None:
         """
@@ -324,7 +324,7 @@ class EnergyMonitoringService:
                 temperature=reading.temperature,
             )
         except Exception as e:
-            logger.error(f"Failed to persist energy reading: {e}")
+            logger.error("Failed to persist energy reading: %s", e)
 
     def estimate_daily_cost(self, power_watts: float) -> float:
         """

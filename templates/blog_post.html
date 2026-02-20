@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% from "macros.html" import page_header, content_card %}
 
 {% block title %}Blog Post - SYSGrow{% endblock %}
 
@@ -30,7 +31,7 @@
             <article class="blog-post">
                 <!-- Featured Image Hero -->
                 <div class="post-hero hidden" id="post-hero">
-                    <img src="" alt="" id="post-hero-image" class="post-hero-image">
+                    <img src="" alt="Blog post featured image" id="post-hero-image" class="post-hero-image">
                 </div>
 
                 <header class="post-header">

@@ -1,8 +1,11 @@
 import json
+import logging
 
 import requests
 
 from app.hardware.mqtt.client_factory import create_mqtt_client
+
+logger = logging.getLogger(__name__)
 
 # MQTT Configuration
 MQTT_BROKER = "mqtt-broker.local"
@@ -29,17 +32,17 @@ def send_firebase_notification(voltage):
     }
     try:
         response = requests.post(url, headers=headers, data=json.dumps(payload), timeout=5)
-        print(f"FCM Response: {response.text}")
+        logger.info("FCM Response: %s", response.text)
     except requests.RequestException as e:
         # Log and continue; notification failure should not crash MQTT processing
-        print(f"Failed to send FCM notification: {e}")
+        logger.error("Failed to send FCM notification: %s", e)
 
 
 def on_message(client, userdata, message):
     """Handle incoming MQTT messages."""
     payload = json.loads(message.payload.decode())
     voltage = payload["voltage"]
-    print(f"🔋 Low Battery Alert Received: {voltage}V")
+    logger.info("Low Battery Alert Received: %sV", voltage)
     send_firebase_notification(voltage)
 
 

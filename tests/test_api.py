@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -19,7 +19,11 @@ def app(tmp_path, monkeypatch):
 
 @pytest.fixture()
 def client(app):
-    return app.test_client()
+    c = app.test_client()
+    with c.session_transaction() as sess:
+        sess["user"] = "testuser"
+        sess["user_id"] = 1
+    return c
 
 
 def test_growth_unit_lifecycle(client):
@@ -71,7 +75,7 @@ def test_growth_unit_lifecycle(client):
 def test_sensor_history_endpoint(app, client):
     with app.app_context():
         database = app.config["CONTAINER"].database
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         earlier = now - timedelta(hours=1)
 
         with database.connection() as conn:
@@ -144,7 +148,7 @@ def test_sensor_history_endpoint(app, client):
 
 
 def test_status_endpoint(client):
-    response = client.get("/status/")
+    response = client.get("/api/v1/dashboard/status")
     assert response.status_code == 200
     data = response.get_json()
-    assert data["status"] == "ok"
+    assert data["ok"] is True

@@ -8,18 +8,22 @@ USB settings, and image quality parameters.
 
 from __future__ import annotations
 
+from flask import Response
+
 from app.blueprints.api._common import (
     fail as _fail,
     get_json as _json,
     get_settings_service as _service,
     success as _success,
 )
+from app.utils.http import safe_route
 
 from . import settings_api
 
 
 @settings_api.get("/camera")
-def get_camera_settings():
+@safe_route("Failed to get camera settings")
+def get_camera_settings() -> Response:
     """
     Get current camera configuration.
 
@@ -42,7 +46,8 @@ def get_camera_settings():
 
 
 @settings_api.put("/camera")
-def update_camera_settings():
+@safe_route("Failed to update camera settings")
+def update_camera_settings() -> Response:
     """
     Update camera configuration.
 

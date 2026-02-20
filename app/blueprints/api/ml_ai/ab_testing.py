@@ -4,6 +4,8 @@ A/B Testing API
 Endpoints for managing A/B tests for ML model comparison and deployment.
 """
 
+from __future__ import annotations
+
 import logging
 
 from flask import Blueprint, Response, request

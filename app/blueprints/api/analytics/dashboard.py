@@ -5,16 +5,18 @@ Dashboard Summary Endpoints
 Endpoints for dashboard cards and summary views.
 """
 
+from __future__ import annotations
+
 import logging
 
-from flask import request
+from flask import Response, request
 
 from app.blueprints.api._common import (
-    fail as _fail,
     get_analytics_service as _analytics_service,
     success as _success,
 )
 from app.blueprints.api.analytics import analytics_api
+from app.utils.http import safe_route
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +27,8 @@ logger = logging.getLogger(__name__)
 
 
 @analytics_api.get("/dashboard/environmental-summary")
-def get_environmental_summary():
+@safe_route("Failed to get environmental summary")
+def get_environmental_summary() -> Response:
     """
     Get environmental conditions summary for dashboard cards.
 
@@ -38,22 +41,18 @@ def get_environmental_summary():
     - Alert conditions
     - Health indicators
     """
-    try:
-        unit_id = request.args.get("unit_id", type=int)
-        analytics = _analytics_service()
+    unit_id = request.args.get("unit_id", type=int)
+    analytics = _analytics_service()
 
-        # Logic moved to service
-        data = analytics.get_environmental_dashboard_summary(unit_id=unit_id)
+    # Logic moved to service
+    data = analytics.get_environmental_dashboard_summary(unit_id=unit_id)
 
-        return _success(data)
-
-    except Exception as e:
-        logger.error(f"Error getting environmental summary: {e}", exc_info=True)
-        return safe_error(e, 500)
+    return _success(data)
 
 
 @analytics_api.get("/dashboard/energy-summary")
-def get_energy_summary():
+@safe_route("Failed to get energy summary")
+def get_energy_summary() -> Response:
     """
     Get energy consumption summary for dashboard cards.
 
@@ -67,17 +66,12 @@ def get_energy_summary():
     - Cost trends
     - Optimization opportunities
     """
-    try:
-        unit_id = request.args.get("unit_id", type=int)
-        days = request.args.get("days", 7, type=int)
+    unit_id = request.args.get("unit_id", type=int)
+    days = request.args.get("days", 7, type=int)
 
-        analytics = _analytics_service()
+    analytics = _analytics_service()
 
-        # Logic moved to service
-        data = analytics.get_energy_dashboard_summary(unit_id=unit_id, days=days)
+    # Logic moved to service
+    data = analytics.get_energy_dashboard_summary(unit_id=unit_id, days=days)
 
-        return _success(data)
-
-    except Exception as e:
-        logger.error(f"Error getting energy summary: {e}", exc_info=True)
-        return safe_error(e, 500)
+    return _success(data)

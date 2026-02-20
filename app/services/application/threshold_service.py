@@ -14,14 +14,17 @@ This service is the single source of truth for all threshold-related operations:
 - Event handling for threshold persistence
 """
 
+from __future__ import annotations
+
 import logging
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable
 
 from app.constants import NIGHT_THRESHOLD_ADJUSTMENTS, THRESHOLD_UPDATE_TOLERANCE
 from app.domain.environmental_thresholds import EnvironmentalThresholds
 from app.enums.common import ConditionProfileMode, ConditionProfileTarget
 from app.enums.events import RuntimeEvent
 from app.schemas.events import ThresholdsPersistPayload
+from app.utils.cache import TTLCache
 from app.utils.plant_json_handler import PlantJsonHandler
 
 if TYPE_CHECKING:
@@ -72,11 +75,11 @@ class ThresholdService:
     def __init__(
         self,
         plant_handler: PlantJsonHandler | None = None,
-        climate_optimizer: Optional["ClimateOptimizer"] = None,
-        growth_repo: Optional["GrowthRepository"] = None,
-        notifications_service: Optional["NotificationsService"] = None,
-        event_bus: Optional["EventBus"] = None,
-        personalized_learning: Optional["PersonalizedLearningService"] = None,
+        climate_optimizer: "ClimateOptimizer" | None = None,
+        growth_repo: "GrowthRepository" | None = None,
+        notifications_service: "NotificationsService" | None = None,
+        event_bus: "EventBus" | None = None,
+        personalized_learning: "PersonalizedLearningService" | None = None,
     ):
         """
         Initialize threshold service.
@@ -94,9 +97,9 @@ class ThresholdService:
         self.notifications_service = notifications_service
         self.event_bus = event_bus
         self.personalized_learning = personalized_learning
-        self._threshold_cache = {}
-        self._unit_threshold_cache: dict[int, EnvironmentalThresholds] = {}
-        self._plant_override_cache: dict[int, dict[str, float]] = {}
+        self._threshold_cache = TTLCache(enabled=True, ttl_seconds=300, maxsize=256)
+        self._unit_threshold_cache = TTLCache(enabled=True, ttl_seconds=300, maxsize=128)
+        self._plant_override_cache = TTLCache(enabled=True, ttl_seconds=300, maxsize=256)
 
         # Generic fallback thresholds as domain object
         self.generic_thresholds = EnvironmentalThresholds(
@@ -125,7 +128,7 @@ class ThresholdService:
         """
         self._invalidate_unit_cache_callback = callback
 
-    def set_personalized_learning(self, service: Optional["PersonalizedLearningService"]) -> None:
+    def set_personalized_learning(self, service: "PersonalizedLearningService" | None) -> None:
         """Wire PersonalizedLearningService after initialization."""
         self.personalized_learning = service
 
@@ -136,7 +139,7 @@ class ThresholdService:
         plant_type: str,
         growth_stage: str | None,
         profile_id: str | None = None,
-        preferred_mode: Optional["ConditionProfileMode"] = None,
+        preferred_mode: "ConditionProfileMode" | None = None,
         plant_variety: str | None = None,
         strain_variety: str | None = None,
         pot_size_liters: float | None = None,
@@ -195,7 +198,7 @@ class ThresholdService:
                     )
 
         except Exception as e:
-            logger.error(f"Error handling THRESHOLDS_PERSIST event: {e}", exc_info=True)
+            logger.error("Error handling THRESHOLDS_PERSIST event: %s", e, exc_info=True)
 
     # ==================== Threshold Filtering ====================
 
@@ -361,7 +364,7 @@ class ThresholdService:
             except ValueError as exc:
                 sanitized = self._sanitize_unit_thresholds(data)
                 thresholds = EnvironmentalThresholds.from_dict(sanitized)
-                self._unit_threshold_cache[unit_id] = thresholds
+                self._unit_threshold_cache.set(unit_id, thresholds)
                 try:
                     self.growth_repo.update_unit(unit_id, **sanitized)
                 except Exception:
@@ -376,7 +379,7 @@ class ThresholdService:
                     exc,
                 )
                 return thresholds
-            self._unit_threshold_cache[unit_id] = thresholds
+            self._unit_threshold_cache.set(unit_id, thresholds)
             return thresholds
         except Exception as exc:
             logger.error("Error fetching unit thresholds for %s: %s", unit_id, exc, exc_info=True)
@@ -403,9 +406,9 @@ class ThresholdService:
             self.growth_repo.update_unit(unit_id, **payload)
             cached = self._unit_threshold_cache.get(unit_id)
             if cached:
-                self._unit_threshold_cache[unit_id] = cached.merge(payload)
+                self._unit_threshold_cache.set(unit_id, cached.merge(payload))
             else:
-                self._unit_threshold_cache.pop(unit_id, None)
+                self._unit_threshold_cache.invalidate(unit_id)
             if self.personalized_learning:
                 try:
                     unit = self.growth_repo.get_unit(unit_id)
@@ -460,7 +463,7 @@ class ThresholdService:
                     overrides[key] = float(value)
                 except (TypeError, ValueError):
                     logger.debug("Skipping invalid override %s=%s", field, value)
-            self._plant_override_cache[plant_id] = dict(overrides)
+            self._plant_override_cache.set(plant_id, dict(overrides))
             return overrides
         except Exception as exc:
             logger.error("Error fetching overrides for plant %s: %s", plant_id, exc, exc_info=True)
@@ -477,7 +480,7 @@ class ThresholdService:
         overrides = {PLANT_OVERRIDE_FIELDS[key]: value for key, value in payload.items()}
         try:
             self.growth_repo.update_plant(plant_id, **overrides)
-            self._plant_override_cache[plant_id] = dict(payload)
+            self._plant_override_cache.set(plant_id, dict(payload))
             return True
         except Exception as exc:
             logger.error("Failed to persist overrides for plant %s: %s", plant_id, exc, exc_info=True)
@@ -518,7 +521,7 @@ class ThresholdService:
         *,
         user_id: int | None = None,
         profile_id: str | None = None,
-        preferred_mode: Optional["ConditionProfileMode"] = None,
+        preferred_mode: "ConditionProfileMode" | None = None,
         plant_variety: str | None = None,
         strain_variety: str | None = None,
         pot_size_liters: float | None = None,
@@ -537,10 +540,9 @@ class ThresholdService:
         cache_key = f"thresholds_{plant_type}_{growth_stage or 'all'}_{user_id}_{profile_id}_{preferred_mode}_{plant_variety}_{strain_variety}_{pot_size_liters}"
 
         # Check cache first
-        if cache_key in self._threshold_cache:
-            cached = self._threshold_cache[cache_key]
-            if isinstance(cached, EnvironmentalThresholds):
-                return cached
+        cached = self._threshold_cache.get(cache_key)
+        if cached is not None and isinstance(cached, EnvironmentalThresholds):
+            return cached
 
         try:
             profile = self.get_condition_profile(
@@ -571,11 +573,11 @@ class ThresholdService:
                 thresholds = EnvironmentalThresholds.from_dict(merged)
 
             # Cache and return
-            self._threshold_cache[cache_key] = thresholds
+            self._threshold_cache.set(cache_key, thresholds)
             return thresholds
 
         except Exception as e:
-            logger.error(f"Error loading thresholds for {plant_type}: {e}")
+            logger.error("Error loading thresholds for %s: %s", plant_type, e)
             return self.generic_thresholds
 
     def get_thresholds_for_period(
@@ -586,7 +588,7 @@ class ThresholdService:
         is_daytime: bool = True,
         user_id: int | None = None,
         profile_id: str | None = None,
-        preferred_mode: Optional["ConditionProfileMode"] = None,
+        preferred_mode: "ConditionProfileMode" | None = None,
         plant_variety: str | None = None,
         strain_variety: str | None = None,
         pot_size_liters: float | None = None,
@@ -758,7 +760,7 @@ class ThresholdService:
             return [stage.get("stage") for stage in growth_stages if stage.get("stage")]
 
         except Exception as e:
-            logger.error(f"Error getting growth stages for {plant_type}: {e}")
+            logger.error("Error getting growth stages for %s: %s", plant_type, e)
             return []
 
     def get_threshold_ranges(
@@ -768,7 +770,7 @@ class ThresholdService:
         *,
         user_id: int | None = None,
         profile_id: str | None = None,
-        preferred_mode: Optional["ConditionProfileMode"] = None,
+        preferred_mode: "ConditionProfileMode" | None = None,
         plant_variety: str | None = None,
         strain_variety: str | None = None,
         pot_size_liters: float | None = None,
@@ -811,7 +813,7 @@ class ThresholdService:
                     },
                     "co2": {"min": generic.co2, "max": generic.co2, "optimal": generic.co2},
                 }
-                self._threshold_cache[cache_key] = ranges
+                self._threshold_cache.set(cache_key, ranges)
                 return ranges
 
             plant = plants[0]
@@ -925,7 +927,7 @@ class ThresholdService:
                 if profile.get("soil_moisture_threshold") is not None:
                     ranges["soil_moisture"]["optimal"] = float(profile["soil_moisture_threshold"])
 
-            self._threshold_cache[cache_key] = ranges
+            self._threshold_cache.set(cache_key, ranges)
             return ranges
 
         except Exception as e:
@@ -957,7 +959,7 @@ class ThresholdService:
         *,
         user_id: int | None = None,
         profile_id: str | None = None,
-        preferred_mode: Optional["ConditionProfileMode"] = None,
+        preferred_mode: "ConditionProfileMode" | None = None,
         plant_variety: str | None = None,
         strain_variety: str | None = None,
         pot_size_liters: float | None = None,
@@ -1032,7 +1034,7 @@ class ThresholdService:
                 return thresholds
 
         except Exception as e:
-            logger.error(f"Error getting optimal conditions: {e}")
+            logger.error("Error getting optimal conditions: %s", e)
             return self.generic_thresholds
 
     def is_within_optimal_range(
@@ -1076,7 +1078,7 @@ class ThresholdService:
             return results
 
         except Exception as e:
-            logger.error(f"Error checking optimal range: {e}")
+            logger.error("Error checking optimal range: %s", e)
             return {}
 
     def get_adjustment_recommendations(
@@ -1138,5 +1140,5 @@ class ThresholdService:
             return recommendations
 
         except Exception as e:
-            logger.error(f"Error getting adjustment recommendations: {e}")
+            logger.error("Error getting adjustment recommendations: %s", e)
             return {}

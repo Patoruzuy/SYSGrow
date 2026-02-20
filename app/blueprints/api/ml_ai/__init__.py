@@ -19,6 +19,8 @@ Structure:
 All endpoints use dependency injection via ServiceContainer.
 """
 
+from __future__ import annotations
+
 from .ab_testing import ab_testing_bp
 from .analysis import analysis_bp
 from .analytics import analytics_bp

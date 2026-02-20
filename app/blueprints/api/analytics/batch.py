@@ -5,6 +5,8 @@ Batch Analytics Endpoints
 Endpoints for batch operations on analytics data.
 """
 
+from __future__ import annotations
+
 import logging
 
 from flask import Response, request

@@ -7,6 +7,8 @@ Consolidates functionality from:
 - ai_predictions.py (models endpoints)
 """
 
+from __future__ import annotations
+
 import logging
 
 from flask import Blueprint, Response, request

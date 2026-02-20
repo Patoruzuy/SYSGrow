@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from app.enums import DiseaseType, PlantHealthStatus
+from app.enums.common import DiseaseType, PlantHealthStatus
 from app.utils.time import iso_now
 
 

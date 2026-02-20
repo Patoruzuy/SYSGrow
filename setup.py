@@ -31,7 +31,7 @@ setup(
     author_email="patoruzuy@tutanota.com",
     url="https://github.com/sysgrow",
     packages=find_packages(exclude=("tests", "docs")),
-    python_requires=">=3.8,<4",
+    python_requires=">=3.11,<4",
     install_requires=core_requirements,
     extras_require={
         "dev": [
@@ -46,6 +46,22 @@ setup(
             "RPi.GPIO>=0.7.1",
             "gpiozero>=1.6.0",
             "adafruit-circuitpython-ads1x15>=2.2.21",
+        ],
+        "zigbee": [
+            'zigpy>=0.57.0,<1.0.0; platform_system!="Windows"',
+            'zigpy-znp>=0.11.0; platform_system!="Windows"',
+            'zigpy-deconz>=0.21.0; platform_system!="Windows"',
+            'zigpy-xbee>=0.18.0; platform_system!="Windows"',
+            'zigpy-zigate>=0.11.0; platform_system!="Windows"',
+        ],
+        "raspberry": [
+            "RPi.GPIO>=0.7.1",
+            "gpiozero>=1.6.0",
+            "adafruit-circuitpython-ads1x15>=2.2.21",
+            "spidev>=3.5",
+        ],
+        "linux": [
+            'python-systemd>=235; platform_system=="Linux"',
         ],
         "ai": ["tensorflow>=2.13.0", "torch>=2.0.0", "torchvision>=0.15.0"],
         "complete": [
@@ -63,10 +79,9 @@ setup(
         "Topic :: Home Automation",
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
-        "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
         "Operating System :: OS Independent",
     ],
     keywords="iot agriculture smart-farming esp32 sensors automation machine-learning",
@@ -90,6 +105,7 @@ setup(
             "js/dashboard/*.js",
             "js/devices/*.js",
             "js/plants/*.js",
+            "js/energy-analytics/*.js",
             "js/sensor-analytics/*.js",
             "js/settings/*.js",
             "js/utils/*.js",

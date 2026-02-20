@@ -71,9 +71,9 @@ class CalibrationProcessor(IDataProcessor):
                     try:
                         calibrated_value = calibration.apply(value)
                         calibrated_data[field] = calibrated_value
-                        logger.debug(f"Calibrated {field}: {value} -> {calibrated_value}")
+                        logger.debug("Calibrated %s: %s -> %s", field, value, calibrated_value)
                     except Exception as e:
-                        logger.error(f"Failed to calibrate {field}: {e}")
+                        logger.error("Failed to calibrate %s: %s", field, e)
                         # Keep original value on error
 
         return calibrated_data

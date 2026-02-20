@@ -183,9 +183,9 @@ class ZigbeeManagementService:
                 for topic in topics:
                     self.client.subscribe(topic)
 
-            logger.info(f"Subscribed to {len(topics)} Zigbee2MQTT topics")
+            logger.info("Subscribed to %s Zigbee2MQTT topics", len(topics))
         except Exception as e:
-            logger.warning(f"Failed to subscribe to Zigbee2MQTT topics: {e}")
+            logger.warning("Failed to subscribe to Zigbee2MQTT topics: %s", e)
 
     def _get_bridge_state(self) -> str | None:
         """Get current bridge state
@@ -203,7 +203,7 @@ class ZigbeeManagementService:
             if self.last_health and self.last_health.get("state") == "online":
                 return True
         except Exception as e:
-            logger.error(f"Error getting bridge state: {e}", exc_info=True)
+            logger.error("Error getting bridge state: %s", e, exc_info=True)
 
         return None
 
@@ -253,7 +253,7 @@ class ZigbeeManagementService:
                     self._handle_device_message(friendly_name, payload_raw)
 
         except Exception as e:
-            logger.error(f"Error handling MQTT message: {e}")
+            logger.error("Error handling MQTT message: %s", e)
 
     def _handle_devices_message(self, payload: str) -> None:
         """Handle bridge/devices message - receiving this indicates bridge is online"""
@@ -275,15 +275,15 @@ class ZigbeeManagementService:
 
                 # Only log if there are new devices or this is first run
                 if new_devices > 0:
-                    logger.info(f"Zigbee2MQTT: {len(self.discovered_devices)} devices total, {new_devices} new")
+                    logger.info("Zigbee2MQTT: %s devices total, %s new", len(self.discovered_devices), new_devices)
                 elif len(self.discovered_devices) == len(data) and not self._announced_devices:
                     # First run - log once
-                    logger.info(f"Zigbee2MQTT: {len(self.discovered_devices)} devices discovered")
+                    logger.info("Zigbee2MQTT: %s devices discovered", len(self.discovered_devices))
                 else:
-                    logger.debug(f"Zigbee2MQTT: {len(self.discovered_devices)} devices (no changes)")
+                    logger.debug("Zigbee2MQTT: %s devices (no changes)", len(self.discovered_devices))
 
         except Exception as e:
-            logger.error(f"Error processing devices message: {e}")
+            logger.error("Error processing devices message: %s", e)
 
     def _handle_info_message(self, payload: str) -> None:
         """Handle bridge/info message - receiving this indicates bridge is online"""
@@ -306,7 +306,7 @@ class ZigbeeManagementService:
                 f"coordinator={data.get('coordinator', {}).get('type')}"
             )
         except Exception as e:
-            logger.error(f"Error processing info message: {e}")
+            logger.error("Error processing info message: %s", e)
 
     def _handle_event_message(self, payload: str) -> None:
         """Handle bridge/event message (device join/leave)"""
@@ -319,7 +319,7 @@ class ZigbeeManagementService:
                 friendly_name = device.get("friendly_name")
                 ieee = device.get("ieee_address")
 
-                logger.info(f"New Zigbee2MQTT device joined: {friendly_name} ({ieee})")
+                logger.info("New Zigbee2MQTT device joined: %s (%s)", friendly_name, ieee)
 
                 # Request full device list update
                 self.request_device_list()
@@ -327,11 +327,11 @@ class ZigbeeManagementService:
             elif event_type == "device_leave":
                 ieee = event.get("data", {}).get("ieee_address")
                 if ieee in self.discovered_devices:
-                    logger.info(f"Zigbee2MQTT device left: {ieee}")
+                    logger.info("Zigbee2MQTT device left: %s", ieee)
                     del self.discovered_devices[ieee]
 
         except Exception as e:
-            logger.error(f"Error processing event message: {e}")
+            logger.error("Error processing event message: %s", e)
 
     def _handle_health_message(self, payload: str) -> None:
         """Handle bridge/health message"""
@@ -357,13 +357,13 @@ class ZigbeeManagementService:
         try:
             # Skip empty or whitespace-only payloads
             if not payload or not payload.strip():
-                logger.debug(f"Skipping empty state message for {friendly_name}")
+                logger.debug("Skipping empty state message for %s", friendly_name)
                 return
 
             # Skip non-JSON availability messages
             payload_stripped = payload.strip()
             if payload_stripped in ["online", "offline", ""]:
-                logger.debug(f"Skipping availability message for {friendly_name}: {payload_stripped}")
+                logger.debug("Skipping availability message for %s: %s", friendly_name, payload_stripped)
                 return
 
             data = json.loads(payload)
@@ -375,25 +375,25 @@ class ZigbeeManagementService:
                     try:
                         callback(data)
                     except Exception as e:
-                        logger.error(f"Error in state callback: {e}")
+                        logger.error("Error in state callback: %s", e)
 
         except json.JSONDecodeError as e:
-            logger.warning(f"Invalid JSON in state message for {friendly_name}: {payload[:100]}... - {e}")
+            logger.warning("Invalid JSON in state message for %s: %s... - %s", friendly_name, payload[:100], e)
         except Exception as e:
-            logger.error(f"Error processing state message for {friendly_name}: {e}")
+            logger.error("Error processing state message for %s: %s", friendly_name, e)
 
     def _handle_device_message(self, friendly_name: str, payload: str) -> None:
         """Handle general device message (includes power monitoring)"""
         try:
             # Skip empty or whitespace-only payloads
             if not payload or not payload.strip():
-                logger.debug(f"Skipping empty device message for {friendly_name}")
+                logger.debug("Skipping empty device message for %s", friendly_name)
                 return
 
             # Skip non-JSON availability messages
             payload_stripped = payload.strip()
             if payload_stripped in ["online", "offline", ""]:
-                logger.debug(f"Skipping availability message for {friendly_name}: {payload_stripped}")
+                logger.debug("Skipping availability message for %s: %s", friendly_name, payload_stripped)
                 return
 
             data = json.loads(payload)
@@ -415,9 +415,9 @@ class ZigbeeManagementService:
                 )
 
         except json.JSONDecodeError as e:
-            logger.warning(f"Invalid JSON in device message for {friendly_name}: {payload[:100]}... - {e}")
+            logger.warning("Invalid JSON in device message for %s: %s... - %s", friendly_name, payload[:100], e)
         except Exception as e:
-            logger.error(f"Error processing device message for {friendly_name}: {e}")
+            logger.error("Error processing device message for %s: %s", friendly_name, e)
 
     def _process_device(self, device_data: dict[str, Any]) -> None:
         """Process and register discovered device"""
@@ -501,10 +501,10 @@ class ZigbeeManagementService:
                     try:
                         callback(device)
                     except Exception as e:
-                        logger.error(f"Error in discovery callback: {e}")
+                        logger.error("Error in discovery callback: %s", e)
 
         except Exception as e:
-            logger.error(f"Error processing device: {e}")
+            logger.error("Error processing device: %s", e)
 
     def _parse_capability(self, expose: dict[str, Any]) -> list[DeviceCapability]:
         """Parse capability from expose definition"""
@@ -559,14 +559,14 @@ class ZigbeeManagementService:
                 )
 
         except Exception as e:
-            logger.error(f"Error parsing capability: {e}")
+            logger.error("Error parsing capability: %s", e)
 
         return capabilities
 
     def _detect_device_type(self, capabilities: list[DeviceCapability]) -> str:
         """Detect device type from capabilities"""
         cap_props = {cap.property.lower() for cap in capabilities}
-        cap_names = {cap.name.lower() for cap in capabilities}
+        {cap.name.lower() for cap in capabilities}
 
         # Check for actuators (writable devices)
         writable_caps = [cap for cap in capabilities if cap.is_writable]
@@ -627,7 +627,7 @@ class ZigbeeManagementService:
         # Request fresh device list from bridge
         self.client.publish(f"{self.bridge_topic}/bridge/config/devices/get", "")
 
-        logger.info(f"Rediscovery initiated (cleared {len(old_devices)} cached devices)")
+        logger.info("Rediscovery initiated (cleared %s cached devices)", len(old_devices))
 
     def register_state_callback(self, friendly_name: str, callback: Callable[[dict[str, Any]], None]) -> None:
         """Register callback for device state updates"""
@@ -687,11 +687,11 @@ class ZigbeeManagementService:
             payload = json.dumps(command)
 
             self.client.publish(topic, payload)
-            logger.debug(f"Sent command to {friendly_name}: {command}")
+            logger.debug("Sent command to %s: %s", friendly_name, command)
             return True
 
         except Exception as e:
-            logger.error(f"Failed to send command to {friendly_name}: {e}")
+            logger.error("Failed to send command to %s: %s", friendly_name, e)
             return False
 
     def request_device_list(self) -> bool:
@@ -706,7 +706,7 @@ class ZigbeeManagementService:
             return True
 
         except Exception as e:
-            logger.error(f"Failed to request device list: {e}")
+            logger.error("Failed to request device list: %s", e)
             return False
 
     def get_devices(self, timeout: float = 2.0) -> list[DiscoveredDevice]:
@@ -764,11 +764,11 @@ class ZigbeeManagementService:
             if hasattr(result, "rc") and result.rc != 0:
                 raise RuntimeError(f"MQTT publish failed with code {result.rc}")
 
-            logger.info(f"Permit join enabled for {time} seconds")
+            logger.info("Permit join enabled for %s seconds", time)
             return True
 
         except Exception as e:
-            logger.error(f"Failed to enable permit join: {e}")
+            logger.error("Failed to enable permit join: %s", e)
             return False
 
     def get_bridge_health(self, timeout: float = 2.0) -> dict | None:
@@ -791,7 +791,7 @@ class ZigbeeManagementService:
             return self.last_health
 
         except Exception as e:
-            logger.error(f"Failed to get bridge health: {e}")
+            logger.error("Failed to get bridge health: %s", e)
             return None
 
     def rename_device(self, ieee_address: str, new_name: str, timeout: float = 3.0) -> dict[str, Any]:
@@ -826,7 +826,7 @@ class ZigbeeManagementService:
             return self.last_rename_response or {}
 
         except Exception as e:
-            logger.error(f"Failed to rename device: {e}")
+            logger.error("Failed to rename device: %s", e)
             raise
 
     def remove_device(self, ieee_address: str | None = None, friendly_name: str | None = None) -> bool:
@@ -855,11 +855,11 @@ class ZigbeeManagementService:
         try:
             topic = f"{self.bridge_topic}/bridge/request/device/remove"
             self.client.publish(topic, json.dumps(payload))
-            logger.info(f"Remove device request sent: {ieee_address or friendly_name}")
+            logger.info("Remove device request sent: %s", ieee_address or friendly_name)
             return True
 
         except Exception as e:
-            logger.error(f"Failed to remove device: {e}")
+            logger.error("Failed to remove device: %s", e)
             return False
 
     def clear_discovered_devices(self) -> None:

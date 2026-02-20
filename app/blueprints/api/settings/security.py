@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import logging
 
-from flask import request, session
+from flask import Response, request, session
 
 from app.blueprints.api._common import (
     fail as _fail,
@@ -21,45 +21,43 @@ from app.blueprints.api._common import (
 )
 from app.blueprints.api.settings import settings_api
 from app.security.auth import api_login_required
+from app.utils.http import safe_route
 
 logger = logging.getLogger(__name__)
 
 
 @settings_api.get("/security/recovery-codes/count")
 @api_login_required
-def get_recovery_code_count():
+@safe_route("Failed to get recovery code count")
+def get_recovery_code_count() -> Response:
     """Get the count of remaining (unused) recovery codes for the current user.
 
     Returns:
         {"ok": true, "data": {"count": 8, "total": 10}}
     """
-    try:
-        container = _get_container()
-        if not container:
-            return _fail("Service container not available", 500)
+    container = _get_container()
+    if not container:
+        return _fail("Service container not available", 500)
 
-        user_id = session.get("user_id")
-        if not user_id:
-            return _fail("User not authenticated", 401)
+    user_id = session.get("user_id")
+    if not user_id:
+        return _fail("User not authenticated", 401)
 
-        auth_manager = container.auth_manager
-        count = auth_manager.get_recovery_code_count(user_id)
+    auth_manager = container.auth_manager
+    count = auth_manager.get_recovery_code_count(user_id)
 
-        return _success(
-            {
-                "count": count,
-                "total": 10,  # RECOVERY_CODE_COUNT
-            }
-        )
-
-    except Exception as exc:
-        logger.exception("Error getting recovery code count")
-        return _fail(f"Failed to get recovery code count: {exc}", 500)
+    return _success(
+        {
+            "count": count,
+            "total": 10,  # RECOVERY_CODE_COUNT
+        }
+    )
 
 
 @settings_api.post("/security/recovery-codes/generate")
 @api_login_required
-def generate_recovery_codes():
+@safe_route("Failed to generate recovery codes")
+def generate_recovery_codes() -> Response:
     """Generate new recovery codes for the current user.
 
     Requires password confirmation for security.
@@ -71,39 +69,34 @@ def generate_recovery_codes():
     Returns:
         {"ok": true, "data": {"codes": ["ABCD-1234", ...], "count": 10}}
     """
-    try:
-        container = _get_container()
-        if not container:
-            return _fail("Service container not available", 500)
+    container = _get_container()
+    if not container:
+        return _fail("Service container not available", 500)
 
-        user_id = session.get("user_id")
-        if not user_id:
-            return _fail("User not authenticated", 401)
+    user_id = session.get("user_id")
+    if not user_id:
+        return _fail("User not authenticated", 401)
 
-        payload = request.get_json(silent=True) or {}
-        current_password = payload.get("current_password", "")
+    payload = request.get_json(silent=True) or {}
+    current_password = payload.get("current_password", "")
 
-        if not current_password:
-            return _fail("Current password is required to generate recovery codes", 400)
+    if not current_password:
+        return _fail("Current password is required to generate recovery codes", 400)
 
-        # Verify current password
-        auth_manager = container.auth_manager
-        username = session.get("user")
+    # Verify current password
+    auth_manager = container.auth_manager
+    username = session.get("user")
 
-        if not auth_manager.authenticate_user(username, current_password):
-            return _fail("Invalid password", 403)
+    if not auth_manager.authenticate_user(username, current_password):
+        return _fail("Invalid password", 403)
 
-        # Generate new codes
-        codes = auth_manager.generate_recovery_codes(user_id)
+    # Generate new codes
+    codes = auth_manager.generate_recovery_codes(user_id)
 
-        if codes is None:
-            return _fail("Failed to generate recovery codes", 500)
+    if codes is None:
+        return _fail("Failed to generate recovery codes", 500)
 
-        return _success(
-            {"codes": codes, "count": len(codes)},
-            message="Recovery codes generated successfully. Save these codes in a secure location.",
-        )
-
-    except Exception as exc:
-        logger.exception("Error generating recovery codes")
-        return _fail(f"Failed to generate recovery codes: {exc}", 500)
+    return _success(
+        {"codes": codes, "count": len(codes)},
+        message="Recovery codes generated successfully. Save these codes in a secure location.",
+    )

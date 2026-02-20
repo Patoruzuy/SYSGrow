@@ -417,14 +417,14 @@ class SchedulingService:
             return None
 
         if not schedule.validate():
-            logger.error(f"Invalid schedule for {schedule.device_type}")
+            logger.error("Invalid schedule for %s", schedule.device_type)
             return None
 
         # Check for conflicts if requested
         if check_conflicts:
             conflicts = self.detect_conflicts(schedule)
             if conflicts:
-                logger.warning(f"Schedule conflicts detected for {schedule.device_type}: {len(conflicts)} conflicts")
+                logger.warning("Schedule conflicts detected for %s: %s conflicts", schedule.device_type, len(conflicts))
                 # Log conflicts but don't block creation - priority resolves them
                 for conflict in conflicts:
                     logger.debug(
@@ -450,7 +450,7 @@ class SchedulingService:
                 )
             return created
         except Exception as e:
-            logger.error(f"Failed to create schedule: {e}", exc_info=True)
+            logger.error("Failed to create schedule: %s", e, exc_info=True)
             return None
 
     def get_schedule(self, schedule_id: int, unit_id: int | None = None) -> Schedule | None:
@@ -478,7 +478,7 @@ class SchedulingService:
         try:
             return self.repository.get_by_id(schedule_id)
         except Exception as e:
-            logger.error(f"Failed to get schedule {schedule_id}: {e}")
+            logger.error("Failed to get schedule %s: %s", schedule_id, e)
             return None
 
     def get_schedules_for_unit(
@@ -523,7 +523,7 @@ class SchedulingService:
 
             return schedules
         except Exception as e:
-            logger.error(f"Failed to get schedules for unit {unit_id}: {e}")
+            logger.error("Failed to get schedules for unit %s: %s", unit_id, e)
             return []
 
     def get_schedules_for_actuator(self, actuator_id: int) -> list[Schedule]:
@@ -551,7 +551,7 @@ class SchedulingService:
         try:
             return self.repository.get_by_actuator(actuator_id)
         except Exception as e:
-            logger.error(f"Failed to get schedules for actuator {actuator_id}: {e}")
+            logger.error("Failed to get schedules for actuator %s: %s", actuator_id, e)
             return []
 
     def update_schedule(
@@ -580,7 +580,7 @@ class SchedulingService:
             return False
 
         if not schedule.validate():
-            logger.error(f"Invalid schedule data for {schedule.device_type}")
+            logger.error("Invalid schedule data for %s", schedule.device_type)
             return False
 
         before_schedule = None
@@ -619,14 +619,14 @@ class SchedulingService:
                     user_id=user_id,
                     reason=reason,
                 )
-                logger.info(f"Updated schedule {schedule.schedule_id}")
+                logger.info("Updated schedule %s", schedule.schedule_id)
                 return True
 
             if memory_was_updated and before_snapshot:
                 self._update_schedule_in_memory(before_snapshot)
             return False
         except Exception as e:
-            logger.error(f"Failed to update schedule {schedule.schedule_id}: {e}")
+            logger.error("Failed to update schedule %s: %s", schedule.schedule_id, e)
             if memory_was_updated and before_snapshot:
                 self._update_schedule_in_memory(before_snapshot)
             return False
@@ -696,14 +696,14 @@ class SchedulingService:
                     user_id=user_id,
                     reason=reason,
                 )
-                logger.info(f"Deleted schedule {schedule_id}")
+                logger.info("Deleted schedule %s", schedule_id)
                 return True
 
             if removed_from_memory:
                 self._add_schedule_to_memory(removed_from_memory)
             return success
         except Exception as e:
-            logger.error(f"Failed to delete schedule {schedule_id}: {e}")
+            logger.error("Failed to delete schedule %s: %s", schedule_id, e)
             if removed_from_memory:
                 self._add_schedule_to_memory(removed_from_memory)
             return False
@@ -728,10 +728,10 @@ class SchedulingService:
             return 0
         try:
             count = self.repository.delete_by_unit(unit_id)
-            logger.info(f"Deleted {count} schedules for unit {unit_id}")
+            logger.info("Deleted %s schedules for unit %s", count, unit_id)
             return count
         except Exception as e:
-            logger.error(f"Failed to delete schedules for unit {unit_id}: {e}")
+            logger.error("Failed to delete schedules for unit %s: %s", unit_id, e)
             return 0
 
     def set_schedule_enabled(
@@ -775,7 +775,7 @@ class SchedulingService:
                 unit_id = schedule.unit_id
 
         if not schedule:
-            logger.warning(f"Schedule {schedule_id} not found")
+            logger.warning("Schedule %s not found", schedule_id)
             return False
 
         previous_enabled = schedule.enabled
@@ -804,7 +804,7 @@ class SchedulingService:
                     source=source,
                     user_id=user_id,
                 )
-                logger.info(f"Schedule {schedule_id} {'enabled' if enabled else 'disabled'}")
+                logger.info("Schedule %s %s", schedule_id, "enabled" if enabled else "disabled")
                 return True
 
             if memory_schedule is not None:
@@ -812,7 +812,7 @@ class SchedulingService:
             schedule.enabled = previous_enabled
             return success
         except Exception as e:
-            logger.error(f"Failed to set schedule {schedule_id} enabled={enabled}: {e}")
+            logger.error("Failed to set schedule %s enabled=%s: %s", schedule_id, enabled, e)
             if memory_schedule is not None:
                 memory_schedule.enabled = previous_enabled
             schedule.enabled = previous_enabled
@@ -988,9 +988,7 @@ class SchedulingService:
             )
             if is_day is None:
                 return schedule_active
-            if schedule_active and not is_day:
-                return True
-            return False
+            return bool(schedule_active and not is_day)
 
         if pp.source == PhotoperiodSource.HYBRID and lux_reading is not None:
             if not schedule_active:
@@ -1482,7 +1480,7 @@ class SchedulingService:
             if created:
                 created_count += 1
 
-        logger.info(f"Applied {created_count} auto-generated schedules for unit {unit_id} stage '{current_stage}'")
+        logger.info("Applied %s auto-generated schedules for unit %s stage '%s'", created_count, unit_id, current_stage)
         return created_count
 
     # ==================== Startup State Sync ====================
@@ -1570,7 +1568,7 @@ class SchedulingService:
 
             except Exception as e:
                 results["errors"].append(f"Unit {unit_id}: {e}")
-                logger.error(f"Startup sync failed for unit {unit_id}: {e}")
+                logger.error("Startup sync failed for unit %s: %s", unit_id, e)
 
         logger.info(
             f"Startup sync: {results['units_synced']} units, "
@@ -1661,7 +1659,7 @@ class SchedulingService:
                 result.error_message = str(e)
                 result.response_time_ms = int((time_module.time() - start_time) * 1000)
 
-                logger.warning(f"Schedule execution failed (attempt {attempt + 1}/{self.MAX_RETRY_ATTEMPTS}): {e}")
+                logger.warning("Schedule execution failed (attempt %s/%s): %s", attempt + 1, self.MAX_RETRY_ATTEMPTS, e)
 
                 if attempt < self.MAX_RETRY_ATTEMPTS - 1:
                     delay_ms = self.RETRY_BASE_DELAY_MS * (2**attempt)
@@ -1758,7 +1756,7 @@ class SchedulingService:
                 reason=reason,
             )
         except Exception as e:
-            logger.debug(f"Failed to log schedule history: {e}")
+            logger.debug("Failed to log schedule history: %s", e)
 
     def _log_execution(self, result: ExecutionResult):
         """Log schedule execution to execution log table."""
@@ -1776,7 +1774,7 @@ class SchedulingService:
                 response_time_ms=result.response_time_ms,
             )
         except Exception as e:
-            logger.debug(f"Failed to log schedule execution: {e}")
+            logger.debug("Failed to log schedule execution: %s", e)
 
     def get_schedule_history(
         self,
@@ -1794,7 +1792,7 @@ class SchedulingService:
                 limit=limit,
             )
         except Exception as e:
-            logger.error(f"Failed to get schedule history: {e}")
+            logger.error("Failed to get schedule history: %s", e)
             return []
 
     def get_execution_log(
@@ -1811,7 +1809,7 @@ class SchedulingService:
                 limit=limit,
             )
         except Exception as e:
-            logger.error(f"Failed to get execution log: {e}")
+            logger.error("Failed to get execution log: %s", e)
             return []
 
     # ==================== Utility Methods ====================

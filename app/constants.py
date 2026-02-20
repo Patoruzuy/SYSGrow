@@ -102,6 +102,77 @@ class Retention:
 
 
 # =============================================================================
+# Analysis Window Defaults (hours)
+# =============================================================================
+
+
+class AnalysisWindows:
+    """Default time windows for analytics and reporting queries."""
+
+    # Common lookback defaults (hours)
+    DEFAULT_HOURS = 24  # Standard 1-day lookback
+    EXTENDED_HOURS = 48  # Two-day lookback
+    WEEKLY_HOURS = 168  # 7-day lookback (7 * 24)
+    PREDICTION_HORIZON_HOURS = 72  # 3-day forward prediction
+
+    # Sensor & energy history
+    SENSOR_HISTORY_HOURS = 24  # Default sensor chart window
+    ENERGY_HISTORY_HOURS = 24  # Default energy cost window
+    POWER_READINGS_HOURS = 24  # Default power analysis window
+
+    # Irrigation
+    IRRIGATION_LOOKBACK_HOURS = 24  # Recent irrigation window
+    IRRIGATION_HISTORY_LOOKBACK_HOURS = 168  # 7-day irrigation feature window
+
+    # AI/ML
+    ML_LOOKBACK_HOURS = 72  # AI model inference lookback
+    INSIGHT_EXPIRY_HOURS = 48  # Personalized insight staleness
+    RECOMMENDATION_EXPIRY_HOURS = 48  # Recommendation staleness
+
+
+# =============================================================================
+# Data Fetch Limits (in-memory caps for queries)
+# =============================================================================
+
+
+class DataLimits:
+    """Maximum record counts for in-memory data fetches."""
+
+    # General purpose
+    DEFAULT_FETCH_LIMIT = 100
+    LARGE_FETCH_LIMIT = 500
+    MAX_IN_MEMORY_RECORDS = 1000
+
+    # Energy / power analysis
+    POWER_READINGS_FETCH = 5000
+    ENERGY_READINGS_FETCH = 2000
+    ACTUATOR_CONFIGS_FETCH = 100
+
+    # Sensor analytics
+    SENSOR_HISTORY_FETCH = 200
+    SENSOR_READINGS_MAX = 1000
+
+    # Alerts & notifications
+    ALERTS_FETCH = 100
+    ALERTS_MAX_FETCH = 500
+
+    # Health & observations
+    HEALTH_HISTORY_FETCH = 200
+    PLANT_READINGS_FETCH = 50
+    OBSERVATIONS_FETCH = 10
+
+    # ML / AI
+    ML_TRAINING_FETCH = 200
+    ML_PREDICTIONS_FETCH = 100
+
+    # In-memory caps (for caches, deques, etc.)
+    MAX_HISTORY_SIZE = 100
+    MAX_READINGS_BUFFER = 100
+    MAX_RETRY_HISTORY = 50
+    MAX_OPERATIONS_LOG = 100
+
+
+# =============================================================================
 # Environmental Thresholds
 # =============================================================================
 
@@ -478,3 +549,14 @@ PUMP_CALIBRATION_DEFAULTS = {
     "min_duration_seconds": 5,
     "max_duration_seconds": 600,
 }
+
+# Analysis windows
+DEFAULT_ANALYSIS_HOURS = AnalysisWindows.DEFAULT_HOURS
+PREDICTION_HORIZON_HOURS = AnalysisWindows.PREDICTION_HORIZON_HOURS
+ML_LOOKBACK_HOURS = AnalysisWindows.ML_LOOKBACK_HOURS
+INSIGHT_EXPIRY_HOURS = AnalysisWindows.INSIGHT_EXPIRY_HOURS
+
+# Data limits
+DEFAULT_FETCH_LIMIT = DataLimits.DEFAULT_FETCH_LIMIT
+LARGE_FETCH_LIMIT = DataLimits.LARGE_FETCH_LIMIT
+MAX_IN_MEMORY_RECORDS = DataLimits.MAX_IN_MEMORY_RECORDS

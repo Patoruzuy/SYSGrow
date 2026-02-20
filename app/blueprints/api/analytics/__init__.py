@@ -16,6 +16,8 @@ Features:
 All endpoints support unit_id filtering for multi-unit installations.
 """
 
+from __future__ import annotations
+
 import logging
 
 from flask import Blueprint

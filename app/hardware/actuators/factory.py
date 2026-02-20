@@ -76,11 +76,11 @@ class ActuatorFactory:
             # Create entity
             actuator = ActuatorEntity(actuator_id=actuator_id, config=config, adapter=adapter)
 
-            logger.info(f"Created {protocol.value} actuator: {config.name}")
+            logger.info("Created %s actuator: %s", protocol.value, config.name)
             return actuator
 
         except Exception as e:
-            logger.error(f"Failed to create actuator {actuator_id}: {e}")
+            logger.error("Failed to create actuator %s: %s", actuator_id, e)
             raise
 
     def _create_gpio_adapter(self, config: ActuatorConfig) -> GPIORelay:

@@ -101,6 +101,4 @@ def init_security_headers(
 def _is_static_response(response) -> bool:
     """Heuristic: check if the response is for a static file."""
     content_type = response.content_type or ""
-    if any(ct in content_type for ct in ("text/css", "javascript", "image/", "font/")):
-        return True
-    return False
+    return bool(any(ct in content_type for ct in ("text/css", "javascript", "image/", "font/")))

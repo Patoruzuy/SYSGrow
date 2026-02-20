@@ -158,9 +158,9 @@ class ABTestingService:
                     winner=test_data.get("winner"),
                 )
                 self.active_tests[test.test_id] = test
-            self.logger.info(f"Loaded {len(tests)} active A/B tests from database")
+            self.logger.info("Loaded %s active A/B tests from database", len(tests))
         except Exception as e:
-            self.logger.error(f"Failed to load active A/B tests: {e}")
+            self.logger.error("Failed to load active A/B tests: %s", e)
 
     def _persist_test(self, test: ABTest) -> None:
         """Persist test state to database."""
@@ -183,7 +183,7 @@ class ABTestingService:
                 }
             )
         except Exception as e:
-            self.logger.error(f"Failed to persist A/B test: {e}")
+            self.logger.error("Failed to persist A/B test: %s", e)
 
     def create_test(
         self, model_name: str, version_a: str, version_b: str, split_ratio: float = 0.5, min_samples: int = 100
@@ -230,11 +230,11 @@ class ABTestingService:
             self.active_tests[test_id] = test
             self._persist_test(test)
 
-            self.logger.info(f"Created A/B test {test_id} for {model_name}: {version_a} vs {version_b}")
+            self.logger.info("Created A/B test %s for %s: %s vs %s", test_id, model_name, version_a, version_b)
             return test_id
 
         except Exception as e:
-            self.logger.error(f"Failed to create A/B test: {e}", exc_info=True)
+            self.logger.error("Failed to create A/B test: %s", e, exc_info=True)
             raise
 
     def select_version(self, test_id: str) -> str:
@@ -267,7 +267,7 @@ class ABTestingService:
         """
         try:
             if test_id not in self.active_tests:
-                self.logger.warning(f"Test {test_id} not found")
+                self.logger.warning("Test %s not found", test_id)
                 return
 
             test = self.active_tests[test_id]
@@ -296,7 +296,7 @@ class ABTestingService:
             elif version == "b":
                 test.version_b_results.append(result)
             else:
-                self.logger.warning(f"Invalid version: {version}")
+                self.logger.warning("Invalid version: %s", version)
                 return
 
             # Persist result to database
@@ -304,7 +304,7 @@ class ABTestingService:
                 self.ai_repo.save_ab_test_result(test_id, version, predicted, actual, error)
 
         except Exception as e:
-            self.logger.error(f"Error recording result: {e}")
+            self.logger.error("Error recording result: %s", e)
 
     def analyze_test(self, test_id: str) -> dict[str, Any]:
         """
@@ -387,7 +387,7 @@ class ABTestingService:
             }
 
         except Exception as e:
-            self.logger.error(f"Error analyzing test: {e}", exc_info=True)
+            self.logger.error("Error analyzing test: %s", e, exc_info=True)
             return {"status": "error", "error": str(e)}
 
     def complete_test(self, test_id: str, deploy_winner: bool = False) -> dict[str, Any]:
@@ -421,7 +421,7 @@ class ABTestingService:
             return analysis
 
         except Exception as e:
-            self.logger.error(f"Error completing test: {e}", exc_info=True)
+            self.logger.error("Error completing test: %s", e, exc_info=True)
             return {"status": "error", "error": str(e)}
 
     def cancel_test(self, test_id: str) -> bool:

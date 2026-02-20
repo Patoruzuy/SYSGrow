@@ -13,9 +13,11 @@ Author: SYSGrow Team
 Date: December 2025
 """
 
+from __future__ import annotations
+
 import logging
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from app.enums import PlantStage
 
@@ -133,9 +135,9 @@ class PlantGrowthPredictor:
 
     def __init__(
         self,
-        model_registry: Optional["ModelRegistry"] = None,
+        model_registry: "ModelRegistry" | None = None,
         enable_validation: bool = True,
-        threshold_service: Optional["ThresholdService"] = None,
+        threshold_service: "ThresholdService" | None = None,
     ):
         """
         Initialize plant growth predictor.
@@ -178,7 +180,7 @@ class PlantGrowthPredictor:
 
             if not model_info:
                 self._model_error = "Growth stage model not found in registry"
-                logger.debug(f"{self._model_error}. Using fallback conditions.")
+                logger.debug("%s. Using fallback conditions.", self._model_error)
                 return False
 
             # Load the model
@@ -195,7 +197,7 @@ class PlantGrowthPredictor:
 
             self._model_loaded = True
             self._model_error = None
-            logger.info(f"Growth stage model loaded: {model_info.version}")
+            logger.info("Growth stage model loaded: %s", model_info.version)
             return True
 
         except Exception as e:
@@ -273,7 +275,7 @@ class PlantGrowthPredictor:
 
                 # Validate prediction
                 if self.enable_validation and not self._validate_prediction(prediction):
-                    logger.warning(f"Invalid ML prediction for stage '{stage_name}', using fallback")
+                    logger.warning("Invalid ML prediction for stage '%s', using fallback", stage_name)
                 else:
                     # Return ML prediction with high confidence
                     conditions = GrowthConditions(
@@ -289,18 +291,18 @@ class PlantGrowthPredictor:
                     if days_in_stage is not None:
                         conditions = self._adjust_for_stage_progress(conditions, days_in_stage)
 
-                    logger.debug(f"ML prediction for '{stage_name}': {conditions.to_dict()}")
+                    logger.debug("ML prediction for '%s': %s", stage_name, conditions.to_dict())
                     return conditions
 
             except Exception as e:
-                logger.error(f"Prediction error for stage '{stage_name}': {e}", exc_info=True)
+                logger.error("Prediction error for stage '%s': %s", stage_name, e, exc_info=True)
 
         # Fallback to defaults
         if use_fallback:
             # Prefer ThresholdService (profile-aware, plant-specific)
             ts_conditions = self._conditions_from_threshold_service(stage_name)
             if ts_conditions is not None:
-                logger.debug(f"Using ThresholdService conditions for stage '{stage_name}'")
+                logger.debug("Using ThresholdService conditions for stage '%s'", stage_name)
                 return ts_conditions
 
             default = self.DEFAULT_CONDITIONS.get(stage_name)
@@ -312,10 +314,10 @@ class PlantGrowthPredictor:
                         break
                 else:
                     # Ultimate fallback
-                    logger.warning(f"Unknown stage '{stage_name}', using Vegetative defaults")
+                    logger.warning("Unknown stage '%s', using Vegetative defaults", stage_name)
                     default = self.DEFAULT_CONDITIONS["Vegetative"]
 
-            logger.debug(f"Using default conditions for stage '{stage_name}'")
+            logger.debug("Using default conditions for stage '%s'", stage_name)
             return default
 
         return None

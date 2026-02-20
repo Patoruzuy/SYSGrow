@@ -39,13 +39,13 @@ class MQTTActuatorAdapter:
         """Turn actuator ON via MQTT"""
         payload = json.dumps({"state": "ON"})
         self.mqtt_client.publish(self.topic, payload)
-        logger.info(f"MQTT: Turned ON {self.device_name} on {self.topic}")
+        logger.info("MQTT: Turned ON %s on %s", self.device_name, self.topic)
 
     def turn_off(self):
         """Turn actuator OFF via MQTT"""
         payload = json.dumps({"state": "OFF"})
         self.mqtt_client.publish(self.topic, payload)
-        logger.info(f"MQTT: Turned OFF {self.device_name} on {self.topic}")
+        logger.info("MQTT: Turned OFF %s on %s", self.device_name, self.topic)
 
     def set_level(self, value: float):
         """
@@ -61,7 +61,7 @@ class MQTTActuatorAdapter:
             }
         )
         self.mqtt_client.publish(self.topic, payload)
-        logger.info(f"MQTT: Set {self.device_name} to {value}% on {self.topic}")
+        logger.info("MQTT: Set %s to %s% on %s", self.device_name, value, self.topic)
 
     def get_device(self) -> str:
         """Get device identifier"""
@@ -79,6 +79,6 @@ class MQTTActuatorAdapter:
             state_topic = self.topic.replace("/set", "")
             if hasattr(self.mqtt_client, "unsubscribe"):
                 self.mqtt_client.unsubscribe(state_topic)
-            logger.debug(f"MQTT actuator {self.device_name} cleaned up")
+            logger.debug("MQTT actuator %s cleaned up", self.device_name)
         except Exception as e:
-            logger.warning(f"Cleanup failed for MQTT actuator {self.device_name}: {e}")
+            logger.warning("Cleanup failed for MQTT actuator %s: %s", self.device_name, e)

@@ -197,7 +197,7 @@ class AIHealthDataRepository:
             cursor = db.cursor()
             cursor.execute(
                 """
-                SELECT 
+                SELECT
                     COUNT(*) as total_observations,
                     SUM(CASE WHEN health_status = 'healthy' THEN 1 ELSE 0 END) as healthy_count,
                     SUM(CASE WHEN health_status = 'stressed' THEN 1 ELSE 0 END) as stressed_count,
@@ -250,7 +250,7 @@ class AIHealthDataRepository:
             params = (start_date, end_date, unit_id) if unit_id else (start_date, end_date)
 
             query = f"""
-                SELECT 
+                SELECT
                     ph.*,
                     p.plant_type,
                     p.current_stage as growth_stage
@@ -294,7 +294,7 @@ class AIHealthDataRepository:
             # 72-hour aggregates
             cursor.execute(
                 """
-                SELECT 
+                SELECT
                     AVG(CAST(json_extract(reading_data, '$.temperature') AS REAL)) as temp_mean,
                     STDEV(CAST(json_extract(reading_data, '$.temperature') AS REAL)) as temp_std,
                     MAX(CAST(json_extract(reading_data, '$.temperature') AS REAL)) as temp_max,
@@ -325,7 +325,7 @@ class AIHealthDataRepository:
 
                 cursor.execute(
                     """
-                    SELECT 
+                    SELECT
                         AVG(CAST(json_extract(reading_data, '$.temperature') AS REAL)) as temp_mean_24h,
                         AVG(CAST(json_extract(reading_data, '$.humidity') AS REAL)) as humidity_mean_24h
                     FROM SensorReading sr
@@ -371,7 +371,7 @@ class AIHealthDataRepository:
 
             cursor.execute(
                 """
-                SELECT 
+                SELECT
                     sr.timestamp,
                     sr.reading_data
                 FROM SensorReading sr
@@ -524,7 +524,7 @@ class AIHealthDataRepository:
 
             # Disease type distribution
             query = f"""
-                SELECT 
+                SELECT
                     disease_type,
                     COUNT(*) as count,
                     AVG(severity_level) as avg_severity
@@ -542,7 +542,7 @@ class AIHealthDataRepository:
 
             # Health status distribution
             query = f"""
-                SELECT 
+                SELECT
                     health_status,
                     COUNT(*) as count
                 FROM PlantHealthLogs ph
@@ -558,7 +558,7 @@ class AIHealthDataRepository:
 
             # Most common symptoms
             query = f"""
-                SELECT 
+                SELECT
                     symptoms,
                     COUNT(*) as count
                 FROM PlantHealthLogs ph
@@ -890,7 +890,7 @@ class AITrainingDataRepository:
 
                 cursor.execute(
                     f"""
-                    SELECT 
+                    SELECT
                         phl.observation_date as timestamp,
                         phl.severity_level as health_score,
                         phl.symptoms,
@@ -1107,7 +1107,7 @@ class AITrainingDataRepository:
 
             cursor.execute(
                 f"""
-                SELECT 
+                SELECT
                     f.feedback_id,
                     f.feedback_response,
                     f.created_at,
@@ -1176,7 +1176,7 @@ class AITrainingDataRepository:
 
             cursor.execute(
                 f"""
-                SELECT 
+                SELECT
                     p.request_id,
                     p.unit_id,
                     p.user_response,
@@ -1312,7 +1312,7 @@ class AITrainingDataRepository:
 
             cursor.execute(
                 f"""
-                SELECT 
+                SELECT
                     p.request_id,
                     p.unit_id,
                     p.soil_moisture_detected,
@@ -1383,7 +1383,7 @@ class AITrainingDataRepository:
 
             cursor.execute(
                 f"""
-                SELECT 
+                SELECT
                     h.harvest_id,
                     h.plant_id,
                     h.unit_id,
@@ -1561,7 +1561,7 @@ class AITrainingDataRepository:
 
             cursor.execute(
                 f"""
-                SELECT 
+                SELECT
                     d.occurrence_id,
                     d.unit_id,
                     d.disease_type,
@@ -1638,7 +1638,7 @@ class AITrainingDataRepository:
 
             cursor.execute(
                 f"""
-                SELECT 
+                SELECT
                     f.feedback_id,
                     f.prediction_id,
                     f.unit_id,
@@ -1685,14 +1685,14 @@ class AITrainingDataRepository:
             occurrence_id if saved successfully, None otherwise
         """
         try:
-            detected_at = occurrence_data.get("detected_at") or datetime.utcnow().isoformat()
+            detected_at = occurrence_data.get("detected_at") or datetime.now(UTC).isoformat()
             with self._backend.connection() as db:
                 cursor = db.cursor()
                 cursor.execute(
                     """
                     INSERT INTO DiseaseOccurrence (
                         unit_id, plant_id, disease_type, severity, detected_at,
-                        temperature_at_detection, humidity_at_detection, 
+                        temperature_at_detection, humidity_at_detection,
                         soil_moisture_at_detection, vpd_at_detection,
                         avg_temperature_72h, avg_humidity_72h, avg_soil_moisture_72h,
                         humidity_variance_72h, confirmed_by_user, symptoms,
@@ -1740,8 +1740,8 @@ class AITrainingDataRepository:
             feedback_id if saved successfully, None otherwise
         """
         try:
-            prediction_timestamp = feedback_data.get("prediction_timestamp") or datetime.utcnow().isoformat()
-            feedback_timestamp = feedback_data.get("feedback_timestamp") or datetime.utcnow().isoformat()
+            prediction_timestamp = feedback_data.get("prediction_timestamp") or datetime.now(UTC).isoformat()
+            feedback_timestamp = feedback_data.get("feedback_timestamp") or datetime.now(UTC).isoformat()
             with self._backend.connection() as db:
                 cursor = db.cursor()
 
@@ -2234,7 +2234,7 @@ class AITrainingDataRepository:
             cursor = db.cursor()
             cursor.execute(
                 """
-                SELECT * FROM DriftMetrics 
+                SELECT * FROM DriftMetrics
                 WHERE model_name = ?
                 ORDER BY timestamp DESC
                 LIMIT ?
@@ -2263,9 +2263,9 @@ class AITrainingDataRepository:
 
             cursor.execute(
                 """
-                DELETE FROM DriftMetrics 
+                DELETE FROM DriftMetrics
                 WHERE model_name = ? AND metric_id NOT IN (
-                    SELECT metric_id FROM DriftMetrics 
+                    SELECT metric_id FROM DriftMetrics
                     WHERE model_name = ?
                     ORDER BY timestamp DESC
                     LIMIT ?

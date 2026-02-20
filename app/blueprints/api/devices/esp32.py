@@ -18,11 +18,14 @@ from __future__ import annotations
 
 import logging
 
+from flask import Response
+
 from app.blueprints.api._common import (
     fail as _fail,
     get_json as _json,
     success as _success,
 )
+from app.utils.http import safe_route
 
 from . import devices_api
 
@@ -63,7 +66,8 @@ def _get_sysgrow_adapter(friendly_name: str = None):
 
 
 @devices_api.post("/v2/sysgrow/permit-join")
-def sysgrow_permit_join():
+@safe_route("Failed to send permit_join command")
+def sysgrow_permit_join() -> Response:
     """
     Enable BLE pairing mode on SYSGrow bridge.
 
@@ -87,32 +91,29 @@ def sysgrow_permit_join():
     enable = payload.get("value", True)
     timeout = min(payload.get("time", 30), 300)
 
-    try:
-        adapter = _get_sysgrow_adapter()
-        if adapter is None:
-            return _fail("MQTT client not available", 503)
+    adapter = _get_sysgrow_adapter()
+    if adapter is None:
+        return _fail("MQTT client not available", 503)
 
-        if enable:
-            transaction_id = adapter.enable_ble_pairing(timeout_seconds=timeout)
-        else:
-            transaction_id = adapter.disable_ble_pairing()
+    if enable:
+        transaction_id = adapter.enable_ble_pairing(timeout_seconds=timeout)
+    else:
+        transaction_id = adapter.disable_ble_pairing()
 
-        return _success(
-            {
-                "command": "permit_join",
-                "value": enable,
-                "time": timeout,
-                "status": "sent",
-                "transaction_id": transaction_id,
-            }
-        )
-    except Exception as exc:
-        logger.error(f"Failed to send permit_join command: {exc}")
-        return _fail(f"Failed to send permit_join command: {exc!s}", 500)
+    return _success(
+        {
+            "command": "permit_join",
+            "value": enable,
+            "time": timeout,
+            "status": "sent",
+            "transaction_id": transaction_id,
+        }
+    )
 
 
 @devices_api.get("/v2/sysgrow/health")
-def sysgrow_health_check():
+@safe_route("Failed to send health check request")
+def sysgrow_health_check() -> Response:
     """
     Request health check from SYSGrow bridge.
 
@@ -125,20 +126,17 @@ def sysgrow_health_check():
             "status": "sent"
         }
     """
-    try:
-        adapter = _get_sysgrow_adapter()
-        if adapter is None:
-            return _fail("MQTT client not available", 503)
+    adapter = _get_sysgrow_adapter()
+    if adapter is None:
+        return _fail("MQTT client not available", 503)
 
-        success = adapter.request_health_check()
-        return _success({"command": "health_check", "status": "sent" if success else "failed"})
-    except Exception as exc:
-        logger.error(f"Failed to send health check request: {exc}")
-        return _fail(f"Failed to send health check request: {exc!s}", 500)
+    success = adapter.request_health_check()
+    return _success({"command": "health_check", "status": "sent" if success else "failed"})
 
 
 @devices_api.post("/v2/sysgrow/restart-all")
-def sysgrow_restart_all():
+@safe_route("Failed to send restart command")
+def sysgrow_restart_all() -> Response:
     """
     Restart all SYSGrow devices on the network.
 
@@ -152,21 +150,18 @@ def sysgrow_restart_all():
             "status": "sent"
         }
     """
-    try:
-        adapter = _get_sysgrow_adapter()
-        if adapter is None:
-            return _fail("MQTT client not available", 503)
+    adapter = _get_sysgrow_adapter()
+    if adapter is None:
+        return _fail("MQTT client not available", 503)
 
-        success = adapter._publish("sysgrow/bridge/request/restart", {})
+    success = adapter._publish("sysgrow/bridge/request/restart", {})
 
-        return _success({"command": "restart_all", "status": "sent" if success else "failed"})
-    except Exception as exc:
-        logger.error(f"Failed to send restart command: {exc}")
-        return _fail(f"Failed to send restart command: {exc!s}", 500)
+    return _success({"command": "restart_all", "status": "sent" if success else "failed"})
 
 
 @devices_api.post("/v2/sysgrow/ota-update")
-def sysgrow_ota_update():
+@safe_route("Failed to send OTA update command")
+def sysgrow_ota_update() -> Response:
     """
     Trigger OTA firmware update on a SYSGrow device.
 
@@ -191,21 +186,17 @@ def sysgrow_ota_update():
     if not device_id or not firmware_url:
         return _fail("Both 'id' and 'url' fields are required.", 400)
 
-    try:
-        adapter = _get_sysgrow_adapter(friendly_name=str(device_id))
-        if adapter is None:
-            return _fail("MQTT client not available", 503)
+    adapter = _get_sysgrow_adapter(friendly_name=str(device_id))
+    if adapter is None:
+        return _fail("MQTT client not available", 503)
 
-        transaction_id = adapter.start_ota_update(firmware_url=firmware_url)
-        return _success(
-            {
-                "command": "ota_update",
-                "id": device_id,
-                "url": firmware_url,
-                "status": "sent",
-                "transaction_id": transaction_id,
-            }
-        )
-    except Exception as exc:
-        logger.error(f"Failed to send OTA update command: {exc}")
-        return _fail(f"Failed to send OTA update command: {exc!s}", 500)
+    transaction_id = adapter.start_ota_update(firmware_url=firmware_url)
+    return _success(
+        {
+            "command": "ota_update",
+            "id": device_id,
+            "url": firmware_url,
+            "status": "sent",
+            "transaction_id": transaction_id,
+        }
+    )

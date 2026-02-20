@@ -30,5 +30,10 @@ python-dotenv==1.2.1
 # ===== TESTING =====
 pytest==9.0.2
 
+# ===== PRODUCTION WSGI SERVER =====
+gunicorn>=21.2.0; platform_system!="Windows"
+gevent>=24.2.1; platform_system!="Windows"
+gevent-websocket>=0.10.1; platform_system!="Windows"
+
 # ===== WINDOWS SPECIFIC =====
 pywin32==311; platform_system=="Windows"

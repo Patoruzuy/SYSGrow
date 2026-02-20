@@ -125,7 +125,7 @@ class RateLimiter:
             g.rate_limit_limit = self.config.default_limit + max(0, self.config.burst_limit)
 
             if not allowed:
-                logger.warning(f"Rate limit exceeded for {client_key}")
+                logger.warning("Rate limit exceeded for %s", client_key)
                 return self._rate_limit_response(reset_time)
 
             return None
@@ -235,7 +235,7 @@ class RateLimiter:
             del self._requests[key]
 
         if keys_to_remove:
-            logger.debug(f"Rate limiter cleanup: removed {len(keys_to_remove)} stale entries")
+            logger.debug("Rate limiter cleanup: removed %s stale entries", len(keys_to_remove))
 
     def _rate_limit_response(self, reset_time: float) -> Response:
         """Generate rate limit exceeded response with standard envelope."""
@@ -325,7 +325,7 @@ def rate_limit(max_requests: int = 60, window_seconds: int = 60, key_func: Calla
             g.rate_limit_limit = max_requests + max(0, limiter.config.burst_limit)
 
             if not allowed:
-                logger.warning(f"Rate limit exceeded for {client_key} on {request.endpoint}")
+                logger.warning("Rate limit exceeded for %s on %s", client_key, request.endpoint)
                 return limiter._rate_limit_response(reset_time)
 
             return f(*args, **kwargs)

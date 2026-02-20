@@ -4,6 +4,8 @@ Personalized Learning API
 Endpoints for managing user-specific AI learning and recommendations.
 """
 
+from __future__ import annotations
+
 import logging
 from datetime import datetime
 from typing import TYPE_CHECKING

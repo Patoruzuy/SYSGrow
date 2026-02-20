@@ -83,7 +83,7 @@ class RaspberryPiOptimizer:
     def __init__(self):
         """Initialize optimizer and detect hardware."""
         self.profile = self._detect_hardware()
-        logger.info(f"Hardware profile: {self.profile.model}")
+        logger.info("Hardware profile: %s", self.profile.model)
 
     def _detect_hardware(self) -> HardwareProfile:
         """
@@ -120,11 +120,11 @@ class RaspberryPiOptimizer:
                 logger.info("Detected Raspberry Pi 3")
                 return self.PROFILES["pi3"]
             else:
-                logger.warning(f"Unknown Raspberry Pi model: {model_str}")
+                logger.warning("Unknown Raspberry Pi model: %s", model_str)
                 return self.PROFILES["pi4"]  # Conservative default
 
         except Exception as e:
-            logger.error(f"Error detecting hardware: {e}")
+            logger.error("Error detecting hardware: %s", e)
             return self.PROFILES["default"]
 
     def _is_raspberry_pi(self) -> bool:
@@ -179,10 +179,10 @@ class RaspberryPiOptimizer:
             os.environ["OPENBLAS_NUM_THREADS"] = "2"
             os.environ["MKL_NUM_THREADS"] = "2"
 
-        logger.info(f"Applied optimizations for {self.profile.model}")
-        logger.info(f"  Monitoring interval: {config['continuous_monitoring_interval']}s")
-        logger.info(f"  Max predictions: {config['max_concurrent_predictions']}")
-        logger.info(f"  Model quantization: {config['use_model_quantization']}")
+        logger.info("Applied optimizations for %s", self.profile.model)
+        logger.info("  Monitoring interval: %ss", config["continuous_monitoring_interval"])
+        logger.info("  Max predictions: %s", config["max_concurrent_predictions"])
+        logger.info("  Model quantization: %s", config["use_model_quantization"])
 
         return config
 
@@ -277,7 +277,7 @@ class RaspberryPiOptimizer:
         except ImportError:
             logger.warning("psutil not available - install for system health monitoring")
         except Exception as e:
-            logger.error(f"Error checking system health: {e}")
+            logger.error("Error checking system health: %s", e)
 
         return health
 

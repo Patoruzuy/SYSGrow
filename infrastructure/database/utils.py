@@ -36,4 +36,4 @@ def row_to_dict(row) -> dict[str, Any]:
     if isinstance(row, dict):
         return row
     # Handle sqlite3.Row or similar objects with keys() method
-    return {k: row[k] for k in row.keys()}
+    return {k: row[k] for k in row}

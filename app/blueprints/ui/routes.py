@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
 from urllib.parse import urlparse
 
-from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, session, url_for
+from flask import Blueprint, Response, current_app, flash, jsonify, redirect, render_template, request, session, url_for
 
 from app.blueprints.ui.helpers import get_unit_card_data
 from app.security.auth import login_required
@@ -62,7 +61,7 @@ def _ensure_selected_unit():
     """Ensure a selected unit is in session; return (unit_id, units)."""
     raw_units = _container().growth_service.list_units()
     units = [_normalize_unit_entry(u) for u in (raw_units or [])]
-    logger.debug(f"Units available: {units}")
+    logger.debug("Units available: %s", units)
     if not units:
         return None, units
     selected = session.get("selected_unit")
@@ -106,15 +105,15 @@ def _render_page_with_units(template_name: str, **extra_context):
 
 @ui_bp.route("/")
 @login_required
-def index():
+def index() -> str | Response:
     """Dashboard page - shows selected unit."""
     try:
-        print("=" * 80)
-        print("INDEX ROUTE CALLED")
+        logger.debug("=" * 80)
+        logger.debug("INDEX ROUTE CALLED")
 
         # Get selected unit from session (should be set during login)
         selected_unit_id, units = _ensure_selected_unit()
-        print(f"Selected unit: {selected_unit_id}, Units count: {len(units)}")
+        logger.debug("Selected unit: %s, Units count: %s", selected_unit_id, len(units))
 
         # If no units exist, redirect to a setup page or show empty state
         if not units:
@@ -127,17 +126,17 @@ def index():
         actuators = []
 
         if selected_unit_id is not None:
-            print(f"Getting data for unit {selected_unit_id}...")
+            logger.debug("Getting data for unit %s...", selected_unit_id)
             selected_unit = _container().growth_service.get_unit(selected_unit_id)
-            print(f"Selected unit data: {selected_unit}")
+            logger.debug("Selected unit data: %s", selected_unit)
             plants = _container().plant_service.list_plants_as_dicts(selected_unit_id)
-            print(f"Plants count: {len(plants)}, Plants: {plants}")
+            logger.debug("Plants count: %s, Plants: %s", len(plants), plants)
             thresholds = _container().growth_service.get_thresholds(selected_unit_id)
-            print(f"Thresholds: {thresholds}")
+            logger.debug("Thresholds: %s", thresholds)
             actuators = _container().actuator_management_service.list_actuators(unit_id=selected_unit_id)
-            print(f"Actuators: {actuators}")
+            logger.debug("Actuators: %s", actuators)
 
-        print("Rendering template...")
+        logger.debug("Rendering template...")
         return render_template(
             "dashboard.html",
             units=units,
@@ -147,16 +146,13 @@ def index():
             actuators=actuators,
         )
     except Exception as e:
-        print(f"ERROR IN INDEX ROUTE: {e}")
-        import traceback
-
-        traceback.print_exc()
+        logger.exception("Error in index route: %s", e)
         raise
 
 
 @ui_bp.get("/device-state-history")
 @login_required
-def device_state_history():
+def device_state_history() -> str | Response:
     """Paginated view of recent actuator state history.
 
     Query params:
@@ -234,30 +230,29 @@ def device_state_history():
             rows=page_rows,
         )
     except Exception as e:
-        logger.error(f"Error rendering device state history: {e}", exc_info=True)
+        logger.error("Error rendering device state history: %s", e, exc_info=True)
         flash("Failed to load device state history.", "error")
         return redirect(url_for("ui.index"))
 
 
 @ui_bp.route("/units/select")
 @login_required
-def unit_selector():
+def unit_selector() -> str:
     """Show unit selection page for users with multiple units."""
     user_id: int = session.get("user_id", 1)
 
     growth_service = _container().growth_service
     plant_service = _container().plant_service
-    growth_repo = _container().growth_repo
     units = growth_service.list_units(user_id=user_id)
 
     # Enrich with card data for visual display
     unit_cards = []
     for unit in units:
         try:
-            card_data = get_unit_card_data(growth_service, plant_service, growth_repo, unit["unit_id"])
+            card_data = get_unit_card_data(growth_service, plant_service, unit["unit_id"])
             unit_cards.append(card_data)
         except Exception as e:
-            current_app.logger.error(f"Error getting card data for unit {unit['unit_id']}: {e}")
+            current_app.logger.error("Error getting card data for unit %s: %s", unit["unit_id"], e)
             # Use basic unit data as fallback
             unit_cards.append(unit)
 
@@ -266,7 +261,7 @@ def unit_selector():
 
 @ui_bp.post("/api/session/select-unit")
 @login_required
-def api_select_unit():
+def api_select_unit() -> Response:
     """API endpoint to store selected unit in session."""
     data = request.get_json(silent=True) or {}
     raw_unit_id = data.get("unit_id")
@@ -307,13 +302,13 @@ def api_select_unit():
             }
         )
     except Exception as e:
-        current_app.logger.error(f"Error selecting unit: {e}")
+        current_app.logger.error("Error selecting unit: %s", e)
         return _api_error("Failed to select unit", 500)
 
 
 @ui_bp.post("/select-unit")
 @login_required
-def select_unit():
+def select_unit() -> Response:
     unit_id = request.form.get("unit_id")
     next_url = request.form.get("next")  # e.g. /settings or /?foo=bar
 
@@ -363,7 +358,7 @@ def select_unit():
 
 @ui_bp.post("/growth-units")
 @login_required
-def create_growth_unit():
+def create_growth_unit() -> Response:
     name = request.form.get("name", "").strip()
     location = request.form.get("location", "Indoor")
     user_id = session.get("user_id", 1)
@@ -380,7 +375,7 @@ def create_growth_unit():
 
 @ui_bp.post("/plants")
 @login_required
-def add_plant():
+def add_plant() -> Response:
     selected_unit_id = session.get("selected_unit")
     if selected_unit_id is None:
         flash("Select a growth unit before adding plants.", "error")
@@ -406,7 +401,7 @@ def add_plant():
 
 @ui_bp.post("/plants/<int:plant_id>/delete")
 @login_required
-def delete_plant(plant_id: int):
+def delete_plant(plant_id: int) -> Response:
     selected_unit_id = session.get("selected_unit")
     if selected_unit_id is None:
         flash("Select a growth unit first.", "error")
@@ -419,7 +414,7 @@ def delete_plant(plant_id: int):
 
 @ui_bp.post("/thresholds")
 @login_required
-def update_thresholds():
+def update_thresholds() -> Response:
     selected_unit_id = session.get("selected_unit")
     if selected_unit_id is None:
         flash("Select a growth unit first.", "error")
@@ -443,7 +438,7 @@ def update_thresholds():
 
 @ui_bp.route("/settings")
 @login_required
-def settings():
+def settings() -> str:
     """Settings page for configuring system-wide settings via API endpoints."""
     selected_unit_id, units = _ensure_selected_unit()
     return render_template("settings.html", selected_unit_id=selected_unit_id, units=units)
@@ -451,7 +446,7 @@ def settings():
 
 @ui_bp.route("/notifications")
 @login_required
-def notifications():
+def notifications() -> str:
     """Notifications page for viewing all notifications and irrigation requests."""
     selected_unit_id, units = _ensure_selected_unit()
     return render_template("notifications.html", selected_unit_id=selected_unit_id, units=units)
@@ -459,7 +454,7 @@ def notifications():
 
 @ui_bp.route("/devices")
 @login_required
-def devices():
+def devices() -> str:
     """Device management page"""
     from app.defaults import SystemConfigDefaults
     from app.enums import SensorModel, SensorType
@@ -574,7 +569,7 @@ def devices():
 
 @ui_bp.route("/units")
 @login_required
-def growth_units():
+def growth_units() -> str:
     """Growth units management page"""
     try:
         units = _container().growth_service.list_units()
@@ -586,7 +581,7 @@ def growth_units():
 
 @ui_bp.route("/fullscreen")
 @login_required
-def fullscreen_camera():
+def fullscreen_camera() -> str:
     """Fullscreen camera view for a specific unit."""
     try:
         unit_id = request.args.get("unit_id")
@@ -614,7 +609,7 @@ def fullscreen_camera():
 
 @ui_bp.route("/sensor-analytics")
 @login_required
-def sensor_analytics():
+def sensor_analytics() -> str:
     """Unified sensor analytics and visualization dashboard.
 
     Displays:
@@ -642,7 +637,7 @@ def sensor_analytics():
 
 @ui_bp.route("/energy-analytics")
 @login_required
-def energy_analytics():
+def energy_analytics() -> str:
     """Energy analytics and cost tracking dashboard.
 
     Displays:
@@ -657,7 +652,7 @@ def energy_analytics():
 
 @ui_bp.route("/device-health")
 @login_required
-def device_health():
+def device_health() -> str:
     """Device health monitoring and diagnostics dashboard.
 
     Displays:
@@ -678,7 +673,7 @@ def device_health():
             cursor = conn.execute("SELECT * FROM Sensor ORDER BY sensor_id")
             devices_summary["sensors"] = [dict(row) for row in cursor.fetchall()]
     except Exception as e:
-        logger.error(f"Error loading device data: {e}")
+        logger.error("Error loading device data: %s", e)
 
     return _render_page_with_units("device_health.html", devices_summary=devices_summary)
 
@@ -686,7 +681,7 @@ def device_health():
 @ui_bp.route("/system-health", endpoint="status")
 @ui_bp.route("/system-health")
 @login_required
-def system_health():
+def system_health() -> str:
     """Unified System Health & Status Dashboard.
 
     Displays comprehensive system health, device status, and monitoring.
@@ -697,7 +692,7 @@ def system_health():
 
 @ui_bp.route("/plants")
 @login_required
-def plants_hub():
+def plants_hub() -> str:
     """Plants Hub - Comprehensive Plant Management Dashboard.
 
     Consolidated single-page dashboard combining:
@@ -724,7 +719,7 @@ def plants_hub():
 
 @ui_bp.route("/plants/guide")
 @login_required
-def plants_guide():
+def plants_guide() -> str:
     """Plants Growing Guide - Comprehensive reference for plant care.
 
     Displays plant information in a modern card grid format with:
@@ -746,7 +741,7 @@ def plants_guide():
 
 @ui_bp.route("/plants/guide/<int:plant_id>")
 @login_required
-def plant_detail(plant_id):
+def plant_detail(plant_id) -> str:
     """Individual Plant Detail Page - Full growing information.
 
     Displays comprehensive plant information including:
@@ -767,7 +762,7 @@ def plant_detail(plant_id):
 
 @ui_bp.route("/plants/<int:plant_id>/my-detail")
 @login_required
-def my_plant_detail(plant_id):
+def my_plant_detail(plant_id) -> str:
     """My Plant Detail Page - Comprehensive view of a user's plant.
 
     Tabbed interface with:
@@ -787,7 +782,7 @@ def my_plant_detail(plant_id):
 
 @ui_bp.route("/ml-dashboard")
 @login_required
-def ml_dashboard():
+def ml_dashboard() -> str:
     """Machine Learning infrastructure dashboard.
 
     Displays:
@@ -807,18 +802,18 @@ def ml_dashboard():
 
 
 @ui_bp.get("/api/system/uptime")
-def get_server_uptime():
+def get_server_uptime() -> Response:
     """Get server uptime information.
 
     Returns:
         JSON with uptime_seconds and started_at timestamp
     """
-    uptime = (datetime.utcnow() - _SERVER_START_TIME).total_seconds()
+    uptime = (utc_now() - _SERVER_START_TIME).total_seconds()
     return jsonify({"ok": True, "data": {"uptime_seconds": uptime, "started_at": _SERVER_START_TIME.isoformat() + "Z"}})
 
 
 @ui_bp.get("/api/system/activities")
-def get_recent_activities():
+def get_recent_activities() -> Response:
     """Get recent system activities.
 
     Query Parameters:
@@ -841,14 +836,14 @@ def get_recent_activities():
         response.status_code = 200
         return response
     except Exception as e:
-        logger.error(f"Error fetching activities: {e}")
+        logger.error("Error fetching activities: %s", e)
         response = jsonify({"ok": False, "data": None, "error": {"message": "Failed to fetch activities"}})
         response.status_code = 500
         return response
 
 
 @ui_bp.get("/api/system/alerts")
-def get_active_alerts():
+def get_active_alerts() -> Response:
     """Get active system alerts.
 
     Query Parameters:
@@ -867,7 +862,7 @@ def get_active_alerts():
         alert_service = _container().alert_service
         alerts = alert_service.get_active_alerts(severity=severity, unit_id=unit_id, limit=limit)
         summary = alert_service.get_alert_summary()
-        print(f"Fetched {len(alerts)} alerts with summary: {summary}")
+        logger.debug("Fetched %s alerts with summary: %s", len(alerts), summary)
 
         response = jsonify(
             {"ok": True, "data": {"alerts": alerts, "count": len(alerts), "summary": summary}, "error": None}
@@ -875,14 +870,14 @@ def get_active_alerts():
         response.status_code = 200
         return response
     except Exception as e:
-        logger.error(f"Error fetching alerts: {e}")
+        logger.error("Error fetching alerts: %s", e)
         response = jsonify({"ok": False, "data": None, "error": {"message": "Failed to fetch alerts"}})
         response.status_code = 500
         return response
 
 
 @ui_bp.post("/api/system/alerts/<int:alert_id>/acknowledge")
-def acknowledge_alert(alert_id: int):
+def acknowledge_alert(alert_id: int) -> Response:
     """Acknowledge an alert.
 
     Args:
@@ -906,7 +901,7 @@ def acknowledge_alert(alert_id: int):
             response.status_code = 500
             return response
     except Exception as e:
-        logger.error(f"Error acknowledging alert: {e}")
+        logger.error("Error acknowledging alert: %s", e)
         response = jsonify({"ok": False, "data": None, "error": {"message": "Failed to acknowledge alert"}})
         response.status_code = 500
         return response
@@ -914,7 +909,7 @@ def acknowledge_alert(alert_id: int):
 
 @ui_bp.post("/api/system/alerts/<int:alert_id>/resolve")
 @login_required
-def resolve_alert(alert_id: int):
+def resolve_alert(alert_id: int) -> Response:
     """Mark an alert as resolved.
 
     Args:
@@ -936,7 +931,7 @@ def resolve_alert(alert_id: int):
             response.status_code = 500
             return response
     except Exception as e:
-        logger.error(f"Error resolving alert: {e}")
+        logger.error("Error resolving alert: %s", e)
         response = jsonify({"ok": False, "data": None, "error": {"message": "Failed to resolve alert"}})
         response.status_code = 500
         return response
@@ -944,7 +939,7 @@ def resolve_alert(alert_id: int):
 
 @ui_bp.post("/api/system/alerts/clear-all")
 @login_required
-def clear_all_alerts():
+def clear_all_alerts() -> Response:
     """Clear all active alerts.
 
     Returns:
@@ -967,7 +962,7 @@ def clear_all_alerts():
         response.status_code = 200
         return response
     except Exception as e:
-        logger.error(f"Error clearing all alerts: {e}")
+        logger.error("Error clearing all alerts: %s", e)
         response = jsonify({"ok": False, "data": None, "error": {"message": "Failed to clear alerts"}})
         response.status_code = 500
         return response
@@ -975,7 +970,7 @@ def clear_all_alerts():
 
 @ui_bp.route("/activity")
 @login_required
-def activity():
+def activity() -> str:
     """Activity Log page - Full page with filters.
 
     Shows comprehensive system activity with:
@@ -995,7 +990,7 @@ def activity():
 
 
 @ui_bp.route("/help")
-def help_page():
+def help_page() -> str:
     """Help Center main page.
 
     Public access (no login required) for better SEO and user support.
@@ -1005,7 +1000,7 @@ def help_page():
 
 
 @ui_bp.route("/help/<category>")
-def help_category(category: str):
+def help_category(category: str) -> str:
     """Help category page with filtered articles.
 
     Args:
@@ -1015,7 +1010,7 @@ def help_category(category: str):
 
 
 @ui_bp.route("/help/<category>/<article_id>")
-def help_article(category: str, article_id: str):
+def help_article(category: str, article_id: str) -> str:
     """Individual help article page.
 
     Args:
@@ -1031,7 +1026,7 @@ def help_article(category: str, article_id: str):
 
 
 @ui_bp.route("/blog")
-def blog_page():
+def blog_page() -> str:
     """Blog main page with post listing.
 
     Public access (no login required) for better SEO.
@@ -1041,7 +1036,7 @@ def blog_page():
 
 
 @ui_bp.route("/blog/<slug>")
-def blog_post(slug: str):
+def blog_post(slug: str) -> str:
     """Individual blog post page.
 
     Args:

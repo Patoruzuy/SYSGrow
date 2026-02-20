@@ -13,6 +13,8 @@ Consolidates functionality from:
 - growth_stages.py (stage predictions)
 """
 
+from __future__ import annotations
+
 import logging
 from collections import Counter
 from datetime import datetime

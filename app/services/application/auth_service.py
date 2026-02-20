@@ -16,6 +16,7 @@ from typing import Any
 
 import bcrypt
 
+from app.utils.time import iso_now, utc_now
 from infrastructure.database.repositories.auth import AuthRepository
 from infrastructure.logging.audit import AuditLogger
 
@@ -165,7 +166,7 @@ class UserAuthManager:
         try:
             token = secrets.token_hex(RESET_TOKEN_LENGTH)
             token_hash = hashlib.sha256(token.encode()).hexdigest()
-            expires_at = datetime.utcnow() + timedelta(hours=RESET_TOKEN_EXPIRY_HOURS)
+            expires_at = utc_now() + timedelta(hours=RESET_TOKEN_EXPIRY_HOURS)
 
             ok = self._repo().create_reset_token(user_id, token_hash, expires_at.isoformat())
             if not ok:
@@ -211,7 +212,7 @@ class UserAuthManager:
 
             # Check if token is expired
             expires_at = datetime.fromisoformat(expires_at_str)
-            if datetime.utcnow() > expires_at:
+            if utc_now() > expires_at:
                 logging.warning(f"Expired reset token attempted for user {username}")
                 return None
 
@@ -244,7 +245,7 @@ class UserAuthManager:
 
             # Hash the new password
             password_hash = self.hash_password(new_password)
-            used_at = datetime.utcnow().isoformat()
+            used_at = iso_now()
 
             persisted = self._repo().use_reset_token_and_update_password(
                 user_id,
@@ -295,7 +296,7 @@ class UserAuthManager:
         Returns the number of tokens removed.
         """
         try:
-            cutoff = datetime.utcnow().isoformat()
+            cutoff = iso_now()
             deleted = self._repo().cleanup_expired_tokens(cutoff)
 
             if deleted > 0:
@@ -334,7 +335,7 @@ class UserAuthManager:
                 codes.append(code)
                 code_hashes.append(code_hash)
 
-            created_at = datetime.utcnow().isoformat()
+            created_at = iso_now()
 
             persisted = self._repo().replace_recovery_codes(user_id, code_hashes, created_at)
             if not persisted:
@@ -404,7 +405,7 @@ class UserAuthManager:
                 user_id=user_id,
                 code_hash=code_hash,
                 password_hash=password_hash,
-                used_at_iso=datetime.utcnow().isoformat(),
+                used_at_iso=iso_now(),
             )
             if not ok:
                 logging.warning(f"Invalid or used recovery code attempted for user ID {user_id}")

@@ -13,6 +13,7 @@ exempted by blueprint name or explicit endpoint name.
 Usage in ``create_app``::
 
     from app.middleware.api_auth import init_api_write_protection
+
     init_api_write_protection(flask_app)
 """
 
@@ -59,7 +60,7 @@ def init_api_write_protection(app: Flask) -> None:
     """
 
     @app.before_request
-    def _enforce_api_auth():  # noqa: ANN202
+    def _enforce_api_auth():
         # Only gate mutating methods
         if request.method not in _WRITE_METHODS:
             return None

@@ -5,10 +5,10 @@
 
 {% block body_class %}ml-dashboard-page{% endblock %}
 
-{% block extra_css %}
+{% block styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/components/kpi-cards.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/components/alerts.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/ml_dashboard.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/ml-dashboard.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -474,7 +474,7 @@
 </div>
 {% endblock %}
 
-{% block extra_js %}
+{% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="{{ url_for('static', filename='js/api.js') }}?v=20260215b"></script>
 <script src="{{ url_for('static', filename='js/ml/data-service.js') }}?v=20260215b"></script>

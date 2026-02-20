@@ -16,10 +16,8 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    pass
+    from .actuator_management_service import ActuatorManagementService
 
-# Type alias for backwards compatibility
-ActuatorManager = "ActuatorManagementService"
 
 logger = logging.getLogger(__name__)
 
@@ -35,12 +33,12 @@ class SafetyService:
     - Cooldown periods
     """
 
-    def __init__(self, manager: "ActuatorManager"):
+    def __init__(self, manager: "ActuatorManagementService"):
         """
         Initialize safety service.
 
         Args:
-            manager: ActuatorManager instance
+            manager: ActuatorManagementService instance
         """
         self.manager = manager
         self.interlocks: dict[int, list[int]] = defaultdict(list)
@@ -91,7 +89,7 @@ class SafetyService:
         for interlocked_id in self.interlocks.get(actuator_id, []):
             interlocked = self.manager.get_actuator(interlocked_id)
             if interlocked and interlocked.is_on:
-                logger.warning(f"Interlock active: {interlocked_id} is ON")
+                logger.warning("Interlock active: %s is ON", interlocked_id)
                 return False
 
         # Check cooldown
@@ -101,7 +99,7 @@ class SafetyService:
             if cooldown:
                 elapsed = (datetime.now() - actuator.last_off_time).total_seconds()
                 if elapsed < cooldown:
-                    logger.warning(f"Cooldown active: {cooldown - elapsed:.1f}s remaining")
+                    logger.warning("Cooldown active: %ss remaining", cooldown - elapsed)
                     return False
 
         # Check power limits

@@ -7,8 +7,10 @@ Implements both stage methods and pipeline methods (process, build_payloads)
 so it can be used directly by mqtt_sensor_service.
 """
 
+from __future__ import annotations
+
 import logging
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Iterable
 
 from app.enums.events import SensorEvent
 
@@ -47,7 +49,7 @@ class CompositeProcessor(IDataProcessor):
         calibrator: IDataProcessor,
         transformer: IDataProcessor,
         enricher: IDataProcessor,
-        priority: Optional["PriorityProcessor"] = None,
+        priority: "PriorityProcessor" | None = None,
         resolve_sensor: SensorResolver | None = None,
         units_map: dict[str, str] | None = None,
         meta_keys: Iterable[str] | None = None,

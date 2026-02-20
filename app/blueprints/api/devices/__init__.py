@@ -12,6 +12,8 @@ Modular device management API organized into logical sub-modules:
 All routes are registered under /api/devices prefix.
 """
 
+from __future__ import annotations
+
 import logging
 
 from flask import Blueprint

@@ -81,7 +81,7 @@ class PlantStageManager:
         try:
             unit_id = plant.unit_id
             if not unit_id:
-                logger.error(f"Plant {plant.plant_id} has no unit_id")
+                logger.error("Plant %s has no unit_id", plant.plant_id)
                 return False
 
             old_stage = plant.current_stage
@@ -128,11 +128,11 @@ class PlantStageManager:
             if not skip_threshold_proposal and old_stage and old_stage.lower() != new_stage.lower():
                 self._propose_stage_thresholds(plant, old_stage, new_stage)
 
-            logger.info(f"Updated plant {plant.plant_id} to stage '{new_stage}'")
+            logger.info("Updated plant %s to stage '%s'", plant.plant_id, new_stage)
             return True
 
         except Exception as e:
-            logger.error(f"Error updating plant {plant.plant_id} stage: {e}", exc_info=True)
+            logger.error("Error updating plant %s stage: %s", plant.plant_id, e, exc_info=True)
             return False
 
     # ==================== Threshold Proposals ====================
@@ -601,7 +601,7 @@ class PlantStageManager:
 
         current_stage = plant_dict.get("current_stage") or getattr(plant, "current_stage", None)
         days_in_stage = plant_dict.get("days_in_stage", 0) or getattr(plant, "days_in_stage", 0)
-        unit_id = plant_dict.get("unit_id") or getattr(plant, "unit_id", None)
+        plant_dict.get("unit_id") or getattr(plant, "unit_id", None)
 
         if not current_stage:
             raise ValueError("Plant has no current stage to extend")
@@ -619,7 +619,7 @@ class PlantStageManager:
                     skip_threshold_proposal=True,
                 )
         except Exception as e:
-            logger.error(f"Failed to persist stage extension: {e}", exc_info=True)
+            logger.error("Failed to persist stage extension: %s", e, exc_info=True)
 
         # Auto-journal the extension
         if self.journal_service:
@@ -632,7 +632,7 @@ class PlantStageManager:
                     notes=f"Stage extended by {extend_days} day(s). Reason: {reason or 'not specified'}",
                 )
             except Exception as e:
-                logger.error(f"Failed to journal stage extension: {e}", exc_info=True)
+                logger.error("Failed to journal stage extension: %s", e, exc_info=True)
 
         result = {
             "plant_id": plant_id,

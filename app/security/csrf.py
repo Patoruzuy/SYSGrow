@@ -42,9 +42,7 @@ class CSRFMiddleware:
     def _is_exempt(self) -> bool:
         if request.endpoint in self.exempt_endpoints:
             return True
-        if request.blueprint and request.blueprint in self.exempt_blueprints:
-            return True
-        return False
+        return bool(request.blueprint and request.blueprint in self.exempt_blueprints)
 
     def _inject_token(self) -> dict[str, str]:
         return {"csrf_token": session.get("_csrf_token") or self.generate_token()}

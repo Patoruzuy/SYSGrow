@@ -12,13 +12,15 @@ Features:
 - Integration with all AI services
 """
 
+from __future__ import annotations
+
 import logging
 import threading
 import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable
 
 if TYPE_CHECKING:
     from app.services.ai.climate_optimizer import ClimateOptimizer
@@ -86,8 +88,8 @@ class ContinuousMonitoringService:
         growth_predictor: "PlantGrowthPredictor",
         analytics_repo: "AnalyticsRepository",
         check_interval: int = 300,  # 5 minutes default
-        environmental_health_scorer: Optional["EnvironmentalLeafHealthScorer"] = None,
-        recommendation_provider: Optional["RecommendationProvider"] = None,
+        environmental_health_scorer: "EnvironmentalLeafHealthScorer" | None = None,
+        recommendation_provider: "RecommendationProvider" | None = None,
     ):
         """
         Initialize continuous monitoring service.
@@ -156,7 +158,7 @@ class ContinuousMonitoringService:
         )
         self._monitoring_thread.start()
 
-        logger.info(f"Started monitoring {len(self._monitored_units)} units")
+        logger.info("Started monitoring %s units", len(self._monitored_units))
 
     def stop_monitoring(self):
         """Stop continuous monitoring."""
@@ -173,13 +175,13 @@ class ContinuousMonitoringService:
         """Add a unit to monitoring."""
         if unit_id not in self._monitored_units:
             self._monitored_units.append(unit_id)
-            logger.info(f"Added unit {unit_id} to monitoring")
+            logger.info("Added unit %s to monitoring", unit_id)
 
     def remove_unit(self, unit_id: int):
         """Remove a unit from monitoring."""
         if unit_id in self._monitored_units:
             self._monitored_units.remove(unit_id)
-            logger.info(f"Removed unit {unit_id} from monitoring")
+            logger.info("Removed unit %s from monitoring", unit_id)
 
     def get_insights(self, unit_id: int, limit: int = 10, min_level: AlertLevel | None = None) -> list[GrowingInsight]:
         """
@@ -217,7 +219,7 @@ class ContinuousMonitoringService:
                     try:
                         self._monitor_unit(unit_id)
                     except Exception as e:
-                        logger.error(f"Error monitoring unit {unit_id}: {e}", exc_info=True)
+                        logger.error("Error monitoring unit %s: %s", unit_id, e, exc_info=True)
 
                 # Calculate sleep time to maintain interval
                 elapsed = time.time() - start_time
@@ -227,7 +229,7 @@ class ContinuousMonitoringService:
                     time.sleep(sleep_time)
 
             except Exception as e:
-                logger.error(f"Error in monitoring loop: {e}", exc_info=True)
+                logger.error("Error in monitoring loop: %s", e, exc_info=True)
                 time.sleep(60)  # Wait before retrying
 
     def _monitor_unit(self, unit_id: int):
@@ -236,7 +238,7 @@ class ContinuousMonitoringService:
         # Get unit metadata
         unit_metadata = self._get_unit_metadata(unit_id)
         if not unit_metadata:
-            logger.warning(f"No metadata for unit {unit_id}")
+            logger.warning("No metadata for unit %s", unit_id)
             return
 
         plant_type = unit_metadata.get("plant_type")
@@ -245,7 +247,7 @@ class ContinuousMonitoringService:
         # Get current sensor readings
         current_conditions = self._get_current_conditions(unit_id)
         if not current_conditions:
-            logger.warning(f"No sensor data for unit {unit_id}")
+            logger.warning("No sensor data for unit %s", unit_id)
             return
 
         # Run all AI analyses
@@ -325,7 +327,7 @@ class ContinuousMonitoringService:
                     insights.append(insight)
 
         except Exception as e:
-            logger.error(f"Error analyzing disease risk: {e}", exc_info=True)
+            logger.error("Error analyzing disease risk: %s", e, exc_info=True)
 
         return insights
 
@@ -361,7 +363,7 @@ class ContinuousMonitoringService:
                 insights.append(insight)
 
         except Exception as e:
-            logger.error(f"Error analyzing climate: {e}", exc_info=True)
+            logger.error("Error analyzing climate: %s", e, exc_info=True)
 
         return insights
 
@@ -410,7 +412,7 @@ class ContinuousMonitoringService:
                 insights.append(insight)
 
         except Exception as e:
-            logger.error(f"Error analyzing growth progress: {e}", exc_info=True)
+            logger.error("Error analyzing growth progress: %s", e, exc_info=True)
 
         return insights
 
@@ -473,7 +475,7 @@ class ContinuousMonitoringService:
                     insights.append(insight)
 
         except Exception as e:
-            logger.error(f"Error analyzing trends: {e}", exc_info=True)
+            logger.error("Error analyzing trends: %s", e, exc_info=True)
 
         return insights
 
@@ -489,7 +491,7 @@ class ContinuousMonitoringService:
             units = self.analytics_repo.get_active_units()
             return [unit["unit_id"] for unit in units]
         except Exception as e:
-            logger.error(f"Error getting active units: {e}", exc_info=True)
+            logger.error("Error getting active units: %s", e, exc_info=True)
             return []
 
     def _get_unit_metadata(self, unit_id: int) -> dict[str, Any] | None:
@@ -497,7 +499,7 @@ class ContinuousMonitoringService:
         try:
             return self.analytics_repo.get_unit_metadata(unit_id)
         except Exception as e:
-            logger.error(f"Error getting unit metadata: {e}")
+            logger.error("Error getting unit metadata: %s", e)
             return None
 
     def _get_current_conditions(self, unit_id: int) -> dict[str, float] | None:
@@ -507,7 +509,7 @@ class ContinuousMonitoringService:
             latest = self.analytics_repo.get_latest_sensor_readings(unit_id)
             return latest if latest else None
         except Exception as e:
-            logger.error(f"Error getting current conditions: {e}")
+            logger.error("Error getting current conditions: %s", e)
             return None
 
     def _get_historical_conditions(self, unit_id: int, hours: int = 48) -> dict[str, list[float]]:
@@ -526,7 +528,7 @@ class ContinuousMonitoringService:
                 "soil_moisture": data["soil_moisture"].tolist() if "soil_moisture" in data else [],
             }
         except Exception as e:
-            logger.error(f"Error getting historical conditions: {e}")
+            logger.error("Error getting historical conditions: %s", e)
             return {}
 
     def _get_days_in_stage(self, unit_id: int) -> int:
@@ -540,7 +542,7 @@ class ContinuousMonitoringService:
             days = (datetime.now() - stage_start).days
             return max(0, days)
         except Exception as e:
-            logger.error(f"Error getting days in stage: {e}")
+            logger.error("Error getting days in stage: %s", e)
             return 0
 
     def set_callbacks(
@@ -578,7 +580,7 @@ class ContinuousMonitoringService:
 
         user_id = self._user_resolver(insight.unit_id)
         if not user_id:
-            logger.debug(f"No user found for unit {insight.unit_id}, skipping notification")
+            logger.debug("No user found for unit %s, skipping notification", insight.unit_id)
             return
 
         try:
@@ -594,9 +596,9 @@ class ContinuousMonitoringService:
                 action_type="view_insight",
                 action_data={"insight_type": insight.insight_type, "data": insight.data},
             )
-            logger.info(f"Sent critical notification for unit {insight.unit_id}: {insight.title}")
+            logger.info("Sent critical notification for unit %s: %s", insight.unit_id, insight.title)
         except Exception as e:
-            logger.error(f"Failed to send critical notification: {e}", exc_info=True)
+            logger.error("Failed to send critical notification: %s", e, exc_info=True)
 
     def _send_insight_notification(self, insight: GrowingInsight) -> None:
         """Send non-critical insights (respects throttling)."""
@@ -609,7 +611,7 @@ class ContinuousMonitoringService:
 
         user_id = self._user_resolver(insight.unit_id)
         if not user_id:
-            logger.debug(f"No user found for unit {insight.unit_id}, skipping notification")
+            logger.debug("No user found for unit %s, skipping notification", insight.unit_id)
             return
 
         severity = "warning" if insight.alert_level == AlertLevel.WARNING else "info"
@@ -627,9 +629,9 @@ class ContinuousMonitoringService:
                 action_type="view_insight" if insight.action_items else None,
                 action_data={"insight_type": insight.insight_type, "data": insight.data} if insight.data else None,
             )
-            logger.debug(f"Sent insight notification for unit {insight.unit_id}: {insight.title}")
+            logger.debug("Sent insight notification for unit %s: %s", insight.unit_id, insight.title)
         except Exception as e:
-            logger.error(f"Failed to send insight notification: {e}", exc_info=True)
+            logger.error("Failed to send insight notification: %s", e, exc_info=True)
 
     # ------------------------------------------------------------------
     # A8 — additional analysis steps
@@ -672,7 +674,7 @@ class ContinuousMonitoringService:
                     )
                 )
         except Exception as e:
-            logger.error(f"Error scoring environmental health: {e}", exc_info=True)
+            logger.error("Error scoring environmental health: %s", e, exc_info=True)
         return insights
 
     def _analyze_recommendations(
@@ -715,7 +717,7 @@ class ContinuousMonitoringService:
                     )
                 )
         except Exception as e:
-            logger.error(f"Error generating recommendations: {e}", exc_info=True)
+            logger.error("Error generating recommendations: %s", e, exc_info=True)
         return insights
 
     def get_status(self) -> dict[str, Any]:

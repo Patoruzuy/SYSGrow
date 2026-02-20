@@ -37,14 +37,14 @@ def _auto_join_unit_room(namespace_label: str) -> None:
     try:
         selected_unit = session.get("selected_unit")
         if selected_unit is None:
-            logger.info(f"⚠️  Client {request.sid} connected to {namespace_label} with no selected_unit in session")
+            logger.info("⚠️  Client %s connected to %s with no selected_unit in session", request.sid, namespace_label)
             return
 
         unit_id = int(selected_unit)
         join_room(f"unit_{unit_id}")
-        logger.info(f"✅ Client {request.sid} auto-joined room unit_{unit_id} ({namespace_label})")
+        logger.info("✅ Client %s auto-joined room unit_%s (%s)", request.sid, unit_id, namespace_label)
     except Exception as e:
-        logger.warning(f"Failed to auto-join unit room for client {request.sid} ({namespace_label}): {e}")
+        logger.warning("Failed to auto-join unit room for client %s (%s): %s", request.sid, namespace_label, e)
 
 
 def _join_unit_from_payload(data) -> None:
@@ -52,7 +52,7 @@ def _join_unit_from_payload(data) -> None:
     try:
         unit_id = data.get("unit_id") if isinstance(data, dict) else None
         if unit_id is None:
-            logger.warning(f"Client {request.sid} sent join_unit without unit_id")
+            logger.warning("Client %s sent join_unit without unit_id", request.sid)
             return
 
         unit_id = int(unit_id)
@@ -72,9 +72,9 @@ def _join_unit_from_payload(data) -> None:
                 )
 
         join_room(f"unit_{unit_id}")
-        logger.info(f"✅ Client {request.sid} joined room unit_{unit_id}")
+        logger.info("✅ Client %s joined room unit_%s", request.sid, unit_id)
     except Exception as e:
-        logger.error(f"Error joining unit room: {e}", exc_info=True)
+        logger.error("Error joining unit room: %s", e, exc_info=True)
 
 
 def _leave_unit_from_payload(data) -> None:
@@ -82,14 +82,14 @@ def _leave_unit_from_payload(data) -> None:
     try:
         unit_id = data.get("unit_id") if isinstance(data, dict) else None
         if unit_id is None:
-            logger.warning(f"Client {request.sid} sent leave_unit without unit_id")
+            logger.warning("Client %s sent leave_unit without unit_id", request.sid)
             return
 
         unit_id = int(unit_id)
         leave_room(f"unit_{unit_id}")
-        logger.info(f"✅ Client {request.sid} left room unit_{unit_id}")
+        logger.info("✅ Client %s left room unit_%s", request.sid, unit_id)
     except Exception as e:
-        logger.error(f"Error leaving unit room: {e}", exc_info=True)
+        logger.error("Error leaving unit room: %s", e, exc_info=True)
 
 
 # =====================================
@@ -100,7 +100,7 @@ def _leave_unit_from_payload(data) -> None:
 @socketio.on("connect", namespace=SOCKETIO_NAMESPACE_DASHBOARD)
 def handle_dashboard_connect():
     """Handle client connection to /dashboard namespace"""
-    logger.info(f"Client connected to /dashboard namespace: {request.sid}")
+    logger.info("Client connected to /dashboard namespace: %s", request.sid)
     _auto_join_unit_room("/dashboard")
 
 
@@ -117,7 +117,7 @@ def handle_dashboard_leave_unit(data):
 @socketio.on("disconnect", namespace=SOCKETIO_NAMESPACE_DASHBOARD)
 def handle_dashboard_disconnect():
     """Handle client disconnection from /dashboard namespace"""
-    logger.info(f"Client disconnected from /dashboard namespace: {request.sid}")
+    logger.info("Client disconnected from /dashboard namespace: %s", request.sid)
 
 
 # =====================================
@@ -128,7 +128,7 @@ def handle_dashboard_disconnect():
 @socketio.on("connect", namespace=SOCKETIO_NAMESPACE_DEVICES)
 def handle_devices_connect():
     """Handle client connection to /devices namespace"""
-    logger.info(f"Client connected to /devices namespace: {request.sid}")
+    logger.info("Client connected to /devices namespace: %s", request.sid)
     _auto_join_unit_room("/devices")
 
 
@@ -145,7 +145,7 @@ def handle_devices_leave_unit(data):
 @socketio.on("disconnect", namespace=SOCKETIO_NAMESPACE_DEVICES)
 def handle_devices_disconnect():
     """Handle client disconnection from /devices namespace"""
-    logger.info(f"Client disconnected from /devices namespace: {request.sid}")
+    logger.info("Client disconnected from /devices namespace: %s", request.sid)
 
 
 # =====================================
@@ -155,7 +155,7 @@ def handle_devices_disconnect():
 
 @socketio.on("connect", namespace=SOCKETIO_NAMESPACE_SYSTEM)
 def handle_system_connect():
-    logger.info(f"Client connected to /system namespace: {request.sid}")
+    logger.info("Client connected to /system namespace: %s", request.sid)
     _auto_join_unit_room("/system")
 
 
@@ -171,7 +171,7 @@ def handle_system_leave_unit(data):
 
 @socketio.on("disconnect", namespace=SOCKETIO_NAMESPACE_SYSTEM)
 def handle_system_disconnect():
-    logger.info(f"Client disconnected from /system namespace: {request.sid}")
+    logger.info("Client disconnected from /system namespace: %s", request.sid)
 
 
 # =====================================
@@ -181,12 +181,12 @@ def handle_system_disconnect():
 
 @socketio.on("connect", namespace=SOCKETIO_NAMESPACE_ALERTS)
 def handle_alerts_connect():
-    logger.info(f"Client connected to /alerts namespace: {request.sid}")
+    logger.info("Client connected to /alerts namespace: %s", request.sid)
 
 
 @socketio.on("disconnect", namespace=SOCKETIO_NAMESPACE_ALERTS)
 def handle_alerts_disconnect():
-    logger.info(f"Client disconnected from /alerts namespace: {request.sid}")
+    logger.info("Client disconnected from /alerts namespace: %s", request.sid)
 
 
 # =====================================
@@ -196,12 +196,12 @@ def handle_alerts_disconnect():
 
 @socketio.on("connect", namespace=SOCKETIO_NAMESPACE_NOTIFICATIONS)
 def handle_notifications_connect():
-    logger.info(f"Client connected to /notifications namespace: {request.sid}")
+    logger.info("Client connected to /notifications namespace: %s", request.sid)
 
 
 @socketio.on("disconnect", namespace=SOCKETIO_NAMESPACE_NOTIFICATIONS)
 def handle_notifications_disconnect():
-    logger.info(f"Client disconnected from /notifications namespace: {request.sid}")
+    logger.info("Client disconnected from /notifications namespace: %s", request.sid)
 
 
 # =====================================
@@ -211,12 +211,12 @@ def handle_notifications_disconnect():
 
 @socketio.on("connect", namespace=SOCKETIO_NAMESPACE_SESSION)
 def handle_session_connect():
-    logger.info(f"Client connected to /session namespace: {request.sid}")
+    logger.info("Client connected to /session namespace: %s", request.sid)
 
 
 @socketio.on("disconnect", namespace=SOCKETIO_NAMESPACE_SESSION)
 def handle_session_disconnect():
-    logger.info(f"Client disconnected from /session namespace: {request.sid}")
+    logger.info("Client disconnected from /session namespace: %s", request.sid)
 
 
 # =====================================
@@ -227,10 +227,10 @@ def handle_session_disconnect():
 @socketio.on("connect")
 def handle_connect():
     """Handle client connection to default namespace"""
-    logger.debug(f"Client {request.sid} connected to default namespace")
+    logger.debug("Client %s connected to default namespace", request.sid)
 
 
 @socketio.on("disconnect")
 def handle_disconnect():
     """Handle client disconnection from default namespace"""
-    logger.debug(f"Client {request.sid} disconnected from default namespace")
+    logger.debug("Client %s disconnected from default namespace", request.sid)

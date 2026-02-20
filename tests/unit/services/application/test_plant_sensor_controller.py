@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.controllers import PlantSensorController
+from app.control_loops import PlantSensorController
 from app.enums import IrrigationEligibilityDecision, IrrigationSkipReason
 from app.utils.event_bus import EventBus
 

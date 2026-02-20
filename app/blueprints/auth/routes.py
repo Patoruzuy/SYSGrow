@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from flask import Blueprint, current_app, flash, redirect, render_template, request, session, url_for
+from flask import Blueprint, Response, current_app, flash, redirect, render_template, request, session, url_for
 
 from app.security.auth import current_username
 
@@ -16,7 +16,7 @@ def login() -> str:
 
 
 @auth_bp.post("/login")
-def authenticate():
+def authenticate() -> Response:
     container = current_app.config["CONTAINER"]
     username = request.form.get("username", "").strip()
     password = request.form.get("password", "")
@@ -69,9 +69,9 @@ def authenticate():
                     first_unit_id = units[0].get("unit_id")
                     if first_unit_id:
                         session["selected_unit"] = first_unit_id
-                        current_app.logger.info(f"✅ Auto-selected unit {first_unit_id} for user '{username}'")
+                        current_app.logger.info("✅ Auto-selected unit %s for user '%s'", first_unit_id, username)
             except Exception as e:
-                current_app.logger.error(f"❌ Error auto-selecting unit for user '{username}': {e}")
+                current_app.logger.error("❌ Error auto-selecting unit for user '%s': %s", username, e)
 
         container.audit_logger.log_event(actor=username, action="login", resource="session", outcome="success")
 
@@ -113,7 +113,7 @@ def register() -> str:
 
 
 @auth_bp.post("/register")
-def process_registration():
+def process_registration() -> Response:
     container = current_app.config["CONTAINER"]
     username = request.form.get("username", "").strip()
     password = request.form.get("password", "")
@@ -133,11 +133,11 @@ def process_registration():
                 user_id=1,  # Default user ID
             )
             if unit_id:
-                current_app.logger.info(f"✅ Created default unit (ID: {unit_id}) for new user '{username}'")
+                current_app.logger.info("✅ Created default unit (ID: %s) for new user '%s'", unit_id, username)
             else:
-                current_app.logger.warning(f"⚠️ Failed to create default unit for user '{username}'")
+                current_app.logger.warning("⚠️ Failed to create default unit for user '%s'", username)
         except Exception as e:
-            current_app.logger.error(f"❌ Error creating default unit for user '{username}': {e}")
+            current_app.logger.error("❌ Error creating default unit for user '%s': %s", username, e)
 
         flash("Registration successful. Please log in.", "success")
         return redirect(url_for("auth.login"))
@@ -148,7 +148,7 @@ def process_registration():
 
 
 @auth_bp.get("/logout")
-def logout():
+def logout() -> Response:
     username = session.pop("user", None)
     user_id = session.pop("user_id", None)
     if username:
@@ -183,7 +183,7 @@ def forgot_password() -> str:
 
 
 @auth_bp.post("/forgot-password")
-def process_forgot_password():
+def process_forgot_password() -> Response:
     """Process forgot password request and send reset link."""
     container = current_app.config["CONTAINER"]
     identifier = request.form.get("identifier", "").strip()
@@ -202,7 +202,7 @@ def process_forgot_password():
 
     if not user:
         # Don't reveal if user exists - always show success message
-        current_app.logger.warning(f"Password reset requested for unknown user: {identifier}")
+        current_app.logger.warning("Password reset requested for unknown user: %s", identifier)
         flash("If an account exists with that username or email, you will receive password reset instructions.", "info")
         return redirect(url_for("auth.login"))
 
@@ -280,7 +280,7 @@ SYSGrow Smart Agriculture Platform
                 )
                 email_sent = email_service.send(email_msg)
         except Exception as e:
-            current_app.logger.error(f"Failed to send password reset email: {e}")
+            current_app.logger.error("Failed to send password reset email: %s", e)
 
     if email_sent:
         flash("Password reset instructions have been sent to your email.", "success")
@@ -315,7 +315,7 @@ def reset_password(token: str) -> str:
 
 
 @auth_bp.post("/reset-password/<token>")
-def process_reset_password(token: str):
+def process_reset_password(token: str) -> Response:
     """Process the password reset."""
     container = current_app.config["CONTAINER"]
 
@@ -356,7 +356,7 @@ def recover() -> str:
 
 
 @auth_bp.post("/recover")
-def process_recover():
+def process_recover() -> Response:
     """Process password reset using a recovery code."""
     container = current_app.config["CONTAINER"]
 

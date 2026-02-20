@@ -4,6 +4,8 @@ Continuous Monitoring API
 Endpoints for managing continuous AI monitoring service.
 """
 
+from __future__ import annotations
+
 import logging
 
 from flask import Blueprint, Response, request

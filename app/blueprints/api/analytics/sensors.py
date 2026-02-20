@@ -5,6 +5,8 @@ Sensor Analytics Endpoints
 Endpoints for sensor data visualization, trends, and correlations.
 """
 
+from __future__ import annotations
+
 import logging
 from contextlib import suppress
 from datetime import timedelta

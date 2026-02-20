@@ -159,7 +159,7 @@ class ModelRegistry:
                 filtered = active
 
         indexed: Iterable[tuple[int, dict[str, Any]]] = enumerate(filtered)
-        idx, entry = max(
+        _idx, entry = max(
             indexed,
             key=lambda pair: (self._parse_iso_ts(pair[1].get("created_at")), pair[0]),
         )
@@ -184,7 +184,7 @@ class ModelRegistry:
                 with open(self.registry_file) as f:
                     return json.load(f)
             except Exception as e:
-                logger.error(f"Failed to load registry: {e}", exc_info=True)
+                logger.error("Failed to load registry: %s", e, exc_info=True)
                 return {}
         return {}
 
@@ -194,7 +194,7 @@ class ModelRegistry:
             with open(self.registry_file, "w") as f:
                 json.dump(self._registry, f, indent=2)
         except Exception as e:
-            logger.error(f"Failed to save registry: {e}", exc_info=True)
+            logger.error("Failed to save registry: %s", e, exc_info=True)
 
     def _get_version_path(self, model_name: str, version: str) -> Path:
         """Get path to a model version directory."""
@@ -368,13 +368,13 @@ class ModelRegistry:
             if version is None:
                 version = self.get_production_version(model_name)
                 if version is None:
-                    logger.warning(f"No production version set for {model_name}")
+                    logger.warning("No production version set for %s", model_name)
                     return None
 
             # Check cache
             cache_key = f"{model_name}:{version}"
             if use_cache and cache_key in self._model_cache:
-                logger.debug(f"Using cached model {cache_key}")
+                logger.debug("Using cached model %s", cache_key)
                 return self._model_cache[cache_key]
 
             version_path = self._get_version_path(model_name, version)
@@ -390,7 +390,7 @@ class ModelRegistry:
                 return None
 
             model = joblib.load(model_file)
-            logger.info(f"Loaded model {model_name} version {version}")
+            logger.info("Loaded model %s version %s", model_name, version)
 
             # Cache it
             if use_cache:
@@ -399,7 +399,7 @@ class ModelRegistry:
             return model
 
         except Exception as e:
-            logger.error(f"Failed to load model: {e}", exc_info=True)
+            logger.error("Failed to load model: %s", e, exc_info=True)
             return None
 
     def load_artifact(self, model_name: str, artifact_name: str, version: str | None = None) -> Any | None:
@@ -433,11 +433,11 @@ class ModelRegistry:
                 return None
 
             artifact = joblib.load(artifact_file)
-            logger.debug(f"Loaded artifact {artifact_name} for {model_name}")
+            logger.debug("Loaded artifact %s for %s", artifact_name, model_name)
             return artifact
 
         except Exception as e:
-            logger.error(f"Failed to load artifact: {e}", exc_info=True)
+            logger.error("Failed to load artifact: %s", e, exc_info=True)
             return None
 
     def get_metadata(self, model_name: str, version: str | None = None) -> ModelMetadata | None:
@@ -491,7 +491,7 @@ class ModelRegistry:
             return None
 
         except Exception as e:
-            logger.error(f"Failed to get metadata: {e}", exc_info=True)
+            logger.error("Failed to get metadata: %s", e, exc_info=True)
             return None
 
     def list_versions(self, model_name: str) -> list[str]:
@@ -622,11 +622,11 @@ class ModelRegistry:
                 with open(metadata_file, "w") as f:
                     json.dump(metadata.to_dict(), f, indent=2)
 
-            logger.info(f"Archived {model_name} version {version}")
+            logger.info("Archived %s version %s", model_name, version)
             return True
 
         except Exception as e:
-            logger.error(f"Failed to archive version: {e}", exc_info=True)
+            logger.error("Failed to archive version: %s", e, exc_info=True)
             return False
 
     def delete_version(self, model_name: str, version: str) -> bool:
@@ -645,7 +645,7 @@ class ModelRegistry:
         try:
             # Don't allow deleting production version
             if version == self.get_production_version(model_name):
-                logger.error(f"Cannot delete production version {version}")
+                logger.error("Cannot delete production version %s", version)
                 return False
 
             version_path = self._get_version_path(model_name, version)
@@ -653,16 +653,15 @@ class ModelRegistry:
                 shutil.rmtree(version_path)
 
             # Update registry
-            if model_name in self._registry:
-                if version in self._registry[model_name]["versions"]:
-                    self._registry[model_name]["versions"].remove(version)
-                    self._save_registry()
+            if model_name in self._registry and version in self._registry[model_name]["versions"]:
+                self._registry[model_name]["versions"].remove(version)
+                self._save_registry()
 
-            logger.info(f"Deleted {model_name} version {version}")
+            logger.info("Deleted %s version %s", model_name, version)
             return True
 
         except Exception as e:
-            logger.error(f"Failed to delete version: {e}", exc_info=True)
+            logger.error("Failed to delete version: %s", e, exc_info=True)
             return False
 
     def list_models(self) -> list[dict[str, Any]]:
@@ -736,9 +735,9 @@ class ModelRegistry:
     def _clear_model_cache(self, model_name: str | None = None) -> None:
         """Clear model cache for a specific model or all models."""
         if model_name:
-            keys_to_remove = [k for k in self._model_cache.keys() if k.startswith(f"{model_name}:")]
+            keys_to_remove = [k for k in self._model_cache if k.startswith(f"{model_name}:")]
             for key in keys_to_remove:
                 del self._model_cache[key]
         else:
             self._model_cache.clear()
-        logger.debug(f"Cleared model cache for {model_name or 'all models'}")
+        logger.debug("Cleared model cache for %s", model_name or "all models")

@@ -50,7 +50,7 @@ class SensorRegistry:
         if capabilities:
             self._capabilities[protocol] = capabilities
 
-        logger.info(f"Registered protocol '{protocol}' with adapter {adapter_class.__name__}")
+        logger.info("Registered protocol '%s' with adapter %s", protocol, adapter_class.__name__)
 
     def register_sensor_type(
         self,
@@ -79,7 +79,7 @@ class SensorRegistry:
         if default_config:
             self._default_configs[sensor_type] = default_config
 
-        logger.debug(f"Legacy registration for sensor type '{sensor_type}'")
+        logger.debug("Legacy registration for sensor type '%s'", sensor_type)
 
     def get_adapter_class_by_protocol(self, protocol: str) -> type[ISensorAdapter] | None:
         """
@@ -199,7 +199,7 @@ class SensorRegistry:
         if sensor_type in self._capabilities:
             del self._capabilities[sensor_type]
 
-        logger.info(f"Unregistered sensor type '{sensor_type}'")
+        logger.info("Unregistered sensor type '%s'", sensor_type)
 
     def unregister_protocol(self, protocol: str):
         """
@@ -210,7 +210,7 @@ class SensorRegistry:
         """
         if protocol in self._adapters_by_protocol:
             del self._adapters_by_protocol[protocol]
-            logger.info(f"Unregistered protocol '{protocol}'")
+            logger.info("Unregistered protocol '%s'", protocol)
 
     def auto_register_protocol_adapters(self, adapter_mapping: dict[str, type[ISensorAdapter]]):
         """
@@ -223,7 +223,7 @@ class SensorRegistry:
             if not self.is_protocol_registered(protocol):
                 self.register_protocol_adapter(protocol, adapter_class)
 
-        logger.info(f"Auto-registered {len(adapter_mapping)} protocol adapters")
+        logger.info("Auto-registered %s protocol adapters", len(adapter_mapping))
 
 
 # Global registry instance

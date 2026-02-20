@@ -10,6 +10,8 @@ These handlers are responsible only for:
 * Wrapping results in the standard ``_success`` / ``_fail`` envelope
 """
 
+from __future__ import annotations
+
 import logging
 from datetime import timedelta
 

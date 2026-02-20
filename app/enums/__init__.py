@@ -6,7 +6,6 @@ This module provides enumeration types for the SYSGrow application.
 Enums ensure type safety and consistency across the codebase.
 """
 
-from app.domain.sensors.sensor_entity import Protocol, SensorType
 from app.enums.common import (
     AnomalySeverity,
     AnomalyType,
@@ -36,7 +35,9 @@ from app.enums.device import (
     DeviceStatus,
     DeviceType,
     PowerMode,
+    Protocol,
     SensorModel,
+    SensorType,
 )
 from app.enums.events import (
     DeviceEvent,
@@ -59,52 +60,52 @@ from app.enums.growth import (
 )
 
 __all__ = [
-    # Device enums
-    "Protocol",
-    "SensorType",
-    "SensorModel",
-    "ActuatorType",
     "ActuatorState",
-    "PowerMode",
-    "DeviceType",
-    "DeviceStatus",
+    "ActuatorType",
+    "AnomalySeverity",
+    "AnomalyType",
+    "ConditionProfileMode",
+    "ConditionProfileTarget",
+    "ConditionProfileVisibility",
+    "ControlStrategy",
+    "DayOfWeek",
     "DeviceCategory",
+    "DeviceEvent",
+    "DeviceStatus",
+    "DeviceType",
+    "DiseaseType",
+    "DriftRecommendation",
+    "EventType",
+    "GrowthPhase",
+    "HealthLevel",
+    "IrrigationEligibilityDecision",
+    "IrrigationFeedback",
+    "IrrigationSkipReason",
     # Growth enums
     "LocationType",
-    "PlantStage",
-    "GrowthPhase",
-    # Schedule enums
-    "ScheduleType",
-    "ScheduleState",
+    "MQTTSource",
+    "NotificationChannel",
+    "NotificationSeverity",
+    "NotificationType",
     "PhotoperiodSource",
-    "DayOfWeek",
-    # Event enums
-    "SensorEvent",
     "PlantEvent",
-    "DeviceEvent",
-    "RuntimeEvent",
-    "EventType",
-    "IrrigationEligibilityDecision",
-    "IrrigationSkipReason",
+    "PlantHealthStatus",
+    "PlantStage",
+    "PowerMode",
+    "Priority",
+    # Device enums
+    "Protocol",
+    "RequestStatus",
     # Common enums
     "RiskLevel",
-    "HealthLevel",
-    "Priority",
-    "DriftRecommendation",
-    "TrainingDataType",
-    "AnomalyType",
-    "AnomalySeverity",
-    "RequestStatus",
-    "MQTTSource",
-    "DiseaseType",
-    "PlantHealthStatus",
-    "ControlStrategy",
+    "RuntimeEvent",
+    "ScheduleState",
+    # Schedule enums
+    "ScheduleType",
+    # Event enums
+    "SensorEvent",
+    "SensorModel",
     "SensorState",
-    "NotificationType",
-    "NotificationSeverity",
-    "NotificationChannel",
-    "IrrigationFeedback",
-    "ConditionProfileMode",
-    "ConditionProfileVisibility",
-    "ConditionProfileTarget",
+    "SensorType",
+    "TrainingDataType",
 ]

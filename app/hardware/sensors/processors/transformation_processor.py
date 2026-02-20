@@ -165,8 +165,8 @@ class TransformationProcessor(IDataProcessor):
             if field in converted:
                 try:
                     converted[field] = func(converted[field])
-                    logger.debug(f"Converted {field} from {from_unit} to {to_unit}")
+                    logger.debug("Converted %s from %s to %s", field, from_unit, to_unit)
                 except Exception as e:
-                    logger.error(f"Failed to convert {field}: {e}")
+                    logger.error("Failed to convert %s: %s", field, e)
 
         return converted

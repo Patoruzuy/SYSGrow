@@ -62,13 +62,13 @@ class ZigbeeActuatorAdapter:
         """Turn actuator ON via Zigbee2MQTT"""
         payload = json.dumps({"state": "ON"})
         self.mqtt_client.publish(self.topic, payload)
-        logger.info(f"Zigbee: Turned ON {self.device_name} ({self.zigbee_id})")
+        logger.info("Zigbee: Turned ON %s (%s)", self.device_name, self.zigbee_id)
 
     def turn_off(self):
         """Turn actuator OFF via Zigbee2MQTT"""
         payload = json.dumps({"state": "OFF"})
         self.mqtt_client.publish(self.topic, payload)
-        logger.info(f"Zigbee: Turned OFF {self.device_name} ({self.zigbee_id})")
+        logger.info("Zigbee: Turned OFF %s (%s)", self.device_name, self.zigbee_id)
 
     def set_level(self, value: float):
         """
@@ -84,7 +84,7 @@ class ZigbeeActuatorAdapter:
             }
         )
         self.mqtt_client.publish(self.topic, payload)
-        logger.info(f"Zigbee: Set {self.device_name} to {value}% ({self.zigbee_id})")
+        logger.info("Zigbee: Set %s to %s% (%s)", self.device_name, value, self.zigbee_id)
 
     def send_command(self, command: dict) -> bool:
         """
@@ -99,10 +99,10 @@ class ZigbeeActuatorAdapter:
         try:
             payload = json.dumps(command)
             self.mqtt_client.publish(self.topic, payload)
-            logger.debug(f"Zigbee: Sent command to {self.device_name}: {command}")
+            logger.debug("Zigbee: Sent command to %s: %s", self.device_name, command)
             return True
         except Exception as e:
-            logger.error(f"Zigbee: Failed to send command to {self.device_name}: {e}")
+            logger.error("Zigbee: Failed to send command to %s: %s", self.device_name, e)
             return False
 
     def get_device(self) -> str:
@@ -198,18 +198,18 @@ class ZigbeeActuatorAdapter:
         try:
             topic = f"{self._bridge_topic}/bridge/request/device/rename"
             self.mqtt_client.publish(topic, json.dumps(payload))
-            logger.info(f"Sent rename request for {device_id} -> {new_name}")
+            logger.info("Sent rename request for %s -> %s", device_id, new_name)
 
             # Update local state
             old_name = self.device_name
             self.device_name = new_name
             self.topic = f"zigbee2mqtt/{new_name}/set"
 
-            logger.info(f"Updated adapter device_name: {old_name} -> {new_name}")
+            logger.info("Updated adapter device_name: %s -> %s", old_name, new_name)
             return True
 
         except Exception as e:
-            logger.error(f"Failed to rename device: {e}")
+            logger.error("Failed to rename device: %s", e)
             return False
 
     def remove_from_network(self) -> bool:
@@ -235,11 +235,11 @@ class ZigbeeActuatorAdapter:
         try:
             topic = f"{self._bridge_topic}/bridge/request/device/remove"
             self.mqtt_client.publish(topic, json.dumps(payload))
-            logger.info(f"Sent remove request for device: {device_id}")
+            logger.info("Sent remove request for device: %s", device_id)
             return True
 
         except Exception as e:
-            logger.error(f"Failed to remove device: {e}")
+            logger.error("Failed to remove device: %s", e)
             return False
 
     def is_available(self) -> bool:
@@ -263,6 +263,6 @@ class ZigbeeActuatorAdapter:
             state_topic = self.topic.replace("/set", "")
             if hasattr(self.mqtt_client, "unsubscribe"):
                 self.mqtt_client.unsubscribe(state_topic)
-            logger.debug(f"Zigbee actuator {self.device_name} cleaned up")
+            logger.debug("Zigbee actuator %s cleaned up", self.device_name)
         except Exception as e:
-            logger.warning(f"Cleanup failed for Zigbee actuator {self.device_name}: {e}")
+            logger.warning("Cleanup failed for Zigbee actuator %s: %s", self.device_name, e)

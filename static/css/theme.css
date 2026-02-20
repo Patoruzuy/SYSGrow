@@ -1,5 +1,20 @@
 /* --- SYSGrow Design Tokens (Light + Dark) --- */
+
+/*
+ * Standard Breakpoints (use these values in @media queries):
+ *   xs  480px   — small phones
+ *   sm  640px   — large phones / small tablets
+ *   md  768px   — tablets
+ *   lg  1024px  — laptops / landscape tablets
+ *   xl  1280px  — desktops
+ */
+
 :root {
+  /* Typography */
+  --font-sans:    "Source Sans 3", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-heading: "Outfit", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono:    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
   /* Brand greens */
   --brand-950: #0a2a1f;   /* deep forest */
   --brand-800: #14532d;   /* evergreen */

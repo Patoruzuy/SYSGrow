@@ -174,6 +174,7 @@ class OptionalAIComponents:
     personalized_learning: object | None
     training_data_collector: object | None
     llm_advisor: object | None = None  # LLMAdvisorService
+    ml_readiness_monitor: object | None = None  # MLReadinessMonitorService
 
 
 @dataclass
@@ -242,9 +243,9 @@ class ContainerBuilder:
 
             migrated = run_startup_migrations(database)
             if migrated:
-                logger.info(f"Ran startup migrations: backfilled {migrated} dedupe entries")
+                logger.info("Ran startup migrations: backfilled %s dedupe entries", migrated)
         except Exception as e:
-            logger.debug(f"Startup migrations failed or skipped: {e}")
+            logger.debug("Startup migrations failed or skipped: %s", e)
 
         # Initialize repositories
         settings_repo = SettingsRepository(database)
@@ -335,7 +336,7 @@ class ContainerBuilder:
                 else:
                     logger.warning("⚠️  MQTT client not connected, skipping ZigbeeService")
             except Exception as e:
-                logger.warning(f"⚠️  Failed to initialize ZigbeeService: {e}")
+                logger.warning("⚠️  Failed to initialize ZigbeeService: %s", e)
                 zigbee_service = None
 
             logger.info("✓ MQTT components initialized")
@@ -476,9 +477,9 @@ class ContainerBuilder:
                 irrigation_predictor.load_models()
                 logger.info("✓ IrrigationPredictor initialized")
             except Exception as e:
-                logger.warning(f"Failed to initialize IrrigationPredictor: {e}")
+                logger.warning("Failed to initialize IrrigationPredictor: %s", e)
 
-        logger.info(f"✓ AI components initialized (models_path: {models_path})")
+        logger.info("✓ AI components initialized (models_path: %s)", models_path)
 
         # Recommendation provider — LLM-backed when configured, otherwise
         # rule-based.  threshold_service is wired post-creation.
@@ -591,7 +592,7 @@ class ContainerBuilder:
                         unit = growth_repo.get_unit(unit_id)
                         return unit.get("user_id") if unit else None
                     except Exception as e:
-                        logger.warning(f"Failed to resolve user for unit {unit_id}: {e}")
+                        logger.warning("Failed to resolve user for unit %s: %s", unit_id, e)
                         return None
 
                 continuous_monitor.set_notification_service(
@@ -600,7 +601,7 @@ class ContainerBuilder:
                 logger.info("✓ Continuous Monitor wired to NotificationsService")
 
             continuous_monitor.start_monitoring()
-            logger.info(f"✓ Continuous Monitoring enabled (interval: {check_interval}s)")
+            logger.info("✓ Continuous Monitoring enabled (interval: %ss)", check_interval)
         else:
             logger.info("Continuous Monitoring disabled")
 
@@ -638,7 +639,7 @@ class ContainerBuilder:
                 training_data_repo=infra.training_data_repo,
                 profiles_dir=profiles_path,
             )
-            logger.info(f"✓ Personalized Learning enabled (path: {profiles_path})")
+            logger.info("✓ Personalized Learning enabled (path: %s)", profiles_path)
         else:
             logger.info("Personalized Learning disabled")
 
@@ -653,7 +654,7 @@ class ContainerBuilder:
                 feature_engineer=ai.feature_engineer,
                 storage_path=training_data_path,
             )
-            logger.info(f"✓ Training Data Collector enabled (path: {training_data_path})")
+            logger.info("✓ Training Data Collector enabled (path: %s)", training_data_path)
 
         # LLM Advisor (decision-maker service) — uses the same backend as
         # the LLMRecommendationProvider built in build_ai_components().
@@ -675,7 +676,28 @@ class ContainerBuilder:
             personalized_learning=personalized_learning,
             training_data_collector=training_data_collector,
             llm_advisor=llm_advisor,
+            ml_readiness_monitor=self._build_ml_readiness_monitor(infra),
         )
+
+    @staticmethod
+    def _build_ml_readiness_monitor(
+        infra: InfrastructureComponents,
+    ) -> object | None:
+        """Build MLReadinessMonitorService if the irrigation ML repo is available."""
+        if infra.irrigation_ml_repo is None:
+            return None
+        try:
+            from app.services.ai.ml_readiness_monitor import MLReadinessMonitorService
+
+            monitor = MLReadinessMonitorService(
+                irrigation_ml_repo=infra.irrigation_ml_repo,
+                notifications_service=infra.notifications_service,
+            )
+            logger.info("✓ ML Readiness Monitor enabled")
+            return monitor
+        except Exception as exc:  # pragma: no cover
+            logger.warning("ML Readiness Monitor disabled: %s", exc)
+            return None
 
     def build_hardware_components(
         self,
@@ -985,6 +1007,7 @@ class ContainerBuilder:
         harvest_service = PlantHarvestService(
             analytics_repo=infra.analytics_repo,
             plant_repo=infra.plant_repo,
+            device_repo=infra.device_repo,
         )
 
         # Camera service
@@ -1150,6 +1173,8 @@ class ContainerBuilder:
             "training_data_collector": optional_ai.training_data_collector,
             "environmental_health_scorer": ai.environmental_health_scorer,
             "plant_health_scorer": ai.plant_health_scorer,
+            "irrigation_predictor": ai.irrigation_predictor,
+            "ml_readiness_monitor": optional_ai.ml_readiness_monitor,
         }
 
     @staticmethod

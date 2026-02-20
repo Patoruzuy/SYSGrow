@@ -11,12 +11,10 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from app.schemas.device import ActuatorResponse, SensorResponse
-
 # Re-export shared utilities from centralized module.
 # These are imported by sub-modules (control.py, crud.py, sensors.py, shared.py, etc.)
 # via ``from ..utils import _success, _fail, ...``.
-from app.blueprints.api._common import (  # noqa: F401 — re-exports for sub-modules
+from app.blueprints.api._common import (
     fail as _fail,
     get_actuator_service as _actuator_service,
     get_analytics_service as _analytics_service,
@@ -28,8 +26,25 @@ from app.blueprints.api._common import (  # noqa: F401 — re-exports for sub-mo
     get_zigbee_service as _zigbee_service,
     success as _success,
 )
+from app.schemas.device import ActuatorResponse, SensorResponse
 
 logger = logging.getLogger("devices_api")
+
+__all__ = [
+    "_actuator_service",
+    "_actuator_to_response",
+    "_analytics_service",
+    "_device_coordinator",
+    "_device_health_service",
+    "_device_repo",
+    "_fail",
+    "_growth_service",
+    "_sensor_service",
+    "_sensor_to_response",
+    "_success",
+    "_to_csv",
+    "_zigbee_service",
+]
 
 
 # =====================================

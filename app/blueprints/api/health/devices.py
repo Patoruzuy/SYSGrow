@@ -5,6 +5,8 @@ Device Health Endpoints
 Health monitoring endpoints for sensors and actuators.
 """
 
+from __future__ import annotations
+
 import logging
 
 from flask import Blueprint, Response, request

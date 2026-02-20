@@ -7,8 +7,37 @@ import sqlite3
 from typing import Any
 
 from app.utils.time import iso_now
+from infrastructure.database.sql_safety import build_insert_parts, build_set_clause, safe_columns
 
 logger = logging.getLogger(__name__)
+
+# Columns that may be written via upsert_notification_settings.
+# Keys not in this set are silently dropped.
+_NOTIF_SETTINGS_COLUMNS: frozenset[str] = frozenset(
+    {
+        "email_enabled",
+        "in_app_enabled",
+        "email_address",
+        "smtp_host",
+        "smtp_port",
+        "smtp_username",
+        "smtp_password_encrypted",
+        "smtp_use_tls",
+        "notify_low_battery",
+        "notify_plant_needs_water",
+        "notify_irrigation_confirm",
+        "notify_threshold_exceeded",
+        "notify_device_offline",
+        "notify_harvest_ready",
+        "notify_plant_health_warning",
+        "irrigation_feedback_enabled",
+        "irrigation_feedback_delay_minutes",
+        "quiet_hours_enabled",
+        "quiet_hours_start",
+        "quiet_hours_end",
+        "min_notification_interval_seconds",
+    }
+)
 
 
 class NotificationOperations:
@@ -30,40 +59,31 @@ class NotificationOperations:
     def upsert_notification_settings(self, user_id: int, settings: dict[str, Any]) -> bool:
         """Insert or update notification settings for a user."""
         try:
+            cols = safe_columns(settings, _NOTIF_SETTINGS_COLUMNS, context="upsert_notification_settings")
+            if not cols:
+                return True  # nothing to write
+
             db = self.get_db()
-            # Check if settings exist
             cur = db.execute("SELECT id FROM NotificationSettings WHERE user_id = ?", (user_id,))
             existing = cur.fetchone()
 
             if existing:
                 # Update existing settings
-                set_clauses = []
-                params = []
-                for key, value in settings.items():
-                    if key not in ("id", "user_id", "created_at"):
-                        set_clauses.append(f"{key} = ?")
-                        params.append(value)
-                set_clauses.append("updated_at = ?")
-                params.append(iso_now())
+                cols["updated_at"] = iso_now()
+                set_sql, params = build_set_clause(cols)
                 params.append(user_id)
-
-                if set_clauses:
-                    query = f"UPDATE NotificationSettings SET {', '.join(set_clauses)} WHERE user_id = ?"
-                    db.execute(query, params)
+                db.execute(
+                    f"UPDATE NotificationSettings SET {set_sql} WHERE user_id = ?",  # nosec B608
+                    params,
+                )
             else:
                 # Insert new settings
-                columns = ["user_id"]
-                values = [user_id]
-                placeholders = ["?"]
-
-                for key, value in settings.items():
-                    if key not in ("id", "user_id", "created_at"):
-                        columns.append(key)
-                        values.append(value)
-                        placeholders.append("?")
-
-                query = f"INSERT INTO NotificationSettings ({', '.join(columns)}) VALUES ({', '.join(placeholders)})"
-                db.execute(query, values)
+                cols["user_id"] = user_id
+                col_sql, ph_sql, values = build_insert_parts(cols)
+                db.execute(
+                    f"INSERT INTO NotificationSettings ({col_sql}) VALUES ({ph_sql})",  # nosec B608
+                    values,
+                )
 
             db.commit()
             return True
@@ -303,9 +323,11 @@ class NotificationOperations:
     def purge_old_notifications(self, retention_days: int = 30) -> int:
         """Delete old notifications. Returns count deleted."""
         try:
-            from datetime import datetime, timedelta
+            from datetime import timedelta
 
-            cutoff = (datetime.utcnow() - timedelta(days=retention_days)).isoformat()
+            from app.utils.time import utc_now
+
+            cutoff = (utc_now() - timedelta(days=retention_days)).isoformat()
 
             db = self.get_db()
             cur = db.execute(

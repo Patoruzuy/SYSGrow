@@ -99,7 +99,7 @@ class SunTimesService:
         # Simple in-memory cache: {(lat, lng, date_str): (SunTimes, cached_at)}
         self._cache: dict[tuple[float, float, str], tuple[SunTimes, datetime]] = {}
 
-        logger.info(f"SunTimesService initialized (lat={latitude}, lng={longitude})")
+        logger.info("SunTimesService initialized (lat=%s, lng=%s)", latitude, longitude)
 
     def get_sun_times(
         self,
@@ -184,7 +184,7 @@ class SunTimesService:
             data = response.json()
 
             if data.get("status") != "OK":
-                logger.error(f"Sun times API error: {data.get('status')}")
+                logger.error("Sun times API error: %s", data.get("status"))
                 return None
 
             results = data.get("results", {})
@@ -195,7 +195,7 @@ class SunTimesService:
             logger.warning("requests library not available, using fallback sun times")
             return self._fallback_sun_times(target_date)
         except Exception as e:
-            logger.error(f"Failed to fetch sun times: {e}")
+            logger.error("Failed to fetch sun times: %s", e)
             return self._fallback_sun_times(target_date)
 
     def _parse_api_response(
@@ -412,7 +412,7 @@ class SunTimesService:
 
         # Clear cache when location changes
         self.clear_cache()
-        logger.info(f"Sun times location updated: lat={latitude}, lng={longitude}")
+        logger.info("Sun times location updated: lat=%s, lng=%s", latitude, longitude)
 
 
 # Singleton instance

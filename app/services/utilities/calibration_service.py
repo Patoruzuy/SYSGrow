@@ -64,7 +64,7 @@ class CalibrationService:
         if self.repository:
             self._save_calibration(calibration)
 
-        logger.info(f"Created linear calibration for sensor {sensor_id}: y = {slope}x + {offset}")
+        logger.info("Created linear calibration for sensor %s: y = %sx + %s", sensor_id, slope, offset)
         return calibration
 
     def create_two_point_calibration(
@@ -115,7 +115,7 @@ class CalibrationService:
         if self.repository:
             self._save_calibration(calibration)
 
-        logger.info(f"Created two-point calibration for sensor {sensor_id}")
+        logger.info("Created two-point calibration for sensor %s", sensor_id)
         return calibration
 
     def create_multi_point_calibration(
@@ -186,7 +186,9 @@ class CalibrationService:
         if self.repository:
             self._save_calibration(calibration)
 
-        logger.info(f"Created {calibration_type.value} calibration for sensor {sensor_id} with {len(points)} points")
+        logger.info(
+            "Created %s calibration for sensor %s with %s points", calibration_type.value, sensor_id, len(points)
+        )
         return calibration
 
     def add_calibration_point(
@@ -251,7 +253,7 @@ class CalibrationService:
             if self.repository:
                 self._save_calibration(existing)
 
-            logger.info(f"Added calibration point for sensor {sensor_id}: {measured_value} -> {reference_value}")
+            logger.info("Added calibration point for sensor %s: %s -> %s", sensor_id, measured_value, reference_value)
             return existing
         else:
             # Create initial calibration with first point
@@ -272,7 +274,9 @@ class CalibrationService:
             if self.repository:
                 self._save_calibration(calibration)
 
-            logger.info(f"Created initial calibration for sensor {sensor_id}: {measured_value} -> {reference_value}")
+            logger.info(
+                "Created initial calibration for sensor %s: %s -> %s", sensor_id, measured_value, reference_value
+            )
             return calibration
 
     def get_calibration(self, sensor_id: int) -> CalibrationData | None:
@@ -303,7 +307,7 @@ class CalibrationService:
             if self.repository:
                 self._delete_calibration(sensor_id)
 
-            logger.info(f"Removed calibration for sensor {sensor_id}")
+            logger.info("Removed calibration for sensor %s", sensor_id)
             return True
 
         return False
@@ -356,15 +360,15 @@ class CalibrationService:
         if self.repository:
             try:
                 # Repository method would be implemented
-                logger.info(f"Saved calibration for sensor {calibration.sensor_id}")
+                logger.info("Saved calibration for sensor %s", calibration.sensor_id)
             except Exception as e:
-                logger.error(f"Failed to save calibration: {e}")
+                logger.error("Failed to save calibration: %s", e)
 
     def _delete_calibration(self, sensor_id: int):
         """Delete calibration from repository"""
         if self.repository:
             try:
                 # Repository method would be implemented
-                logger.info(f"Deleted calibration for sensor {sensor_id}")
+                logger.info("Deleted calibration for sensor %s", sensor_id)
             except Exception as e:
-                logger.error(f"Failed to delete calibration: {e}")
+                logger.error("Failed to delete calibration: %s", e)

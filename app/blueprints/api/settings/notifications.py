@@ -10,6 +10,8 @@ Author: SYSGrow Team
 Date: January 2026
 """
 
+from __future__ import annotations
+
 import logging
 
 from flask import Response, request, session

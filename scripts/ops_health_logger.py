@@ -26,7 +26,7 @@ def fetch_json(url: str) -> Dict[str, Any]:
 def flatten_snapshot(payload: Dict[str, Any]) -> Dict[str, Any]:
     event_bus = payload.get("event_bus", {})
     row: Dict[str, Any] = {
-        "ts": payload.get("timestamp") or datetime.datetime.utcnow().isoformat() + "Z",
+        "ts": payload.get("timestamp") or datetime.datetime.now(datetime.UTC).isoformat() + "Z",
         "event_bus_queue_depth": event_bus.get("queue_depth", 0),
         "event_bus_dropped_events": event_bus.get("dropped_events", 0),
     }

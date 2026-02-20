@@ -77,7 +77,7 @@ def test_harvest():
     harvest_service = PlantHarvestService(analytics_repo)
 
     # Setup test data
-    unit_id, plant_id = setup_test_data(db_handler, growth_repo)
+    _unit_id, plant_id = setup_test_data(db_handler, growth_repo)
 
     print("\n" + "-" * 70)
     print("TEST 1: Generate Harvest Report")

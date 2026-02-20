@@ -48,11 +48,11 @@ def _container():
 def handle_ml_connect():
     """Handle ML namespace connection"""
     try:
-        logger.info(f"Client {request.sid} connected to /system (ml) namespace")
+        logger.info("Client %s connected to /system (ml) namespace", request.sid)
         # Send immediate acknowledgment
         emit("ml_connected", {"status": "connected", "sid": request.sid})
     except Exception as e:
-        logger.error(f"Error in ML connect handler: {e}", exc_info=True)
+        logger.error("Error in ML connect handler: %s", e, exc_info=True)
         return False  # Reject connection on error
 
 
@@ -62,9 +62,9 @@ def handle_ml_disconnect():
     try:
         client_id = request.sid
         ml_subscribers.discard(client_id)
-        logger.info(f"Client {client_id} disconnected from /system (ml) namespace")
+        logger.info("Client %s disconnected from /system (ml) namespace", client_id)
     except Exception as e:
-        logger.error(f"Error in ML disconnect handler: {e}", exc_info=True)
+        logger.error("Error in ML disconnect handler: %s", e, exc_info=True)
 
 
 @socketio.on("ml_subscribe", namespace=SOCKETIO_NAMESPACE_SYSTEM)
@@ -75,12 +75,12 @@ def handle_ml_subscribe():
         ml_subscribers.add(client_id)
         join_room("ml_updates")
 
-        logger.info(f"Client {client_id} subscribed to ML updates")
+        logger.info("Client %s subscribed to ML updates", client_id)
 
         # Send initial state
         emit("ml_status", {"connected": True, "subscribers": len(ml_subscribers), "timestamp": None})
     except Exception as e:
-        logger.error(f"Error in ml_subscribe handler: {e}", exc_info=True)
+        logger.error("Error in ml_subscribe handler: %s", e, exc_info=True)
         emit("error", {"message": str(e)})
 
 
@@ -91,7 +91,7 @@ def handle_ml_unsubscribe():
     ml_subscribers.discard(client_id)
     leave_room("ml_updates")
 
-    logger.info(f"Client {client_id} unsubscribed from ML updates")
+    logger.info("Client %s unsubscribed from ML updates", client_id)
 
 
 @socketio.on("request_drift_update", namespace=SOCKETIO_NAMESPACE_SYSTEM)
@@ -123,7 +123,7 @@ def handle_drift_request(data):
         )
 
     except Exception as e:
-        logger.error(f"Error fetching drift metrics: {e}")
+        logger.error("Error fetching drift metrics: %s", e)
         emit("error", {"message": str(e)})
 
 
@@ -142,7 +142,7 @@ def handle_training_status_request(data):
         emit("training_status", {"models": models, "timestamp": None})
 
     except Exception as e:
-        logger.error(f"Error fetching training status: {e}")
+        logger.error("Error fetching training status: %s", e)
         emit("error", {"message": str(e)})
 
 
@@ -161,9 +161,9 @@ def broadcast_training_started(model_name, version):
             room="ml_updates",
         )
 
-        logger.info(f"Broadcasted training start: {model_name} v{version}")
+        logger.info("Broadcasted training start: %s v%s", model_name, version)
     except Exception as e:
-        logger.error(f"Error broadcasting training start: {e}")
+        logger.error("Error broadcasting training start: %s", e)
 
 
 def broadcast_training_progress(
@@ -197,7 +197,7 @@ def broadcast_training_progress(
         socketio.emit("training_progress", payload, namespace=SOCKETIO_NAMESPACE_SYSTEM, room="ml_updates")
 
     except Exception as e:
-        logger.error(f"Error broadcasting training progress: {e}")
+        logger.error("Error broadcasting training progress: %s", e)
 
 
 def broadcast_training_complete(model_name, version, metrics):
@@ -210,9 +210,9 @@ def broadcast_training_complete(model_name, version, metrics):
             room="ml_updates",
         )
 
-        logger.info(f"Broadcasted training complete: {model_name} v{version}")
+        logger.info("Broadcasted training complete: %s v%s", model_name, version)
     except Exception as e:
-        logger.error(f"Error broadcasting training complete: {e}")
+        logger.error("Error broadcasting training complete: %s", e)
 
 
 def broadcast_training_cancelled(model_name, version, message=None):
@@ -230,9 +230,9 @@ def broadcast_training_cancelled(model_name, version, message=None):
             room="ml_updates",
         )
 
-        logger.info(f"Broadcasted training cancelled: {model_name} v{version}")
+        logger.info("Broadcasted training cancelled: %s v%s", model_name, version)
     except Exception as e:
-        logger.error(f"Error broadcasting training cancelled: {e}")
+        logger.error("Error broadcasting training cancelled: %s", e)
 
 
 def broadcast_training_failed(model_name, version, error):
@@ -245,9 +245,9 @@ def broadcast_training_failed(model_name, version, error):
             room="ml_updates",
         )
 
-        logger.error(f"Broadcasted training failure: {model_name} v{version} - {error}")
+        logger.error("Broadcasted training failure: %s v%s - %s", model_name, version, error)
     except Exception as e:
-        logger.error(f"Error broadcasting training failure: {e}")
+        logger.error("Error broadcasting training failure: %s", e)
 
 
 def broadcast_drift_detected(model_name, drift_metrics):
@@ -265,9 +265,9 @@ def broadcast_drift_detected(model_name, drift_metrics):
             room="ml_updates",
         )
 
-        logger.warning(f"Broadcasted drift detected: {model_name}")
+        logger.warning("Broadcasted drift detected: %s", model_name)
     except Exception as e:
-        logger.error(f"Error broadcasting drift detection: {e}")
+        logger.error("Error broadcasting drift detection: %s", e)
 
 
 def broadcast_retraining_scheduled(model_name, scheduled_time):
@@ -280,9 +280,9 @@ def broadcast_retraining_scheduled(model_name, scheduled_time):
             room="ml_updates",
         )
 
-        logger.info(f"Broadcasted retraining scheduled: {model_name} at {scheduled_time}")
+        logger.info("Broadcasted retraining scheduled: %s at %s", model_name, scheduled_time)
     except Exception as e:
-        logger.error(f"Error broadcasting retraining schedule: {e}")
+        logger.error("Error broadcasting retraining schedule: %s", e)
 
 
 def broadcast_model_activated(model_name, version):
@@ -295,6 +295,6 @@ def broadcast_model_activated(model_name, version):
             room="ml_updates",
         )
 
-        logger.info(f"Broadcasted model activated: {model_name} v{version}")
+        logger.info("Broadcasted model activated: %s v%s", model_name, version)
     except Exception as e:
-        logger.error(f"Error broadcasting model activation: {e}")
+        logger.error("Error broadcasting model activation: %s", e)

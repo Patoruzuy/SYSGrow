@@ -25,6 +25,8 @@ Author: SYSGrow Team
 Date: January 2026
 """
 
+from __future__ import annotations
+
 from datetime import timedelta
 from typing import Any, Dict
 

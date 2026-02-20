@@ -23,7 +23,7 @@ from typing import Any
 
 from app.enums.events import DeviceEvent
 from app.utils.event_bus import EventBus
-from app.utils.time import iso_now
+from app.utils.time import iso_now, utc_now
 from infrastructure.database.repositories.devices import DeviceRepository
 
 logger = logging.getLogger(__name__)
@@ -69,7 +69,7 @@ class DeviceCoordinator:
 
             logger.info("DeviceCoordinator started: subscribed to 2 hardware events")
         except Exception as e:
-            logger.error(f"Error starting DeviceCoordinator: {e}", exc_info=True)
+            logger.error("Error starting DeviceCoordinator: %s", e, exc_info=True)
             raise
 
     def stop(self) -> None:
@@ -83,12 +83,12 @@ class DeviceCoordinator:
                 try:
                     unsubscribe()
                 except Exception as unsub_error:
-                    logger.warning(f"Error unsubscribing from event: {unsub_error}")
+                    logger.warning("Error unsubscribing from event: %s", unsub_error)
 
             self._subscriptions.clear()
             logger.info("DeviceCoordinator stopped: unsubscribed from all events")
         except Exception as e:
-            logger.error(f"Error stopping DeviceCoordinator: {e}", exc_info=True)
+            logger.error("Error stopping DeviceCoordinator: %s", e, exc_info=True)
 
     # ==================== EventBus Handlers ====================
 
@@ -106,7 +106,7 @@ class DeviceCoordinator:
             value = payload.get("value")
 
             if actuator_id is None:
-                logger.warning(f"Invalid actuator state change payload: {payload}")
+                logger.warning("Invalid actuator state change payload: %s", payload)
                 return
 
             if isinstance(timestamp, datetime):
@@ -121,10 +121,10 @@ class DeviceCoordinator:
                 timestamp=timestamp,
             )
 
-            logger.debug(f"Persisted actuator state change: actuator_id={actuator_id}, state={state}")
+            logger.debug("Persisted actuator state change: actuator_id=%s, state=%s", actuator_id, state)
 
         except Exception as e:
-            logger.error(f"Error handling actuator state change: {e}", exc_info=True)
+            logger.error("Error handling actuator state change: %s", e, exc_info=True)
 
     def _on_connectivity_changed(self, payload: dict[str, Any]) -> None:
         """
@@ -144,7 +144,7 @@ class DeviceCoordinator:
             timestamp = payload.get("timestamp")
 
             if not connection_type or not status:
-                logger.warning(f"Invalid connectivity change payload: {payload}")
+                logger.warning("Invalid connectivity change payload: %s", payload)
                 return
 
             if isinstance(timestamp, datetime):
@@ -169,7 +169,7 @@ class DeviceCoordinator:
             logger.info("Persisted connectivity change: %s %s", connection_type, status)
 
         except Exception as e:
-            logger.error(f"Error handling connectivity change: {e}", exc_info=True)
+            logger.error("Error handling connectivity change: %s", e, exc_info=True)
 
     # ==================== State History Queries ====================
 
@@ -192,10 +192,10 @@ class DeviceCoordinator:
             history = self.repository.get_actuator_state_history(
                 actuator_id=actuator_id, start_time=start_time, end_time=end_time, limit=limit
             )
-            logger.debug(f"Retrieved {len(history)} state records for actuator {actuator_id}")
+            logger.debug("Retrieved %s state records for actuator %s", len(history), actuator_id)
             return history
         except Exception as e:
-            logger.error(f"Error getting state history for actuator {actuator_id}: {e}", exc_info=True)
+            logger.error("Error getting state history for actuator %s: %s", actuator_id, e, exc_info=True)
             return []
 
     def get_unit_actuator_state_history(
@@ -217,10 +217,10 @@ class DeviceCoordinator:
             history = self.repository.get_unit_actuator_state_history(
                 unit_id=unit_id, start_time=start_time, end_time=end_time, limit=limit
             )
-            logger.debug(f"Retrieved {len(history)} state records for unit {unit_id}")
+            logger.debug("Retrieved %s state records for unit %s", len(history), unit_id)
             return history
         except Exception as e:
-            logger.error(f"Error getting state history for unit {unit_id}: {e}", exc_info=True)
+            logger.error("Error getting state history for unit %s: %s", unit_id, e, exc_info=True)
             return []
 
     def get_recent_actuator_state(self, actuator_id: int) -> dict[str, Any] | None:
@@ -236,10 +236,10 @@ class DeviceCoordinator:
         try:
             state = self.repository.get_recent_actuator_state(actuator_id)
             if state:
-                logger.debug(f"Retrieved recent state for actuator {actuator_id}: {state.get('state')}")
+                logger.debug("Retrieved recent state for actuator %s: %s", actuator_id, state.get("state"))
             return state
         except Exception as e:
-            logger.error(f"Error getting recent state for actuator {actuator_id}: {e}", exc_info=True)
+            logger.error("Error getting recent state for actuator %s: %s", actuator_id, e, exc_info=True)
             return None
 
     def get_connectivity_history(
@@ -258,14 +258,14 @@ class DeviceCoordinator:
             List of connectivity event records
         """
         try:
-            start_time = datetime.utcnow() - timedelta(hours=hours)
+            start_time = utc_now() - timedelta(hours=hours)
             history = self.repository.get_connectivity_history(
                 device_id=device_id, device_type=device_type, start_time=start_time, limit=limit
             )
-            logger.debug(f"Retrieved {len(history)} connectivity events for {device_type} {device_id}")
+            logger.debug("Retrieved %s connectivity events for %s %s", len(history), device_type, device_id)
             return history
         except Exception as e:
-            logger.error(f"Error getting connectivity history for {device_type} {device_id}: {e}", exc_info=True)
+            logger.error("Error getting connectivity history for %s %s: %s", device_type, device_id, e, exc_info=True)
             return []
 
     def prune_actuator_state_history(self, days: int = 30) -> int:
@@ -280,8 +280,8 @@ class DeviceCoordinator:
         """
         try:
             deleted_count = self.repository.prune_actuator_state_history(days)
-            logger.info(f"Pruned {deleted_count} actuator state records older than {days} days")
+            logger.info("Pruned %s actuator state records older than %s days", deleted_count, days)
             return deleted_count
         except Exception as e:
-            logger.error(f"Error pruning actuator state history: {e}", exc_info=True)
+            logger.error("Error pruning actuator state history: %s", e, exc_info=True)
             return 0

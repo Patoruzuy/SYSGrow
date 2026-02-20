@@ -57,7 +57,7 @@ class LeafCaptureService:
         # Track last capture per unit (prevent spam)
         self._last_capture: dict[int, datetime] = {}
 
-        logger.info(f"LeafCaptureService initialized (storage: {storage_path})")
+        logger.info("LeafCaptureService initialized (storage: %s)", storage_path)
 
     def capture_and_analyze(
         self,
@@ -81,7 +81,7 @@ class LeafCaptureService:
         try:
             # Check if camera is running
             if not self.camera_service.is_camera_running(unit_id):
-                logger.warning(f"Camera not running for unit {unit_id}")
+                logger.warning("Camera not running for unit %s", unit_id)
                 return None
 
             # Check minimum interval
@@ -89,13 +89,13 @@ class LeafCaptureService:
             if last_capture:
                 elapsed = (datetime.now() - last_capture).total_seconds()
                 if elapsed < min_interval_seconds:
-                    logger.debug(f"Skipping capture for unit {unit_id} (last capture {elapsed:.0f}s ago)")
+                    logger.debug("Skipping capture for unit %s (last capture %ss ago)", unit_id, elapsed)
                     return None
 
             # Capture image
             image_bytes = self.camera_service.get_camera_frame(unit_id)
             if not image_bytes:
-                logger.error(f"Failed to capture image for unit {unit_id}")
+                logger.error("Failed to capture image for unit %s", unit_id)
                 return None
 
             # Save image
@@ -124,7 +124,7 @@ class LeafCaptureService:
             return analysis
 
         except Exception as e:
-            logger.error(f"Failed to capture and analyze for unit {unit_id}: {e}", exc_info=True)
+            logger.error("Failed to capture and analyze for unit %s: %s", unit_id, e, exc_info=True)
             return None
 
     def _save_image(self, unit_id: int, image_bytes: bytes) -> Path:
@@ -160,7 +160,7 @@ class LeafCaptureService:
             try:
                 image.unlink()
             except Exception as e:
-                logger.warning(f"Failed to delete old image {image}: {e}")
+                logger.warning("Failed to delete old image %s: %s", image, e)
 
     def _publish_health_update(self, analysis: LeafHealthAnalysis):
         """Publish leaf health update to event bus"""
@@ -179,7 +179,7 @@ class LeafCaptureService:
             self.event_bus.publish(SensorEvent.LEAF_HEALTH_UPDATE, payload)
 
         except Exception as e:
-            logger.error(f"Failed to publish health update: {e}", exc_info=True)
+            logger.error("Failed to publish health update: %s", e, exc_info=True)
 
     def get_latest_analysis(self, unit_id: int) -> dict[str, Any] | None:
         """Get most recent leaf health analysis for a unit"""
@@ -201,7 +201,7 @@ class LeafCaptureService:
             return analysis.to_dict() if analysis else None
 
         except Exception as e:
-            logger.error(f"Failed to get latest analysis: {e}", exc_info=True)
+            logger.error("Failed to get latest analysis: %s", e, exc_info=True)
             return None
 
 
@@ -242,6 +242,6 @@ def create_leaf_capture_task(
                 leaf_capture_service.capture_and_analyze(unit_id=unit_id, environmental_context=env_context)
 
         except Exception as e:
-            logger.error(f"Leaf capture task failed: {e}", exc_info=True)
+            logger.error("Leaf capture task failed: %s", e, exc_info=True)
 
     return capture_all_units

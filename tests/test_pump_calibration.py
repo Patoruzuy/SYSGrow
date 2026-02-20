@@ -463,7 +463,7 @@ class TestCalibrationHistoryTracking:
         mock_device_repo._backend.update_actuator_config.return_value = True
 
         service.start_calibration(actuator_id=1, duration_seconds=30)
-        calibration = service.complete_calibration(actuator_id=1, measured_ml=100.0)
+        service.complete_calibration(actuator_id=1, measured_ml=100.0)
 
         # Check that update was called with history
         call_args = mock_device_repo._backend.update_actuator_config.call_args

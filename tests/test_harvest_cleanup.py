@@ -97,7 +97,7 @@ def test_harvest_cleanup():
             conn.execute(
                 """
                 INSERT INTO PlantHealthLogs (
-                    plant_id, observation_date, health_status, 
+                    plant_id, observation_date, health_status,
                     notes, severity_level
                 )
                 VALUES (101, ?, 'healthy', 'Test health log', 1)

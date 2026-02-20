@@ -650,7 +650,9 @@ def test_light_sensors_are_not_evicted_too_aggressively():
     )
 
     sensors = {10: light_sensor}
-    resolve_sensor = lambda sid: sensors.get(sid)
+
+    def resolve_sensor(sid):
+        return sensors.get(sid)
 
     # Initial reading at t=0
     base_time = datetime(2026, 1, 2, 12, 0, 0, tzinfo=UTC)

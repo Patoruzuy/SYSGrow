@@ -104,7 +104,7 @@ class UnitRuntimeFactory:
             unit_id = unit_data["unit_id"]
             unit_name = unit_data["name"]
 
-            logger.debug(f"Creating runtime for unit {unit_id} ({unit_name})")
+            logger.debug("Creating runtime for unit %s (%s)", unit_id, unit_name)
 
             # Extract settings from unit data
             settings = UnitSettings.from_dict(unit_data)
@@ -120,15 +120,15 @@ class UnitRuntimeFactory:
                 custom_image=unit_data.get("custom_image"),
             )
 
-            logger.info(f"Created runtime for unit {unit_id} ({unit_name}) (plants to be loaded by PlantService)")
+            logger.info("Created runtime for unit %s (%s) (plants to be loaded by PlantService)", unit_id, unit_name)
 
             return runtime
 
         except KeyError as e:
-            logger.error(f"Missing required field in unit_data: {e}")
+            logger.error("Missing required field in unit_data: %s", e)
             raise
         except Exception as e:
-            logger.error(f"Error creating runtime for unit: {e}", exc_info=True)
+            logger.error("Error creating runtime for unit: %s", e, exc_info=True)
             raise
 
     def create_plant_profile(self, **kwargs: Any) -> PlantProfile:

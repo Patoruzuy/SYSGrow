@@ -10,7 +10,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from app.controllers import ClimateController
+from app.control_loops import ClimateController
 
 
 class MockAnalyticsRepo:

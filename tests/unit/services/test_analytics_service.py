@@ -208,11 +208,11 @@ class TestConcurrentExecution:
         mock_device_repo.list_sensor_configs.return_value = []
         mock_device_repo.count_anomalies_for_sensors.return_value = 0
 
-        # Mock the individual calculation methods
+        # Mock the individual calculation methods on the _env sub-service
         with (
-            patch.object(analytics_service, "calculate_environmental_stability", return_value=85.0),
-            patch.object(analytics_service, "calculate_energy_efficiency", return_value=90.0),
-            patch.object(analytics_service, "calculate_automation_effectiveness", return_value=88.0),
+            patch.object(analytics_service._env, "calculate_environmental_stability", return_value=85.0),
+            patch.object(analytics_service._env, "calculate_energy_efficiency", return_value=90.0),
+            patch.object(analytics_service._env, "calculate_automation_effectiveness", return_value=88.0),
         ):
             # Act
             result = analytics_service.calculate_efficiency_scores_concurrent(unit_id=1)
@@ -229,9 +229,9 @@ class TestConcurrentExecution:
         mock_device_repo.count_anomalies_for_sensors.return_value = 0
 
         with (
-            patch.object(analytics_service, "calculate_environmental_stability", return_value=85.0),
-            patch.object(analytics_service, "calculate_energy_efficiency", return_value=90.0),
-            patch.object(analytics_service, "calculate_automation_effectiveness", return_value=88.0),
+            patch.object(analytics_service._env, "calculate_environmental_stability", return_value=85.0),
+            patch.object(analytics_service._env, "calculate_energy_efficiency", return_value=90.0),
+            patch.object(analytics_service._env, "calculate_automation_effectiveness", return_value=88.0),
         ):
             # Act
             result = analytics_service.calculate_efficiency_scores_concurrent(unit_id=1, include_previous=True)
@@ -247,9 +247,11 @@ class TestConcurrentExecution:
         mock_device_repo.list_sensor_configs.return_value = []
 
         with (
-            patch.object(analytics_service, "calculate_environmental_stability", side_effect=Exception("DB Error")),
-            patch.object(analytics_service, "calculate_energy_efficiency", return_value=90.0),
-            patch.object(analytics_service, "calculate_automation_effectiveness", return_value=88.0),
+            patch.object(
+                analytics_service._env, "calculate_environmental_stability", side_effect=Exception("DB Error")
+            ),
+            patch.object(analytics_service._env, "calculate_energy_efficiency", return_value=90.0),
+            patch.object(analytics_service._env, "calculate_automation_effectiveness", return_value=88.0),
         ):
             # Act
             result = analytics_service.calculate_efficiency_scores_concurrent(unit_id=1)

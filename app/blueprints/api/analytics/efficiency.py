@@ -5,16 +5,18 @@ System Efficiency Score Endpoints
 Endpoints for calculating and reporting system efficiency metrics.
 """
 
+from __future__ import annotations
+
 import logging
 
-from flask import request
+from flask import Response, request
 
 from app.blueprints.api._common import (
-    fail as _fail,
     get_analytics_service as _analytics_service,
     success as _success,
 )
 from app.blueprints.api.analytics import analytics_api
+from app.utils.http import safe_route
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +27,8 @@ logger = logging.getLogger(__name__)
 
 
 @analytics_api.get("/efficiency-score")
-def get_efficiency_score():
+@safe_route("Failed to calculate efficiency score")
+def get_efficiency_score() -> Response:
     """
     Calculate composite system efficiency score.
 
@@ -44,18 +47,13 @@ def get_efficiency_score():
     - suggestions: Improvement recommendations
     - trend: Performance trend (improving/stable/declining)
     """
-    try:
-        unit_id = request.args.get("unit_id", type=int)
-        analytics_service = _analytics_service()
+    unit_id = request.args.get("unit_id", type=int)
+    analytics_service = _analytics_service()
 
-        # Logic moved to service
-        data = analytics_service.get_composite_efficiency_score(unit_id=unit_id, include_previous=True)
+    # Logic moved to service
+    data = analytics_service.get_composite_efficiency_score(unit_id=unit_id, include_previous=True)
 
-        return _success(data)
-
-    except Exception as e:
-        logger.error(f"Error calculating efficiency score: {e}", exc_info=True)
-        return safe_error(e, 500)
+    return _success(data)
 
 
 # Standard grading and trend logic moved to service layer common helpers.

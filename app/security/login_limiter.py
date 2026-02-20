@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import logging
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from threading import Lock
 
 logger = logging.getLogger(__name__)
@@ -126,11 +126,7 @@ class LoginLimiter:
         """Remove entries whose lockout has expired.  Returns count purged."""
         now = time.monotonic()
         with self._lock:
-            expired = [
-                ip
-                for ip, rec in self._records.items()
-                if rec.locked_until and now >= rec.locked_until
-            ]
+            expired = [ip for ip, rec in self._records.items() if rec.locked_until and now >= rec.locked_until]
             for ip in expired:
                 del self._records[ip]
             return len(expired)

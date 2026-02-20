@@ -123,7 +123,7 @@ class TrainingDataCollector:
         """
         import pandas as pd  # Lazy load
 
-        logger.info(f"Collecting disease training data for last {days_back} days")
+        logger.info("Collecting disease training data for last %s days", days_back)
 
         examples = []
 
@@ -133,7 +133,7 @@ class TrainingDataCollector:
 
         observations = self.training_data_repo.get_health_observations(start_date.isoformat(), end_date.isoformat())
 
-        logger.info(f"Found {len(observations)} health observations")
+        logger.info("Found %s health observations", len(observations))
 
         for obs in observations:
             try:
@@ -180,10 +180,10 @@ class TrainingDataCollector:
                     examples.append(example)
 
             except Exception as e:
-                logger.error(f"Error processing observation: {e}")
+                logger.error("Error processing observation: %s", e)
                 continue
 
-        logger.info(f"Collected {len(examples)} high-quality disease examples")
+        logger.info("Collected %s high-quality disease examples", len(examples))
 
         # Convert to DataFrame
         if not examples:
@@ -213,7 +213,7 @@ class TrainingDataCollector:
         """
         import pandas as pd  # Lazy load
 
-        logger.info(f"Collecting climate training data for last {days_back} days")
+        logger.info("Collecting climate training data for last %s days", days_back)
 
         examples = []
 
@@ -262,10 +262,10 @@ class TrainingDataCollector:
                     examples.append(example)
 
             except Exception as e:
-                logger.error(f"Error processing adjustment: {e}")
+                logger.error("Error processing adjustment: %s", e)
                 continue
 
-        logger.info(f"Collected {len(examples)} climate training examples")
+        logger.info("Collected %s climate training examples", len(examples))
 
         if not examples:
             return pd.DataFrame()
@@ -289,7 +289,7 @@ class TrainingDataCollector:
         """
         import pandas as pd  # Lazy load
 
-        logger.info(f"Collecting growth outcome data for last {days_back} days")
+        logger.info("Collecting growth outcome data for last %s days", days_back)
 
         examples = []
 
@@ -338,10 +338,10 @@ class TrainingDataCollector:
                 examples.append(cycle_data)
 
             except Exception as e:
-                logger.error(f"Error processing grow cycle: {e}")
+                logger.error("Error processing grow cycle: %s", e)
                 continue
 
-        logger.info(f"Collected {len(examples)} growth outcome examples")
+        logger.info("Collected %s growth outcome examples", len(examples))
 
         if not examples:
             return pd.DataFrame()
@@ -470,7 +470,7 @@ class TrainingDataCollector:
 
         try:
             class_counts = df[label_column].value_counts()
-            logger.info(f"Class distribution before balancing: {class_counts.to_dict()}")
+            logger.info("Class distribution before balancing: %s", class_counts.to_dict())
 
             # If any class has fewer than min, oversample
             if class_counts.min() < min_per_class:
@@ -494,12 +494,12 @@ class TrainingDataCollector:
             df_balanced = df_balanced.sample(frac=1, random_state=42).reset_index(drop=True)
 
             balanced_counts = df_balanced[label_column].value_counts()
-            logger.info(f"Class distribution after balancing: {balanced_counts.to_dict()}")
+            logger.info("Class distribution after balancing: %s", balanced_counts.to_dict())
 
             return df_balanced
 
         except Exception as e:
-            logger.error(f"Error balancing dataset: {e}")
+            logger.error("Error balancing dataset: %s", e)
             return df
 
     def _save_training_data(self, df, filename: str):
@@ -507,9 +507,9 @@ class TrainingDataCollector:
         try:
             filepath = self.storage_path / filename
             df.to_parquet(filepath, index=False)
-            logger.info(f"Saved training data to {filepath}")
+            logger.info("Saved training data to %s", filepath)
         except Exception as e:
-            logger.error(f"Error saving training data: {e}")
+            logger.error("Error saving training data: %s", e)
 
     def get_training_data_summary(self) -> dict[str, Any]:
         """Get summary of available training data."""

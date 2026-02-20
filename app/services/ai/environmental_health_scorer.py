@@ -189,7 +189,7 @@ class EnvironmentalLeafHealthScorer:
             )
 
         except Exception as e:
-            logger.error(f"Failed to score leaf health: {e}", exc_info=True)
+            logger.error("Failed to score leaf health: %s", e, exc_info=True)
             return self._get_default_score(unit_id)
 
     def _get_thresholds(self, plant_type: str | None, growth_stage: str | None) -> dict[str, Any]:
@@ -206,7 +206,7 @@ class EnvironmentalLeafHealthScorer:
                     "moisture_tolerance": 10.0,
                 }
             except Exception as e:
-                logger.warning(f"Failed to get thresholds: {e}")
+                logger.warning("Failed to get thresholds: %s", e)
 
         # Generic defaults
         return {
@@ -362,7 +362,7 @@ class EnvironmentalLeafHealthScorer:
                 return 0.2, stress_factors
 
         except Exception as e:
-            logger.warning(f"Failed to calculate stress score: {e}")
+            logger.warning("Failed to calculate stress score: %s", e)
             return 1.0, stress_factors
 
     def _assess_disease_risk(self, current: dict[str, float], health_score: float) -> RiskLevel:

@@ -5,7 +5,9 @@ Analytics API Helper Functions
 Shared utility functions used across analytics submodules.
 """
 
-from datetime import datetime
+from __future__ import annotations
+
+from datetime import UTC, datetime
 from typing import Any
 
 from app.blueprints.api._common import (
@@ -71,9 +73,9 @@ def calculate_correlations(readings: list[dict]) -> dict[str, Any]:
 def sqlite_timestamp(dt: datetime) -> str:
     """Format a datetime for safe use with SQLite datetime() comparisons."""
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=datetime.UTC)
+        dt = dt.replace(tzinfo=UTC)
     else:
-        dt = dt.astimezone(datetime.UTC)
+        dt = dt.astimezone(UTC)
     return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 

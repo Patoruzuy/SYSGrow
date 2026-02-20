@@ -118,7 +118,7 @@ def test_unit_lock_prevents_parallel_execution():
 
 def test_attribution_adjust_duration():
     service = IrrigationWorkflowService(workflow_repo=SimpleNamespace())
-    result = service._classify_attribution(
+    result = service._execution._classify_attribution(
         trigger_moisture=10.0,
         threshold_at_trigger=30.0,
         post_moisture=40.0,
@@ -128,7 +128,7 @@ def test_attribution_adjust_duration():
 
 def test_attribution_adjust_threshold():
     service = IrrigationWorkflowService(workflow_repo=SimpleNamespace())
-    result = service._classify_attribution(
+    result = service._execution._classify_attribution(
         trigger_moisture=30.0,
         threshold_at_trigger=30.0,
         post_moisture=31.0,
@@ -160,12 +160,20 @@ def test_valve_failure_prevents_pump_start():
         "user_response": "approve",
     }
 
-    result = service._execute_irrigation(request)
+    result = service._execution._execute_irrigation(request)
 
     assert result["success"] is False
     assert actuator_manager.pump_called is False
 
 
 def test_irrigation_workflow_has_no_sleep_calls():
-    source = Path("app/services/application/irrigation_workflow_service.py").read_text()
-    assert "sleep(" not in source
+    base = Path("app/services/application")
+    files = [
+        "irrigation_workflow_service.py",
+        "irrigation_detection_service.py",
+        "irrigation_execution_service.py",
+        "irrigation_feedback_service.py",
+    ]
+    for fname in files:
+        source = (base / fname).read_text(encoding="utf-8")
+        assert "sleep(" not in source, f"sleep() found in {fname}"

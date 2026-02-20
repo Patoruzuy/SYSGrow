@@ -4,8 +4,18 @@ import logging
 import os
 
 from flask import Flask
-from flask_compress import Compress
 from flask_socketio import SocketIO
+
+try:
+    from flask_compress import Compress
+except ImportError:  # pragma: no cover - optional dependency
+
+    class Compress:  # type: ignore[override]
+        """Fallback no-op compressor when flask_compress is unavailable."""
+
+        def init_app(self, _app: Flask) -> None:
+            return
+
 
 # Flask-Compress instance — compresses JSON/HTML/CSS/JS responses with gzip/brotli
 compress = Compress()

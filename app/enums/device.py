@@ -3,12 +3,92 @@ Device-related Enumerations
 ============================
 
 This module contains all enums related to devices (sensors and actuators).
-Note: Protocol and SensorType enums are imported from infrastructure for standardization.
 """
 
 from enum import Enum
 
-# Import Protocol and SensorType from infrastructure as the source of truth
+
+class SensorType(str, Enum):
+    """
+    Sensor categories.
+
+    Two categories that group all sensors:
+    - ENVIRONMENTAL: temperature, humidity, co2, lux, voc, smoke, pressure, air_quality
+    - PLANT: soil_moisture, ph, ec
+
+    The specific metrics each sensor provides are defined in ``primary_metrics`` field,
+    allowing maximum flexibility (e.g., a plant sensor can provide lux readings).
+    """
+
+    ENVIRONMENTAL = "environmental"
+    PLANT = "plant"
+
+    @classmethod
+    def _missing_(cls, value: object) -> "SensorType | None":
+        """Map legacy sensor type values to new categories."""
+        if not isinstance(value, str):
+            return None
+        environmental_types = {
+            "environment_sensor",
+            "temperature",
+            "temperature_sensor",
+            "humidity",
+            "humidity_sensor",
+            "co2",
+            "lux_sensor",
+            "light",
+            "light_sensor",
+            "voc",
+            "smoke_sensor",
+            "pressure",
+            "pressure_sensor",
+            "air_quality",
+            "air_quality_sensor",
+        }
+        plant_types = {
+            "plant_sensor",
+            "soil_moisture",
+            "soil_moisture_sensor",
+            "ph",
+            "ec",
+        }
+        if value in environmental_types:
+            return cls.ENVIRONMENTAL
+        if value in plant_types:
+            return cls.PLANT
+        return None
+
+
+class Protocol(str, Enum):
+    """Communication protocols"""
+
+    GPIO = "GPIO"
+    I2C = "I2C"
+    ADC = "ADC"
+    MQTT = "mqtt"
+    ZIGBEE = "zigbee"
+    ZIGBEE2MQTT = "zigbee2mqtt"
+    HTTP = "http"
+    MODBUS = "Modbus"
+    WIRELESS = "wireless"
+
+    @classmethod
+    def _missing_(cls, value: object) -> "Protocol | None":
+        """Backwards-compatible mapping for legacy protocol values."""
+        if not isinstance(value, str):
+            return None
+        legacy_map = {
+            "MQTT": cls.MQTT.value,
+            "ZIGBEE": cls.ZIGBEE.value,
+            "ZIGBEE2MQTT": cls.ZIGBEE2MQTT.value,
+            "HTTP": cls.HTTP.value,
+            "MODBUS": cls.MODBUS.value,
+            "WIRELESS": cls.WIRELESS.value,
+        }
+        mapped = legacy_map.get(value)
+        if mapped is None:
+            return None
+        return cls(mapped)
 
 
 class SensorModel(str, Enum):

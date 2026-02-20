@@ -63,12 +63,12 @@ class CameraBase:
                     logger.info("Stopping camera thread due to inactivity")
                     break
         except Exception as e:
-            logger.error(f"Error in camera thread: {e}", exc_info=True)
+            logger.error("Error in camera thread: %s", e, exc_info=True)
         finally:
             try:
                 frames_iterator.close()
             except Exception as e:
-                logger.warning(f"Error closing frames iterator: {e}")
+                logger.warning("Error closing frames iterator: %s", e)
             with self._lock:
                 self._thread = None
                 self._running = False

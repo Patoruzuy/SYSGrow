@@ -82,39 +82,39 @@ from .factory import SensorFactory, get_global_factory
 from .registry import SensorRegistry, get_global_registry
 
 __all__ = [
-    # Factory & Infrastructure
-    "SensorFactory",
-    "SensorRegistry",
-    "get_global_factory",
-    "get_global_registry",
-    # Domain
-    "SensorEntity",
-    "SensorReading",
-    "SensorConfig",
+    "AnomalyDetectionService",
     "CalibrationData",
-    "HealthStatus",
-    "SensorType",
-    "Protocol",
-    "CalibrationType",
-    "HealthLevel",
-    "ReadingStatus",
-    # Adapters
-    "ISensorAdapter",
-    "GPIOAdapter",
-    "ZigbeeAdapter",
-    "Zigbee2MQTTAdapter",
-    "SYSGrowAdapter",
-    "ModbusAdapter",
-    # Processors
-    "IDataProcessor",
-    "ValidationProcessor",
-    "TransformationProcessor",
     "CalibrationProcessor",
-    "PriorityProcessor",
-    "EnrichmentProcessor",
     # Services
     "CalibrationService",
-    "AnomalyDetectionService",
-    "ZigbeeManagementService",
+    "CalibrationType",
+    "EnrichmentProcessor",
+    "GPIOAdapter",
+    "HealthLevel",
+    "HealthStatus",
+    # Processors
+    "IDataProcessor",
+    # Adapters
+    "ISensorAdapter",
+    "ModbusAdapter",
+    "PriorityProcessor",
+    "Protocol",
+    "ReadingStatus",
+    "SYSGrowAdapter",
+    "SensorConfig",
+    # Domain
+    "SensorEntity",
+    # Factory & Infrastructure
+    "SensorFactory",
+    "SensorReading",
+    "SensorRegistry",
+    "SensorType",
     "SystemHealthService",
+    "TransformationProcessor",
+    "ValidationProcessor",
+    "Zigbee2MQTTAdapter",
+    "ZigbeeAdapter",
+    "ZigbeeManagementService",
+    "get_global_factory",
+    "get_global_registry",
 ]

@@ -5,13 +5,16 @@ Generates comprehensive harvest reports including energy consumption,
 health history, and lifecycle analytics.
 """
 
+from __future__ import annotations
+
 import json
 import logging
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from infrastructure.database.repositories.analytics import AnalyticsRepository
+    from infrastructure.database.repositories.devices import DeviceRepository
     from infrastructure.database.repositories.plants import PlantRepository
 
 logger = logging.getLogger(__name__)
@@ -33,7 +36,8 @@ class PlantHarvestService:
     def __init__(
         self,
         analytics_repo: "AnalyticsRepository",
-        plant_repo: Optional["PlantRepository"] = None,
+        plant_repo: "PlantRepository" | None = None,
+        device_repo: "DeviceRepository" | None = None,
     ):
         """
         Initialize harvest service.
@@ -41,9 +45,11 @@ class PlantHarvestService:
         Args:
             analytics_repo: AnalyticsRepository for database access
             plant_repo: PlantRepository for plant cleanup operations
+            device_repo: DeviceRepository for pre-aggregated sensor summaries
         """
         self.analytics_repo = analytics_repo
         self._plant_repo = plant_repo
+        self._device_repo = device_repo
 
     def generate_harvest_report(
         self, plant_id: int, harvest_weight_grams: float = 0.0, quality_rating: int = 3, notes: str = ""
@@ -134,19 +140,19 @@ class PlantHarvestService:
             harvest_id = self.analytics_repo.save_harvest_summary(plant_id, summary_data)
             report["harvest_id"] = harvest_id
 
-            logger.info(f"Generated harvest report for plant {plant_id} (harvest_id: {harvest_id})")
+            logger.info("Generated harvest report for plant %s (harvest_id: %s)", plant_id, harvest_id)
             return report
 
-        except Exception as e:
-            logger.error(f"Failed to generate harvest report for plant {plant_id}: {e}")
+        except Exception as e:  # TODO(narrow): complex orchestration — revisit
+            logger.error("Failed to generate harvest report for plant %s: %s", plant_id, e)
             raise
 
     def _get_energy_summary(self, plant_id: int, planted_date: datetime, harvested_date: datetime) -> dict:
         """Get energy consumption summary"""
         try:
             return self.analytics_repo.get_plant_energy_summary(plant_id)
-        except Exception as e:
-            logger.error(f"Failed to get energy summary: {e}")
+        except (KeyError, TypeError, ValueError, OSError) as e:
+            logger.error("Failed to get energy summary: %s", e)
             return {
                 "total_kwh": 0.0,
                 "total_cost": 0.0,
@@ -168,8 +174,8 @@ class PlantHarvestService:
                 "pest_free_days": 0,
                 "avg_health_score": 95,
             }
-        except Exception as e:
-            logger.warning(f"Failed to get health summary: {e}")
+        except (KeyError, TypeError, ValueError, AttributeError) as e:
+            logger.warning("Failed to get health summary: %s", e)
             return {
                 "total_incidents": 0,
                 "incidents": [],
@@ -179,7 +185,19 @@ class PlantHarvestService:
             }
 
     def _get_environmental_averages(self, plant_id: int) -> dict:
-        """Get environmental condition averages"""
+        """Get environmental condition averages.
+
+        Prefers pre-aggregated data from ``SensorReadingSummary`` (written by
+        the ``maintenance.aggregate_sensor_data`` scheduled task) which
+        survives raw-reading pruning.  Falls back to live analytics queries
+        when summary data is unavailable.
+        """
+        # --- Try SensorReadingSummary first -----------------------------------
+        summary_stats = self._fetch_summary_env_stats(plant_id)
+        if summary_stats:
+            return summary_stats
+
+        # --- Fallback: live queries on raw readings ---------------------------
         try:
             avg_temp = self.analytics_repo.get_average_temperature(plant_id)
             avg_humidity = self.analytics_repo.get_average_humidity(plant_id)
@@ -187,7 +205,7 @@ class PlantHarvestService:
             return {
                 "temperature": {
                     "avg": round(avg_temp, 1),
-                    "min": 0.0,  # Would query from sensor history
+                    "min": 0.0,
                     "max": 0.0,
                     "optimal_range": "22-26°C",
                     "within_range_percent": 90,
@@ -201,13 +219,80 @@ class PlantHarvestService:
                 },
                 "co2": {"avg": 0, "optimal": "400-1000 ppm"},
             }
-        except Exception as e:
-            logger.warning(f"Failed to get environmental averages: {e}")
+        except (KeyError, TypeError, ValueError, OSError) as e:
+            logger.warning("Failed to get environmental averages: %s", e)
             return {
                 "temperature": {"avg": 0, "min": 0, "max": 0},
                 "humidity": {"avg": 0, "min": 0, "max": 0},
                 "co2": {"avg": 0},
             }
+
+    def _fetch_summary_env_stats(self, plant_id: int) -> dict | None:
+        """Try to build environmental averages from SensorReadingSummary.
+
+        Returns a fully-populated dict matching the ``_get_environmental_averages``
+        schema, or ``None`` if summary data is unavailable.
+        """
+        if not self._device_repo:
+            return None
+        try:
+            plant_info = self.analytics_repo.get_plant_info(plant_id)
+            if not plant_info:
+                return None
+            plant_dict = dict(plant_info) if hasattr(plant_info, "keys") else plant_info
+            unit_id = plant_dict.get("unit_id")
+            if not unit_id:
+                return None
+
+            planted_date = plant_dict.get("planted_date") or plant_dict.get("created_at", "")
+            end_date = datetime.now().strftime("%Y-%m-%d")
+            start_date = planted_date[:10] if planted_date else end_date
+
+            stats = self._device_repo.get_sensor_summary_stats_for_harvest(
+                unit_id=unit_id, start_date=start_date, end_date=end_date
+            )
+            if not stats:
+                return None
+
+            def _stat(sensor_type: str) -> dict:
+                s = stats.get(sensor_type, {})
+                return {
+                    "avg": round(s["avg"], 1) if s.get("avg") is not None else 0.0,
+                    "min": round(s["min"], 1) if s.get("min") is not None else 0.0,
+                    "max": round(s["max"], 1) if s.get("max") is not None else 0.0,
+                }
+
+            result: dict = {}
+            if "temperature" in stats or "temperature_sensor" in stats:
+                t = _stat("temperature") if "temperature" in stats else _stat("temperature_sensor")
+                t["optimal_range"] = "22-26°C"
+                result["temperature"] = t
+            else:
+                result["temperature"] = {"avg": 0, "min": 0, "max": 0, "optimal_range": "22-26°C"}
+
+            if "humidity" in stats or "humidity_sensor" in stats:
+                h = _stat("humidity") if "humidity" in stats else _stat("humidity_sensor")
+                h["optimal_range"] = "60-70%"
+                result["humidity"] = h
+            else:
+                result["humidity"] = {"avg": 0, "min": 0, "max": 0, "optimal_range": "60-70%"}
+
+            co2 = stats.get("co2", stats.get("co2_sensor", {}))
+            if co2:
+                result["co2"] = {
+                    "avg": round(co2["avg"], 1) if co2.get("avg") is not None else 0,
+                    "optimal": "400-1000 ppm",
+                }
+            else:
+                result["co2"] = {"avg": 0, "optimal": "400-1000 ppm"}
+
+            # Only return if we found at least one sensor type with data
+            has_data = any(result[k].get("avg", 0) != 0 for k in ("temperature", "humidity"))
+            return result if has_data else None
+
+        except (KeyError, TypeError, ValueError, AttributeError, OSError) as exc:
+            logger.debug("SensorReadingSummary lookup failed for plant %s: %s", plant_id, exc)
+            return None
 
     def _get_light_summary(self, plant_id: int) -> dict:
         """Get light exposure summary"""
@@ -219,8 +304,8 @@ class PlantHarvestService:
                 "by_stage": {},  # Would calculate per stage
                 "total_dli": 0,  # Daily Light Integral
             }
-        except Exception as e:
-            logger.warning(f"Failed to get light summary: {e}")
+        except (KeyError, TypeError, ValueError, OSError) as e:
+            logger.warning("Failed to get light summary: %s", e)
             return {"total_hours": 0.0, "by_stage": {}, "total_dli": 0}
 
     def _get_stage_durations(self, plant_info: dict) -> dict:
@@ -337,8 +422,8 @@ class PlantHarvestService:
         """
         try:
             return self.analytics_repo.get_all_harvest_reports(unit_id)
-        except Exception as e:
-            logger.error(f"Failed to get harvest reports: {e}")
+        except (KeyError, TypeError, ValueError, OSError) as e:
+            logger.error("Failed to get harvest reports: %s", e)
             return []
 
     def compare_harvests(self, unit_id: int, limit: int = 10) -> list[dict]:
@@ -354,8 +439,8 @@ class PlantHarvestService:
         """
         try:
             return self.analytics_repo.get_harvest_efficiency_trends(unit_id, limit)
-        except Exception as e:
-            logger.error(f"Failed to compare harvests: {e}")
+        except (KeyError, TypeError, ValueError, OSError) as e:
+            logger.error("Failed to compare harvests: %s", e)
             return []
 
     def cleanup_after_harvest(self, plant_id: int, delete_plant_data: bool = True) -> dict[str, int]:
@@ -391,7 +476,7 @@ class PlantHarvestService:
         }
 
         if not delete_plant_data:
-            logger.info(f"Skipping plant data deletion for plant {plant_id} (delete_plant_data=False)")
+            logger.info("Skipping plant data deletion for plant %s (delete_plant_data=False)", plant_id)
             return deleted_counts
 
         try:
@@ -409,8 +494,8 @@ class PlantHarvestService:
                 )
                 deleted_counts = self._cleanup_plant_data_raw_sql(plant_id)
             return deleted_counts
-        except Exception as e:
-            logger.error(f"Failed to cleanup plant {plant_id}: {e}")
+        except Exception as e:  # TODO(narrow): delegates to raw SQL — sqlite3 errors possible
+            logger.error("Failed to cleanup plant %s: %s", plant_id, e)
             raise
 
     def _cleanup_plant_data_raw_sql(self, plant_id: int) -> dict[str, int]:
@@ -433,7 +518,7 @@ class PlantHarvestService:
                             (plant_id,),
                         )
                         deleted_counts["plant_health_logs"] += cursor.rowcount
-                    except Exception as exc:
+                    except Exception as exc:  # TODO(narrow): catches sqlite3.OperationalError via string check
                         if "no such table" in str(exc).lower():
                             continue
                         raise
@@ -457,8 +542,8 @@ class PlantHarvestService:
                 # 5. Clear active_plant_id from GrowthUnits (don't delete the unit!)
                 conn.execute(
                     """
-                    UPDATE GrowthUnits 
-                    SET active_plant_id = NULL 
+                    UPDATE GrowthUnits
+                    SET active_plant_id = NULL
                     WHERE active_plant_id = ?
                     """,
                     (plant_id,),
@@ -478,8 +563,8 @@ class PlantHarvestService:
 
             return deleted_counts
 
-        except Exception as e:
-            logger.error(f"Failed to cleanup plant {plant_id} (raw SQL fallback): {e}")
+        except Exception as e:  # TODO(narrow): raw SQL fallback — sqlite3 errors possible
+            logger.error("Failed to cleanup plant %s (raw SQL fallback): %s", plant_id, e)
             raise
 
     def harvest_and_cleanup(
@@ -525,6 +610,6 @@ class PlantHarvestService:
                 "plant_data_deleted": delete_plant_data,
             }
 
-        except Exception as e:
-            logger.error(f"Failed to harvest and cleanup plant {plant_id}: {e}")
+        except Exception as e:  # TODO(narrow): complex orchestration — revisit
+            logger.error("Failed to harvest and cleanup plant %s: %s", plant_id, e)
             raise

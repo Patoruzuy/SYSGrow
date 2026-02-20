@@ -61,7 +61,7 @@ class PlantDeviceLinker:
         try:
             sensor = self.sensor_service.get_sensor(sensor_id)
             if not sensor:
-                logger.error(f"Sensor {sensor_id} not found")
+                logger.error("Sensor %s not found", sensor_id)
                 return False
 
             sensor_type = str(sensor.get("sensor_type") or "").strip().lower()
@@ -76,7 +76,7 @@ class PlantDeviceLinker:
 
             if plant_profile:
                 plant_profile.link_sensor(sensor_id)
-                logger.info(f"Linked sensor {sensor_id} to plant {plant_id} in memory")
+                logger.info("Linked sensor %s to plant %s in memory", sensor_id, plant_id)
 
             if self.audit_logger:
                 self.audit_logger.log_event(
@@ -87,11 +87,11 @@ class PlantDeviceLinker:
                     sensor_id=sensor_id,
                 )
 
-            logger.info(f"Linked sensor {sensor_id} ({sensor_type}) to plant {plant_id}")
+            logger.info("Linked sensor %s (%s) to plant %s", sensor_id, sensor_type, plant_id)
             return True
 
         except Exception as e:
-            logger.error(f"Error linking sensor {sensor_id} to plant {plant_id}: {e}", exc_info=True)
+            logger.error("Error linking sensor %s to plant %s: %s", sensor_id, plant_id, e, exc_info=True)
             return False
 
     def unlink_plant_sensor(self, plant_id: int, sensor_id: int, plant_profile: Any = None) -> bool:
@@ -111,7 +111,7 @@ class PlantDeviceLinker:
 
             if plant_profile and plant_profile.get_sensor_id() == sensor_id:
                 plant_profile.link_sensor(None)
-                logger.info(f"Unlinked sensor {sensor_id} from plant {plant_id} in memory")
+                logger.info("Unlinked sensor %s from plant %s in memory", sensor_id, plant_id)
 
             if self.audit_logger:
                 self.audit_logger.log_event(
@@ -122,11 +122,11 @@ class PlantDeviceLinker:
                     sensor_id=sensor_id,
                 )
 
-            logger.info(f"Unlinked sensor {sensor_id} from plant {plant_id}")
+            logger.info("Unlinked sensor %s from plant %s", sensor_id, plant_id)
             return True
 
         except Exception as e:
-            logger.error(f"Error unlinking sensor {sensor_id} from plant {plant_id}: {e}", exc_info=True)
+            logger.error("Error unlinking sensor %s from plant %s: %s", sensor_id, plant_id, e, exc_info=True)
             return False
 
     def unlink_all_sensors_from_plant(self, plant_id: int) -> bool:
@@ -142,10 +142,10 @@ class PlantDeviceLinker:
         """
         try:
             self.plant_repo.unlink_all_sensors_from_plant(plant_id)
-            logger.info(f"Unlinked all sensors from plant {plant_id}")
+            logger.info("Unlinked all sensors from plant %s", plant_id)
             return True
         except Exception as e:
-            logger.debug(f"Failed to unlink all sensors from plant {plant_id}: {e}", exc_info=True)
+            logger.debug("Failed to unlink all sensors from plant %s: %s", plant_id, e, exc_info=True)
             return False
 
     def get_plant_sensor_ids(self, plant_id: int) -> list[int]:
@@ -161,7 +161,7 @@ class PlantDeviceLinker:
         try:
             return self.plant_repo.get_sensors_for_plant(plant_id)
         except Exception as e:
-            logger.error(f"Error getting sensors for plant {plant_id}: {e}", exc_info=True)
+            logger.error("Error getting sensors for plant %s: %s", plant_id, e, exc_info=True)
             return []
 
     def get_plant_sensors(self, plant_id: int) -> list[dict[str, Any]]:
@@ -176,6 +176,21 @@ class PlantDeviceLinker:
         """
         try:
             sensor_ids = self.get_plant_sensor_ids(plant_id)
+            if not sensor_ids:
+                return []
+
+            # Batch fetch — single query instead of N+1
+            if self.devices_repo and hasattr(self.devices_repo, "get_sensors_by_ids"):
+                batch = self.devices_repo.get_sensors_by_ids(sensor_ids)
+                sensors = []
+                for sid in sensor_ids:
+                    sensor = batch.get(sid)
+                    if sensor:
+                        sensor["friendly_name"] = self._generate_friendly_name(sensor)
+                        sensors.append(sensor)
+                return sensors
+
+            # Fallback: individual reads
             sensors = []
             for sensor_id in sensor_ids:
                 sensor = self.sensor_service.get_sensor(sensor_id)
@@ -185,7 +200,7 @@ class PlantDeviceLinker:
             return sensors
 
         except Exception as e:
-            logger.error(f"Error getting sensor details for plant {plant_id}: {e}", exc_info=True)
+            logger.error("Error getting sensor details for plant %s: %s", plant_id, e, exc_info=True)
             return []
 
     # ==================== Actuator Linking ====================
@@ -276,9 +291,16 @@ class PlantDeviceLinker:
         """Get actuator details linked to a plant."""
         try:
             actuator_ids = self.get_plant_actuator_ids(plant_id)
+            if not actuator_ids or not self.devices_repo:
+                return []
+
+            # Batch fetch — single query instead of N+1
+            if hasattr(self.devices_repo, "get_actuators_by_ids"):
+                batch = self.devices_repo.get_actuators_by_ids(actuator_ids)
+                return [batch[aid] for aid in actuator_ids if aid in batch]
+
+            # Fallback: individual reads
             actuators: list[dict[str, Any]] = []
-            if not self.devices_repo:
-                return actuators
             for actuator_id in actuator_ids:
                 actuator = self.devices_repo.get_actuator_config_by_id(actuator_id)
                 if actuator:
@@ -350,11 +372,11 @@ class PlantDeviceLinker:
                         }
                     )
 
-            logger.debug(f"Found {len(available)} available {sensor_type} sensors for unit {unit_id}")
+            logger.debug("Found %s available %s sensors for unit %s", len(available), sensor_type, unit_id)
             return available
 
         except Exception as e:
-            logger.error(f"Error getting available sensors for unit {unit_id}: {e}", exc_info=True)
+            logger.error("Error getting available sensors for unit %s: %s", unit_id, e, exc_info=True)
             return []
 
     # ==================== Actuator Resolution (for plant context) ====================
@@ -369,7 +391,7 @@ class PlantDeviceLinker:
         try:
             actuator_ids = self.plant_repo.get_actuators_for_plant(plant_id)
         except Exception as exc:
-            logger.debug(f"Failed to resolve actuators for plant {plant_id}: {exc}", exc_info=True)
+            logger.debug("Failed to resolve actuators for plant %s: %s", plant_id, exc, exc_info=True)
             return None, False
 
         if not actuator_ids:
@@ -414,7 +436,7 @@ class PlantDeviceLinker:
         try:
             actuator_ids = self.plant_repo.get_actuators_for_plant(plant_id)
         except Exception as exc:
-            logger.debug(f"Failed to resolve actuators for plant {plant_id}: {exc}", exc_info=True)
+            logger.debug("Failed to resolve actuators for plant %s: %s", plant_id, exc, exc_info=True)
             return None
 
         if not actuator_ids or not self.devices_repo:
@@ -477,7 +499,7 @@ class PlantDeviceLinker:
                 return f"{base_name} (ID: {sensor_id})"
 
         except Exception as e:
-            logger.warning(f"Error generating friendly name: {e}")
+            logger.warning("Error generating friendly name: %s", e)
             return f"Sensor #{sensor.get('sensor_id', 'unknown')}"
 
     @staticmethod
@@ -491,5 +513,5 @@ class PlantDeviceLinker:
         try:
             return False
         except Exception as e:
-            logger.warning(f"Error checking if sensor {sensor_id} is linked: {e}")
+            logger.warning("Error checking if sensor %s is linked: %s", sensor_id, e)
             return False

@@ -191,7 +191,7 @@ class UnitRuntime:
         self.created_at = datetime.now()
         self.is_active = True
 
-        logger.info(f"UnitRuntime initialized: {self.unit_id} ({self.unit_name})")
+        logger.info("UnitRuntime initialized: %s (%s)", self.unit_id, self.unit_name)
 
     @property
     def latest_sensor_data(self) -> dict[str, Any]:

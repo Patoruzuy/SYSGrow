@@ -4,6 +4,8 @@ Automated Retraining API
 Endpoints for managing automated model retraining.
 """
 
+from __future__ import annotations
+
 import logging
 
 from flask import Blueprint, Response, request

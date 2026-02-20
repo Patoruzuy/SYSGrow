@@ -8,6 +8,8 @@ Machine learning analysis endpoints:
 - Anomaly insights
 """
 
+from __future__ import annotations
+
 import logging
 
 from flask import Blueprint, Response, request

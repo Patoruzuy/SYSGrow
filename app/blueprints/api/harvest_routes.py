@@ -3,6 +3,8 @@ Harvest Report API Routes
 Handles harvest report generation, data cleanup, and retrieval.
 """
 
+from __future__ import annotations
+
 from flask import Blueprint, Response, jsonify, request
 from pydantic import ValidationError
 

@@ -21,7 +21,7 @@ from app.enums.events import DeviceEvent
 from app.hardware.mqtt.client_factory import create_mqtt_client
 from app.schemas.events import ConnectivityStatePayload
 from app.utils.event_bus import EventBus
-from app.utils.time import iso_now
+from app.utils.time import iso_now, utc_now
 
 # Configure rotating log handler for MQTT operations
 # Prevents log file explosion on Raspberry Pi (critical fix)
@@ -81,7 +81,7 @@ class HealthStatus:
     def record_error(self, error: Exception):
         """Record a connection or operation error."""
         self.last_error = str(error)
-        self.last_error_time = datetime.utcnow()
+        self.last_error_time = utc_now()
 
     def increment_connection_attempts(self):
         """Increment the connection attempt counter."""
@@ -150,7 +150,7 @@ class MQTTClientWrapper:
             self.connected = True
             self.client.loop_start()  # Start the MQTT loop in a separate thread
             self.health_status.mark_connected()
-            _mqtt_logger.info(f"Connected to MQTT broker {self.broker}:{self.port}")
+            _mqtt_logger.info("Connected to MQTT broker %s:%s", self.broker, self.port)
             # Publish connectivity event
             try:
                 payload = ConnectivityStatePayload(
@@ -162,9 +162,9 @@ class MQTTClientWrapper:
                 )
                 self.event_bus.publish(DeviceEvent.CONNECTIVITY_CHANGED, payload)
             except Exception as e:
-                _mqtt_logger.error(f"Failed to publish connectivity event: {e}")
+                _mqtt_logger.error("Failed to publish connectivity event: %s", e)
         except Exception as e:
-            _mqtt_logger.error(f"Error connecting to MQTT broker: {e}")
+            _mqtt_logger.error("Error connecting to MQTT broker: %s", e)
             self.connected = False
             self.health_status.record_error(e)
             self.health_status.increment_connection_attempts()
@@ -193,9 +193,9 @@ class MQTTClientWrapper:
                     )
                     self.event_bus.publish(DeviceEvent.CONNECTIVITY_CHANGED, payload)
                 except Exception as e:
-                    _mqtt_logger.error(f"Error publishing connectivity event on disconnect: {e}", exc_info=True)
+                    _mqtt_logger.error("Error publishing connectivity event on disconnect: %s", e, exc_info=True)
             except Exception as e:
-                _mqtt_logger.error(f"Error disconnecting from MQTT broker: {e}")
+                _mqtt_logger.error("Error disconnecting from MQTT broker: %s", e)
                 self.health_status.record_error(e)
 
     def publish(self, topic, payload):
@@ -211,14 +211,14 @@ class MQTTClientWrapper:
                 msg_info = self.client.publish(topic, payload)
                 if msg_info.rc == mqtt.MQTT_ERR_SUCCESS:
                     self.health_status.record_publish_success()
-                    _mqtt_logger.debug(f"Published to {topic}: {payload}")
+                    _mqtt_logger.debug("Published to %s: %s", topic, payload)
                 else:
                     self.health_status.record_publish_failure()
-                    _mqtt_logger.error(f"Failed to publish to {topic}: {payload}. MQTT result code: {msg_info.rc}")
+                    _mqtt_logger.error("Failed to publish to %s: %s. MQTT result code: %s", topic, payload, msg_info.rc)
             except Exception as e:
                 self.health_status.record_publish_failure()
                 self.health_status.record_error(e)
-                _mqtt_logger.error(f"Error publishing to MQTT: {e}")
+                _mqtt_logger.error("Error publishing to MQTT: %s", e)
         else:
             _mqtt_logger.warning("MQTT client not connected. Cannot publish.")
 
@@ -232,20 +232,22 @@ class MQTTClientWrapper:
         """
         if self.connected:
             try:
-                result, mid = self.client.subscribe(topic)
+                result, _mid = self.client.subscribe(topic)
                 if result == mqtt.MQTT_ERR_SUCCESS:
                     self._register_callback(topic, callback)
                     self.subscribe_count += 1
                     self.health_status.set_active_subscriptions(self.subscribe_count)
-                    _mqtt_logger.info(f"Subscribed to topic {topic} with callback {callback.__name__}")
+                    _mqtt_logger.info("Subscribed to topic %s with callback %s", topic, callback.__name__)
                     _mqtt_logger.info(
-                        f"   Total subscriptions: {self.subscribe_count}, registered callbacks: {len(self._callbacks)}"
+                        "   Total subscriptions: %s, registered callbacks: %s",
+                        self.subscribe_count,
+                        len(self._callbacks),
                     )
                 else:
-                    _mqtt_logger.error(f"Failed to subscribe to topic {topic}: result code {result}")
+                    _mqtt_logger.error("Failed to subscribe to topic %s: result code %s", topic, result)
             except Exception as e:
                 self.health_status.record_error(e)
-                _mqtt_logger.error(f"Error subscribing to MQTT topic {topic}: {e}")
+                _mqtt_logger.error("Error subscribing to MQTT topic %s: %s", topic, e)
         else:
             _mqtt_logger.warning("MQTT client not connected. Cannot subscribe.")
 
@@ -261,8 +263,10 @@ class MQTTClientWrapper:
         """
         if _LOG_MQTT_DISPATCH:
             _mqtt_logger.debug(
-                f"MQTT DISPATCHER: topic={msg.topic} payload_len={len(msg.payload)} "
-                f"registered_callbacks={len(self._callbacks)}"
+                "MQTT DISPATCHER: topic=%s payload_len=%s registered_callbacks=%s",
+                msg.topic,
+                len(msg.payload),
+                len(self._callbacks),
             )
 
         with self._callback_lock:
@@ -274,14 +278,16 @@ class MQTTClientWrapper:
                 if mqtt.topic_matches_sub(sub, msg.topic):
                     handled = True
                     if _LOG_MQTT_DISPATCH:
-                        _mqtt_logger.debug(f"   Matched subscription '{sub}' -> calling {callback.__name__}")
+                        _mqtt_logger.debug("   Matched subscription '%s' -> calling %s", sub, callback.__name__)
                     callback(client, userdata, msg)
             except Exception as e:
-                _mqtt_logger.error(f"Error in MQTT callback for topic {sub}: {e}", exc_info=True)
+                _mqtt_logger.error("Error in MQTT callback for topic %s: %s", sub, e, exc_info=True)
 
         if not handled:
             _mqtt_logger.warning(
-                f"MQTT message on {msg.topic} had no registered handlers (subscriptions: {[s[0] for s in callbacks]})"
+                "MQTT message on %s had no registered handlers (subscriptions: %s)",
+                msg.topic,
+                [s[0] for s in callbacks],
             )
 
     def __del__(self):

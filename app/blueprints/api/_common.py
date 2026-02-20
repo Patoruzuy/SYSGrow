@@ -22,7 +22,7 @@ This module centralizes:
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from flask import current_app, request, session
@@ -177,8 +177,8 @@ def ensure_utc(dt: datetime) -> datetime:
         Datetime with UTC timezone
     """
     if dt.tzinfo is None:
-        return dt.replace(tzinfo=datetime.UTC)
-    return dt.astimezone(datetime.UTC)
+        return dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC)
 
 
 def coerce_datetime(value: Any) -> datetime | None:

@@ -89,11 +89,11 @@ class EmitterService:
             namespace (str): Socket.IO namespace to emit under (default "/").
         """
         try:
-            logger.info(f"📡 Emitting event='{event}' to namespace='{namespace}' room='{room or 'broadcast'}'")
+            logger.info("📡 Emitting event='%s' to namespace='%s' room='%s'", event, namespace, room or "broadcast")
             self.sio.emit(event, payload, room=room, namespace=namespace)
             logger.info("   ✓ Emit successful")
         except Exception as e:
-            logger.exception(f"[Emitter] Failed to emit event '{event}' to room '{room}': {e}")
+            logger.exception("[Emitter] Failed to emit event '%s' to room '%s': %s", event, room, e)
 
     def emit_to_user(
         self,
@@ -113,7 +113,7 @@ class EmitterService:
         """
         room = f"user_{user_id}"
         self.emit(event=event, payload=payload, room=room, namespace=namespace)
-        logger.info(f"[Emitter] Event '{event}' emitted to user_{user_id} in namespace='{namespace}'")
+        logger.info("[Emitter] Event '%s' emitted to user_%s in namespace='%s'", event, user_id, namespace)
 
     def emit_notification(
         self,
@@ -133,7 +133,7 @@ class EmitterService:
             payload=notification.model_dump(),
             namespace=SOCKETIO_NAMESPACE_NOTIFICATIONS,
         )
-        logger.info(f"[Emitter] Notification emitted to user_{notification.userId}")
+        logger.info("[Emitter] Notification emitted to user_%s", notification.userId)
 
     def emit_session_event(
         self,
@@ -152,7 +152,7 @@ class EmitterService:
             namespace=SOCKETIO_NAMESPACE_SESSION,
         )
 
-        logger.info(f"[Emitter] Session event emitted to user '{session.userId}'")
+        logger.info("[Emitter] Session event emitted to user '%s'", session.userId)
 
     def emit_alert_event(
         self,
@@ -164,7 +164,7 @@ class EmitterService:
             payload=alert.model_dump(),
             namespace=SOCKETIO_NAMESPACE_ALERTS,
         )
-        logger.info(f"[Emitter] Alert event emitted to user '{alert.userId}'")
+        logger.info("[Emitter] Alert event emitted to user '%s'", alert.userId)
 
     def emit_error(
         self,
@@ -188,7 +188,7 @@ class EmitterService:
             room=room,
             namespace=namespace,
         )
-        logger.info(f"[Emitter] Error event emitted to room='{room or 'broadcast'}' namespace='{namespace}'")
+        logger.info("[Emitter] Error event emitted to room='%s' namespace='%s'", room or "broadcast", namespace)
 
     # ---------------------------------------------------------------------
     # Consolidated sensor payload emitters (single source of truth)
@@ -244,13 +244,13 @@ class EmitterService:
             - Multi-value sensors: expanded format with all readings
         """
         try:
-            logger.info(f"🎯 EmitterService.emit_sensor_reading: sensor_id={sensor_id} namespace={namespace}")
+            logger.info("🎯 EmitterService.emit_sensor_reading: sensor_id=%s namespace=%s", sensor_id, namespace)
             raw_readings = (
                 readings_override if isinstance(readings_override, dict) else (getattr(reading, "data", None) or {})
             )
-            logger.info(f"   Raw readings: {list(raw_readings.keys())}")
+            logger.info("   Raw readings: %s", list(raw_readings.keys()))
             numeric_readings = self._coerce_numeric_readings(raw_readings)
-            logger.info(f"   Numeric readings: {list(numeric_readings.keys())}")
+            logger.info("   Numeric readings: %s", list(numeric_readings.keys()))
 
             if allowed_types is not None:
                 allowed = set(str(x) for x in allowed_types)
@@ -307,7 +307,7 @@ class EmitterService:
                 calibration_applied=bool(getattr(reading, "calibration_applied", False)),
             )
 
-            logger.info(f"   📦 Payload created: {payload.model_dump()}")
+            logger.info("   📦 Payload created: %s", payload.model_dump())
 
             # Emit ONE consolidated event per call
             logger.info(
@@ -327,7 +327,7 @@ class EmitterService:
                 f"namespace='{namespace}'"
             )
         except Exception as e:
-            logger.exception(f"[Emitter] Failed to emit sensor reading for sensor {sensor_id}: {e}")
+            logger.exception("[Emitter] Failed to emit sensor reading for sensor %s: %s", sensor_id, e)
 
     def _coerce_numeric_readings(self, readings: dict[str, Any]) -> dict[str, float]:
         """Filter/coerce raw reading values to numeric types for websocket payloads."""
@@ -360,7 +360,7 @@ class EmitterService:
         """
         from app.hardware.sensors.processors.utils import UNIT_MAP
 
-        return {k: UNIT_MAP.get(k, "") for k in (readings or {}).keys()}
+        return {k: UNIT_MAP.get(k, "") for k in (readings or {})}
 
     def ping(self):
         """

@@ -264,6 +264,14 @@ class DeviceRepository:
         """Backward-compatible alias for actuator config lookup."""
         return self._backend.get_actuator_config_by_id(actuator_id)
 
+    def get_actuators_by_ids(self, actuator_ids: list[int]) -> dict[int, dict[str, Any]]:
+        """Batch-fetch actuator configs. Returns dict keyed by actuator_id."""
+        return self._backend.get_actuators_by_ids(actuator_ids)
+
+    def get_sensors_by_ids(self, sensor_ids: list[int]) -> dict[int, dict[str, Any]]:
+        """Batch-fetch sensor configs. Returns dict keyed by sensor_id."""
+        return self._backend.get_sensors_by_ids(sensor_ids)
+
     def find_sensors_by_model(self, sensor_model: str) -> list[Any]:
         return self._backend.get_sensors_by_model(sensor_model)
 
@@ -281,6 +289,13 @@ class DeviceRepository:
             reading_data=reading_data,
             quality_score=quality_score,
         )
+
+    def record_sensor_readings_batch(
+        self,
+        readings: list[tuple[int, dict[str, Any], float]],
+    ) -> int:
+        """Batch-insert multiple sensor readings (single transaction)."""
+        return self._backend.insert_sensor_readings_batch(readings)
 
     # Calibration --------------------------------------------------------------
     def save_calibration(

@@ -7,6 +7,8 @@ Key invariants (enforced by call sites + tests):
   - Subscribers always receive a plain dict payload.
 """
 
+from __future__ import annotations
+
 import logging
 import threading
 import time
@@ -14,7 +16,7 @@ from collections import defaultdict
 from dataclasses import asdict, is_dataclass
 from enum import Enum
 from queue import Full, Queue
-from typing import Any, Callable, Hashable, Iterable, Optional
+from typing import Any, Callable, Hashable, Iterable
 
 from pydantic import BaseModel
 
@@ -33,7 +35,7 @@ class EventBus:
     Singleton so publishers/subscribers share the same routing table.
     """
 
-    _instance: Optional["EventBus"] = None
+    _instance: "EventBus" | None = None
     _lock = threading.Lock()
 
     def __new__(cls) -> "EventBus":

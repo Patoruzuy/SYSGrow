@@ -240,11 +240,10 @@ def invalidate_related_caches(repository_instance: Any, method_name: str) -> Non
                 invalidate_on = attr._invalidate_on
 
                 # If this method should be invalidated by the current write
-                if method_name in invalidate_on:
-                    if hasattr(attr, "invalidate_cache"):
-                        attr.invalidate_cache()
-                        invalidated_count += 1
-                        logger.debug(f"Invalidated {attr_name} due to {method_name}")
+                if method_name in invalidate_on and hasattr(attr, "invalidate_cache"):
+                    attr.invalidate_cache()
+                    invalidated_count += 1
+                    logger.debug(f"Invalidated {attr_name} due to {method_name}")
         except Exception as e:
             # Skip attributes that can't be accessed
             logger.debug(f"Could not check {attr_name} for invalidation: {e}")

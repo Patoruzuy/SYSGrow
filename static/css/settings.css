@@ -92,7 +92,25 @@
   border: var(--settings-border);
   margin-bottom: var(--space-3);
   overflow-x: auto;
-  scrollbar-width: thin;
+  scrollbar-width: thin; /* Firefox */
+}
+
+/* WebKit scrollbar styling for Safari, Chrome, Edge */
+.settings-page .settings-tabs::-webkit-scrollbar {
+  height: 8px;
+}
+
+.settings-page .settings-tabs::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.settings-page .settings-tabs::-webkit-scrollbar-thumb {
+  background: var(--border-200);
+  border-radius: 4px;
+}
+
+.settings-page .settings-tabs::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--border-200) 80%, var(--primary-text-color));
 }
 
 .settings-page .tab-button {
@@ -539,7 +557,7 @@
 .settings-page .discover-result-addr {
   font-size: 0.875rem;
   color: var(--secondary-text-color);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-family: var(--font-mono);
 }
 
 .settings-page .discover-error {
@@ -1434,7 +1452,7 @@
 }
 
 .recovery-code-item .code-value {
-  font-family: var(--font-mono, 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace);
+  font-family: var(--font-mono);
   font-size: 0.95rem;
   font-weight: 600;
   color: var(--primary-text-color);

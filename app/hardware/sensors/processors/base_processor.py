@@ -10,9 +10,11 @@ Pipeline Processors (CompositeProcessor):
 - Also implement process() and build_payloads() for full orchestration
 """
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable
 
 if TYPE_CHECKING:
     from app.domain.sensors import CalibrationData, SensorEntity, SensorReading
@@ -39,7 +41,7 @@ class PreparedPayloads:
 
     unit_id: int
     device_payload: "DeviceSensorReadingPayload"
-    dashboard_payload: Optional["DashboardSnapshotPayload"] = None
+    dashboard_payload: "DashboardSnapshotPayload" | None = None
     controller_events: list[tuple[str, dict[str, Any]]] = field(default_factory=list)
 
 

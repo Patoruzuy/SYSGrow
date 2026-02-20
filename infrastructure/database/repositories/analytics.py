@@ -34,7 +34,7 @@ class AnalyticsRepository:
     def latest_readings_for_unit(self, unit_id: int) -> dict[str, float | None]:
         return self._backend.get_latest_sensor_readings(unit_id)
 
-    def list_plant_readings(self, *, limit: int | None = None, offset: int | None = None) -> list[dict[str, object]]:
+    def get_plant_readings(self, *, limit: int | None = None, offset: int | None = None) -> list[dict[str, object]]:
         return self._backend.get_all_plant_readings(limit=limit, offset=offset)
 
     def get_latest_plant_readings(self, plant_id: int, limit: int = 1) -> list[dict[str, object]]:
@@ -285,8 +285,8 @@ class AnalyticsRepository:
             cursor = db.cursor()
             cursor.execute(
                 """
-                SELECT unit_id 
-                FROM GrowthUnits 
+                SELECT unit_id
+                FROM GrowthUnits
                 WHERE active_plant_id IS NOT NULL
                 ORDER BY unit_id
                 """

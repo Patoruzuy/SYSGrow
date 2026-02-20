@@ -59,8 +59,8 @@ class TestAnalyticsServiceV2:
     def test_get_energy_dashboard_summary(self, analytics_service, mock_device_repo):
         # Setup
         mock_device_repo.list_actuators.return_value = [{"actuator_id": 1, "name": "Light 1", "actuator_type": "light"}]
-        # mock get_actuator_energy_cost_trends (internal call)
-        with patch.object(AnalyticsService, "get_actuator_energy_cost_trends") as mock_trends:
+        # mock get_actuator_energy_cost_trends (internal call on energy sub-service)
+        with patch.object(analytics_service._energy, "get_actuator_energy_cost_trends") as mock_trends:
             mock_trends.return_value = {"total_cost": 10.5, "cost_unit": "$"}
             mock_device_repo.get_actuator_power_readings.return_value = [{"power_watts": 100.0}]
 
@@ -73,8 +73,8 @@ class TestAnalyticsServiceV2:
             assert result["current_power"] == 100.0
 
     def test_get_composite_efficiency_score(self, analytics_service):
-        # Mock calculate_efficiency_scores_concurrent
-        with patch.object(AnalyticsService, "calculate_efficiency_scores_concurrent") as mock_calc:
+        # Mock calculate_efficiency_scores_concurrent on the env sub-service
+        with patch.object(analytics_service._env, "calculate_efficiency_scores_concurrent") as mock_calc:
             mock_calc.return_value = {
                 "environmental": 90.0,
                 "energy": 80.0,
@@ -99,7 +99,7 @@ class TestAnalyticsServiceV2:
         # Setup
         mock_device_repo.list_actuators.return_value = [{"actuator_id": 1}]
 
-        with patch.object(AnalyticsService, "get_actuator_energy_dashboard") as mock_dash:
+        with patch.object(analytics_service._energy, "get_actuator_energy_dashboard") as mock_dash:
             mock_dash.return_value = {"status": "ok"}
 
             # Execute
@@ -114,8 +114,8 @@ class TestAnalyticsServiceV2:
         mock_growth_repo.list_units.return_value = [{"unit_id": 1, "name": "Unit 1"}]
 
         with (
-            patch.object(AnalyticsService, "get_latest_sensor_reading") as mock_latest,
-            patch.object(AnalyticsService, "get_comparative_energy_analysis") as mock_comp,
+            patch.object(analytics_service._sensor, "get_latest_sensor_reading") as mock_latest,
+            patch.object(analytics_service._energy, "get_comparative_energy_analysis") as mock_comp,
         ):
             mock_latest.return_value = {"temp": 20}
             mock_comp.return_value = {"usage": "high"}

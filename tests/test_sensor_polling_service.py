@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -20,7 +20,7 @@ class StubProcessor:
             sensor_type=str(getattr(getattr(sensor, "sensor_type", None), "value", "unknown")),
             sensor_name=str(getattr(sensor, "name", f"Sensor {sensor.id}")),
             data=dict(validated_data),
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
             status=ReadingStatus.SUCCESS,
         )
 

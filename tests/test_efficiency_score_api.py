@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -25,7 +25,7 @@ def client(app):
 def test_efficiency_score_filters_anomalies_and_includes_grade_trend(app, client):
     with app.app_context():
         database = app.config["CONTAINER"].database
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
 
         with database.connection() as conn:
             conn.execute(

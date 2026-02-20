@@ -708,12 +708,12 @@ class FeatureEngineer:
 
         missing = expected_cols - feature_cols
         if missing:
-            logger.error(f"Missing features: {missing}")
+            logger.error("Missing features: %s", missing)
             return False
 
         extra = feature_cols - expected_cols
         if extra:
-            logger.warning(f"Extra features (will be ignored): {extra}")
+            logger.warning("Extra features (will be ignored): %s", extra)
 
         return True
 
@@ -795,7 +795,7 @@ class FeatureEngineer:
         # Add missing features with default value 0
         for feature in expected_features:
             if feature not in features.columns:
-                logger.warning(f"Missing feature {feature}, filling with 0")
+                logger.warning("Missing feature %s, filling with 0", feature)
                 features[feature] = 0.0
 
         # Select only expected features in correct order
@@ -1024,7 +1024,7 @@ class EnvironmentalFeatureExtractor:
             return features
 
         except Exception as e:
-            logger.error(f"Error extracting features: {e}", exc_info=True)
+            logger.error("Error extracting features: %s", e, exc_info=True)
             return self._get_default_features()
 
     def calculate_vpd(self, temperature, relative_humidity):
@@ -1138,7 +1138,7 @@ class EnvironmentalFeatureExtractor:
             return features
 
         except Exception as e:
-            logger.warning(f"Error extracting rolling features: {e}")
+            logger.warning("Error extracting rolling features: %s", e)
             return {}
 
     def detect_trend(self, series, window: int = 24) -> float:
@@ -1170,7 +1170,7 @@ class EnvironmentalFeatureExtractor:
                 return 0.0
 
         except Exception as e:
-            logger.warning(f"Error detecting trend: {e}")
+            logger.warning("Error detecting trend: %s", e)
             return 0.0
 
     def detect_anomalies(self, sensor_df, std_threshold: float = 3.0) -> list[dict[str, Any]]:
@@ -1223,7 +1223,7 @@ class EnvironmentalFeatureExtractor:
             return anomalies
 
         except Exception as e:
-            logger.warning(f"Error detecting anomalies: {e}")
+            logger.warning("Error detecting anomalies: %s", e)
             return []
 
     def calculate_growing_degree_days(self, temperature, plant_type: str, base_temp: float | None = None) -> float:
@@ -1318,7 +1318,7 @@ class EnvironmentalFeatureExtractor:
             return risks
 
         except Exception as e:
-            logger.warning(f"Error calculating risk indicators: {e}")
+            logger.warning("Error calculating risk indicators: %s", e)
             return {}
 
     def _calculate_stability(self, series) -> float:
@@ -1341,7 +1341,7 @@ class EnvironmentalFeatureExtractor:
             return float(stability)
 
         except Exception as e:
-            logger.warning(f"Error calculating stability: {e}")
+            logger.warning("Error calculating stability: %s", e)
             return 0.5
 
     def _categorize_dif(self, dif: float) -> float:
@@ -1541,7 +1541,7 @@ class PlantHealthFeatureExtractor:
         # Ensure all expected columns exist
         for feature in FeatureEngineer.PLANT_HEALTH_FEATURES_V1:
             if feature not in df.columns:
-                logger.warning(f"Missing feature {feature}, filling with 0")
+                logger.warning("Missing feature %s, filling with 0", feature)
                 df[feature] = 0.0
 
         # Select only expected features in correct order
@@ -1577,7 +1577,7 @@ class PlantHealthFeatureExtractor:
                 stats["humidity_std_24h"] = 5.0
 
         except Exception as e:
-            logger.warning(f"Error extracting 24h statistics: {e}")
+            logger.warning("Error extracting 24h statistics: %s", e)
             stats = {
                 "soil_moisture_mean_24h": 60.0,
                 "soil_moisture_std_24h": 5.0,
@@ -1704,7 +1704,7 @@ class PlantHealthFeatureExtractor:
                     indicators["consecutive_stress_hours"] = float(max_consecutive)
 
         except Exception as e:
-            logger.warning(f"Error calculating stress indicators: {e}")
+            logger.warning("Error calculating stress indicators: %s", e)
 
         return indicators
 
@@ -1745,7 +1745,7 @@ class PlantHealthFeatureExtractor:
             context["plant_age_days"] = float(plant_age or 30)
 
         except Exception as e:
-            logger.warning(f"Error extracting plant context: {e}")
+            logger.warning("Error extracting plant context: %s", e)
 
         return context
 

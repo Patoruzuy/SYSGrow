@@ -97,7 +97,7 @@ class NotificationsService:
             # Return defaults
             return NotificationSettings(user_id=user_id)
         except Exception as e:
-            logger.error(f"Error getting notification settings: {e}")
+            logger.error("Error getting notification settings: %s", e)
             return NotificationSettings(user_id=user_id)
 
     def save_user_settings(self, user_id: int, settings: NotificationSettings) -> bool:
@@ -105,7 +105,7 @@ class NotificationsService:
         try:
             return self._repo.save_settings(user_id, settings.to_dict())
         except Exception as e:
-            logger.error(f"Error saving notification settings: {e}")
+            logger.error("Error saving notification settings: %s", e)
             return False
 
     def update_user_settings(self, user_id: int, updates: dict[str, Any]) -> bool:
@@ -117,7 +117,7 @@ class NotificationsService:
                     setattr(current, key, value)
             return self.save_user_settings(user_id, current)
         except Exception as e:
-            logger.error(f"Error updating notification settings: {e}")
+            logger.error("Error updating notification settings: %s", e)
             return False
 
     # --- Core Notification Methods ---
@@ -164,24 +164,24 @@ class NotificationsService:
 
             # Check if notification type is enabled (unless forced)
             if not force and not self._is_notification_enabled(settings, notification_type):
-                logger.debug(f"Notification type {notification_type} disabled for user {user_id}")
+                logger.debug("Notification type %s disabled for user %s", notification_type, user_id)
                 return None
 
             # Check quiet hours
             if not force and self._in_quiet_hours(settings):
-                logger.debug(f"In quiet hours for user {user_id}")
+                logger.debug("In quiet hours for user %s", user_id)
                 return None
 
             # Check throttling
             throttle_key = f"{user_id}:{notification_type}:{source_type}:{source_id}"
             if not force and self._is_throttled(throttle_key, settings.min_notification_interval_seconds):
-                logger.debug(f"Throttled notification for key {throttle_key}")
+                logger.debug("Throttled notification for key %s", throttle_key)
                 return None
 
             # Determine channel
             channel = self._determine_channel(settings)
             if channel is None:
-                logger.debug(f"No notification channels enabled for user {user_id}")
+                logger.debug("No notification channels enabled for user %s", user_id)
                 return None
 
             # Create notification record
@@ -215,11 +215,11 @@ class NotificationsService:
             if channel in (NotificationChannel.EMAIL, NotificationChannel.BOTH):
                 self._send_email(message_id, settings, title, message, severity)
 
-            logger.info(f"Notification sent: [{severity}] {title} to user {user_id}")
+            logger.info("Notification sent: [%s] %s to user %s", severity, title, user_id)
             return message_id
 
         except Exception as e:
-            logger.error(f"Error sending notification: {e}")
+            logger.error("Error sending notification: %s", e)
             return None
 
     def _is_notification_enabled(self, settings: NotificationSettings, notification_type: str) -> bool:
@@ -311,9 +311,9 @@ class NotificationsService:
                 timestamp=iso_now(),
             )
             self._emitter.emit_notification(payload)
-            logger.debug(f"In-app notification sent to user {user_id}")
+            logger.debug("In-app notification sent to user %s", user_id)
         except Exception as e:
-            logger.error(f"Failed to send in-app notification: {e}")
+            logger.error("Failed to send in-app notification: %s", e)
 
     def _send_email(
         self,
@@ -358,7 +358,7 @@ class NotificationsService:
         except Exception as e:
             error_msg = str(e)
             self._repo.update_email_status(message_id, sent=False, error=error_msg)
-            logger.error(f"Failed to send email notification: {e}")
+            logger.error("Failed to send email notification: %s", e)
 
     # --- Convenience Methods for Specific Notification Types ---
 
@@ -620,7 +620,7 @@ class NotificationsService:
         try:
             return self._repo.get_user_messages(user_id, unread_only, limit, offset)
         except Exception as e:
-            logger.error(f"Error getting user notifications: {e}")
+            logger.error("Error getting user notifications: %s", e)
             return []
 
     def mark_notification_read(self, message_id: int) -> bool:
@@ -628,7 +628,7 @@ class NotificationsService:
         try:
             return self._repo.mark_read(message_id)
         except Exception as e:
-            logger.error(f"Error marking notification as read: {e}")
+            logger.error("Error marking notification as read: %s", e)
             return False
 
     def mark_all_read(self, user_id: int) -> int:
@@ -636,7 +636,7 @@ class NotificationsService:
         try:
             return self._repo.mark_all_read(user_id)
         except Exception as e:
-            logger.error(f"Error marking all notifications as read: {e}")
+            logger.error("Error marking all notifications as read: %s", e)
             return 0
 
     def delete_notification(self, message_id: int) -> bool:
@@ -644,7 +644,7 @@ class NotificationsService:
         try:
             return self._repo.delete_message(message_id)
         except Exception as e:
-            logger.error(f"Error deleting notification: {e}")
+            logger.error("Error deleting notification: %s", e)
             return False
 
     def clear_user_notifications(self, user_id: int) -> int:
@@ -652,7 +652,7 @@ class NotificationsService:
         try:
             return self._repo.clear_user_messages(user_id)
         except Exception as e:
-            logger.error(f"Error clearing user notifications: {e}")
+            logger.error("Error clearing user notifications: %s", e)
             return 0
 
     def get_unread_count(self, user_id: int) -> int:
@@ -660,7 +660,7 @@ class NotificationsService:
         try:
             return self._repo.get_unread_count(user_id)
         except Exception as e:
-            logger.error(f"Error getting unread count: {e}")
+            logger.error("Error getting unread count: %s", e)
             return 0
 
     def get_pending_actions(
@@ -672,7 +672,7 @@ class NotificationsService:
         try:
             return self._repo.get_pending_actions(user_id, action_type)
         except Exception as e:
-            logger.error(f"Error getting pending actions: {e}")
+            logger.error("Error getting pending actions: %s", e)
             return []
 
     def register_action_handler(
@@ -715,7 +715,7 @@ class NotificationsService:
 
             return self._repo.record_action(message_id, action_response)
         except Exception as e:
-            logger.error(f"Error recording action response: {e}")
+            logger.error("Error recording action response: %s", e)
             return False
 
     # --- Irrigation Feedback Management ---
@@ -748,7 +748,7 @@ class NotificationsService:
         }
 
         if response not in valid_responses:
-            logger.error(f"Invalid irrigation feedback response: {response}")
+            logger.error("Invalid irrigation feedback response: %s", response)
             return False
 
         try:
@@ -766,7 +766,7 @@ class NotificationsService:
                 suggested_adjustment=suggested_adjustment,
             )
         except Exception as e:
-            logger.error(f"Error submitting irrigation feedback: {e}")
+            logger.error("Error submitting irrigation feedback: %s", e)
             return False
 
     def get_pending_irrigation_feedback(self, user_id: int) -> list[dict[str, Any]]:
@@ -774,7 +774,7 @@ class NotificationsService:
         try:
             return self._repo.get_pending_irrigation_feedback(user_id)
         except Exception as e:
-            logger.error(f"Error getting pending irrigation feedback: {e}")
+            logger.error("Error getting pending irrigation feedback: %s", e)
             return []
 
     def get_irrigation_feedback_history(
@@ -786,7 +786,7 @@ class NotificationsService:
         try:
             return self._repo.get_irrigation_feedback_history(unit_id, limit)
         except Exception as e:
-            logger.error(f"Error getting irrigation feedback history: {e}")
+            logger.error("Error getting irrigation feedback history: %s", e)
             return []
 
     def apply_threshold_adjustment(self, feedback_id: int) -> bool:
@@ -794,7 +794,7 @@ class NotificationsService:
         try:
             return self._repo.mark_threshold_adjustment_applied(feedback_id)
         except Exception as e:
-            logger.error(f"Error marking threshold adjustment applied: {e}")
+            logger.error("Error marking threshold adjustment applied: %s", e)
             return False
 
     # --- Maintenance ---
@@ -804,5 +804,5 @@ class NotificationsService:
         try:
             return self._repo.purge_old(retention_days)
         except Exception as e:
-            logger.error(f"Error purging old notifications: {e}")
+            logger.error("Error purging old notifications: %s", e)
             return 0

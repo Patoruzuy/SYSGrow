@@ -310,7 +310,7 @@ class BayesianThresholdAdjuster:
                     )
                     return thresholds.soil_moisture
             except Exception as e:
-                logger.warning(f"Failed to get threshold from service: {e}")
+                logger.warning("Failed to get threshold from service: %s", e)
 
         # Fallback to constants
         base_threshold = IRRIGATION_THRESHOLDS.get(
@@ -321,7 +321,7 @@ class BayesianThresholdAdjuster:
         stage_adjustment = GROWTH_STAGE_MOISTURE_ADJUSTMENTS.get(growth_stage, 0.0)
         fallback_value = base_threshold + stage_adjustment
 
-        logger.debug(f"Using fallback threshold for {plant_type}/{growth_stage}: {fallback_value}%")
+        logger.debug("Using fallback threshold for %s/%s: %s%", plant_type, growth_stage, fallback_value)
         return fallback_value
 
     def get_belief(
@@ -379,7 +379,7 @@ class BayesianThresholdAdjuster:
                         self._beliefs[cache_key] = belief
                         return belief
             except (json.JSONDecodeError, KeyError, TypeError) as e:
-                logger.warning(f"Failed to load belief from DB: {e}")
+                logger.warning("Failed to load belief from DB: %s", e)
 
         # Create prior from plant type
         prior = self.get_prior(
@@ -704,7 +704,7 @@ class BayesianThresholdAdjuster:
             return max(0.2, min(1.0, consistency))
 
         except Exception as e:
-            logger.warning(f"Failed to calculate user consistency: {e}")
+            logger.warning("Failed to calculate user consistency: %s", e)
             return 0.5
 
     def _get_observation_variance(self, user_consistency: float) -> float:
@@ -780,7 +780,7 @@ class BayesianThresholdAdjuster:
                 belief_json=belief_json,
             )
         except Exception as e:
-            logger.error(f"Failed to persist belief: {e}")
+            logger.error("Failed to persist belief: %s", e)
             return False
 
     def reset_belief(
@@ -802,7 +802,7 @@ class BayesianThresholdAdjuster:
         self._beliefs[cache_key] = prior
         self._persist_belief(unit_id, user_id, prior, belief_key=belief_key)
 
-        logger.info(f"Reset threshold belief for unit {unit_id}, user {user_id}")
+        logger.info("Reset threshold belief for unit %s, user %s", unit_id, user_id)
         return prior
 
     def get_statistics(

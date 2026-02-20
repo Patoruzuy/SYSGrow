@@ -98,7 +98,6 @@ def test_ui_helpers():
 
         sig = inspect.signature(get_unit_card_data)
         assert "growth_service" in sig.parameters, "Missing growth_service parameter"
-        assert "growth_repo" in sig.parameters, "Missing growth_repo parameter"
         assert "unit_id" in sig.parameters, "Missing unit_id parameter"
         logger.info("✅ get_unit_card_data signature correct")
 

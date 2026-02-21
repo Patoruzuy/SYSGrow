@@ -37,9 +37,14 @@
     });
     if (!res.ok) {
       const errBody = await res.json().catch(() => ({}));
-      throw new Error(errBody.message || `HTTP ${res.status}`);
+      throw new Error(errBody.error?.message || errBody.message || `HTTP ${res.status}`);
     }
-    return res.json();
+    const json = await res.json();
+    // Backend returns {ok, data, error} envelope — normalise to {success, data, message}
+    if (json && typeof json.ok === 'boolean') {
+      return { success: json.ok, data: json.data, message: json.error?.message || json.error || null };
+    }
+    return json;
   }
 
   function el(id) {

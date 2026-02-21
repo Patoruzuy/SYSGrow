@@ -576,21 +576,25 @@ class AIInsightsManager {
             
             if (growers.length > 0) {
                 this.renderSimilarGrowers(growers);
-                if (this.elements.communitySection) {
-                    this.elements.communitySection.style.display = 'block';
-                }
+                this.setCommunitySectionVisibility(true);
             } else {
-                if (this.elements.communitySection) {
-                    this.elements.communitySection.style.display = 'none';
-                }
+                this.setCommunitySectionVisibility(false);
             }
             
         } catch (error) {
             console.error('Error loading similar growers:', error);
-            if (this.elements.communitySection) {
-                this.elements.communitySection.style.display = 'none';
-            }
+            this.setCommunitySectionVisibility(false);
         }
+    }
+
+    /**
+     * Toggle visibility of optional community section.
+     * Hidden by default via CSS class, then shown when data exists.
+     * @param {boolean} isVisible
+     */
+    setCommunitySectionVisibility(isVisible) {
+        if (!this.elements.communitySection) return;
+        this.elements.communitySection.classList.toggle('section--hidden', !isVisible);
     }
     
     /**

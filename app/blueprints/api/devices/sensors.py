@@ -475,6 +475,9 @@ def check_sensor_anomalies(sensor_id: int) -> Response:
             return _fail(error_msg, 404)
         elif error_type in ["service_unavailable", "runtime_unavailable"]:
             return _fail(error_msg, 503)
+        elif error_type == "read_error":
+            # Sensor exists but can't be read right now — return empty result
+            return _success({"anomalies": [], "has_anomaly": False, "message": error_msg})
         else:
             return _fail(error_msg, 400)
 

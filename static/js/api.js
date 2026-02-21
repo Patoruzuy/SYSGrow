@@ -165,6 +165,122 @@ async function postFormData(url, formData) {
     }
 }
 
+/**
+ * Return the first non-nullish value from a list.
+ * @param {...any} values
+ * @returns {any}
+ */
+function firstDefined(...values) {
+    for (const value of values) {
+        if (value !== undefined && value !== null) {
+            return value;
+        }
+    }
+    return undefined;
+}
+
+/**
+ * Append normalized values to FormData.
+ * @param {FormData} formData
+ * @param {string} key
+ * @param {any} value
+ * @param {Object} [options]
+ * @param {boolean} [options.arrayAsCsv=false]
+ */
+function appendFormField(formData, key, value, options = {}) {
+    if (value === undefined || value === null) {
+        return;
+    }
+
+    if (Array.isArray(value)) {
+        const items = value
+            .filter((item) => item !== undefined && item !== null && item !== "")
+            .map((item) => String(item).trim())
+            .filter((item) => item !== "");
+
+        if (items.length === 0) {
+            return;
+        }
+
+        if (options.arrayAsCsv) {
+            formData.append(key, items.join(","));
+            return;
+        }
+
+        items.forEach((item) => formData.append(key, item));
+        return;
+    }
+
+    if (value instanceof Date) {
+        formData.append(key, value.toISOString());
+        return;
+    }
+
+    if (value instanceof Blob) {
+        formData.append(key, value);
+        return;
+    }
+
+    formData.append(key, String(value));
+}
+
+/**
+ * Normalize plant observation payloads to expected form-data fields.
+ * @param {Object|FormData} data
+ * @returns {FormData}
+ */
+function toPlantObservationFormData(data) {
+    if (data instanceof FormData) {
+        return data;
+    }
+
+    const payload = data && typeof data === "object" ? data : {};
+    const formData = new FormData();
+
+    appendFormField(formData, "plant_id", firstDefined(payload.plant_id, payload.plantId));
+    appendFormField(
+        formData,
+        "observation_type",
+        firstDefined(payload.observation_type, payload.observationType)
+    );
+    appendFormField(formData, "notes", payload.notes);
+    appendFormField(formData, "health_status", firstDefined(payload.health_status, payload.healthStatus));
+    appendFormField(formData, "severity_level", firstDefined(payload.severity_level, payload.severityLevel));
+    appendFormField(formData, "symptoms", payload.symptoms, { arrayAsCsv: true });
+    appendFormField(formData, "image_path", firstDefined(payload.image_path, payload.imagePath));
+
+    return formData;
+}
+
+/**
+ * Normalize plant nutrient payloads to expected form-data fields.
+ * @param {Object|FormData} data
+ * @returns {FormData}
+ */
+function toPlantNutrientFormData(data) {
+    if (data instanceof FormData) {
+        return data;
+    }
+
+    const payload = data && typeof data === "object" ? data : {};
+    const formData = new FormData();
+
+    appendFormField(
+        formData,
+        "application_type",
+        firstDefined(payload.application_type, payload.applicationType)
+    );
+    appendFormField(formData, "plant_id", firstDefined(payload.plant_id, payload.plantId));
+    appendFormField(formData, "unit_id", firstDefined(payload.unit_id, payload.unitId));
+    appendFormField(formData, "nutrient_type", firstDefined(payload.nutrient_type, payload.nutrientType));
+    appendFormField(formData, "nutrient_name", firstDefined(payload.nutrient_name, payload.nutrientName));
+    appendFormField(formData, "amount", payload.amount);
+    appendFormField(formData, "unit", payload.unit);
+    appendFormField(formData, "notes", payload.notes);
+
+    return formData;
+}
+
 // ============================================================================
 // GROWTH UNITS API
 // ============================================================================
@@ -943,11 +1059,11 @@ const PlantAPI = {
 
     /**
      * Record nutrient application (FormData)
-     * @param {FormData} formData - Form data for nutrient record
+     * @param {FormData|Object} formData - Form data or object payload for nutrient record
      * @returns {Promise<Object>} Recorded nutrient entry
      */
     recordNutrients(formData) {
-        return postFormData('/api/plants/journal/nutrients', formData);
+        return postFormData('/api/plants/journal/nutrients', toPlantNutrientFormData(formData));
     },
 
     /**
@@ -961,13 +1077,12 @@ const PlantAPI = {
 
     /**
      * Record a plant observation (simplified wrapper)
-     * Extracts plant_id from data and delegates to recordHealthObservation.
+     * Normalizes payload to backend form-data contract.
      * @param {Object} data - Observation data including plant_id
      * @returns {Promise<Object>} Recorded observation
      */
     recordObservation(data) {
-        const plantId = data.plant_id || data.plantId;
-        return post(`/api/plants/journal/observation`, data);
+        return postFormData('/api/plants/journal/observation', toPlantObservationFormData(data));
     },
 
     /**
@@ -976,7 +1091,7 @@ const PlantAPI = {
      * @returns {Promise<Object>} Recorded nutrient entry
      */
     recordNutrient(data) {
-        return post('/api/plants/journal/nutrients', data);
+        return postFormData('/api/plants/journal/nutrients', toPlantNutrientFormData(data));
     },
 
     /**

@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import logging
 
-from flask import Blueprint, Response, jsonify, request
+from flask import Blueprint, Response, request
 
 from app.blueprints.api._common import (
     fail as _fail,
@@ -52,7 +52,7 @@ def ml_health() -> Response:
 
     healthy = all(components.values())
 
-    return jsonify({"healthy": healthy, "components": components})
+    return _success({"healthy": healthy, "components": components})
 
 
 @base_bp.get("/training/history")

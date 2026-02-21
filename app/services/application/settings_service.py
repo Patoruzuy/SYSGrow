@@ -56,10 +56,14 @@ class SettingsService:
         }
 
     # --- Camera ------------------------------------------------------------------
-    def get_camera_settings(self) -> dict[str, Any] | None:
+    def get_default_camera_settings(self) -> dict[str, Any] | None:
+        """Return system-level (default) camera settings."""
         return self.repository.get_camera()
 
-    def update_camera_settings(
+    # Backward-compatible alias
+    get_camera_settings = get_default_camera_settings
+
+    def update_default_camera_settings(
         self,
         *,
         camera_type: str,
@@ -99,4 +103,7 @@ class SettingsService:
             saturation=payload["saturation"],
             flip=payload["flip"],
         )
-        return self.get_camera_settings() or payload
+        return self.get_default_camera_settings() or payload
+
+    # Backward-compatible alias
+    update_camera_settings = update_default_camera_settings

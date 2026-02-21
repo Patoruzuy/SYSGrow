@@ -1,5 +1,5 @@
 """
-Configuration for SYSGrow  and AI/ML Services
+Configuration for SYSGrow Smart Agriculture IoT System and AI/ML Services
 ==================================================
 Main application runtime settings and service configurations.
 This configuration enables all AI services with sensible defaults.
@@ -47,6 +47,17 @@ def _env_int_multi(names: tuple[str, ...], default: int) -> int:
 class AppConfig:
     """Runtime configuration loaded from environment variables."""
 
+    APP_NAME: str = field(default="SYSGrow", init=False)
+    APP_VERSION: str = field(default="3.0.0", init=False)
+    APP_DESCRIPTION: str = field(default="SYSGrow Smart Agriculture IoT System", init=False)
+    APP_AUTHOR: str = field(default="Sebastian Gomez", init=False)
+    APP_AUTHOR_EMAIL: str = field(default="Patoruzuy@tutanota.com", init=False)
+    APP_DEFAULT_EMAIL: str = field(default="info@patoruzuy.com", init=False)
+    APP_WEBSITE: str = field(default="https://patoruzuy.com/projects/sysgrow", init=False)
+
+    APP_LICENSE: str = field(default="MIT", init=False)
+    APP_LICENSE_URL: str = field(default="https://opensource.org/license/mit/", init=False)
+    REPO_URL: str = field(default="https://github.com/Patoruzuy/SYSGrow", init=False)
     environment: str = field(default_factory=lambda: os.getenv("SYSGROW_ENV", "development"))
     devhost_enabled: bool = field(default_factory=lambda: _env_bool("SYSGROW_DEVHOST_ENABLED", True))
     secret_key: str = field(default_factory=lambda: os.getenv("SYSGROW_SECRET_KEY", "SYSGrowDevSecretKey"))

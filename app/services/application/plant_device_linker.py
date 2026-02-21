@@ -12,7 +12,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
-from app.domain.actuators import ActuatorType
+from app.enums.device import ActuatorType
 from app.hardware.compat.enums import app_to_infra_actuator_type
 
 if TYPE_CHECKING:

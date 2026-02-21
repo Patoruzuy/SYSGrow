@@ -215,3 +215,29 @@ class ActivityLogger:
         except Exception as e:
             logger.error("Failed to retrieve activity statistics: %s", e)
             return {"total": 0, "by_type": {}, "by_severity": {}}
+
+
+# ---------------------------------------------------------------------------
+# Convenience helper to reduce boilerplate in services
+# ---------------------------------------------------------------------------
+
+
+def log_if_available(
+    activity_logger: ActivityLogger | None,
+    activity_type: str,
+    description: str,
+    **kwargs,
+) -> None:
+    """Log an activity only when an ``ActivityLogger`` is available.
+
+    Eliminates the repetitive pattern::
+
+        if self.activity_logger:
+            self.activity_logger.log_activity(activity_type, description, ...)
+
+    Extra keyword arguments are forwarded to
+    :meth:`ActivityLogger.log_activity` (``user_id``, ``severity``,
+    ``entity_type``, ``entity_id``, ``metadata``).
+    """
+    if activity_logger is not None:
+        activity_logger.log_activity(activity_type, description, **kwargs)

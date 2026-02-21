@@ -4,12 +4,19 @@ Anomaly Detection Service
 Detects anomalies in sensor readings using statistical methods.
 """
 
+from __future__ import annotations
+
+import contextlib
 import logging
 from collections import deque
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from app.domain.anomaly import Anomaly
 from app.enums import AnomalyType
+
+if TYPE_CHECKING:
+    from infrastructure.database.repositories.sensor_anomaly import SensorAnomalyRepository
 
 logger = logging.getLogger(__name__)
 
@@ -23,16 +30,25 @@ class AnomalyDetectionService:
     - Rate of change detection
     - Stuck value detection
     - Range validation
+
+    Optionally persists detected anomalies to the database when a
+    ``SensorAnomalyRepository`` is provided.
     """
 
-    def __init__(self, history_size: int = 100):
+    def __init__(
+        self,
+        history_size: int = 100,
+        anomaly_repo: SensorAnomalyRepository | None = None,
+    ):
         """
         Initialize anomaly detection service.
 
         Args:
             history_size: Number of readings to keep in history
+            anomaly_repo: Optional repository for persisting anomalies
         """
         self.history_size = history_size
+        self._anomaly_repo = anomaly_repo
         self._sensor_history: dict[int, deque] = {}  # sensor_id -> deque of (timestamp, value)
         self._sensor_stats: dict[int, dict] = {}  # sensor_id -> statistics
 
@@ -68,6 +84,9 @@ class AnomalyDetectionService:
         """
         Check a single reading for anomalies.
 
+        If an anomaly is detected **and** a ``SensorAnomalyRepository`` has
+        been provided, the anomaly is automatically persisted to the database.
+
         Args:
             sensor_id: Sensor ID
             value: Reading value
@@ -85,12 +104,13 @@ class AnomalyDetectionService:
             self._sensor_stats[sensor_id] = {}
 
         history = self._sensor_history[sensor_id]
+        detected: Anomaly | None = None
 
         # Check range first
         if expected_range:
             min_val, max_val = expected_range
             if value < min_val or value > max_val:
-                anomaly = Anomaly(
+                detected = Anomaly(
                     sensor_id=sensor_id,
                     timestamp=timestamp,
                     anomaly_type=AnomalyType.OUT_OF_RANGE,
@@ -99,41 +119,52 @@ class AnomalyDetectionService:
                     severity=self._calculate_range_severity(value, expected_range),
                     description=f"{field_name} {value} is outside expected range [{min_val}, {max_val}]",
                 )
-                logger.warning("Anomaly detected for sensor %s: %s", sensor_id, anomaly.description)
-                history.append((timestamp, value))
-                return anomaly
 
         # Need at least 2 readings for other checks
-        if len(history) < 2:
-            history.append((timestamp, value))
-            return None
+        if detected is None and len(history) >= 2:
+            # Check for stuck value
+            detected = self._check_stuck_value(sensor_id, value, field_name, history)
 
-        # Check for stuck value
-        stuck_anomaly = self._check_stuck_value(sensor_id, value, field_name, history)
-        if stuck_anomaly:
-            history.append((timestamp, value))
-            return stuck_anomaly
+            # Check rate of change
+            if detected is None:
+                detected = self._check_rate_of_change(sensor_id, value, field_name, timestamp, history)
 
-        # Check rate of change
-        rate_anomaly = self._check_rate_of_change(sensor_id, value, field_name, timestamp, history)
-        if rate_anomaly:
-            history.append((timestamp, value))
-            return rate_anomaly
+            # Statistical outlier detection (need more history)
+            if detected is None and len(history) >= 10:
+                detected = self._check_statistical_outlier(sensor_id, value, field_name, history)
 
-        # Statistical outlier detection (need more history)
-        if len(history) >= 10:
-            stat_anomaly = self._check_statistical_outlier(sensor_id, value, field_name, history)
-            if stat_anomaly:
-                history.append((timestamp, value))
-                return stat_anomaly
-
-        # Add to history
+        # Always append to history
         history.append((timestamp, value))
 
-        # Update statistics
-        self._update_statistics(sensor_id)
+        if detected is not None:
+            logger.warning("Anomaly detected for sensor %s: %s", sensor_id, detected.description)
+            self._persist_anomaly(detected)
+            return detected
 
+        # Update statistics (only when no anomaly)
+        self._update_statistics(sensor_id)
         return None
+
+    # ------------------------------------------------------------------
+    # Persistence helpers
+    # ------------------------------------------------------------------
+
+    def _persist_anomaly(self, anomaly: Anomaly) -> None:
+        """Persist anomaly to the database if a repository is available."""
+        if self._anomaly_repo is None:
+            return
+        with contextlib.suppress(Exception):
+            exp_min = anomaly.expected_range[0] if anomaly.expected_range else None
+            exp_max = anomaly.expected_range[1] if anomaly.expected_range else None
+            self._anomaly_repo.insert(
+                sensor_id=anomaly.sensor_id,
+                anomaly_type=anomaly.anomaly_type.value,
+                severity=anomaly.severity,
+                value=anomaly.value,
+                expected_min=exp_min,
+                expected_max=exp_max,
+                description=anomaly.description,
+            )
 
     def _check_stuck_value(self, sensor_id: int, value: float, field_name: str, history: deque) -> Anomaly | None:
         """Check if value is stuck (not changing)"""

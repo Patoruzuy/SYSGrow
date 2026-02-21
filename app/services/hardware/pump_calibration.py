@@ -23,7 +23,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from app.constants import PUMP_CALIBRATION_DEFAULTS
-from app.domain.actuators.actuator_entity import ActuatorType
+from app.enums.device import ActuatorType
 from app.utils.time import iso_now, utc_now
 
 if TYPE_CHECKING:
@@ -236,7 +236,10 @@ class PumpCalibrationService:
 
     def is_pump(self, actuator_type: str) -> bool:
         """Check if actuator type is a pump."""
-        return actuator_type.lower() == ActuatorType.PUMP
+        try:
+            return ActuatorType(actuator_type) is ActuatorType.WATER_PUMP
+        except ValueError:
+            return False
 
     def start_calibration(
         self,

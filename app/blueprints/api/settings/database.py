@@ -6,17 +6,13 @@ Backend endpoints for real database maintenance actions:
 - Prune old SensorReading rows (optionally per unit)
 - VACUUM database to reclaim disk space
 
-These endpoints are intentionally lightweight and return structured results so
-the Settings UI can drive them.
+These endpoints delegate all SQL work to
+:class:`~app.services.utilities.database_maintenance_service.DatabaseMaintenanceService`.
 """
 
 from __future__ import annotations
 
 import logging
-import sqlite3
-from contextlib import suppress
-from datetime import datetime, timedelta
-from pathlib import Path
 from typing import Any
 
 from flask import Response, request
@@ -26,8 +22,8 @@ from app.blueprints.api._common import (
 )
 from app.blueprints.api.settings import settings_api
 from app.security.auth import api_login_required
+from app.services.utilities.database_maintenance_service import DatabaseMaintenanceService
 from app.utils.http import error_response, safe_route, success_response
-from app.utils.time import iso_now
 
 logger = logging.getLogger(__name__)
 
@@ -44,19 +40,16 @@ def _bool(value: Any, default: bool = False) -> bool:
     return default
 
 
-def _db_path_from_container(container: Any) -> Path:
+def _get_maintenance_service() -> DatabaseMaintenanceService | None:
+    """Resolve the database path and return a service instance."""
+    container = _get_container()
+    if not container:
+        return None
     config = getattr(container, "config", None)
     database_path = getattr(config, "database_path", None)
     if not database_path:
-        raise RuntimeError("Database path not available")
-    return Path(database_path)
-
-
-def _sqlite_connect(path: Path) -> sqlite3.Connection:
-    conn = sqlite3.connect(str(path), timeout=30, check_same_thread=False)
-    with suppress(Exception):
-        conn.execute("PRAGMA busy_timeout = 30000")
-    return conn
+        return None
+    return DatabaseMaintenanceService(database_path)
 
 
 @settings_api.post("/database/backup")
@@ -72,51 +65,23 @@ def create_database_backup() -> Response:
       }
 
     Notes:
-    - If directory is omitted, backups are stored under `<db_dir>/backups/`.
+    - If directory is omitted, backups are stored under ``<db_dir>/backups/``.
     - Returns only the backup filename and relative directory for safety.
     """
-    container = _get_container()
-    if not container:
+    svc = _get_maintenance_service()
+    if not svc:
         return error_response("Service container not available", 500)
 
     payload = request.get_json(silent=True) or {}
     label = str(payload.get("label") or "manual").strip()[:48] or "manual"
+    directory = payload.get("directory")
 
-    db_path = _db_path_from_container(container)
-    if not db_path.exists():
-        return error_response("Database file does not exist", 404)
-
-    default_backup_dir = db_path.parent / "backups"
-    backup_dir_raw = payload.get("directory")
-    backup_dir = Path(str(backup_dir_raw)) if backup_dir_raw else default_backup_dir
-    # Keep relative directories relative to the app working dir; create dirs.
-    backup_dir.mkdir(parents=True, exist_ok=True)
-
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    backup_name = f"{db_path.stem}_{label}_{timestamp}.db"
-    backup_path = backup_dir / backup_name
-
-    # Use SQLite online backup API for consistency.
-    src = _sqlite_connect(db_path)
     try:
-        dst = _sqlite_connect(backup_path)
-        try:
-            src.backup(dst)
-            dst.commit()
-        finally:
-            dst.close()
-    finally:
-        src.close()
+        result = svc.create_backup(label=label, directory=directory)
+    except FileNotFoundError as exc:
+        return error_response(str(exc), 404)
 
-    result = {
-        "backup": {
-            "directory": str(backup_dir.as_posix()),
-            "filename": backup_name,
-            "bytes": backup_path.stat().st_size if backup_path.exists() else None,
-            "created_at": iso_now(),
-        }
-    }
-    return success_response(result, message="Database backup created")
+    return success_response({"backup": result}, message="Database backup created")
 
 
 @settings_api.post("/database/prune")
@@ -136,8 +101,8 @@ def prune_sensor_readings() -> Response:
     Returns:
       {"deleted": <int>, "cutoff": <iso>, "unit_id": <int|null>}
     """
-    container = _get_container()
-    if not container:
+    svc = _get_maintenance_service()
+    if not svc:
         return error_response("Service container not available", 500)
 
     payload = request.get_json(silent=True) or {}
@@ -161,75 +126,16 @@ def prune_sensor_readings() -> Response:
     dry_run = _bool(payload.get("dry_run"), default=False)
     vacuum = _bool(payload.get("vacuum"), default=False)
 
-    db_path = _db_path_from_container(container)
-    if not db_path.exists():
-        return error_response("Database file does not exist", 404)
-
-    cutoff_dt = datetime.now() - timedelta(days=retention_days_int)
-    # Format in a way SQLite datetime() parses reliably.
-    cutoff = cutoff_dt.strftime("%Y-%m-%d %H:%M:%S")
-
-    deleted = 0
-    conn = _sqlite_connect(db_path)
     try:
-        if unit_id is None:
-            if dry_run:
-                cur = conn.execute(
-                    "SELECT COUNT(1) AS cnt FROM SensorReading WHERE datetime(timestamp) < datetime(?)",
-                    (cutoff,),
-                )
-                row = cur.fetchone()
-                deleted = int(row[0]) if row else 0
-            else:
-                cur = conn.execute(
-                    "DELETE FROM SensorReading WHERE datetime(timestamp) < datetime(?)",
-                    (cutoff,),
-                )
-                deleted = int(cur.rowcount or 0)
-                conn.commit()
-        else:
-            if dry_run:
-                cur = conn.execute(
-                    """
-                    SELECT COUNT(1) AS cnt
-                    FROM SensorReading sr
-                    JOIN Sensor s ON s.sensor_id = sr.sensor_id
-                    WHERE s.unit_id = ? AND datetime(sr.timestamp) < datetime(?)
-                    """,
-                    (unit_id, cutoff),
-                )
-                row = cur.fetchone()
-                deleted = int(row[0]) if row else 0
-            else:
-                cur = conn.execute(
-                    """
-                    DELETE FROM SensorReading
-                    WHERE reading_id IN (
-                        SELECT sr.reading_id
-                        FROM SensorReading sr
-                        JOIN Sensor s ON s.sensor_id = sr.sensor_id
-                        WHERE s.unit_id = ? AND datetime(sr.timestamp) < datetime(?)
-                    )
-                    """,
-                    (unit_id, cutoff),
-                )
-                deleted = int(cur.rowcount or 0)
-                conn.commit()
+        result = svc.prune_sensor_readings(
+            retention_days=retention_days_int,
+            unit_id=unit_id,
+            dry_run=dry_run,
+            vacuum=vacuum,
+        )
+    except FileNotFoundError as exc:
+        return error_response(str(exc), 404)
 
-        if vacuum and not dry_run:
-            conn.execute("VACUUM")
-            conn.commit()
-    finally:
-        conn.close()
-
-    result = {
-        "deleted": deleted,
-        "dry_run": dry_run,
-        "vacuum": vacuum and (not dry_run),
-        "unit_id": unit_id,
-        "retention_days": retention_days_int,
-        "cutoff": cutoff_dt.isoformat(),
-    }
     msg = "Prune preview" if dry_run else "Prune completed"
     return success_response(result, message=msg)
 
@@ -239,19 +145,13 @@ def prune_sensor_readings() -> Response:
 @safe_route("Failed to vacuum database")
 def vacuum_database() -> Response:
     """Run SQLite VACUUM to reclaim disk space."""
-    container = _get_container()
-    if not container:
+    svc = _get_maintenance_service()
+    if not svc:
         return error_response("Service container not available", 500)
 
-    db_path = _db_path_from_container(container)
-    if not db_path.exists():
-        return error_response("Database file does not exist", 404)
-
-    conn = _sqlite_connect(db_path)
     try:
-        conn.execute("VACUUM")
-        conn.commit()
-    finally:
-        conn.close()
+        result = svc.vacuum()
+    except FileNotFoundError as exc:
+        return error_response(str(exc), 404)
 
-    return success_response({"vacuum": True, "timestamp": iso_now()}, message="VACUUM completed")
+    return success_response(result, message="VACUUM completed")

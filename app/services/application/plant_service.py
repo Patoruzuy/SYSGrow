@@ -32,11 +32,11 @@ from typing import TYPE_CHECKING, Any
 
 from app.domain.plant_profile import PlantProfile
 from app.enums.device import ActuatorType
+from app.services.application.activity_logger import ActivityLogger, log_if_available
 from app.services.application.plant_device_linker import PlantDeviceLinker
 from app.services.application.plant_stage_manager import PlantStageManager
 
 if TYPE_CHECKING:
-    from app.services.application.activity_logger import ActivityLogger
     from app.services.application.growth_service import GrowthService
     from app.services.application.notifications_service import NotificationsService
     from app.services.application.threshold_service import ThresholdService
@@ -846,20 +846,15 @@ class PlantViewService:
             logger.info("Created plant %s: '%s' in unit %s", plant_id, plant_name, unit_id)
 
             # Activity logging
-            if self.activity_logger:
-                from app.services.application.activity_logger import ActivityLogger
-
-                self.activity_logger.log_activity(
-                    activity_type=ActivityLogger.PLANT_ADDED,
-                    description=f"Created plant {plant_id} ('{plant_name}') in unit {unit_id}",
-                    severity=ActivityLogger.INFO,
-                    entity_type="plant",
-                    entity_id=plant_id,
-                    metadata={
-                        "plant_type": plant_type,
-                        "current_stage": current_stage,
-                    },
-                )
+            log_if_available(
+                self.activity_logger,
+                ActivityLogger.PLANT_ADDED,
+                f"Created plant {plant_id} ('{plant_name}') in unit {unit_id}",
+                severity=ActivityLogger.INFO,
+                entity_type="plant",
+                entity_id=plant_id,
+                metadata={"plant_type": plant_type, "current_stage": current_stage},
+            )
             # Link sensors if provided
             linked_sensors = []
             if sensor_ids:
@@ -991,17 +986,15 @@ class PlantViewService:
                     plant.light_distance_cm = light_distance_cm
 
                 # 6. Log activity
-                if self.activity_logger:
-                    from app.services.application.activity_logger import ActivityLogger
-
-                    self.activity_logger.log_activity(
-                        activity_type=ActivityLogger.PLANT_UPDATED,
-                        description=f"Updated plant {plant_id}",
-                        severity=ActivityLogger.INFO,
-                        entity_type="plant",
-                        entity_id=plant_id,
-                        metadata=update_fields,
-                    )
+                log_if_available(
+                    self.activity_logger,
+                    ActivityLogger.PLANT_UPDATED,
+                    f"Updated plant {plant_id}",
+                    severity=ActivityLogger.INFO,
+                    entity_type="plant",
+                    entity_id=plant_id,
+                    metadata=update_fields,
+                )
 
                 logger.info("Updated plant %s: %s", plant_id, update_fields)
 
@@ -1321,19 +1314,17 @@ class PlantViewService:
                 )
 
                 # Activity logging
-                if self.activity_logger:
-                    from app.services.application.activity_logger import ActivityLogger
-
-                    resolved_name = plant_name or f"plant #{plant_id}"
-                    resolved_type = plant_type or "Unknown"
-                    self.activity_logger.log_activity(
-                        activity_type=ActivityLogger.PLANT_REMOVED,
-                        description=f"Removed {resolved_type} '{resolved_name}' from unit {unit_id}",
-                        severity=ActivityLogger.INFO,
-                        entity_type="plant",
-                        entity_id=plant_id,
-                        metadata={"plant_type": resolved_type, "unit_id": unit_id},
-                    )
+                resolved_name = plant_name or f"plant #{plant_id}"
+                resolved_type = plant_type or "Unknown"
+                log_if_available(
+                    self.activity_logger,
+                    ActivityLogger.PLANT_REMOVED,
+                    f"Removed {resolved_type} '{resolved_name}' from unit {unit_id}",
+                    severity=ActivityLogger.INFO,
+                    entity_type="plant",
+                    entity_id=plant_id,
+                    metadata={"plant_type": resolved_type, "unit_id": unit_id},
+                )
 
             return success
 
@@ -1450,17 +1441,15 @@ class PlantViewService:
             )
 
             # Activity logging
-            if self.activity_logger:
-                from app.services.application.activity_logger import ActivityLogger
-
-                self.activity_logger.log_activity(
-                    activity_type=ActivityLogger.PLANT_UPDATED,
-                    description=f"Set active plant to '{getattr(plant, 'plant_name', 'Unknown')}' in unit {unit_id}",
-                    severity=ActivityLogger.INFO,
-                    entity_type="plant",
-                    entity_id=plant_id,
-                    metadata={"plant_type": getattr(plant, "plant_type", "Unknown") or "Unknown", "unit_id": unit_id},
-                )
+            log_if_available(
+                self.activity_logger,
+                ActivityLogger.PLANT_UPDATED,
+                f"Set active plant to '{getattr(plant, 'plant_name', 'Unknown')}' in unit {unit_id}",
+                severity=ActivityLogger.INFO,
+                entity_type="plant",
+                entity_id=plant_id,
+                metadata={"plant_type": getattr(plant, "plant_type", "Unknown") or "Unknown", "unit_id": unit_id},
+            )
 
             logger.info("Set plant %s as active in unit %s", plant_id, unit_id)
             return True

@@ -135,7 +135,17 @@ class SensorModel(str, Enum):
 
 
 class ActuatorType(str, Enum):
-    """Types of actuators"""
+    """Types of actuators.
+
+    This is the single canonical enum for actuator types across the
+    entire codebase.  Formerly a second ``ActuatorType`` lived in
+    ``app.domain.actuators.actuator_entity`` with lowercase values;
+    that definition now re-exports this one.
+
+    The ``_missing_`` hook ensures backward-compatibility with legacy
+    lowercase values (e.g. ``"pump"``, ``"light"``) stored in older
+    records or passed through domain-layer code.
+    """
 
     LIGHT = "Light"
     HEATER = "Heater"
@@ -149,6 +159,48 @@ class ActuatorType(str, Enum):
     RELAY = "Relay"
     VALVE = "Valve"
     MOTOR = "Motor"
+    # Members added from domain enum (previously app.domain.actuators only)
+    DIMMER = "Dimmer"
+    SWITCH = "Switch"
+    SENSOR = "Sensor"  # For devices with actuator capabilities
+    UNKNOWN = "Unknown"
+
+    # Backward-compatible alias: domain code used ActuatorType.PUMP
+    PUMP = "Water-Pump"
+
+    @classmethod
+    def _missing_(cls, value: object) -> "ActuatorType | None":
+        """Map legacy lowercase values to canonical members.
+
+        The former domain enum used lowercase strings (``"light"``,
+        ``"pump"``, etc.).  This hook lets ``ActuatorType("pump")``
+        work transparently.
+        """
+        if not isinstance(value, str):
+            return None
+        _legacy_map: dict[str, ActuatorType] = {
+            "light": cls.LIGHT,
+            "heater": cls.HEATER,
+            "cooler": cls.COOLER,
+            "humidifier": cls.HUMIDIFIER,
+            "dehumidifier": cls.DEHUMIDIFIER,
+            "pump": cls.WATER_PUMP,
+            "water-pump": cls.WATER_PUMP,
+            "water_pump": cls.WATER_PUMP,
+            "waterpump": cls.WATER_PUMP,
+            "co2-injector": cls.CO2_INJECTOR,
+            "co2_injector": cls.CO2_INJECTOR,
+            "fan": cls.FAN,
+            "extractor": cls.EXTRACTOR,
+            "relay": cls.RELAY,
+            "valve": cls.VALVE,
+            "motor": cls.MOTOR,
+            "dimmer": cls.DIMMER,
+            "switch": cls.SWITCH,
+            "sensor": cls.SENSOR,
+            "unknown": cls.UNKNOWN,
+        }
+        return _legacy_map.get(value.lower())
 
     def __str__(self):
         return self.value

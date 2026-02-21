@@ -25,23 +25,11 @@ class Protocol(str, Enum):
     BLE = "ble"
 
 
-class ActuatorType(str, Enum):
-    """Types of actuators"""
-
-    RELAY = "relay"
-    LIGHT = "light"
-    PUMP = "pump"
-    FAN = "fan"
-    HEATER = "heater"
-    COOLER = "cooler"
-    HUMIDIFIER = "humidifier"
-    DEHUMIDIFIER = "dehumidifier"
-    VALVE = "valve"
-    MOTOR = "motor"
-    DIMMER = "dimmer"
-    SWITCH = "switch"
-    SENSOR = "sensor"  # For devices with actuator capabilities
-    UNKNOWN = "unknown"
+# ActuatorType is now defined canonically in app.enums.device and re-exported
+# here for backward compatibility.  All members (including PUMP alias) are
+# available.  The _missing_ hook on the canonical enum handles legacy lowercase
+# values like "pump", "light", etc.
+from app.enums.device import ActuatorType
 
 
 class ActuatorState(str, Enum):

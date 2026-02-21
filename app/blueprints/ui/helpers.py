@@ -26,6 +26,9 @@ def determine_landing_page(growth_service: "GrowthService", user_id: int) -> dic
     """
     Smart routing: Determine where user should land after login.
 
+    Delegates to ``GrowthService.determine_landing_page`` which owns the
+    business logic (unit creation for new users, etc.).
+
     Args:
         growth_service: GrowthService instance
         user_id: The user identifier
@@ -38,26 +41,7 @@ def determine_landing_page(growth_service: "GrowthService", user_id: int) -> dic
             "units": [...] if multiple units
         }
     """
-    try:
-        units = growth_service.list_units(user_id=user_id)
-
-        if len(units) == 0:
-            # No units - create default and go to dashboard
-            unit_id = growth_service.create_unit(name="My First Growth Unit", location="Indoor", user_id=user_id)
-            logger.info("Created default unit %s for new user %s", unit_id, user_id)
-            return {"route": "dashboard", "unit_id": unit_id, "is_new_user": True}
-
-        elif len(units) == 1:
-            # Single unit - go straight to dashboard
-            return {"route": "dashboard", "unit_id": units[0]["unit_id"], "is_new_user": False}
-
-        else:
-            # Multiple units - show selector
-            return {"route": "unit_selector", "units": units, "is_new_user": False}
-
-    except Exception as e:
-        logger.error("Error determining landing page for user %s: %s", user_id, e, exc_info=True)
-        return {"route": "dashboard", "error": True}
+    return growth_service.determine_landing_page(user_id)
 
 
 def get_unit_card_data(

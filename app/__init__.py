@@ -12,6 +12,7 @@ from typing import Any
 from flask import Flask, request
 from werkzeug.exceptions import HTTPException
 
+from app.blueprints.api.anomalies import anomalies_api
 from app.blueprints.api.blog import blog_api
 from app.blueprints.api.dashboard import dashboard_api
 from app.blueprints.api.devices import devices_api
@@ -247,6 +248,7 @@ def create_app(config_overrides: dict[str, Any] | None = None, *, bootstrap_runt
     flask_app.register_blueprint(devices_api, url_prefix=f"{V1}/devices")
     flask_app.register_blueprint(dashboard_api, url_prefix=f"{V1}/dashboard")
     flask_app.register_blueprint(harvest_bp)  # Routes use absolute paths (already include /api/v1)
+    flask_app.register_blueprint(anomalies_api, url_prefix=f"{V1}/anomalies")
 
     # Register consolidated ML/AI blueprints with v1 prefix
     flask_app.register_blueprint(base_bp, url_prefix=f"{V1}/ml")

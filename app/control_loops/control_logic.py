@@ -21,9 +21,10 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Callable
 
 from app.control_loops.control_algorithms import PIDController
-from app.domain.actuators import ActuatorState, ActuatorType
+from app.domain.actuators import ActuatorState
 from app.domain.control import ControlConfig, ControlMetrics
 from app.enums import ControlStrategy
+from app.enums.device import ActuatorType
 from app.utils.time import iso_now
 
 if TYPE_CHECKING:

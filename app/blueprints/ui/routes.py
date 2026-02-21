@@ -7,13 +7,9 @@ from flask import Blueprint, Response, current_app, flash, jsonify, redirect, re
 
 from app.blueprints.ui.helpers import get_unit_card_data
 from app.security.auth import login_required
-from app.utils.time import utc_now
 
 ui_bp = Blueprint("ui", __name__)
 logger = logging.getLogger(__name__)
-
-# Track server start time for uptime
-_SERVER_START_TIME = utc_now()
 
 
 def _container():
@@ -467,8 +463,7 @@ def devices() -> str:
     # Get ADS1115 channels for soil moisture sensors
     ads1115_channels = SystemConfigDefaults.get_adc_channels()
 
-    # Get current devices from database
-    db = _container().database
+    # Get current devices from repository
 
     def _label_for_sensor_type(value: str) -> str:
         return value.replace("_", " ").title()
@@ -506,48 +501,41 @@ def devices() -> str:
         SensorType.PLANT.value: plant_models,
     }
 
-    # Get actuators and sensors for display
+    # Get actuators and sensors for display via repository (no raw SQL)
     db_actuators = []
     db_sensors = []
     available_actuators = []
 
     try:
-        # Get actuators from database filtered by selected unit
-        with db.connection() as conn:
-            cursor = conn.execute("SELECT * FROM Actuator WHERE unit_id = ? ORDER BY actuator_id", (selected_unit_id,))
-            for row in cursor.fetchall():
-                actuator_data = dict(row)
-                db_actuators.append(
-                    {
-                        "id": actuator_data["actuator_id"],
-                        "name": actuator_data["device"],
-                        "gpio": actuator_data["gpio"],
-                        "ip_address": actuator_data["ip_address"],
-                    }
-                )
-                available_actuators.append(actuator_data["device"])
+        device_repo = _container().device_repo
 
-        # Get sensors from database filtered by selected unit
-        with db.connection() as conn:
-            cursor = conn.execute("SELECT * FROM Sensor WHERE unit_id = ? ORDER BY sensor_id", (selected_unit_id,))
-            for row in cursor.fetchall():
-                sensor_data = dict(row)
-                db_sensors.append(
-                    {
-                        "sensor_id": sensor_data["sensor_id"],
-                        "name": sensor_data["name"],
-                        "sensor_type": sensor_data["sensor_type"],
-                        "sensor_model": sensor_data.get("model", "Unknown"),  # Column is 'model' not 'sensor_model'
-                        "gpio": sensor_data.get("gpio"),
-                        "ip_address": sensor_data.get("ip_address"),
-                    }
-                )
+        # Get actuators from repository filtered by selected unit
+        for actuator_data in device_repo.list_actuator_configs(unit_id=selected_unit_id):
+            db_actuators.append(
+                {
+                    "id": actuator_data.get("actuator_id"),
+                    "name": actuator_data.get("device") or actuator_data.get("name"),
+                    "gpio": actuator_data.get("gpio"),
+                    "ip_address": actuator_data.get("ip_address"),
+                }
+            )
+            available_actuators.append(actuator_data.get("device") or actuator_data.get("name"))
+
+        # Get sensors from repository filtered by selected unit
+        for sensor_data in device_repo.list_sensor_configs(unit_id=selected_unit_id):
+            db_sensors.append(
+                {
+                    "sensor_id": sensor_data.get("sensor_id"),
+                    "name": sensor_data.get("name"),
+                    "sensor_type": sensor_data.get("sensor_type"),
+                    "sensor_model": sensor_data.get("model", "Unknown"),
+                    "gpio": sensor_data.get("gpio"),
+                    "ip_address": sensor_data.get("ip_address"),
+                }
+            )
 
     except Exception as e:
-        # If there's an error, provide empty lists
-        import logging
-
-        logging.error(f"Error loading devices: {e}")
+        logger.error("Error loading devices: %s", e)
         db_actuators = []
         db_sensors = []
         available_actuators = []
@@ -662,16 +650,12 @@ def device_health() -> str:
     - Power consumption per device
     - Maintenance predictions
     """
-    # Get device information
-    devices_summary = {"actuators": [], "sensors": []}
+    # Get device information via repository (no raw SQL)
+    devices_summary: dict[str, list[dict]] = {"actuators": [], "sensors": []}
     try:
-        db = _container().database
-        with db.connection() as conn:
-            cursor = conn.execute("SELECT * FROM Actuator ORDER BY actuator_id")
-            devices_summary["actuators"] = [dict(row) for row in cursor.fetchall()]
-
-            cursor = conn.execute("SELECT * FROM Sensor ORDER BY sensor_id")
-            devices_summary["sensors"] = [dict(row) for row in cursor.fetchall()]
+        device_repo = _container().device_repo
+        devices_summary["actuators"] = device_repo.list_actuators()
+        devices_summary["sensors"] = device_repo.list_sensors()
     except Exception as e:
         logger.error("Error loading device data: %s", e)
 
@@ -808,8 +792,10 @@ def get_server_uptime() -> Response:
     Returns:
         JSON with uptime_seconds and started_at timestamp
     """
-    uptime = (utc_now() - _SERVER_START_TIME).total_seconds()
-    return jsonify({"ok": True, "data": {"uptime_seconds": uptime, "started_at": _SERVER_START_TIME.isoformat() + "Z"}})
+    health = _container().system_health_service
+    uptime = health.get_uptime_seconds()
+    started_at = health.uptime_start.isoformat() + "Z" if health.uptime_start else None
+    return jsonify({"ok": True, "data": {"uptime_seconds": uptime, "started_at": started_at}})
 
 
 @ui_bp.get("/api/system/activities")

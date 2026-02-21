@@ -45,6 +45,7 @@ from app.schemas.events import (
     PlantStageUpdatePayload,
     ThresholdsProposedPayload,
 )
+from app.services.application.activity_logger import ActivityLogger, log_if_available
 from app.services.hardware.sensor_polling_service import SensorPollingService
 from app.utils.cache import CacheRegistry, TTLCache
 from app.utils.event_bus import EventBus
@@ -59,7 +60,6 @@ from infrastructure.utils.structured_fields import (
 )
 
 if TYPE_CHECKING:
-    from app.services.application.activity_logger import ActivityLogger
     from app.services.application.irrigation_workflow_service import IrrigationWorkflowService
     from app.services.application.notifications_service import NotificationsService
     from app.services.application.threshold_service import ThresholdService
@@ -389,17 +389,15 @@ class GrowthService:
                     )
 
                     # Log activity
-                    if self.activity_logger:
-                        from app.services.application.activity_logger import ActivityLogger
-
-                        self.activity_logger.log_activity(
-                            activity_type=ActivityLogger.PLANT_UPDATED,
-                            description=f"Set active plant to '{plant.plant_name}' in unit {unit_id}",
-                            severity=ActivityLogger.INFO,
-                            entity_type="plant",
-                            entity_id=plant_id,
-                            metadata={"plant_type": plant.plant_type or "Unknown", "unit_id": unit_id},
-                        )
+                    log_if_available(
+                        self.activity_logger,
+                        ActivityLogger.PLANT_UPDATED,
+                        f"Set active plant to '{plant.plant_name}' in unit {unit_id}",
+                        severity=ActivityLogger.INFO,
+                        entity_type="plant",
+                        entity_id=plant_id,
+                        metadata={"plant_type": plant.plant_type or "Unknown", "unit_id": unit_id},
+                    )
                     logger.debug("Activated plant %s in unit %s", plant_id, unit_id)
 
         except Exception as e:  # TODO(narrow): event handler with payload parsing, service calls, activity logging
@@ -1328,6 +1326,39 @@ class GrowthService:
         except (KeyError, TypeError, ValueError, OSError) as exc:
             logger.error("Failed to remove plant via PlantViewService: %s", exc, exc_info=True)
             return False
+
+    # ==================== Landing-page routing ====================
+
+    def determine_landing_page(self, user_id: int) -> dict[str, Any]:
+        """Decide where a user should land after login.
+
+        * No units → auto-create a default unit, route to dashboard.
+        * One unit → route straight to dashboard.
+        * Multiple units → route to unit selector.
+
+        Returns:
+            ``{"route": "dashboard"|"unit_selector", ...}``
+        """
+        try:
+            units = self.list_units(user_id=user_id)
+
+            if len(units) == 0:
+                unit_id = self.create_unit(
+                    name="My First Growth Unit",
+                    location="Indoor",
+                    user_id=user_id,
+                )
+                logger.info("Created default unit %s for new user %s", unit_id, user_id)
+                return {"route": "dashboard", "unit_id": unit_id, "is_new_user": True}
+
+            if len(units) == 1:
+                return {"route": "dashboard", "unit_id": units[0]["unit_id"], "is_new_user": False}
+
+            return {"route": "unit_selector", "units": units, "is_new_user": False}
+
+        except Exception as e:
+            logger.error("Error determining landing page for user %s: %s", user_id, e, exc_info=True)
+            return {"route": "dashboard", "error": True}
 
     # ==================== Unit CRUD Operations ====================
 

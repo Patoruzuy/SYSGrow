@@ -58,15 +58,18 @@ class TestIsPump:
         assert service.is_pump("Pump") is True
         assert service.is_pump("PuMp") is True
 
+    def test_recognizes_water_pump_variants(self, service):
+        """Test recognition of water-pump / Water-Pump variants."""
+        assert service.is_pump("water-pump") is True
+        assert service.is_pump("Water-Pump") is True
+        assert service.is_pump("water_pump") is True
+
     def test_rejects_non_pump_types(self, service):
         """Test rejection of non-pump actuator types."""
         assert service.is_pump("light") is False
         assert service.is_pump("fan") is False
         assert service.is_pump("heater") is False
         assert service.is_pump("relay") is False
-        # Note: water-pump, water_pump are separate types (not handled by is_pump)
-        assert service.is_pump("water-pump") is False
-        assert service.is_pump("water_pump") is False
 
 
 class TestStartCalibration:

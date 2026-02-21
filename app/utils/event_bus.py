@@ -49,7 +49,7 @@ class EventBus:
                     instance._worker_pool_size = load_config().eventbus_worker_count
                     instance._workers_started = False
                     instance._dropped_events = 0
-                    instance._drops_by_event: dict[str, int] = defaultdict(int)
+                    instance._drops_by_event = defaultdict(int)
                     instance._drops_since_last_warning = 0
                     instance._last_drop_warning_time = 0.0
                     cls._instance = instance

@@ -217,6 +217,12 @@ class CreateActuatorRequest(BaseModel):
             "RELAY": ActuatorType.RELAY,
             "VALVE": ActuatorType.VALVE,
             "MOTOR": ActuatorType.MOTOR,
+            "DIMMER": ActuatorType.DIMMER,
+            "SWITCH": ActuatorType.SWITCH,
+            "SENSOR": ActuatorType.SENSOR,
+            "UNKNOWN": ActuatorType.UNKNOWN,
+            # Legacy domain-layer aliases
+            "PUMP": ActuatorType.WATER_PUMP,
         }
         if isinstance(v, ActuatorType):
             return v

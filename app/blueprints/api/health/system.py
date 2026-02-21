@@ -223,7 +223,8 @@ def register_system_routes(health_api: Blueprint):
                 "timestamp": ISO timestamp
             }
         """
-        from pathlib import Path
+
+        from app.services.utilities.database_maintenance_service import DatabaseMaintenanceService
 
         container = _container()
         system_health = container.system_health_service
@@ -233,65 +234,16 @@ def register_system_routes(health_api: Blueprint):
         # Check connection status
         status = system_health.check_database_health(db_handler=database)
 
-        # Get database file sizes
+        # Get database file path
         db_path = getattr(config, "database_path", "database/sysgrow.db") if config else "database/sysgrow.db"
-        db_file = Path(db_path)
 
-        size_info = {
-            "main_db_mb": 0.0,
-            "wal_mb": 0.0,
-            "shm_mb": 0.0,
-            "total_mb": 0.0,
-            "warning": False,
-            "critical": False,
-            "path": str(db_path),
-        }
+        # Delegate size info and table counts to DatabaseMaintenanceService
+        maintenance = DatabaseMaintenanceService(db_path)
 
-        if db_file.exists():
-            size_info["main_db_mb"] = round(db_file.stat().st_size / (1024 * 1024), 2)
+        size_info = maintenance.get_database_size_info()
+        size_info["path"] = str(db_path)
 
-            # Check WAL file
-            wal_file = db_file.with_suffix(".db-wal")
-            if wal_file.exists():
-                size_info["wal_mb"] = round(wal_file.stat().st_size / (1024 * 1024), 2)
-
-            # Check SHM file
-            shm_file = db_file.with_suffix(".db-shm")
-            if shm_file.exists():
-                size_info["shm_mb"] = round(shm_file.stat().st_size / (1024 * 1024), 2)
-
-            size_info["total_mb"] = round(size_info["main_db_mb"] + size_info["wal_mb"] + size_info["shm_mb"], 2)
-
-            # Set thresholds for Raspberry Pi
-            size_info["warning"] = size_info["total_mb"] > 100  # Warn if > 100MB
-            size_info["critical"] = size_info["total_mb"] > 500  # Critical if > 500MB
-
-        # Get table row counts for key tables
-        table_counts = {}
-        try:
-            db = database.get_db()
-            key_tables = [
-                "SensorReading",
-                "ActuatorStateHistory",
-                "GrowthUnits",
-                "Plants",
-                "Sensor",
-                "Actuator",
-                "Alerts",
-                "NotificationHistory",
-            ]
-
-            for table in key_tables:
-                try:
-                    cursor = db.execute(f"SELECT COUNT(*) FROM {table}")  # nosec B608 -- table is from hardcoded list above
-                    count = cursor.fetchone()[0]
-                    table_counts[table] = count
-                except Exception:
-                    # Table might not exist
-                    pass
-
-        except Exception as e:
-            logger.warning("Could not get table counts: %s", e)
+        table_counts = maintenance.get_table_row_counts()
 
         # Add retention settings info
         retention_info = {

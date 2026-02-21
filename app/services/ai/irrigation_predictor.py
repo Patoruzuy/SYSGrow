@@ -1346,15 +1346,37 @@ class IrrigationPredictor:
         """
         Calculate seasonal adjustment factor.
 
-        Phase 3.4: Seasonal patterns affect water needs.
-        - Winter (Dec-Feb): -10% (less evaporation, slower growth)
-        - Spring (Mar-May): baseline
-        - Summer (Jun-Aug): +15% (high evaporation, active growth)
-        - Fall (Sep-Nov): -5% (declining growth)
+        Uses ``SunTimesService`` day-length when available (requires configured
+        latitude/longitude); otherwise falls back to month-based heuristic.
+
+        Day-length mapping (normalised to 12 h baseline):
+        - < 10 h  → winter  → 0.90  (−10 %)
+        - 10–11 h → fall    → 0.95  (−5 %)
+        - 11–13 h → spring  → 1.00  (baseline)
+        - > 13 h  → summer  → 1.15  (+15 %)
 
         Returns:
-            Seasonal adjustment factor (0.9 = -10%, 1.15 = +15%)
+            Seasonal adjustment factor (0.9 – 1.15)
         """
+        # --- Attempt day-length-based adjustment via SunTimesService ---
+        with contextlib.suppress(Exception):
+            from app.services.utilities.sun_times_service import get_sun_times_service
+
+            sun_svc = get_sun_times_service()
+            if sun_svc.default_latitude is not None and sun_svc.default_longitude is not None:
+                sun_times = sun_svc.get_sun_times()
+                if sun_times is not None:
+                    dh = sun_times.day_length_hours
+                    if dh < 10.0:
+                        return 0.90  # winter
+                    elif dh < 11.0:
+                        return 0.95  # fall
+                    elif dh <= 13.0:
+                        return 1.00  # spring / baseline
+                    else:
+                        return 1.15  # summer
+
+        # --- Fallback: month-based heuristic ---
         month = datetime.now().month
 
         # Winter: December, January, February

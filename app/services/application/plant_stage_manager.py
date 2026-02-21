@@ -16,11 +16,11 @@ from app.constants import THRESHOLD_UPDATE_TOLERANCE
 from app.enums.common import ConditionProfileMode, ConditionProfileTarget
 from app.enums.events import PlantEvent
 from app.schemas.events import PlantStageUpdatePayload
+from app.services.application.activity_logger import ActivityLogger, log_if_available
 from app.services.application.threshold_service import THRESHOLD_KEYS
 
 if TYPE_CHECKING:
     from app.domain.plant_profile import PlantProfile
-    from app.services.application.activity_logger import ActivityLogger
     from app.services.application.notifications_service import NotificationsService
     from app.services.application.threshold_service import ThresholdService
     from app.utils.event_bus import EventBus
@@ -100,17 +100,15 @@ class PlantStageManager:
             plant_name = plant.plant_name or "Unknown"
             plant_type = plant.plant_type or "Unknown"
 
-            if self.activity_logger:
-                from app.services.application.activity_logger import ActivityLogger
-
-                self.activity_logger.log_activity(
-                    activity_type=ActivityLogger.PLANT_UPDATED,
-                    description=f"Updated {plant_type} plant '{plant_name}' to unit {unit_id}",
-                    severity=ActivityLogger.INFO,
-                    entity_type="plant",
-                    entity_id=plant.plant_id,
-                    metadata={"plant_type": plant_type, "unit_id": unit_id, "stage": new_stage},
-                )
+            log_if_available(
+                self.activity_logger,
+                ActivityLogger.PLANT_UPDATED,
+                f"Updated {plant_type} plant '{plant_name}' to unit {unit_id}",
+                severity=ActivityLogger.INFO,
+                entity_type="plant",
+                entity_id=plant.plant_id,
+                metadata={"plant_type": plant_type, "unit_id": unit_id, "stage": new_stage},
+            )
 
             try:
                 payload = PlantStageUpdatePayload(

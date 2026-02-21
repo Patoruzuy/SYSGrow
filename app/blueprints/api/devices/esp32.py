@@ -32,6 +32,7 @@ from . import devices_api
 logger = logging.getLogger(__name__)
 
 
+# TODO: This is wrong, the adapter should be fetched from actuator_management_service, not created here. Refactor to inject the adapter properly.
 def _get_sysgrow_adapter(friendly_name: str = None):
     """
     Get a SYSGrowAdapter instance for bridge commands.

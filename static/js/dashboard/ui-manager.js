@@ -775,6 +775,8 @@
         this.updatePlantsGrid(summary.plants);
         // Also update AI Health Banner from plants data
         this.updateAIHealthBanner({ plants: summary.plants });
+        // Enhance banner with AI-generated insight text
+        this.loadAIInsight();
         // Update irrigation plant selector
         this.updateIrrigationPlantSelector(summary.plants);
       }
@@ -1856,6 +1858,8 @@
 
         if (plantHealth) {
           this.updateAIHealthBanner(plantHealth);
+          // Enhance banner with AI-generated insight text
+          this.loadAIInsight();
         }
       } catch (error) {
         this.error('Failed to load health data:', error);

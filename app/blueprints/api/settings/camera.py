@@ -40,8 +40,24 @@ def get_camera_settings() -> Response:
         - last_used: Last used timestamp
     """
     data = _service().get_camera_settings()
+
+    # Return defaults when not yet configured (200, not 404)
     if not data:
-        return _fail("Camera settings not configured.", 404)
+        return _success(
+            {
+                "camera_type": "",
+                "ip_address": "",
+                "usb_cam_index": 0,
+                "resolution": "800",
+                "quality": 10,
+                "brightness": 0,
+                "contrast": 0,
+                "saturation": 0,
+                "flip": 0,
+                "configured": False,
+            }
+        )
+    data["configured"] = True
     return _success(data, 200)
 
 

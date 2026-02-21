@@ -688,10 +688,10 @@ const GrowthAPI = {
 
 const PlantAPI = {
     /**
-     * Get health status for all plants
+     * Get health summary for all plants (from health blueprint)
      * @returns {Promise<Object>} Plant health summary
      */
-    getPlantHealth() {
+    getPlantHealthSummary() {
         return get('/api/health/plants/summary');
     },
 
@@ -1034,7 +1034,10 @@ const PlantAPI = {
      * Get health status for all plants
      * @returns {Promise<Object>} Plants health data
      */
-    getPlantHealth() {
+    getPlantHealth(plantId) {
+        if (plantId) {
+            return get(`/api/plants/${plantId}/health/history`);
+        }
         return get('/api/plants/health');
     },
 
@@ -1316,6 +1319,15 @@ const DeviceAPI = {
      */
     getActuatorsByUnit(unitId) {
         return get(`/api/devices/v2/actuators/unit/${unitId}`);
+    },
+
+    /**
+     * Alias for getActuatorsByUnit (used by settings data-service)
+     * @param {number} unitId - Unit ID
+     * @returns {Promise<{actuators: Array, count: number}>}
+     */
+    getActuators(unitId) {
+        return this.getActuatorsByUnit(unitId);
     },
 
     /**
@@ -1816,6 +1828,110 @@ const DeviceAPI = {
      */
     getMQTTDevices() {
         return get('/api/mqtt/devices/all');
+    },
+
+    // ============================================================================
+    // UNIT DEVICE SCHEDULES (delegates to Growth V3 schedule endpoints)
+    // ============================================================================
+
+    /**
+     * Get schedules for a unit
+     * @param {number} unitId - Unit ID
+     * @returns {Promise<Object>} Schedules
+     */
+    getSchedulesForUnit(unitId) {
+        return get(`/api/growth/v3/units/${unitId}/schedules`);
+    },
+
+    /**
+     * Create a device schedule
+     * @param {Object} payload - Schedule data (must include unit_id)
+     * @returns {Promise<Object>} Created schedule
+     */
+    createSchedule(payload) {
+        const unitId = payload.unit_id;
+        return post(`/api/growth/v3/units/${unitId}/schedules`, payload);
+    },
+
+    /**
+     * Update a device schedule
+     * @param {number} scheduleId - Schedule ID
+     * @param {Object} payload - Updated schedule data (must include unit_id)
+     * @returns {Promise<Object>} Updated schedule
+     */
+    updateSchedule(scheduleId, payload) {
+        const unitId = payload.unit_id;
+        return put(`/api/growth/v3/units/${unitId}/schedules/${scheduleId}`, payload);
+    },
+
+    /**
+     * Delete a device schedule
+     * @param {number} scheduleId - Schedule ID
+     * @param {number} [unitId] - Unit ID (used for route)
+     * @returns {Promise<Object>} Deletion result
+     */
+    deleteSchedule(scheduleId, unitId) {
+        if (unitId) {
+            return del(`/api/growth/v3/units/${unitId}/schedules/${scheduleId}`);
+        }
+        // Fallback: fetch schedule first to get unit_id, or use a generic path
+        return del(`/api/growth/v3/schedules/${scheduleId}/execution-log`).catch(() =>
+            Promise.reject(new Error('unit_id required to delete schedule'))
+        );
+    },
+
+    // ============================================================================
+    // SENSOR/ACTUATOR UNIT LINKING
+    // ============================================================================
+
+    /**
+     * Link a sensor to a unit by updating its unit_id
+     * @param {number} sensorId - Sensor ID
+     * @param {number} unitId - Target unit ID
+     * @returns {Promise<Object>} Update result
+     */
+    linkSensorToUnit(sensorId, unitId) {
+        return patch(`/api/devices/v2/sensors/${sensorId}`, { unit_id: unitId });
+    },
+
+    /**
+     * Unlink a sensor from its unit (set unit_id to 0)
+     * @param {number} sensorId - Sensor ID
+     * @returns {Promise<Object>} Update result
+     */
+    unlinkSensorFromUnit(sensorId) {
+        return patch(`/api/devices/v2/sensors/${sensorId}`, { unit_id: 0 });
+    },
+
+    /**
+     * Link an actuator to a unit
+     * @param {number} actuatorId - Actuator ID
+     * @param {number} unitId - Target unit ID
+     * @returns {Promise<Object>} Update result
+     */
+    linkActuatorToUnit(actuatorId, unitId) {
+        return post(`/api/devices/v2/actuators/${actuatorId}/command`, { unit_id: unitId, action: 'link' });
+    },
+
+    /**
+     * Unlink an actuator from its unit
+     * @param {number} actuatorId - Actuator ID
+     * @returns {Promise<Object>} Update result
+     */
+    unlinkActuatorFromUnit(actuatorId) {
+        return post(`/api/devices/v2/actuators/${actuatorId}/command`, { unit_id: 0, action: 'unlink' });
+    },
+
+    // ============================================================================
+    // DEVICE HEALTH
+    // ============================================================================
+
+    /**
+     * Get overall device health summary
+     * @returns {Promise<Object>} Device health summary
+     */
+    getDeviceHealth() {
+        return get('/api/health/devices');
     }
 };
 
@@ -2703,6 +2819,29 @@ const SettingsAPI = {
      */
     resetThrottleConfig(unitId) {
         return post(`/api/settings/throttle/reset?unit_id=${encodeURIComponent(unitId)}`);
+    },
+
+    // ============================================================================
+    // THRESHOLD MANAGEMENT (delegates to Growth thresholds endpoints)
+    // ============================================================================
+
+    /**
+     * Update thresholds for a unit
+     * @param {number} unitId - Unit ID
+     * @param {Object} thresholds - Threshold values
+     * @returns {Promise<Object>} Updated thresholds
+     */
+    updateThresholds(unitId, thresholds) {
+        return post(`/api/growth/v2/units/${unitId}/thresholds`, thresholds);
+    },
+
+    /**
+     * Get thresholds for a unit
+     * @param {number} unitId - Unit ID
+     * @returns {Promise<Object>} Current thresholds
+     */
+    getThresholds(unitId) {
+        return get(`/api/growth/v2/units/${unitId}/thresholds`);
     }
 };
 
@@ -3897,6 +4036,95 @@ const StatusAPI = {
 };
 
 // ============================================================================
+// ESP32 / SYSGrow Bridge API
+// ============================================================================
+
+/**
+ * ESP32 / SYSGrow bridge management endpoints.
+ * Handles BLE pairing, health checks, firmware updates, and device discovery.
+ */
+const ESP32API = {
+    /**
+     * Scan for SYSGrow devices (enable BLE pairing / permit-join)
+     * @param {Object} [options] - Scan options
+     * @param {number} [options.time] - Scan timeout in seconds (default: 30)
+     * @returns {Promise<Object>} Scan result
+     */
+    scan(options = {}) {
+        return post('/api/devices/v2/sysgrow/permit-join', {
+            value: true,
+            time: options.time || 30
+        });
+    },
+
+    /**
+     * Get SYSGrow device info by sensor ID
+     * @param {number} deviceId - Sensor/device ID
+     * @returns {Promise<Object>} Device info
+     */
+    getDevice(deviceId) {
+        return get(`/api/devices/v2/sensors/${deviceId}/device-info`);
+    },
+
+    /**
+     * Update SYSGrow device settings
+     * @param {number} deviceId - Sensor/device ID
+     * @param {Object} data - Update payload (e.g. name, config)
+     * @returns {Promise<Object>} Update result
+     */
+    updateDevice(deviceId, data) {
+        return patch(`/api/devices/v2/sensors/${deviceId}`, data);
+    },
+
+    /**
+     * Check firmware status / trigger OTA update check
+     * @param {number} deviceId - Device ID
+     * @returns {Promise<Object>} Firmware status
+     */
+    checkFirmware(deviceId) {
+        return get(`/api/devices/v2/sensors/${deviceId}/device-info`);
+    },
+
+    /**
+     * Provision / restart a SYSGrow device
+     * @param {number} deviceId - Device ID
+     * @returns {Promise<Object>} Provision result
+     */
+    provision(deviceId) {
+        return post(`/api/devices/v2/sensors/${deviceId}/command`, { restart: true });
+    },
+
+    /**
+     * Get bridge health status
+     * @returns {Promise<Object>} Bridge health
+     */
+    getHealth() {
+        return get('/api/devices/v2/sysgrow/health');
+    },
+
+    /**
+     * Restart all SYSGrow devices on the network
+     * @returns {Promise<Object>} Restart result
+     */
+    restartAll() {
+        return post('/api/devices/v2/sysgrow/restart-all', {});
+    },
+
+    /**
+     * Trigger OTA firmware update on a device
+     * @param {string} deviceId - Device friendly_name or sensor_id
+     * @param {string} firmwareUrl - Firmware binary URL
+     * @returns {Promise<Object>} OTA update result
+     */
+    otaUpdate(deviceId, firmwareUrl) {
+        return post('/api/devices/v2/sysgrow/ota-update', {
+            id: deviceId,
+            url: firmwareUrl
+        });
+    }
+};
+
+// ============================================================================
 // SYSTEM API (System-level operations)
 // ============================================================================
 
@@ -3959,6 +4187,17 @@ const SystemAPI = {
      */
     clearAllAlerts() {
         return post('/api/system/alerts/clear-all');
+    },
+
+    /**
+     * Export system data
+     * @param {Object} [options] - Export options
+     * @param {string} [options.format='json'] - Export format (json, csv)
+     * @returns {Promise<Object>} Export data or download URL
+     */
+    exportData(options = {}) {
+        const format = options.format || 'json';
+        return get(`/api/dashboard/summary?format=${encodeURIComponent(format)}`);
     }
 };
 
@@ -4383,6 +4622,7 @@ const API = {
     Settings: SettingsAPI,
     ML: MLAPI,
     AI: AIAPI,
+    ESP32: ESP32API,
     GrowthStages: GrowthStagesAPI,
     Retraining: RetrainingAPI,
     ABTesting: ABTestingAPI,

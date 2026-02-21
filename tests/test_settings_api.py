@@ -46,8 +46,12 @@ def test_plants_seeded(app):
 
 
 def test_hotspot_settings_roundtrip(client):
+    # Before any setup, GET returns 200 with configured=False defaults
     response = client.get("/api/settings/hotspot")
-    assert response.status_code == 404
+    assert response.status_code == 200
+    initial = (response.get_json() or {}).get("data", {})
+    assert initial.get("configured") is False
+    assert initial.get("ssid") == ""
 
     payload = {"ssid": "GrowTent", "password": "secret123"}
     response = client.put("/api/settings/hotspot", json=payload)

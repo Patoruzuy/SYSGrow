@@ -34,13 +34,16 @@ def get_hotspot_settings() -> Response:
     Note: Actual password is never returned for security reasons.
     """
     data = _service().get_hotspot_settings()
+
+    # Return defaults when not yet configured (200, not 404)
     if not data:
-        return _fail("Hotspot settings not configured.", 404)
+        return _success({"ssid": "", "password_present": False, "configured": False})
 
     # Mask sensitive password data in the response
     response_data = {
         "ssid": data.get("ssid", ""),
         "password_present": bool(data.get("password_present")),
+        "configured": True,
     }
     # Never return the actual password in GET requests for security
     return _success(response_data, 200)

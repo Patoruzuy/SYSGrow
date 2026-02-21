@@ -270,7 +270,7 @@ const GrowthAPI = {
 
         if (activePlantId !== null && activePlantId !== undefined) {
             try {
-                plant = await get(`/api/plants/plants/${unitId}/${activePlantId}`);
+                plant = await get(`/api/plants/${unitId}/${activePlantId}`);
             } catch {
                 plant = null;
             }
@@ -724,7 +724,7 @@ const PlantAPI = {
      * @returns {Promise<Object>}
      */
     getHealthHistory(plantId, days = 30) {
-        return get(`/api/plants/plants/${plantId}/health/history?days=${days}`);
+        return get(`/api/plants/${plantId}/health/history?days=${days}`);
     },
 
     /**
@@ -751,7 +751,7 @@ const PlantAPI = {
         if (unitId === null || unitId === undefined || unitId === '') {
             throw new Error('unitId is required to fetch plant details');
         }
-        return get(`/api/plants/plants/${unitId}/${plantId}`);
+        return get(`/api/plants/${unitId}/${plantId}`);
     },
 
     getPlant(plantId, unitId = null) {
@@ -773,7 +773,7 @@ const PlantAPI = {
         }
 
         // Fallback: backend can resolve unit by plant id.
-        return get(`/api/plants/plants/${numericPlantId}`);
+        return get(`/api/plants/${numericPlantId}`);
     },
 
     /**
@@ -787,7 +787,7 @@ const PlantAPI = {
      * @returns {Promise<Object>} Updated plant
      */
     updatePlant(plantId, updates) {
-        return put(`/api/plants/plants/${plantId}`, updates);
+        return put(`/api/plants/${plantId}`, updates);
     },
 
     /**
@@ -809,7 +809,7 @@ const PlantAPI = {
      * @returns {Promise<Object>} Updated plant
      */
     updatePlantStage(plantId, stageData) {
-        return put(`/api/plants/plants/${plantId}/stage`, stageData);
+        return put(`/api/plants/${plantId}/stage`, stageData);
     },
 
     /**
@@ -843,7 +843,7 @@ const PlantAPI = {
      * @returns {Promise<Object>} Link result
      */
     linkPlantToSensor(plantId, sensorId) {
-        return post(`/api/plants/plants/${plantId}/sensors/${sensorId}`);
+        return post(`/api/plants/${plantId}/sensors/${sensorId}`);
     },
 
     /**
@@ -853,7 +853,7 @@ const PlantAPI = {
      * @returns {Promise<Object>} Unlink result
      */
     unlinkPlantFromSensor(plantId, sensorId) {
-        return del(`/api/plants/plants/${plantId}/sensors/${sensorId}`);
+        return del(`/api/plants/${plantId}/sensors/${sensorId}`);
     },
 
     /**
@@ -862,7 +862,7 @@ const PlantAPI = {
      * @returns {Promise<Object>} Plant sensors with details
      */
     getPlantSensors(plantId) {
-        return get(`/api/plants/plants/${plantId}/sensors`);
+        return get(`/api/plants/${plantId}/sensors`);
     },
 
     // ============================================================================
@@ -885,7 +885,7 @@ const PlantAPI = {
      * @returns {Promise<Object>} Plant actuators with details
      */
     getPlantActuators(plantId) {
-        return get(`/api/plants/plants/${plantId}/actuators`);
+        return get(`/api/plants/${plantId}/actuators`);
     },
 
     /**
@@ -895,7 +895,7 @@ const PlantAPI = {
      * @returns {Promise<Object>} Link result
      */
     linkPlantToActuator(plantId, actuatorId) {
-        return post(`/api/plants/plants/${plantId}/actuators/${actuatorId}`);
+        return post(`/api/plants/${plantId}/actuators/${actuatorId}`);
     },
 
     /**
@@ -905,7 +905,7 @@ const PlantAPI = {
      * @returns {Promise<Object>} Unlink result
      */
     unlinkPlantFromActuator(plantId, actuatorId) {
-        return del(`/api/plants/plants/${plantId}/actuators/${actuatorId}`);
+        return del(`/api/plants/${plantId}/actuators/${actuatorId}`);
     },
 
     // ============================================================================
@@ -928,7 +928,7 @@ const PlantAPI = {
      * @returns {Promise<Object>} Recorded observation with correlations
      */
     recordHealthObservation(plantId, observation) {
-        return post(`/api/plants/plants/${plantId}/health/record`, observation);
+        return post(`/api/plants/${plantId}/health/record`, observation);
     },
 
     /**
@@ -986,7 +986,7 @@ const PlantAPI = {
      * @returns {Promise<Object>} Health history
      */
     getHealthHistory(plantId, days = 7) {
-        return get(`/api/plants/plants/${plantId}/health/history?days=${days}`);
+        return get(`/api/plants/${plantId}/health/history?days=${days}`);
     },
 
     /**
@@ -995,7 +995,7 @@ const PlantAPI = {
      * @returns {Promise<Object>} Health recommendations
      */
     getHealthRecommendations(plantId) {
-        return get(`/api/plants/plants/${plantId}/health/recommendations`);
+        return get(`/api/plants/${plantId}/health/recommendations`);
     },
 
     // ============================================================================

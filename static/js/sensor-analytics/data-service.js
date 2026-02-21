@@ -261,12 +261,8 @@
             if (this.selectedUnitId) options.unit_id = this.selectedUnitId;
             if (params.sensor_id) options.sensor_id = params.sensor_id;
 
-            const response = await this.api.Analytics.getSensorsStatistics(options);
-
-            if (response.ok && response.data) {
-              return response.data;
-            }
-            return response || null;
+            const data = await this.api.Analytics.getSensorsStatistics(options);
+            return data || null;
           },
           { force }
         );

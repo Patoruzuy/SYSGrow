@@ -51,19 +51,14 @@
       }
 
       try {
-        const response = await this.insightsApi.getEnergyStats();
+        const data = await this.insightsApi.getEnergyStats();
+        this.energyStats = data || {};
 
-        if (response.ok && response.data) {
-          this.energyStats = response.data;
-
-          if (this.cache) {
-            this.cache.set(cacheKey, this.energyStats);
-          }
-
-          return this.energyStats;
-        } else {
-          throw new Error(response.error || 'Failed to load energy statistics');
+        if (this.cache) {
+          this.cache.set(cacheKey, this.energyStats);
         }
+
+        return this.energyStats;
       } catch (error) {
         console.error('[EnergyAnalyticsDataService] loadEnergyStats failed:', error);
         throw error;
@@ -99,19 +94,14 @@
       }
 
       try {
-        const response = await this.deviceApi.getDeviceEnergyBreakdown();
+        const data = await this.deviceApi.getDeviceEnergyBreakdown();
+        this.devices = data?.devices || [];
 
-        if (response.ok && response.data) {
-          this.devices = response.data.devices || [];
-
-          if (this.cache) {
-            this.cache.set(cacheKey, this.devices);
-          }
-
-          return this.devices;
-        } else {
-          throw new Error(response.error || 'Failed to load device breakdown');
+        if (this.cache) {
+          this.cache.set(cacheKey, this.devices);
         }
+
+        return this.devices;
       } catch (error) {
         console.error('[EnergyAnalyticsDataService] loadDeviceBreakdown failed:', error);
         throw error;
@@ -164,19 +154,14 @@
       }
 
       try {
-        const response = await this.insightsApi.getEnergyPredictions();
+        const data = await this.insightsApi.getEnergyPredictions();
+        this.predictions = data?.predictions || [];
 
-        if (response.ok && response.data) {
-          this.predictions = response.data.predictions || [];
-
-          if (this.cache) {
-            this.cache.set(cacheKey, this.predictions);
-          }
-
-          return this.predictions;
-        } else {
-          throw new Error(response.error || 'Failed to load predictions');
+        if (this.cache) {
+          this.cache.set(cacheKey, this.predictions);
         }
+
+        return this.predictions;
       } catch (error) {
         console.error('[EnergyAnalyticsDataService] loadPredictions failed:', error);
         throw error;
@@ -222,17 +207,13 @@
       }
 
       try {
-        const response = await this.insightsApi.getEnergyTrend(timerange, grouping);
+        const data = await this.insightsApi.getEnergyTrend(timerange, grouping);
 
-        if (response.ok && response.data) {
-          if (this.cache) {
-            this.cache.set(cacheKey, response.data);
-          }
-
-          return response.data;
-        } else {
-          throw new Error(response.error || 'Failed to load chart data');
+        if (this.cache) {
+          this.cache.set(cacheKey, data);
         }
+
+        return data;
       } catch (error) {
         console.error('[EnergyAnalyticsDataService] loadEnergyTrend failed:', error);
         throw error;

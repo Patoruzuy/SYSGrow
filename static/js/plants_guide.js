@@ -87,8 +87,8 @@ async function loadPlantsData() {
 
     try {
         let result;
-        if (window.API && window.API.PlantAPI && window.API.PlantAPI.getGuide) {
-            result = await window.API.PlantAPI.getGuide();
+        if (window.API && window.API.Plant && window.API.Plant.getPlantsGuideFull) {
+            result = await window.API.Plant.getPlantsGuideFull();
             // window.API unwraps data.data, so result IS the guide payload
             if (result && result.plants) {
                 plantsData = result.plants;

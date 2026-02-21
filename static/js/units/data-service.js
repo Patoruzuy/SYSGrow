@@ -209,7 +209,7 @@
      */
     async deleteSchedule(scheduleId, unitId = null) {
       try {
-        await this.api.Device.deleteSchedule(scheduleId);
+        await this.api.Device.deleteSchedule(scheduleId, unitId);
         if (unitId) {
           this.cache.invalidate(this._key('schedules', unitId));
         }
@@ -669,7 +669,7 @@
         return await this._cached(
           cacheKey,
           async () => {
-            const response = await this.api.Plant.getPlantInfo(plantId);
+            const response = await this.api.Plant.getPlant(plantId);
             return response?.plant || response?.data || response || null;
           },
           { force }
@@ -704,7 +704,7 @@
      */
     async removePlant(plantId, unitId = null) {
       try {
-        await this.api.Plant.removePlant(plantId);
+        await this.api.Plant.removePlant(unitId, plantId);
         if (unitId) {
           this.cache.invalidate(this._key('plants', unitId));
         }

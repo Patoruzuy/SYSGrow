@@ -951,6 +951,35 @@ const PlantAPI = {
     },
 
     /**
+     * Alias for getPlant (used by units data-service)
+     * @param {number} plantId - Plant ID
+     * @returns {Promise<Object>} Plant data
+     */
+    getPlantInfo(plantId) {
+        return this.getPlant(plantId);
+    },
+
+    /**
+     * Record a plant observation (simplified wrapper)
+     * Extracts plant_id from data and delegates to recordHealthObservation.
+     * @param {Object} data - Observation data including plant_id
+     * @returns {Promise<Object>} Recorded observation
+     */
+    recordObservation(data) {
+        const plantId = data.plant_id || data.plantId;
+        return post(`/api/plants/journal/observation`, data);
+    },
+
+    /**
+     * Record nutrient application (JSON wrapper)
+     * @param {Object} data - Nutrient data
+     * @returns {Promise<Object>} Recorded nutrient entry
+     */
+    recordNutrient(data) {
+        return post('/api/plants/journal/nutrients', data);
+    },
+
+    /**
      * Get health observation history for a plant
      * @param {number} plantId - Plant ID
      * @param {number} [days=7] - Number of days of history
@@ -1874,10 +1903,9 @@ const DeviceAPI = {
         if (unitId) {
             return del(`/api/growth/v3/units/${unitId}/schedules/${scheduleId}`);
         }
-        // Fallback: fetch schedule first to get unit_id, or use a generic path
-        return del(`/api/growth/v3/schedules/${scheduleId}/execution-log`).catch(() =>
-            Promise.reject(new Error('unit_id required to delete schedule'))
-        );
+        // unitId is required for the V3 schedule endpoint
+        console.warn('[DeviceAPI] deleteSchedule called without unitId — schedule deletion requires unitId');
+        return Promise.reject(new Error('unitId is required to delete a schedule'));
     },
 
     // ============================================================================

@@ -31,7 +31,7 @@ logger = logging.getLogger("plants_api.lifecycle")
 # ============================================================================
 
 
-@plants_api.put("/plants/<int:plant_id>/stage")
+@plants_api.put("/<int:plant_id>/stage")
 @safe_route("Failed to update plant stage")
 def update_plant_stage(plant_id: int) -> Response:
     """Update plant growth stage"""

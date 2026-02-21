@@ -206,7 +206,12 @@ def create_app(config_overrides: dict[str, Any] | None = None, *, bootstrap_runt
     @flask_app.errorhandler(Exception)
     def _handle_unhandled(exc):
         if not request.path.startswith(("/api/", "/auth/")):
-            raise exc  # Let Flask's default HTML error pages handle UI routes
+            # Let Flask's default error handling render HTML for UI routes.
+            # Return the HTTPException response or None so Flask falls through
+            # to its built-in handler instead of causing a 500.
+            if isinstance(exc, HTTPException):
+                return exc.get_response()
+            return None
         from app.domain.exceptions import SysGrowError
         from app.utils.http import error_response, safe_error
 
@@ -294,12 +299,20 @@ def create_app(config_overrides: dict[str, Any] | None = None, *, bootstrap_runt
 
     # ── Backward-compat: rewrite /api/* → /api/v1/* ─────────────
     # WSGI-level rewrite (no HTTP redirect — fully transparent to clients).
+    # Only rewrite when the original path has no matching route (e.g. ui_bp
+    # routes like /api/system/alerts should NOT be rewritten).
     _original_wsgi = flask_app.wsgi_app
+    _url_adapter = flask_app.url_map.bind("")
 
     def _legacy_api_rewrite(environ, start_response):
         path = environ.get("PATH_INFO", "")
         if path.startswith("/api/") and not path.startswith("/api/v1/"):
-            environ["PATH_INFO"] = "/api/v1" + path[4:]
+            # Try the original path first — skip rewrite if it matches a route
+            try:
+                _url_adapter.match(path, method=environ.get("REQUEST_METHOD", "GET"))
+            except Exception:
+                # No direct match → rewrite to v1
+                environ["PATH_INFO"] = "/api/v1" + path[4:]
         return _original_wsgi(environ, start_response)
 
     flask_app.wsgi_app = _legacy_api_rewrite  # type: ignore[assignment]

@@ -246,7 +246,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/api.js') }}"></script>
 <script type="module">
   import { initUnitSelector } from "{{ url_for('static', filename='js/unit_selector.js') }}";
   initUnitSelector();

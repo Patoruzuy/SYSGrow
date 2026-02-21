@@ -60,7 +60,7 @@ def get_available_sensors(unit_id: int) -> Response:
     )
 
 
-@plants_api.post("/plants/<int:plant_id>/sensors/<int:sensor_id>")
+@plants_api.post("/<int:plant_id>/sensors/<int:sensor_id>")
 @safe_route("Failed to link plant to sensor")
 def link_plant_to_sensor(plant_id: int, sensor_id: int) -> Response:
     """Link a plant to a sensor"""
@@ -87,7 +87,7 @@ def link_plant_to_sensor(plant_id: int, sensor_id: int) -> Response:
         return _fail(f"Failed to link sensor {sensor_id} to plant {plant_id}", 400)
 
 
-@plants_api.delete("/plants/<int:plant_id>/sensors/<int:sensor_id>")
+@plants_api.delete("/<int:plant_id>/sensors/<int:sensor_id>")
 @safe_route("Failed to unlink plant from sensor")
 def unlink_plant_from_sensor(plant_id: int, sensor_id: int) -> Response:
     """Unlink a plant from a sensor"""
@@ -114,7 +114,7 @@ def unlink_plant_from_sensor(plant_id: int, sensor_id: int) -> Response:
         return _fail(f"Failed to unlink sensor {sensor_id} from plant {plant_id}", 400)
 
 
-@plants_api.get("/plants/<int:plant_id>/sensors")
+@plants_api.get("/<int:plant_id>/sensors")
 @safe_route("Failed to get plant sensors")
 def get_plant_sensors(plant_id: int) -> Response:
     """Get all sensors linked to a plant with full details"""

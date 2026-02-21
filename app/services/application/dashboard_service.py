@@ -853,7 +853,7 @@ class DashboardService:
                 p = p.to_dict() if hasattr(p, "to_dict") else dict(p)
                 pid = p.get("plant_id") or p.get("id")
                 health = scorer.score_plant_health(pid) if scorer and pid else None
-                hs = health.get("overall_score", 75) if health else 75
+                hs = getattr(health, "overall_score", 75) if health else 75
                 scores.append(hs)
                 status_str = dhs.interpret_health_score(hs) if dhs else "good"
                 summaries.append(

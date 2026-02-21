@@ -36,14 +36,19 @@ _DEFAULT_HEADERS: dict[str, str] = {
 }
 
 # Content-Security-Policy — allows inline styles/scripts for Jinja2 templates
-# and restricts everything else to same-origin.
+# and whitelists the CDN domains used by the frontend for Chart.js, Socket.IO,
+# Font Awesome, and Google Fonts.
+_CDN_SCRIPT_SOURCES = "https://cdnjs.cloudflare.com https://cdn.jsdelivr.net"
+_CDN_STYLE_SOURCES = "https://cdnjs.cloudflare.com https://fonts.googleapis.com"
+_CDN_FONT_SOURCES = "https://cdnjs.cloudflare.com https://fonts.gstatic.com"
+
 _DEFAULT_CSP = (
     "default-src 'self'; "
-    "script-src 'self' 'unsafe-inline'; "
-    "style-src 'self' 'unsafe-inline'; "
+    f"script-src 'self' 'unsafe-inline' {_CDN_SCRIPT_SOURCES}; "
+    f"style-src 'self' 'unsafe-inline' {_CDN_STYLE_SOURCES}; "
     "img-src 'self' data: blob:; "
-    "font-src 'self'; "
-    "connect-src 'self' ws: wss:; "
+    f"font-src 'self' {_CDN_FONT_SOURCES}; "
+    f"connect-src 'self' ws: wss: {_CDN_SCRIPT_SOURCES} {_CDN_STYLE_SOURCES}; "
     "frame-ancestors 'self';"
 )
 

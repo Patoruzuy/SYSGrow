@@ -488,7 +488,7 @@ class ControlLogic:
         if "humidity" in data:
             self.humidity_controller.setpoint = float(data["humidity"])
             self.config.humidity_setpoint = float(data["humidity"])
-            logger.info("Updated humidity setpoint: %s%", self.config.humidity_setpoint)
+            logger.info("Updated humidity setpoint: %s%%", self.config.humidity_setpoint)
 
         if "co2" in data:
             self.co2_controller.setpoint = float(data["co2"])

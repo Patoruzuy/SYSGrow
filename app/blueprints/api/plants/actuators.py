@@ -54,7 +54,7 @@ def get_available_actuators(unit_id: int) -> Response:
     )
 
 
-@plants_api.post("/plants/<int:plant_id>/actuators/<int:actuator_id>")
+@plants_api.post("/<int:plant_id>/actuators/<int:actuator_id>")
 @safe_route("Failed to link plant to actuator")
 def link_plant_to_actuator(plant_id: int, actuator_id: int) -> Response:
     """Link a plant to an actuator."""
@@ -76,7 +76,7 @@ def link_plant_to_actuator(plant_id: int, actuator_id: int) -> Response:
     return _fail(f"Failed to link actuator {actuator_id} to plant {plant_id}", 400)
 
 
-@plants_api.delete("/plants/<int:plant_id>/actuators/<int:actuator_id>")
+@plants_api.delete("/<int:plant_id>/actuators/<int:actuator_id>")
 @safe_route("Failed to unlink plant from actuator")
 def unlink_plant_from_actuator(plant_id: int, actuator_id: int) -> Response:
     """Unlink a plant from an actuator."""
@@ -98,7 +98,7 @@ def unlink_plant_from_actuator(plant_id: int, actuator_id: int) -> Response:
     return _fail(f"Failed to unlink actuator {actuator_id} from plant {plant_id}", 400)
 
 
-@plants_api.get("/plants/<int:plant_id>/actuators")
+@plants_api.get("/<int:plant_id>/actuators")
 @safe_route("Failed to get plant actuators")
 def get_plant_actuators(plant_id: int) -> Response:
     """Get all actuators linked to a plant with full details."""

@@ -32,7 +32,7 @@ logger = logging.getLogger("plants_api.health")
 # Deprecated endpoint /api/plants/health/summary removed - use /api/health/plants/summary instead
 
 
-@plants_api.post("/plants/<int:plant_id>/health/record")
+@plants_api.post("/<int:plant_id>/health/record")
 @safe_route("Failed to record plant health observation")
 def record_plant_health(plant_id: int) -> Response:
     """
@@ -232,7 +232,7 @@ def record_plant_health(plant_id: int) -> Response:
     )
 
 
-@plants_api.get("/plants/<int:plant_id>/health/history")
+@plants_api.get("/<int:plant_id>/health/history")
 @safe_route("Failed to get plant health history")
 def get_plant_health_history(plant_id: int) -> Response:
     """
@@ -282,7 +282,7 @@ def get_plant_health_history(plant_id: int) -> Response:
     )
 
 
-@plants_api.get("/plants/<int:plant_id>/health/recommendations")
+@plants_api.get("/<int:plant_id>/health/recommendations")
 @safe_route("Failed to get health recommendations")
 def get_plant_health_recommendations(plant_id: int) -> Response:
     """Get health recommendations for a plant"""

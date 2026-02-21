@@ -58,7 +58,7 @@ class SystemHealthService:
             alert_service: Service for alert management
         """
         # Infrastructure status
-        self.version = load_config.APP_VERSION
+        self.version = load_config().APP_VERSION
         self.api_status = "online"
         self.db_status = "connected"
         self.last_backup = "Not configured"

@@ -36,10 +36,12 @@ from __future__ import annotations
 import contextlib
 import logging
 import threading
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from app.domain.sensors import (
     Protocol,
+    ReadingStatus,
     SensorEntity,
     SensorReading,
     SensorType,
@@ -285,6 +287,18 @@ class SensorManagementService:
 
             # Read using sensor's processing pipeline
             reading = sensor.read()
+
+            # Normalise: some adapters return a raw dict instead of SensorReading
+            if isinstance(reading, dict):
+                reading = SensorReading(
+                    sensor_id=sensor_id,
+                    unit_id=getattr(sensor.config, "unit_id", 0),
+                    sensor_type=getattr(sensor.config, "sensor_type", "unknown"),
+                    sensor_name=getattr(sensor.config, "name", f"Sensor {sensor_id}"),
+                    data=reading,
+                    timestamp=datetime.now(),
+                    status=ReadingStatus.SUCCESS,
+                )
 
             # Check for anomalies (supports multi-value readings)
             anomalies = []

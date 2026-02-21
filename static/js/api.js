@@ -1562,6 +1562,14 @@ const DeviceAPI = {
     },
 
     /**
+     * Get per-device energy breakdown (alias for comparative analysis)
+     * @returns {Promise<Object>} Device energy breakdown
+     */
+    getDeviceEnergyBreakdown() {
+        return get('/api/devices/actuators/energy/comparative-analysis');
+    },
+
+    /**
      * Get all devices for a unit
      * @param {number} unitId - Unit ID
      * @returns {Promise<Object>} All devices
@@ -2006,6 +2014,16 @@ const InsightsAPI = {
         if (params.days) query.append('days', params.days || 7);
         const queryStr = query.toString();
         return get(`/api/analytics/dashboard/energy-summary${queryStr ? '?' + queryStr : ''}`);
+    },
+
+    /**
+     * Get energy trend data for charts
+     * @param {string} [timerange='month'] - 'day', 'week', 'month', 'year'
+     * @param {string} [grouping='day'] - 'hour', 'day', 'week', 'month'
+     * @returns {Promise<Object>} Energy trend data
+     */
+    getEnergyTrend(timerange = 'month', grouping = 'day') {
+        return get(`/api/analytics/dashboard/energy-summary?timerange=${timerange}&grouping=${grouping}`);
     },
 
     /**

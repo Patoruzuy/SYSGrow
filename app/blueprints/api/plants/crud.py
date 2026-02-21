@@ -94,7 +94,7 @@ def add_plant(unit_id: int) -> Response:
         return _fail("Failed to create plant", 500)
 
 
-@plants_api.get("/plants/<int:unit_id>/<int:plant_id>")
+@plants_api.get("/<int:unit_id>/<int:plant_id>")
 @safe_route("Failed to get plant")
 def get_plant(unit_id: int, plant_id: int) -> Response:
     """Get a specific plant by ID"""
@@ -109,7 +109,7 @@ def get_plant(unit_id: int, plant_id: int) -> Response:
     return _success(plant)
 
 
-@plants_api.get("/plants/<int:plant_id>")
+@plants_api.get("/<int:plant_id>")
 @safe_route("Failed to get plant")
 def get_plant_by_id(plant_id: int) -> Response:
     """Get a specific plant by ID (unit resolved automatically)."""
@@ -124,7 +124,7 @@ def get_plant_by_id(plant_id: int) -> Response:
     return _success(plant)
 
 
-@plants_api.put("/plants/<int:plant_id>")
+@plants_api.put("/<int:plant_id>")
 @safe_route("Failed to update plant")
 def update_plant(plant_id: int) -> Response:
     """Update plant information"""
@@ -176,7 +176,7 @@ def update_plant(plant_id: int) -> Response:
         return _fail("Failed to update plant", 500)
 
 
-@plants_api.post("/plants/<int:plant_id>/apply-profile")
+@plants_api.post("/<int:plant_id>/apply-profile")
 @safe_route("Failed to apply condition profile")
 def apply_condition_profile_to_plant(plant_id: int) -> Response:
     """

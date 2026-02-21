@@ -49,7 +49,7 @@ logger = logging.getLogger("plants_api.journal_extended")
 # ============================================================================
 
 
-@plants_api.post("/plants/<int:plant_id>/journal/watering")
+@plants_api.post("/<int:plant_id>/journal/watering")
 @safe_route("Failed to record watering")
 def add_watering_entry(plant_id: int) -> Response:
     """Record a watering event for a plant."""
@@ -82,7 +82,7 @@ def add_watering_entry(plant_id: int) -> Response:
     return _success({"entry_id": entry_id, "message": "Watering recorded"}, 201)
 
 
-@plants_api.post("/plants/<int:plant_id>/journal/pruning")
+@plants_api.post("/<int:plant_id>/journal/pruning")
 @safe_route("Failed to record pruning")
 def add_pruning_entry(plant_id: int) -> Response:
     """Record a pruning event for a plant."""
@@ -110,7 +110,7 @@ def add_pruning_entry(plant_id: int) -> Response:
     return _success({"entry_id": entry_id, "message": "Pruning recorded"}, 201)
 
 
-@plants_api.post("/plants/<int:plant_id>/journal/transplant")
+@plants_api.post("/<int:plant_id>/journal/transplant")
 @safe_route("Failed to record transplant")
 def add_transplant_entry(plant_id: int) -> Response:
     """Record a transplant event for a plant."""
@@ -139,7 +139,7 @@ def add_transplant_entry(plant_id: int) -> Response:
     return _success({"entry_id": entry_id, "message": "Transplant recorded"}, 201)
 
 
-@plants_api.post("/plants/<int:plant_id>/journal/environmental-adjustment")
+@plants_api.post("/<int:plant_id>/journal/environmental-adjustment")
 @safe_route("Failed to record environmental adjustment")
 def add_environmental_adjustment_entry(plant_id: int) -> Response:
     """Record an environmental adjustment for a plant."""
@@ -173,7 +173,7 @@ def add_environmental_adjustment_entry(plant_id: int) -> Response:
 # ============================================================================
 
 
-@plants_api.put("/plants/<int:plant_id>/journal/<int:entry_id>")
+@plants_api.put("/<int:plant_id>/journal/<int:entry_id>")
 @safe_route("Failed to update journal entry")
 def update_journal_entry(plant_id: int, entry_id: int) -> Response:
     """Update an existing journal entry."""
@@ -200,7 +200,7 @@ def update_journal_entry(plant_id: int, entry_id: int) -> Response:
     return _success({"entry_id": entry_id, "message": "Entry updated"})
 
 
-@plants_api.delete("/plants/<int:plant_id>/journal/<int:entry_id>")
+@plants_api.delete("/<int:plant_id>/journal/<int:entry_id>")
 @safe_route("Failed to delete journal entry")
 def delete_journal_entry(plant_id: int, entry_id: int) -> Response:
     """Delete a journal entry."""
@@ -225,7 +225,7 @@ def delete_journal_entry(plant_id: int, entry_id: int) -> Response:
 # ============================================================================
 
 
-@plants_api.get("/plants/<int:plant_id>/journal/entries")
+@plants_api.get("/<int:plant_id>/journal/entries")
 @safe_route("Failed to get journal entries")
 def get_journal_paginated(plant_id: int) -> Response:
     """
@@ -250,7 +250,7 @@ def get_journal_paginated(plant_id: int) -> Response:
     return _success(result)
 
 
-@plants_api.get("/plants/<int:plant_id>/journal/summary")
+@plants_api.get("/<int:plant_id>/journal/summary")
 @safe_route("Failed to get journal summary")
 def get_journal_summary(plant_id: int) -> Response:
     """Get aggregated journal summary for a plant."""
@@ -262,7 +262,7 @@ def get_journal_summary(plant_id: int) -> Response:
     return _success(summary)
 
 
-@plants_api.get("/plants/<int:plant_id>/journal/watering-history")
+@plants_api.get("/<int:plant_id>/journal/watering-history")
 @safe_route("Failed to get watering history")
 def get_watering_history(plant_id: int) -> Response:
     """Get watering history for a plant."""
@@ -280,7 +280,7 @@ def get_watering_history(plant_id: int) -> Response:
     )
 
 
-@plants_api.get("/plants/<int:plant_id>/journal/stage-timeline")
+@plants_api.get("/<int:plant_id>/journal/stage-timeline")
 @safe_route("Failed to get stage timeline")
 def get_stage_timeline(plant_id: int) -> Response:
     """Get stage change timeline for a plant."""
@@ -300,7 +300,7 @@ def get_stage_timeline(plant_id: int) -> Response:
 # ============================================================================
 
 
-@plants_api.post("/plants/<int:plant_id>/stage/extend")
+@plants_api.post("/<int:plant_id>/stage/extend")
 @safe_route("Failed to extend plant stage")
 def extend_plant_stage(plant_id: int) -> Response:
     """
@@ -361,7 +361,7 @@ def extend_plant_stage(plant_id: int) -> Response:
 # ============================================================================
 
 
-@plants_api.get("/plants/<int:plant_id>/detail")
+@plants_api.get("/<int:plant_id>/detail")
 @safe_route("Failed to get plant detail")
 def get_plant_detail_unified(plant_id: int) -> Response:
     """

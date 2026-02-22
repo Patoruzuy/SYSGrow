@@ -692,6 +692,7 @@ class ContainerBuilder:
             monitor = MLReadinessMonitorService(
                 irrigation_ml_repo=infra.irrigation_ml_repo,
                 notifications_service=infra.notifications_service,
+                unit_repo=infra.unit_repo,
             )
             logger.info("✓ ML Readiness Monitor enabled")
             return monitor
@@ -947,7 +948,7 @@ class ContainerBuilder:
             plant_model_service=plant_irrigation_model_service,
             notifications_service=infra.notifications_service,
             device_repo=infra.device_repo,
-            growth_repo=infra.growth_repo,
+            unit_repo=infra.unit_repo,
             event_bus=utils.event_bus,
             scheduler=scheduler,
         )

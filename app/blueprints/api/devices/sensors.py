@@ -476,8 +476,30 @@ def check_sensor_anomalies(sensor_id: int) -> Response:
         elif error_type in ["service_unavailable", "runtime_unavailable"]:
             return _fail(error_msg, 503)
         elif error_type == "read_error":
-            # Sensor exists but can't be read right now — return empty result
-            return _success({"anomalies": [], "has_anomaly": False, "message": error_msg})
+            # Sensor exists but cannot be read right now. Preserve the normal
+            # response schema so clients can parse the payload consistently.
+            threshold = float(getattr(getattr(device_health, "anomaly_service", None), "threshold", 3.0))
+            return _success(
+                {
+                    "success": False,
+                    "sensor_id": sensor_id,
+                    "is_anomaly": False,
+                    "current_value": None,
+                    "mean": 0.0,
+                    "std_dev": 0.0,
+                    "min": 0.0,
+                    "max": 0.0,
+                    "count": 0,
+                    "threshold": threshold,
+                    "message": error_msg,
+                    "error_type": "read_error",
+                    "read_error": True,
+                    # Backward-compatible aliases for callers that previously
+                    # consumed the temporary fallback shape.
+                    "has_anomaly": False,
+                    "anomalies": [],
+                }
+            )
         else:
             return _fail(error_msg, 400)
 

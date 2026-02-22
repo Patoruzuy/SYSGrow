@@ -505,7 +505,6 @@ class ContinuousMonitoringService:
     def _get_current_conditions(self, unit_id: int) -> dict[str, float] | None:
         """Get current sensor readings."""
         try:
-            # TODO: Can get the last reading without have to fetch the DB, the.
             latest = self.analytics_repo.get_latest_sensor_readings(unit_id)
             return latest if latest else None
         except Exception as e:

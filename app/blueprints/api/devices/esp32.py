@@ -32,10 +32,14 @@ from . import devices_api
 logger = logging.getLogger(__name__)
 
 
-# TODO: This is wrong, the adapter should be fetched from actuator_management_service, not created here. Refactor to inject the adapter properly.
 def _get_sysgrow_adapter(friendly_name: str = None):
     """
     Get a SYSGrowAdapter instance for bridge commands.
+
+    This creates a fresh adapter with sensor_id=0 / unit_id=0 by design: bridge-level
+    commands (permit-join, reset, etc.) target the Zigbee2MQTT coordinator, not any
+    registered device. actuator_management_service manages device-specific adapters
+    and is not appropriate here.
 
     Args:
         friendly_name: Device name for device-specific commands, or None for bridge

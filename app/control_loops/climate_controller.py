@@ -21,7 +21,7 @@ from time import perf_counter
 from typing import TYPE_CHECKING, Any
 
 from app.control_loops.throttle_config import DEFAULT_THROTTLE_CONFIG, ThrottleConfig
-from app.enums.events import RuntimeEvent, SensorEvent
+from app.enums.events import PlantEvent, RuntimeEvent, SensorEvent
 from app.utils.event_bus import EventBus
 from app.utils.time import iso_now, utc_now
 
@@ -340,17 +340,71 @@ class ClimateController:
         if pressure is not None:
             self._log_primary_metric("pressure", sensor_id)
             self._track_sensor_update("pressure", sensor_id)
-            # TODO: Implement notification/alert/widget update for pressure thresholds
+            self._check_threshold_breach("pressure", pressure, "pressure_threshold", high_is_bad=True)
             self._log_analytics_data(data, {"pressure"})
 
     @track_performance("on_air_quality_update")
     def on_air_quality_update(self, data: dict[str, Any]) -> None:
         """Handle air quality index updates."""
         if self._is_for_this_unit(data) and data.get("air_quality") is not None:
+            air_quality = data["air_quality"]
             self._log_primary_metric("air_quality", data.get("sensor_id"))
             self._track_sensor_update("air_quality", data.get("sensor_id"))
-            # TODO: Implement notification/alert/widget update for Air Quality thresholds
+            self._check_threshold_breach("air_quality", air_quality, "air_quality_threshold", high_is_bad=True)
             self._log_analytics_data(data, {"air_quality"})
+
+    def _check_threshold_breach(
+        self, metric: str, value: float, threshold_key: str, *, high_is_bad: bool = True
+    ) -> None:
+        """
+        Emit a GROWTH_WARNING event when a monitoring-only metric breaches its threshold.
+
+        Used for metrics that have no associated actuator (pressure, air_quality).
+        For actuator-controlled metrics (temp, humidity, CO2, lux) ControlLogic handles
+        the response; this helper is not needed there.
+
+        Args:
+            metric: Human-readable sensor name for the log/event payload.
+            value: Current sensor reading.
+            threshold_key: Key to look up in ``last_thresholds_update``
+                           (e.g. ``"air_quality_threshold"``).
+            high_is_bad: If True, breach occurs when ``value > threshold``;
+                         if False (e.g. pressure drop) when ``value < threshold``.
+        """
+        if not self.last_thresholds_update:
+            return
+        threshold = self.last_thresholds_update.get(threshold_key)
+        if threshold is None:
+            return
+        try:
+            threshold = float(threshold)
+        except (TypeError, ValueError):
+            return
+
+        breached = value > threshold if high_is_bad else value < threshold
+        if breached:
+            logger.warning(
+                "Unit %s: %s threshold breach — value=%.2f threshold=%.2f",
+                self.unit_id,
+                metric,
+                value,
+                threshold,
+            )
+            if self.event_bus:
+                try:
+                    self.event_bus.publish(
+                        PlantEvent.GROWTH_WARNING,
+                        {
+                            "unit_id": self.unit_id,
+                            "metric": metric,
+                            "value": value,
+                            "threshold": threshold,
+                            "direction": "above" if high_is_bad else "below",
+                            "source": "climate_controller",
+                        },
+                    )
+                except Exception as exc:
+                    logger.debug("Failed to publish %s threshold event: %s", metric, exc)
 
     def _track_sensor_update(self, sensor_type: str, sensor_id: Any):
         """Track sensor update for health monitoring."""

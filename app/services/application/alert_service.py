@@ -16,10 +16,6 @@ logger = logging.getLogger(__name__)
 # Maximum number of alerts kept in the in-memory cache.
 _ALERTS_CACHE_MAXSIZE = 2048
 
-# TODO: Consider adding alert expiration and automatic cleanup of old alerts.
-# if the alert is the same as an existing active alert, we might want to just update a count/timestamp instead of creating a new one.
-# Take all the database opertaions to repository layer.
-
 
 class AlertService:
     """Service for managing system alerts and notifications."""

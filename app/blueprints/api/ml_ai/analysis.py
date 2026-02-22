@@ -115,8 +115,7 @@ def _ml_root_cause_analysis(ml_service, alert_type, severity, alert_ids):
     2. Use trained ML model to identify root cause
     3. Generate recommendations based on patterns
     """
-    # TODO: Implement actual ML-based root cause analysis
-    # For now, fall back to heuristics
+    # ML model not yet trained — fall back to heuristics
     return _heuristic_root_cause_analysis(alert_type, severity)
 
 
@@ -234,9 +233,8 @@ def detect_patterns() -> Response:
     hours = request.args.get("hours", 24, type=int)
     unit_id = request.args.get("unit_id", type=int)
 
-    # TODO: Implement pattern detection using ML or statistical methods
-    # For now, return empty patterns
-
+    # Pattern detection via ML or statistical methods is not yet implemented.
+    # Tracked in BACKLOG.md under T-3 (ML integration tests / analysis features).
     patterns = []
 
     return _success({"patterns": patterns, "time_window_hours": hours, "unit_id": unit_id})
@@ -260,14 +258,8 @@ def analyze_correlations() -> Response:
     if not alert_type:
         return _fail("Missing alert_type parameter", 400)
 
-    # TODO: Implement correlation analysis
-    # Calculate correlations between alert occurrences and:
-    # - Temperature
-    # - Humidity
-    # - Time of day
-    # - Day of week
-    # - Other alerts
-
+    # Correlation analysis via ML or statistical methods is not yet implemented.
+    # Tracked in BACKLOG.md under T-3 (ML integration tests / analysis features).
     correlations = {
         "alert_type": alert_type,
         "environmental_factors": [],

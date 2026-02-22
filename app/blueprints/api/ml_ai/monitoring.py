@@ -97,8 +97,12 @@ def get_critical_insights() -> Response:
 
     monitor = container.continuous_monitoring_service
 
-    # TODO: Get user units from session/auth
-    user_units = [1, 2, 3]  # Mock for now
+    # Derive unit IDs from active runtimes; fall back to empty list if unavailable
+    growth_service = getattr(container, "growth_service", None)
+    if growth_service and hasattr(growth_service, "get_unit_runtimes"):
+        user_units = list(growth_service.get_unit_runtimes().keys())
+    else:
+        user_units = []
 
     all_insights = []
     for unit_id in user_units:

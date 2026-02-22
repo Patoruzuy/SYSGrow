@@ -280,7 +280,6 @@ class MQTTSensorService:
 
             # Emit availability event for UI updates
             if self.event_bus:
-                # TODO: it should emit with the emitter service
                 try:
                     from app.enums.events import DeviceEvent
 

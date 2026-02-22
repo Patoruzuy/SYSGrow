@@ -350,7 +350,7 @@ def register_plant_routes(health_api: Blueprint):
             growth_stage=getattr(plant_info, "current_stage", None),
             notes=notes,
             image_path=image_path,
-            user_id=None,  # TODO: Get from auth when available
+            user_id=None,  # No auth system yet; set when authentication is introduced
             observation_date=observation_date,
         )
 

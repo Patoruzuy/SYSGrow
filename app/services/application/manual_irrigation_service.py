@@ -30,7 +30,7 @@ class ManualIrrigationService:
         plant_model_service: Any | None = None,
         notifications_service: Any | None = None,
         device_repo: Any | None = None,
-        growth_repo: Any | None = None,
+        unit_repo: Any | None = None,
         event_bus: Any | None = None,
         scheduler: Any | None = None,
     ) -> None:
@@ -40,7 +40,7 @@ class ManualIrrigationService:
         self._model_service = plant_model_service
         self._notifications = notifications_service
         self._device_repo = device_repo
-        self._growth_repo = growth_repo  # TODO: Remove dependency on growth repo and use unit repo
+        self._unit_repo = unit_repo
         self._event_bus = event_bus
         self._scheduler = scheduler
         self._last_moisture_by_sensor: dict[int, float] = {}
@@ -314,9 +314,9 @@ class ManualIrrigationService:
 
     def _resolve_user_id(self, unit_id: int) -> int | None:
         """Resolve user_id owning a unit."""
-        if not self._growth_repo:
+        if not self._unit_repo:
             return None
-        unit = self._growth_repo.get_unit(unit_id)
+        unit = self._unit_repo.get_unit(unit_id)
         if not unit:
             return None
         unit_data = dict(unit)

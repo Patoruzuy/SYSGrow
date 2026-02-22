@@ -180,6 +180,22 @@ function firstDefined(...values) {
 }
 
 /**
+ * Check whether a value should be treated as present in form normalization.
+ * Empty strings are considered absent.
+ * @param {any} value
+ * @returns {boolean}
+ */
+function hasFormValue(value) {
+    if (value === undefined || value === null) {
+        return false;
+    }
+    if (typeof value === "string") {
+        return value.trim() !== "";
+    }
+    return true;
+}
+
+/**
  * Append normalized values to FormData.
  * @param {FormData} formData
  * @param {string} key
@@ -265,12 +281,17 @@ function toPlantNutrientFormData(data) {
     const payload = data && typeof data === "object" ? data : {};
     const formData = new FormData();
 
-    const inferredApplicationType = firstDefined(
-        payload.application_type,
-        payload.applicationType,
-        payload.unit_id !== undefined || payload.unitId !== undefined ? "bulk" : undefined,
-        payload.plant_id !== undefined || payload.plantId !== undefined ? "single" : undefined
-    );
+    const explicitApplicationType = hasFormValue(payload.application_type)
+        ? String(payload.application_type).trim().toLowerCase()
+        : hasFormValue(payload.applicationType)
+            ? String(payload.applicationType).trim().toLowerCase()
+            : undefined;
+    const hasPlantTarget = hasFormValue(payload.plant_id) || hasFormValue(payload.plantId);
+    const hasUnitTarget = hasFormValue(payload.unit_id) || hasFormValue(payload.unitId);
+    const inferredApplicationType =
+        explicitApplicationType ||
+        (hasPlantTarget ? "single" : undefined) ||
+        (hasUnitTarget ? "bulk" : undefined);
 
     appendFormField(formData, "application_type", inferredApplicationType);
     appendFormField(formData, "plant_id", firstDefined(payload.plant_id, payload.plantId));

@@ -26,6 +26,7 @@ from app.utils.time import iso_now
 if TYPE_CHECKING:
     from app.services.application.notifications_service import NotificationsService
     from infrastructure.database.repositories.irrigation_ml import IrrigationMLRepository
+    from infrastructure.database.repositories.units import UnitRepository
 
 logger = logging.getLogger(__name__)
 
@@ -171,6 +172,7 @@ class MLReadinessMonitorService:
         self,
         irrigation_ml_repo: "IrrigationMLRepository",
         notifications_service: "NotificationsService" | None = None,
+        unit_repo: "UnitRepository" | None = None,
     ):
         """
         Initialize ML readiness monitor.
@@ -178,15 +180,30 @@ class MLReadinessMonitorService:
         Args:
             irrigation_ml_repo: Repository for irrigation ML data
             notifications_service: Service for sending notifications
+            unit_repo: Unit repository for resolving user_id per unit
         """
         self._ml_repo = irrigation_ml_repo
         self._notifications = notifications_service
+        self._unit_repo = unit_repo
 
         logger.info("MLReadinessMonitorService initialized")
 
     def set_notifications_service(self, service: "NotificationsService") -> None:
         """Set notifications service (for circular dependency resolution)."""
         self._notifications = service
+
+    def _resolve_user_id(self, unit_id: int) -> int | None:
+        """Look up the user_id that owns a given unit via unit_repo."""
+        if self._unit_repo is None:
+            return None
+        try:
+            unit = self._unit_repo.get_unit(unit_id)
+            if unit is None:
+                return None
+            return dict(unit).get("user_id")
+        except Exception as exc:
+            logger.debug("Could not resolve user_id for unit %s: %s", unit_id, exc)
+            return None
 
     def check_irrigation_readiness(
         self,
@@ -271,8 +288,8 @@ class MLReadinessMonitorService:
             unit_ids = self._ml_repo.get_units_with_workflow_enabled()
 
             for unit_id in unit_ids:
-                # Get user_id for this unit (assuming 1 for now, should query)
-                user_id = 1  # TODO: Get actual user_id from unit
+                # Resolve the user_id that owns this unit
+                user_id = self._resolve_user_id(unit_id)
 
                 notified = self.check_and_notify(user_id, unit_id)
                 results[unit_id] = notified

@@ -216,7 +216,6 @@ def update_schedule(unit_id: int, schedule_id: int) -> Response:
 
     if existing.unit_id != unit_id:
         return _fail(f"Schedule {schedule_id} does not belong to unit {unit_id}", 404)
-    # TODO: can be added reason to update, the service can log it but i need to implent frontend part
     # Validate input
     raw = request.get_json() or {}
     device_type = raw.get("device_type") or existing.device_type
@@ -391,7 +390,6 @@ def bulk_update_schedules(unit_id: int) -> Response:
         if existing.unit_id != unit_id:
             results["failed"].append({"id": schedule_id, "error": "Schedule does not belong to this unit"})
             continue
-        # TODO: can be added reason to update, the service can log it but i need to implent frontend part
         try:
             if action == "enable":
                 success = sched_service.set_schedule_enabled(schedule_id, True)

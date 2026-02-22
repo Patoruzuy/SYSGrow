@@ -766,11 +766,8 @@ class BayesianThresholdAdjuster:
             existing[belief_key] = belief.to_dict()
             belief_json = json.dumps(existing)
 
-            # Update the preference record
-            # Note: This requires a new column in IrrigationUserPreference
-            # For now, we store in preferred_moisture_threshold field
-            # TODO: Add threshold_belief_json column in migration
-
+            # Update the preference record using the threshold_belief_json column
+            # (added in migration 029 / sqlite_handler schema)
             return self._workflow_repo.update_threshold_belief(
                 user_id=user_id,
                 unit_id=unit_id,

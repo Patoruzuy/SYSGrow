@@ -1736,9 +1736,9 @@ class PlantViewService:
         return self._device_linker.get_plant_valve_actuator_id(plant_id)
 
     # ==================== Plant Species Metadata (delegates to PlantJsonHandler) ====================
-    # TODO: Consider caching results from PlantJsonHandler for performance if needed, since this may be called frequently by the UI.
-    # and maybe its a good idea to let PlantJsonHandler handle all those methods directly instead of delegating from here, since
-    # PlantJsonHandler is the single source of truth for plant species data. For now, we can keep this delegation layer in case we want to add additional logic later, but it does add some unnecessary indirection.
+    # PlantJsonHandler is the single source of truth for plant species data and caches all
+    # reads in self.data at init time. The delegation layer here exists to allow optional
+    # additional logic (validation, unit-specific overrides) without coupling callers directly.
     def get_plant_growth_stages(self, plant_type: str) -> list[dict[str, Any]]:
         """
         Get growth stages for a plant type.

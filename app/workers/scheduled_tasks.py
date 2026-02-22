@@ -68,9 +68,8 @@ def plant_grow_task(container: "ServiceContainer") -> dict[str, Any]:
         "plants_processed": 0,
         "errors": [],
     }
-    # TODO: Consider batching updates for large numbers of plants, if performance becomes an issue.
-    # This could involve bulk DB updates or queuing stage transitions. Record the date of last growth run. So,
-    # only plants that haven't been processed today are updated.
+    # Note: load_growth_last_runs() tracks the last processed date per unit, so missed days
+    # are caught automatically. Batching can be considered if unit count grows significantly.
     try:
         # Get all unit runtimes (snapshot for safe iteration)
         last_runs = load_growth_last_runs()

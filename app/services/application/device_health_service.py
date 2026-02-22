@@ -956,8 +956,6 @@ class DeviceHealthService:
             return []
 
     # ==================== Health Monitoring & Alerting ====================
-    # TODO: implement periodic checks for device health and create alerts accordingly in the scheduler
-    # I need to implement the actuator health checks as well in the future.
     def check_all_devices_health_and_alert(self, unit_id: int | None = None) -> dict[str, Any]:
         """
         Check health of all devices and create alerts for critical issues.

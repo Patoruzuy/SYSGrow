@@ -62,10 +62,11 @@ def _get_sysgrow_adapter(friendly_name: str | None = None):
         return None
 
     sensor_manager = getattr(container, "sensor_management_service", None)
-    if not sensor_manager:
-        return None
 
     if friendly_name:
+        if not sensor_manager:
+            logger.warning("Sensor management service unavailable for SYSGrow device command: %s", friendly_name)
+            return None
         # Device-specific: return the adapter registered under that name.
         sensor = sensor_manager.get_sensor_by_friendly_name(friendly_name)
         if sensor is None:
@@ -77,15 +78,28 @@ def _get_sysgrow_adapter(friendly_name: str | None = None):
         logger.warning("Sensor %s has no SYSGrowAdapter (type=%s)", friendly_name, type(adapter).__name__)
         return None
 
-    # Bridge-level: any registered SYSGrow adapter will do since bridge topics
-    # are the same regardless of which device's adapter publishes them.
-    for sensor in sensor_manager.get_all_sensors():
-        adapter = getattr(sensor, "_adapter", None)
-        if isinstance(adapter, SYSGrowAdapter):
-            return adapter
+    # Bridge-level: prefer a live registered adapter to avoid duplicate
+    # subscriptions/command tracking state.
+    if sensor_manager:
+        for sensor in sensor_manager.get_all_sensors():
+            adapter = getattr(sensor, "_adapter", None)
+            if isinstance(adapter, SYSGrowAdapter):
+                return adapter
 
-    logger.warning("No registered SYSGrow sensors found; bridge commands unavailable")
-    return None
+    # Fallback for onboarding/recovery flows: allow bridge commands before the
+    # first SYSGrow sensor is registered, as long as MQTT is configured.
+    mqtt_client = getattr(container, "mqtt_client", None)
+    if not mqtt_client:
+        logger.warning("No registered SYSGrow adapter and MQTT client unavailable; bridge commands unavailable")
+        return None
+
+    logger.info("Using temporary SYSGrow bridge adapter fallback (no registered sensors present)")
+    return SYSGrowAdapter(
+        sensor_id=0,
+        mqtt_client=mqtt_client,
+        friendly_name="bridge",
+        unit_id=0,
+    )
 
 
 # ==================== V2 BRIDGE OPERATIONS ====================

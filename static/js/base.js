@@ -32,12 +32,26 @@ window.SYSGrow.initError = function initError(module, error) {
   el.id = 'sysgrow-init-error';
   el.className = 'alert alert-danger m-4';
   el.setAttribute('role', 'alert');
-  el.innerHTML =
-    '<i class="fas fa-exclamation-triangle me-2" aria-hidden="true"></i>'
-    + '<strong>' + module + '</strong> failed to load \u2014 please refresh the page.'
-    + (error && error.message
-        ? ' <small class="ms-2 text-muted">' + error.message + '</small>'
-        : '');
+
+  const icon = document.createElement('i');
+  icon.className = 'fas fa-exclamation-triangle me-2';
+  icon.setAttribute('aria-hidden', 'true');
+  el.appendChild(icon);
+
+  const title = document.createElement('strong');
+  title.textContent = String(module || 'Module');
+  el.appendChild(title);
+
+  el.appendChild(document.createTextNode(' failed to load - please refresh the page.'));
+
+  const errorMessage = error && typeof error.message === 'string' ? error.message.trim() : '';
+  if (errorMessage) {
+    el.appendChild(document.createTextNode(' '));
+    const detail = document.createElement('small');
+    detail.className = 'ms-2 text-muted';
+    detail.textContent = errorMessage;
+    el.appendChild(detail);
+  }
   shell.prepend(el);
 };
 

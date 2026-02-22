@@ -188,7 +188,7 @@
 {% endmacro %}
 
 {# Generic Content Card #}
-{% macro content_card(title=none, icon=none, subtitle=none, class='', id=none, header_extra=none, variant=none, actions=none, heading_level=2) %}
+{% macro content_card(title=none, icon=none, subtitle=none, class='', id=none, header_extra=none, variant=none, actions=none, heading_level=3) %}
 {% set final_header_extra = header_extra or actions %}
 <div class="card {{ class }} {% if variant %}card--{{ variant }}{% endif %}" {% if id %}id="{{ id }}"{% endif %} {{ kwargs|xmlattr }}>
   {% if title or icon or final_header_extra or subtitle %}

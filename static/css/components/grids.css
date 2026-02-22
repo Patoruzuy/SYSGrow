@@ -1,0 +1,41 @@
+/* =====================================================================
+   Dashboard & AI Grid Layouts
+   ===================================================================== */
+.dashboard-kpi-grid,
+.dashboard-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--section-gap);
+  width: 100%;
+  flex: 1;
+}
+
+.dashboard-ai-grid,
+.predictions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--section-gap);
+  width: 100%;
+  flex: 1;
+}
+
+.dashboard-ai-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--section-gap);
+  width: 100%;
+  flex: 1;
+}
+
+.dashboard-sensor-grid,
+.dashboard-sensors-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--space-3);
+  margin-bottom: var(--section-gap);
+  width: 100%;
+  flex: 1;
+}

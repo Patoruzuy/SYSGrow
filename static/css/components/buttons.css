@@ -1,0 +1,134 @@
+/**
+ * Button Component
+ * =====================================================================
+ * All .btn variants, sizes, shimmer effects, and gradient definitions.
+ * Loaded via @import in static/css/components.css — do not link directly.
+ */
+
+/* Base */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: 0.5rem 1rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-decoration: none;
+  line-height: 1.5;
+  position: relative;  /* required for ::before shimmer pseudo-element */
+  overflow: hidden;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Shimmer overlay */
+.btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, transparent 0%, color-mix(in srgb, white 10%, transparent) 100%);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+
+.btn:hover::before {
+  opacity: 1;
+}
+
+/* Hover / active micro-interaction */
+.btn:hover  { transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+
+/* Colour variants — canonical */
+.btn-primary {
+  background: var(--gradient-primary);
+  color: var(--color-on-brand);
+  border-color: var(--brand-600);
+}
+
+.btn-secondary {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-color: var(--border);
+}
+
+.btn-secondary:hover {
+  background: var(--color-surface-hover);
+  border-color: var(--border-300);
+  color: var(--color-text-strong);
+}
+
+.btn-outline {
+  background: transparent;
+  border-color: var(--brand-600);
+  color: var(--brand-600);
+}
+
+.btn-outline:hover {
+  background: var(--brand-50);
+  color: var(--brand-700);
+}
+
+.btn-success {
+  background: var(--gradient-success);
+  border-color: var(--success-600);
+  color: var(--color-on-brand);
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, var(--danger-500) 0%, var(--danger-600) 100%);
+  border-color: var(--danger-600);
+  color: var(--color-on-brand);
+}
+
+.btn-outline-primary   { border-color: var(--brand-600);   color: var(--brand-700);   background: transparent; }
+.btn-outline-secondary { border-color: var(--border-200);  color: var(--color-text);  background: transparent; }
+.btn-outline-danger    { border-color: var(--danger-600);  color: var(--danger-600);  background: transparent; }
+
+.btn-outline-primary:hover   { background: color-mix(in srgb, var(--brand-600)  8%, transparent); }
+.btn-outline-secondary:hover { background: color-mix(in srgb, var(--border-200) 20%, transparent); }
+
+/* Size variants */
+.btn-sm {
+  padding: 0.25rem 0.75rem;
+  font-size: 0.85rem;
+}
+
+.btn-icon {
+  width: 1.25em;
+  height: 1.25em;
+}
+
+/* Utility — inline icon-only refresh button */
+.refresh-btn {
+  padding: var(--space-1);
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: all 0.2s;
+}
+
+.refresh-btn:hover {
+  background: var(--surface-muted-translucent);
+  color: var(--brand-600);
+}
+
+.refresh-btn.spinning i {
+  animation: spin 0.5s linear;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}

@@ -62,7 +62,7 @@
       setupPeriodicRefresh();
 
     } catch (error) {
-      console.error('[Units] Initialization failed:', error);
+      window.SYSGrow.initError('Units', error);
     }
   }
 

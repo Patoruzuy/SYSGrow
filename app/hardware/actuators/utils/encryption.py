@@ -26,8 +26,8 @@ import json
 import logging
 import os
 
-from Crypto.Cipher import AES
-from Crypto.Random import get_random_bytes
+from Crypto.Cipher import AES  # nosec B413 - using pycryptodome (maintained fork of pyCrypto)
+from Crypto.Random import get_random_bytes  # nosec B413
 
 logger = logging.getLogger(__name__)
 

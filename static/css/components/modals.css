@@ -1,0 +1,521 @@
+/* =====================================================================
+   Modals & Dialogs
+   ===================================================================== */
+/* Modal styles */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* Old modal-overlay removed - see line 1183 for current implementation */
+
+.modal-dialog {
+  position: relative;
+  z-index: 10000;
+  max-width: 90vw;
+  max-height: 90vh;
+  width: 600px;
+  animation: slideUp 0.3s ease-out;
+}
+
+.modal-dialog.modal-lg {
+  width: 900px;
+  max-width: 95vw;
+}
+
+.modal-content {
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+  border: 1px solid var(--card-border);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--border-200);
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.modal-close {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  transition: all var(--transition-fast);
+  font-size: 1.25rem;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-close:hover {
+  background: var(--surface-muted);
+  color: var(--color-text);
+}
+
+.modal-body {
+  padding: var(--space-4);
+  overflow-y: auto;
+  flex: 1;
+}
+
+.loading-spinner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8);
+  gap: var(--space-3);
+  color: var(--color-text-muted);
+}
+
+.loading-spinner i {
+  font-size: 2rem;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Health modal specific styles */
+.health-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.health-status-banner {
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  text-align: center;
+  font-size: 1.25rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+.health-status-banner.healthy {
+  background: var(--success-100);
+  color: var(--success-700);
+  border: 2px solid var(--success-300);
+}
+
+.health-status-banner.degraded {
+  background: var(--warning-100);
+  color: var(--warning-700);
+  border: 2px solid var(--warning-300);
+}
+
+.health-status-banner.critical {
+  background: var(--danger-100);
+  color: var(--danger-700);
+  border: 2px solid var(--danger-300);
+}
+
+.health-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--space-3);
+}
+
+.health-stat {
+  background: var(--surface-muted);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+
+.health-stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  display: block;
+  margin-bottom: var(--space-1);
+}
+
+.health-stat-value.success { color: var(--success-600); }
+.health-stat-value.warning { color: var(--warning-600); }
+.health-stat-value.danger { color: var(--danger-600); }
+
+.health-stat-label {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.units-health-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.unit-health-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  transition: all var(--transition-fast);
+}
+
+.unit-health-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.unit-health-card.healthy {
+  border-left: 4px solid var(--success-500);
+}
+
+.unit-health-card.degraded {
+  border-left: 4px solid var(--warning-500);
+}
+
+.unit-health-card.offline {
+  border-left: 4px solid var(--danger-500);
+  opacity: 0.7;
+}
+
+.unit-health-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.unit-health-card.healthy .unit-health-icon {
+  background: var(--success-100);
+  color: var(--success-600);
+}
+
+.unit-health-card.degraded .unit-health-icon {
+  background: var(--warning-100);
+  color: var(--warning-600);
+}
+
+.unit-health-card.offline .unit-health-icon {
+  background: var(--danger-100);
+  color: var(--danger-600);
+}
+
+.unit-health-info {
+  flex: 1;
+}
+
+.unit-health-name {
+  font-weight: 600;
+  font-size: 1.1rem;
+  margin-bottom: var(--space-1);
+}
+
+.unit-health-details {
+  display: flex;
+  gap: var(--space-3);
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+
+.unit-health-details .detail {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.metrics-section {
+  margin-top: var(--space-4);
+}
+
+.metrics-section h4 {
+  margin: 0 0 var(--space-3) 0;
+  font-size: 1rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-3);
+}
+
+.metric-item {
+  background: var(--surface-muted);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.metric-label {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+
+.metric-value {
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.sensor-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  display: grid;
+  place-items: center;
+  font-size: 1.4rem;
+  background: var(--surface-muted-translucent);
+}
+.sensor-value { 
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--color-text-strong); 
+  line-height: 1.2;
+  padding-left: var(--space-2);
+  padding-right: var(--space-2);
+}
+.sensor-status { display: inline-flex; align-items: center; gap: var(--space-1); border-radius: 999px; padding: 4px 10px; border: 1px solid var(--border-200); background: var(--surface-muted-translucent); }
+.sensor-trend, .last-update { font-size: 0.9rem; color: var(--color-text-muted); }
+
+.table-actions { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); margin-top: var(--space-2); }
+
+.empty-state { text-align: center; padding: var(--space-5); border: 1px dashed var(--border-200); border-radius: var(--radius-lg); color: var(--color-text-muted); background: var(--card-bg); }
+.empty-state .empty-icon { font-size: 2rem; margin-bottom: var(--space-2); }
+.no-results-message { grid-column: 1 / -1; text-align: center; padding: var(--space-5) var(--space-3); color: var(--color-text-muted); background: var(--card-bg); border: 1px dashed var(--card-border); border-radius: var(--radius-lg); }
+.no-results-icon { font-size: 3rem; margin-bottom: var(--space-2); color: var(--color-text-muted); display: block; }
+.no-results-suggestions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-2); margin-top: var(--space-2); }
+.suggestion-chip { background: var(--surface-muted-translucent); border: 1px solid var(--card-border); padding: 6px 12px; border-radius: 999px; cursor: pointer; color: var(--color-text); }
+
+.progress-track { width: 100%; height: 10px; border-radius: 999px; background: var(--surface-muted-translucent); overflow: hidden; }
+.progress-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--brand-600), var(--brand-700)); width: 0; }
+.w-0 { width: 0%; }
+.w-35 { width: 35%; }
+.w-55 { width: 55%; }
+.w-70 { width: 70%; }
+.w-80 { width: 80%; }
+.w-95 { width: 95%; }
+
+.flash-messages { position: fixed; top: calc(var(--header-height) + 20px); right: 20px; z-index: 1003; display: flex; flex-direction: column; gap: 12px; max-width: 400px; }
+.flash-message { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-3); background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-md); box-shadow: var(--shadow-md); }
+.flash-error { border-left: 4px solid var(--danger-600); }
+.flash-success { border-left: 4px solid var(--success-600); }
+.flash-warning { border-left: 4px solid var(--warning-600); }
+.flash-info { border-left: 4px solid var(--info-600); }
+.flash-close { margin-left: auto; background: none; border: none; cursor: pointer; padding: 4px; border-radius: 4px; }
+
+.activity-feed, .alerts-feed { display: grid; gap: var(--space-3); }
+
+.modal { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; z-index: 1100; padding: var(--space-4); }
+.modal { pointer-events: auto; }
+
+body.modal-open { overflow: hidden; }
+.modal[hidden] { display: none !important; }
+.modal.is-open,
+.modal.visible { display: flex !important; }
+.modal-overlay { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.5); z-index: 1; pointer-events: none; }
+.modal-content { position: relative; z-index: 2; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-lg); padding: var(--space-4); width: min(900px, 100%); box-shadow: var(--shadow-lg); max-height: 90vh; overflow-y: auto; pointer-events: auto; }
+.modal-content.large { width: min(1100px, 100%); max-height: 90vh; overflow-y: auto; }
+.modal-content.modal-large { max-width: 800px; }
+.modal-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); margin-bottom: var(--space-3); padding: var(--space-5); border-bottom: 1px solid var(--border); }
+.modal-title { font-size: 1.25rem; font-weight: 700; color: var(--color-text-strong); margin: 0; display: flex; align-items: center; gap: var(--space-2); }
+.modal-body { padding: var(--space-5); }
+.modal-close { background: transparent; border: none; color: var(--color-text-muted); cursor: pointer; padding: var(--space-2); font-size: 1.25rem; transition: color var(--transition-fast); }
+.modal-close:hover { color: var(--color-text); }
+
+.table-like { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-3); }
+
+/* Grid bridge for legacy row/col markup */
+.row { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.col-md-3 { flex: 1 1 220px; }
+.col-md-4 { flex: 1 1 280px; }
+.col-md-6 { flex: 1 1 320px; }
+.col-md-12, .col-12 { flex: 1 1 100%; }
+.g-3 { gap: var(--space-3); }
+.align-items-end { align-items: flex-end; }
+
+/* Analytics grid cards */
+.analytics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--space-3); }
+.analytics-card { display: flex; flex-direction: column; gap: var(--space-2); text-decoration: none; color: inherit; padding: var(--space-3); border-radius: var(--radius-lg); border: 1px solid var(--card-border); background: var(--card-bg); box-shadow: var(--card-shadow); transition: transform var(--motion-normal), box-shadow var(--motion-normal); }
+.analytics-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.analytics-card .card-header { gap: var(--space-2); }
+.analytics-icon { width: 40px; height: 40px; border-radius: var(--radius-md); display: grid; place-items: center; background: var(--surface-muted-translucent); color: var(--brand-700); flex-shrink: 0; }
+
+/* Page surface wrapper */
+.page-surface {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--card-shadow);
+  padding: var(--space-4);
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+.pagination button {
+  min-width: 96px;
+}
+.pagination .page-indicator {
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.multi-select {
+  position: relative;
+  width: 100%;
+}
+.multi-select-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+  cursor: pointer;
+  text-align: left;
+}
+.multi-select-toggle i {
+  color: var(--color-text-muted);
+}
+.multi-select-menu {
+  position: absolute;
+  inset-block-start: 100%;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
+  z-index: 20;
+  display: none;
+  margin-top: 6px;
+  padding: 8px;
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-md);
+  background: var(--card-bg);
+  box-shadow: var(--shadow-md);
+}
+.multi-select-menu.open {
+  display: block;
+}
+.multi-select-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.multi-select-option:hover {
+  background: var(--surface-muted-translucent);
+}
+
+/* Zigbee fields container (default hidden) - moved from inline style in template */
+#zigbee-fields-add {
+  display: none;
+  margin-top: var(--space-3);
+}
+
+.filter-grid .form-group {
+  min-width: 240px;
+}
+.filter-grid .form-control,
+.filter-grid .multi-select-toggle {
+  width: 100%;
+}
+.filter-grid select.form-control,
+.filter-grid .multi-select-toggle {
+  min-height: 44px;
+}
+
+/* ========================================
+   Modal Animations
+   ======================================== */
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Apply animations to modals */
+.modal {
+  animation: modalFadeIn 0.2s ease-out;
+}
+
+.modal-content,
+.modal-dialog {
+  animation: modalSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Modal backdrop fade */
+.modal-backdrop {
+  animation: modalFadeIn 0.2s ease-out;
+}
+
+@media screen and (max-width: 700px) {
+  .status-indicator p {
+    display: none;
+  }
+}

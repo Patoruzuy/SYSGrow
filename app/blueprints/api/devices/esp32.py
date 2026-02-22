@@ -32,39 +32,60 @@ from . import devices_api
 logger = logging.getLogger(__name__)
 
 
-def _get_sysgrow_adapter(friendly_name: str = None):
+def _get_sysgrow_adapter(friendly_name: str | None = None):
     """
-    Get a SYSGrowAdapter instance for bridge commands.
+    Retrieve a live, registered SYSGrowAdapter from the sensor management service.
 
-    This creates a fresh adapter with sensor_id=0 / unit_id=0 by design: bridge-level
-    commands (permit-join, reset, etc.) target the Zigbee2MQTT coordinator, not any
-    registered device. actuator_management_service manages device-specific adapters
-    and is not appropriate here.
+    Adapters are created and owned by SensorManagementService at registration time.
+    Creating a new adapter here would open duplicate MQTT subscriptions, bypass the
+    command queue / state tracking, and produce an instance unknown to the rest of
+    the system.
+
+    For bridge-level commands (permit_join, health_check, restart_all) any registered
+    SYSGrow adapter works because bridge topics are device-agnostic.
+    For device-specific commands (OTA update) the caller passes the device's
+    friendly_name so we can return that exact sensor's adapter.
 
     Args:
-        friendly_name: Device name for device-specific commands, or None for bridge
+        friendly_name: Device friendly name for device-specific commands, or None
+                       for bridge-level operations.
 
     Returns:
-        SYSGrowAdapter instance or None if MQTT unavailable
+        The live SYSGrowAdapter instance, or None if none is registered / reachable.
     """
     from flask import current_app
 
     from app.hardware.adapters.sensors import SYSGrowAdapter
 
     container = current_app.config.get("CONTAINER")
-    if not container or not hasattr(container, "mqtt_client"):
+    if not container:
         return None
 
-    mqtt_client = container.mqtt_client
-    if not mqtt_client:
+    sensor_manager = getattr(container, "sensor_management_service", None)
+    if not sensor_manager:
         return None
 
-    return SYSGrowAdapter(
-        sensor_id=0,
-        mqtt_client=mqtt_client,
-        friendly_name=friendly_name or "bridge",
-        unit_id=0,
-    )
+    if friendly_name:
+        # Device-specific: return the adapter registered under that name.
+        sensor = sensor_manager.get_sensor_by_friendly_name(friendly_name)
+        if sensor is None:
+            logger.warning("No registered SYSGrow sensor found for friendly_name=%s", friendly_name)
+            return None
+        adapter = getattr(sensor, "_adapter", None)
+        if isinstance(adapter, SYSGrowAdapter):
+            return adapter
+        logger.warning("Sensor %s has no SYSGrowAdapter (type=%s)", friendly_name, type(adapter).__name__)
+        return None
+
+    # Bridge-level: any registered SYSGrow adapter will do since bridge topics
+    # are the same regardless of which device's adapter publishes them.
+    for sensor in sensor_manager.get_all_sensors():
+        adapter = getattr(sensor, "_adapter", None)
+        if isinstance(adapter, SYSGrowAdapter):
+            return adapter
+
+    logger.warning("No registered SYSGrow sensors found; bridge commands unavailable")
+    return None
 
 
 # ==================== V2 BRIDGE OPERATIONS ====================
@@ -98,7 +119,7 @@ def sysgrow_permit_join() -> Response:
 
     adapter = _get_sysgrow_adapter()
     if adapter is None:
-        return _fail("MQTT client not available", 503)
+        return _fail("No registered SYSGrow sensor available for bridge commands", 503)
 
     if enable:
         transaction_id = adapter.enable_ble_pairing(timeout_seconds=timeout)
@@ -133,7 +154,7 @@ def sysgrow_health_check() -> Response:
     """
     adapter = _get_sysgrow_adapter()
     if adapter is None:
-        return _fail("MQTT client not available", 503)
+        return _fail("No registered SYSGrow sensor available for bridge commands", 503)
 
     success = adapter.request_health_check()
     return _success({"command": "health_check", "status": "sent" if success else "failed"})
@@ -157,7 +178,7 @@ def sysgrow_restart_all() -> Response:
     """
     adapter = _get_sysgrow_adapter()
     if adapter is None:
-        return _fail("MQTT client not available", 503)
+        return _fail("No registered SYSGrow sensor available for bridge commands", 503)
 
     success = adapter._publish("sysgrow/bridge/request/restart", {})
 
@@ -193,7 +214,7 @@ def sysgrow_ota_update() -> Response:
 
     adapter = _get_sysgrow_adapter(friendly_name=str(device_id))
     if adapter is None:
-        return _fail("MQTT client not available", 503)
+        return _fail(f"No registered SYSGrow sensor found for device '{device_id}'", 404)
 
     transaction_id = adapter.start_ota_update(firmware_url=firmware_url)
     return _success(

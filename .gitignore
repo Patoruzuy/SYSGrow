@@ -62,3 +62,10 @@ service_documentation_overview_20260214_161851.ipynb
 data/user_profiles/condition_profiles/user_1_condition_profiles.json
 data/user_profiles/condition_profiles/links/user_1_condition_profile_links.json
 data/user_profiles/condition_profiles/shared/FS426oJnFoo_uZ8L2WmYNw.json
+docs/FRONTEND_AUDIT_REPORT.md
+.github/skills/AUDIT_CONTEXT.md
+.github/skills/API_ENDPOINTS.md
+.github/skills/CURRENT_STATE.md
+.github/skills/CLAUDE.md
+.github/skills/PROJECT_OVERVIEW.md
+.github/skills/frontend-design.md

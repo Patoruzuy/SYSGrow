@@ -1,3 +1,45 @@
+// SYSGrow global namespace — all shared JS utilities live here.
+// Guard ensures safe re-inclusion on pages that bundle multiple scripts.
+window.SYSGrow = window.SYSGrow || {};
+
+/**
+ * Read a CSS custom property from :root at call time.
+ * Use this to pass live design-token values into non-CSS contexts
+ * such as Chart.js datasets, Canvas rendering, or SVG attributes.
+ * Reading at call time (not module load) respects dynamic theme switches.
+ *
+ * @param {string} name  CSS variable name, e.g. '--chart-temperature'
+ * @returns {string}     Trimmed string value of the property
+ */
+window.SYSGrow.cssVar = function cssVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+};
+
+/**
+ * Display a page-level initialization failure banner and log to console.
+ * Call from the top-level catch block of any page module's init() function.
+ * Injects a single .alert.alert-danger into .page-shell — idempotent,
+ * so multiple failed modules on one page show only one banner.
+ *
+ * @param {string} module  Short display name shown in the banner, e.g. 'Dashboard'
+ * @param {Error}  error   The caught error object
+ */
+window.SYSGrow.initError = function initError(module, error) {
+  console.error('[' + module + '] Initialization failed:', error);
+  if (document.getElementById('sysgrow-init-error')) return; // already shown
+  const shell = document.querySelector('.page-shell') || document.body;
+  const el = document.createElement('div');
+  el.id = 'sysgrow-init-error';
+  el.className = 'alert alert-danger m-4';
+  el.setAttribute('role', 'alert');
+  el.innerHTML =
+    '<i class="fas fa-exclamation-triangle me-2" aria-hidden="true"></i>'
+    + '<strong>' + module + '</strong> failed to load \u2014 please refresh the page.'
+    + (error && error.message
+        ? ' <small class="ms-2 text-muted">' + error.message + '</small>'
+        : '');
+  shell.prepend(el);
+};
 
 // Theme toggle + mobile menu + user menu
 document.addEventListener('DOMContentLoaded', function() {

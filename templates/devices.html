@@ -34,14 +34,14 @@
     ) }}
 
     <!-- Contextual Help Banner -->
-    <div class="help-banner">
-      <i class="fas fa-lightbulb"></i>
-      <div class="help-banner-content">
-        <p class="help-banner-title">New to device management?</p>
-        <p class="help-banner-text">Learn how to add sensors, calibrate readings, and set up schedules.</p>
-      </div>
-      {{ ui.help_link('sensors', 'sensor-calibration', 'Calibration Guide') }}
-    </div>
+    {{ ui.help_banner(
+      title='New to device management?',
+      text='Learn how to add sensors, calibrate readings, and set up schedules.',
+      icon='lightbulb',
+      link_text='Calibration Guide',
+      category='sensors',
+      article_id='sensor-calibration'
+    ) }}
 
     <input type="hidden" id="selected-unit-id" value="{{ selected_unit_id or '' }}">
 

@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any
 from zoneinfo import ZoneInfo
 
@@ -431,7 +431,7 @@ class IrrigationPredictor:
     @staticmethod
     def _localize_time(dt: datetime, unit_timezone: str | None) -> datetime:
         if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=UTC)
+            dt = dt.replace(tzinfo=timezone.utc)
         if unit_timezone:
             try:
                 return dt.astimezone(ZoneInfo(unit_timezone))

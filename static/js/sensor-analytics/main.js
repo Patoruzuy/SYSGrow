@@ -57,18 +57,7 @@
 
       console.log('[SensorAnalytics] Initialized successfully');
     } catch (error) {
-      console.error('[SensorAnalytics] Initialization failed:', error);
-      
-      // Show user-friendly error
-      const errorDiv = document.createElement('div');
-      errorDiv.className = 'alert alert-danger';
-      errorDiv.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 10000; min-width: 300px;';
-      errorDiv.innerHTML = `
-        <strong>Initialization Error</strong>
-        <p>${error.message || 'Failed to initialize Sensor Analytics'}</p>
-        <small>Check console for details</small>
-      `;
-      document.body.appendChild(errorDiv);
+      window.SYSGrow.initError('SensorAnalytics', error);
     }
   }
 

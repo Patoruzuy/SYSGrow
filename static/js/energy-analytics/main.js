@@ -53,7 +53,7 @@
       console.log('[EnergyAnalytics] Module initialized successfully');
 
     } catch (error) {
-      console.error('[EnergyAnalytics] Initialization failed:', error);
+      window.SYSGrow.initError('EnergyAnalytics', error);
     }
   }
 

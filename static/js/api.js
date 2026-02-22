@@ -1,9 +1,42 @@
 /**
  * SYSGrow API Client Module
- * 
+ * ============================================================================
  * Centralized API client for all backend endpoints.
- * Provides type-safe, promise-based functions for all API routes.
- * 
+ * Exposes a single global `window.API` object organised into domain namespaces.
+ *
+ * All methods return Promises that resolve to the unwrapped response payload,
+ * or throw an Error on HTTP failures.
+ *
+ * Domain Namespaces
+ * -----------------
+ * | Namespace                   | Constant                | Approx line |
+ * |-----------------------------|-------------------------|-------------|
+ * | API.Growth                  | GrowthAPI               | 312         |
+ * | API.Plant                   | PlantAPI                | 829         |
+ * | API.Device                  | DeviceAPI               | 1318        |
+ * | API.Sensor                  | SensorAPI               | 2713        |
+ * | API.Analytics               | AnalyticsAPI            | 2351        |
+ * | API.Insights                | InsightsAPI             | 2109        |
+ * | API.Health                  | HealthAPI               | 2608        |
+ * | API.Dashboard               | DashboardAPI            | 2734        |
+ * | API.Settings                | SettingsAPI             | 2883        |
+ * | API.ML                      | MLAPI                   | 3019        |
+ * | API.AI                      | AIAPI                   | 3898        |
+ * | API.ESP32                   | ESP32API                | 4213        |
+ * | API.GrowthStages            | GrowthStagesAPI         | 3718        |
+ * | API.Retraining              | RetrainingAPI           | 3785        |
+ * | API.ABTesting               | ABTestingAPI            | 3308        |
+ * | API.MLReadiness             | MLReadinessAPI          | 3256        |
+ * | API.ContinuousMonitoring    | ContinuousMonitoringAPI | 3398        |
+ * | API.PersonalizedLearning    | PersonalizedLearningAPI | 3475        |
+ * | API.TrainingData            | TrainingDataAPI         | 3643        |
+ * | API.Session                 | SessionAPI              | 3882        |
+ * | API.Status                  | StatusAPI               | 4187        |
+ * | API.System                  | SystemAPI               | 4298        |
+ * | API.Notification            | NotificationAPI         | 4379        |
+ * | API.Irrigation              | IrrigationAPI           | 4516        |
+ * | API.fetch(url, opts)        | Generic fetch wrapper   | bottom      |
+ *
  * @module api
  * @version 1.0.0
  */

@@ -31,14 +31,14 @@
     ) }}
 
     <!-- Contextual Help Banner -->
-    <div class="help-banner">
-      <i class="fas fa-thermometer-half"></i>
-      <div class="help-banner-content">
-        <p class="help-banner-title">Understanding VPD</p>
-        <p class="help-banner-text">Learn how Vapor Pressure Deficit affects plant health and transpiration.</p>
-      </div>
-      {{ ui.help_link('sensors', 'understanding-vpd', 'VPD Guide') }}
-    </div>
+    {{ ui.help_banner(
+      title='Understanding VPD',
+      text='Learn how Vapor Pressure Deficit affects plant health and transpiration.',
+      icon='thermometer-half',
+      link_text='VPD Guide',
+      category='sensors',
+      article_id='understanding-vpd'
+    ) }}
 
     <div class="analytics-grid">
         <div class="analytics-column">

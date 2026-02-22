@@ -206,6 +206,7 @@ ignore = [
   "RUF012", # mutable-class-default — dataclass pattern false-positives
   "RUF013", # implicit-optional — too many changes, defer
   "RUF015", # unnecessary-iterable-allocation-for-first-element
+  "UP017",  # datetime-timezone-utc — prefer timezone.utc over Python 3.11+ UTC alias
 ]
 
 # Do NOT auto-remove unused imports in __init__.py barrel files

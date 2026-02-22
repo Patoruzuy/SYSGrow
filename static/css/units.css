@@ -197,7 +197,7 @@
   top: var(--space-3);
   left: var(--space-3);
   background: var(--brand-600);
-  color: #fff;
+  color: var(--color-on-brand);
   font-size: 0.65rem;
   padding: 2px 8px;
   border-radius: var(--radius-full);

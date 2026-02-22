@@ -37,14 +37,14 @@
     ) }}
 
     <!-- Contextual Help Banner -->
-    <div class="help-banner">
-      <i class="fas fa-info-circle"></i>
-      <div class="help-banner-content">
-        <p class="help-banner-title">Configure your environment</p>
-        <p class="help-banner-text">Set temperature, humidity, and lighting thresholds for optimal plant growth.</p>
-      </div>
-      {{ ui.help_link('settings', 'environment-settings', 'Settings Guide') }}
-    </div>
+    {{ ui.help_banner(
+      title='Configure your environment',
+      text='Set temperature, humidity, and lighting thresholds for optimal plant growth.',
+      icon='info-circle',
+      link_text='Settings Guide',
+      category='settings',
+      article_id='environment-settings'
+    ) }}
 
     <div id="settings-status" class="settings-status" role="status" aria-live="polite"></div>
 

@@ -34,6 +34,12 @@ def _rename_or_copy(
     column_type: str,
     default_clause: str = "",
 ) -> None:
+    # Skip entirely if the table doesn't exist yet (created by a later migration)
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table,))
+    if cursor.fetchone() is None:
+        logger.info("Table %s does not exist yet, skipping column migration", table)
+        return
+
     cursor.execute(f"PRAGMA table_info({table})")
     columns = {row[1] for row in cursor.fetchall()}
 

@@ -27,14 +27,14 @@
     ) }}
 
     <!-- Contextual Help Banner -->
-    <div class="help-banner">
-      <i class="fas fa-cubes"></i>
-      <div class="help-banner-content">
-        <p class="help-banner-title">Growth Unit Management</p>
-        <p class="help-banner-text">Configure your grow spaces, link devices, and set up automation schedules.</p>
-      </div>
-      {{ ui.help_link('schedules', 'schedule-types', 'Schedule Guide') }}
-    </div>
+    {{ ui.help_banner(
+      title='Growth Unit Management',
+      text='Configure your grow spaces, link devices, and set up automation schedules.',
+      icon='cubes',
+      link_text='Schedule Guide',
+      category='schedules',
+      article_id='schedule-types'
+    ) }}
 
     {# Status Overview Cards #}
     <div class="row g-3 mb-4" id="unitsOverview">

@@ -427,7 +427,7 @@ class LocalTransformersBackend(LLMBackend):
             }
             torch_dtype = dtype_map.get(self._torch_dtype, torch.float16)
 
-            self._tokenizer = AutoTokenizer.from_pretrained(
+            self._tokenizer = AutoTokenizer.from_pretrained(  # nosec B615 - local model path
                 self._model_path,
                 trust_remote_code=True,
             )
@@ -459,7 +459,7 @@ class LocalTransformersBackend(LLMBackend):
             else:
                 model_kwargs["device_map"] = {"": self._device}
 
-            self._model = AutoModelForCausalLM.from_pretrained(
+            self._model = AutoModelForCausalLM.from_pretrained(  # nosec B615 - local model path
                 self._model_path,
                 **model_kwargs,
             )

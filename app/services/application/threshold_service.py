@@ -358,7 +358,7 @@ class ThresholdService:
             row = self.growth_repo.get_unit(unit_id)
             if not row:
                 return None
-            data = row if isinstance(row, dict) else {k: row[k] for k in row.keys()}
+            data = row if isinstance(row, dict) else {k: row[k] for k in row.keys()}  # noqa: SIM118
             try:
                 thresholds = EnvironmentalThresholds.from_dict(data)
             except ValueError as exc:
@@ -453,7 +453,7 @@ class ThresholdService:
             row = self.growth_repo.get_plant(plant_id)
             if not row:
                 return {}
-            data = row if isinstance(row, dict) else {k: row[k] for k in row.keys()}
+            data = row if isinstance(row, dict) else {k: row[k] for k in row.keys()}  # noqa: SIM118
             overrides: dict[str, float] = {}
             for key, field in PLANT_OVERRIDE_FIELDS.items():
                 value = data.get(field)

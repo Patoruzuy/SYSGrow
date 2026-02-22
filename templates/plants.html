@@ -49,14 +49,14 @@
     ) }}
 
     <!-- Contextual Help Banner -->
-    <div class="help-banner">
-      <i class="fas fa-seedling"></i>
-      <div class="help-banner-content">
-        <p class="help-banner-title">Plant Health Monitoring</p>
-        <p class="help-banner-text">Track plant health, record observations, and get AI-powered disease detection.</p>
-      </div>
-      {{ ui.help_link('plants', 'adding-plants', 'Plant Guide') }}
-    </div>
+    {{ ui.help_banner(
+      title='Plant Health Monitoring',
+      text='Track plant health, record observations, and get AI-powered disease detection.',
+      icon='seedling',
+      link_text='Plant Guide',
+      category='plants',
+      article_id='adding-plants'
+    ) }}
 
     <!-- Alert Banner (shown when there are plant issues) -->
     <div id="alert-banner" class="alert-banner" hidden>

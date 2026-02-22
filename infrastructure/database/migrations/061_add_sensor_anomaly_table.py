@@ -38,6 +38,14 @@ def migrate(db_handler: "SQLiteDatabaseHandler") -> bool:
             )
             """
         )
+        # Ensure severity column exists (table may have been created in an earlier
+        # run before the column was added to the schema)
+        cursor.execute("PRAGMA table_info(SensorAnomaly)")
+        if "severity" not in {row[1] for row in cursor.fetchall()}:
+            logger.info("Migration 061: adding missing severity column")
+            cursor.execute(
+                "ALTER TABLE SensorAnomaly ADD COLUMN severity REAL NOT NULL DEFAULT 0.0"
+            )
         # Index for common query patterns
         cursor.execute(
             """

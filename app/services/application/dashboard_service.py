@@ -10,7 +10,7 @@ logic lives in the service layer.
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from app.domain.agronomics import infer_gdd_base_temp_c
@@ -38,8 +38,8 @@ from app.utils.cache import TTLCache
 
 def _ensure_utc(dt: datetime) -> datetime:
     if dt.tzinfo is None:
-        return dt.replace(tzinfo=UTC)
-    return dt.astimezone(UTC)
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
 
 
 def _normalize_stage(name: str | None) -> str:
@@ -399,7 +399,7 @@ class DashboardService:
         upcoming: list[dict] = []
         if unit_id is not None:
             plants = plant_svc.list_plants(unit_id)
-            now = datetime.now(UTC)
+            now = datetime.now(timezone.utc)
             for p in plants:
                 p = p.to_dict() if hasattr(p, "to_dict") else dict(p)
                 expected = p.get("expected_harvest_date") or p.get("expected_harvest") or p.get("harvest_date")
@@ -1093,7 +1093,7 @@ class DashboardService:
             from datetime import date as date_type
 
             if isinstance(value, date_type):
-                return datetime(value.year, value.month, value.day, tzinfo=UTC)
+                return datetime(value.year, value.month, value.day, tzinfo=timezone.utc)
         except (TypeError, ValueError, AttributeError):
             pass
         if isinstance(value, str):

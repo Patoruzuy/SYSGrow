@@ -96,11 +96,6 @@ class SocketManager {
     this.sockets.notifications = io('/notifications', socketOptions);
     this.sockets.session = io('/session', socketOptions);
 
-    // Expose socketManager globally for integration (legacy `window.socket` removed)
-    if (typeof window !== 'undefined') {
-      window.socketManager = this;
-    }
-
     this.setupConnectionHandlers();
     this.setupDataHandlers();
   }

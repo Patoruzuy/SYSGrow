@@ -42,14 +42,14 @@
   </header>
 
   <!-- Contextual Help Banner -->
-  <div class="help-banner">
-    <i class="fas fa-rocket"></i>
-    <div class="help-banner-content">
-      <p class="help-banner-title">New to SYSGrow?</p>
-      <p class="help-banner-text">Get started with our quick setup guide and learn how to monitor your plants.</p>
-    </div>
-    {{ ui.help_link('getting-started', 'quick-start', 'Quick Start Guide') }}
-  </div>
+  {{ ui.help_banner(
+    title='New to SYSGrow?',
+    text='Get started with our quick setup guide and learn how to monitor your plants.',
+    icon='rocket',
+    link_text='Quick Start Guide',
+    category='getting-started',
+    article_id='quick-start'
+  ) }}
 
   <!-- Top KPI Row: VPD, Efficiency, Plant Health, Alerts -->
   <section class="dashboard-kpi-row">

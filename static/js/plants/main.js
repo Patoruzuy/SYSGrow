@@ -82,7 +82,7 @@
 
             console.log('[Plants Hub] Initialized successfully');
         } catch (error) {
-            console.error('[Plants Hub] Initialization failed:', error);
+            window.SYSGrow.initError('PlantsHub', error);
         }
     }
 })();

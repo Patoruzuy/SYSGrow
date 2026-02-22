@@ -57,7 +57,7 @@
 
       console.log('[Dashboard] Initialized');
     } catch (error) {
-      console.error('[Dashboard] Initialization failed:', error);
+      window.SYSGrow.initError('Dashboard', error);
     }
   }
 
@@ -118,6 +118,8 @@
 
       const ctx = canvas.getContext('2d');
 
+      const { cssVar } = window.SYSGrow;
+
       new Chart(ctx, {
         type: 'line',
         data: {
@@ -126,8 +128,8 @@
             {
               label: 'Temperature (°C)',
               data: temperatures,
-              borderColor: '#ff6b6b',
-              backgroundColor: 'rgba(255, 107, 107, 0.1)',
+              borderColor: cssVar('--chart-temperature'),
+              backgroundColor: cssVar('--chart-temperature-bg'),
               fill: false,
               tension: 0.4,
               pointRadius: 0,
@@ -136,8 +138,8 @@
             {
               label: 'Humidity (%)',
               data: humidities,
-              borderColor: '#4dabf7',
-              backgroundColor: 'rgba(77, 171, 247, 0.1)',
+              borderColor: cssVar('--chart-humidity'),
+              backgroundColor: cssVar('--chart-humidity-bg'),
               fill: false,
               tension: 0.4,
               pointRadius: 0,
@@ -146,8 +148,8 @@
             {
               label: 'Soil Moisture (%)',
               data: soilMoistures,
-              borderColor: '#8b5a2b',
-              backgroundColor: 'rgba(139, 90, 43, 0.1)',
+              borderColor: cssVar('--chart-soil'),
+              backgroundColor: cssVar('--chart-soil-bg'),
               fill: false,
               tension: 0.4,
               pointRadius: 0,
@@ -187,7 +189,7 @@
             },
             y: {
               beginAtZero: false,
-              grid: { color: 'rgba(0, 0, 0, 0.05)' }
+              grid: { color: cssVar('--chart-grid') }
             }
           }
         }

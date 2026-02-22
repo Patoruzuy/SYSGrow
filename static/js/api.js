@@ -241,7 +241,7 @@ function toPlantObservationFormData(data) {
     appendFormField(
         formData,
         "observation_type",
-        firstDefined(payload.observation_type, payload.observationType)
+        firstDefined(payload.observation_type, payload.observationType, "health")
     );
     appendFormField(formData, "notes", payload.notes);
     appendFormField(formData, "health_status", firstDefined(payload.health_status, payload.healthStatus));
@@ -265,11 +265,14 @@ function toPlantNutrientFormData(data) {
     const payload = data && typeof data === "object" ? data : {};
     const formData = new FormData();
 
-    appendFormField(
-        formData,
-        "application_type",
-        firstDefined(payload.application_type, payload.applicationType)
+    const inferredApplicationType = firstDefined(
+        payload.application_type,
+        payload.applicationType,
+        payload.unit_id !== undefined || payload.unitId !== undefined ? "bulk" : undefined,
+        payload.plant_id !== undefined || payload.plantId !== undefined ? "single" : undefined
     );
+
+    appendFormField(formData, "application_type", inferredApplicationType);
     appendFormField(formData, "plant_id", firstDefined(payload.plant_id, payload.plantId));
     appendFormField(formData, "unit_id", firstDefined(payload.unit_id, payload.unitId));
     appendFormField(formData, "nutrient_type", firstDefined(payload.nutrient_type, payload.nutrientType));
@@ -1086,7 +1089,7 @@ const PlantAPI = {
     },
 
     /**
-     * Record nutrient application (JSON wrapper)
+     * Record nutrient application wrapper (normalizes to form-data).
      * @param {Object} data - Nutrient data
      * @returns {Promise<Object>} Recorded nutrient entry
      */

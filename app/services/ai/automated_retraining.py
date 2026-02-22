@@ -25,6 +25,10 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Jobs that fail this many times in a row are automatically disabled to prevent
+# noisy retries from a broken environment.  A manual re-enable is required.
+MAX_CONSECUTIVE_FAILURES: int = 5
+
 
 class RetrainingTrigger(Enum):
     """Triggers for automated retraining."""
@@ -65,6 +69,7 @@ class RetrainingJob:
     run_count: int = 0
     success_count: int = 0
     failure_count: int = 0
+    consecutive_failures: int = 0
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
@@ -83,6 +88,7 @@ class RetrainingJob:
             "run_count": self.run_count,
             "success_count": self.success_count,
             "failure_count": self.failure_count,
+            "consecutive_failures": self.consecutive_failures,
         }
 
 
@@ -490,10 +496,7 @@ class AutomatedRetrainingService:
             # Update job statistics
             if job_id and job_id in self.jobs:
                 job = self.jobs[job_id]
-                job.last_run = event.started_at
-                job.run_count += 1
-                job.success_count += 1
-                job.next_run = self._calculate_next_run(job)
+                self._record_job_success(job)
 
             logger.info("Retraining completed for %s: %s → %s", event.model_type, event.old_version, event.new_version)
 
@@ -513,20 +516,18 @@ class AutomatedRetrainingService:
 
             if job_id and job_id in self.jobs:
                 job = self.jobs[job_id]
-                job.last_run = event.started_at
-                job.run_count += 1
-                job.failure_count += 1
-
-        except Exception as e:
+                self._record_job_failure(job)
+                # Cancelled jobs do not count against the consecutive-failure
+                # auto-suspend threshold — they were intentionally stopped.
+                job.consecutive_failures = max(0, job.consecutive_failures - 1)
+                if not job.enabled and job.consecutive_failures < MAX_CONSECUTIVE_FAILURES:
+                    job.enabled = True
             event.status = RetrainingStatus.FAILED
             event.error = str(e)
             event.completed_at = datetime.now()
 
             if job_id and job_id in self.jobs:
-                job = self.jobs[job_id]
-                job.last_run = event.started_at
-                job.run_count += 1
-                job.failure_count += 1
+                self._record_job_failure(self.jobs[job_id])
 
             logger.error("Retraining failed for %s: %s", event.model_type, e, exc_info=True)
             broadcast_training_failed(event.model_type, event.old_version or "", str(e))
@@ -679,3 +680,29 @@ class AutomatedRetrainingService:
         """Set callbacks for retraining events."""
         self._on_retraining_start = on_start
         self._on_retraining_complete = on_complete
+
+    def _record_job_failure(self, job: RetrainingJob) -> None:
+        """Increment failure counters and auto-disable the job if it has failed
+        MAX_CONSECUTIVE_FAILURES times in a row."""
+        job.run_count += 1
+        job.failure_count += 1
+        job.consecutive_failures += 1
+        job.last_run = datetime.now()
+        job.next_run = self._calculate_next_run(job)
+
+        if job.consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
+            job.enabled = False
+            logger.warning(
+                "Retraining job %s suspended after %d consecutive failures. "
+                "Re-enable manually after investigating the root cause.",
+                job.job_id,
+                job.consecutive_failures,
+            )
+
+    def _record_job_success(self, job: RetrainingJob) -> None:
+        """Increment success counters and reset the consecutive failure streak."""
+        job.run_count += 1
+        job.success_count += 1
+        job.consecutive_failures = 0
+        job.last_run = datetime.now()
+        job.next_run = self._calculate_next_run(job)

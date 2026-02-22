@@ -12,6 +12,7 @@ Provides:
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import shutil
@@ -189,12 +190,18 @@ class ModelRegistry:
         return {}
 
     def _save_registry(self) -> None:
-        """Save registry to disk."""
+        """Save registry to disk using an atomic write (temp-file + rename)."""
+        tmp_file = self.registry_file.with_suffix(".json.tmp")
         try:
-            with open(self.registry_file, "w") as f:
+            with open(tmp_file, "w") as f:
                 json.dump(self._registry, f, indent=2)
+            tmp_file.replace(self.registry_file)
         except Exception as e:
             logger.error("Failed to save registry: %s", e, exc_info=True)
+            # Clean up temp file if rename failed
+            if tmp_file.exists():
+                with contextlib.suppress(OSError):
+                    tmp_file.unlink()
 
     def _get_version_path(self, model_name: str, version: str) -> Path:
         """Get path to a model version directory."""

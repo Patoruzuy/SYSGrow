@@ -12,15 +12,12 @@ __pycache__/
 .pyc
 .coude/
 
-docs/
 venv/
 .env/
 build/
 dist/
 __pycache__/
-docs/
 .env.example
-*.md
 *.OBSOLETE
 
 # Local runtime artifacts

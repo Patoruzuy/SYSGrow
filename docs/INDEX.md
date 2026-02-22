@@ -1,122 +1,125 @@
-# 📚 SYSGrow Documentation Index
+# SYSGrow Documentation
 
-This directory contains all the documentation for the SYSGrow Smart Agriculture Backend system.
-
-## 📖 Quick Navigation
-
-### 🚀 Getting Started
-- **[Quick Start Guide](setup/QUICK_START.md)** - Get up and running in 5 minutes
-- **[Installation Guide](setup/INSTALLATION_GUIDE.md)** - Detailed installation instructions
-- **[Windows Installation](setup/WINDOWS_INSTALL_GUIDE.md)** - Windows-specific setup guide
-- **[Windows Success Guide](setup/WINDOWS_SUCCESS.md)** - Troubleshooting Windows installation
-
-### 🏗️ Architecture & Design
-- **[Design Guide](architecture/DESIGN_GUIDE.md)** - Visual design system and UI guidelines
-- **[Architecture Overview](architecture/NEW_ARCHITECTURE.md)** - System architecture documentation
-- **[Senior Architecture Review](architecture/SENIOR_ARCHITECTURE_REVIEW.md)** - Expert review and recommendations
-- **[Refactoring Plan](architecture/REFACTORING_PLAN.md)** - Code refactoring strategy
-- **[Refactoring Analysis](architecture/REFACTORING_ANALYSIS.md)** - Detailed refactoring analysis
-
-### 🔌 API Documentation
-- **[API Updates Summary](api/API_UPDATES_SUMMARY.md)** - Latest API changes and enhancements
-- **[Frontend Template Updates](api/FRONTEND_TEMPLATE_UPDATES.md)** - Frontend integration guide
-- **[Growth Units Integration](api/GROWTH_UNITS_INTEGRATION.md)** - Growth units API documentation
-- **[Device Schedules Migration](api/DEVICE_SCHEDULES_MIGRATION.md)** - Device scheduling system migration
-- **[Device Schedule Class](api/DEVICE_SCHEDULE_CLASS.md)** - Device schedule implementation details
-- **[ESP32-C3 API](api/ESP32-C3-API-Documentation.md)** - ESP32-C3 device API reference
-- **[ESP32-C6 Irrigation](api/ESP32-C6-Irrigation-Module-Implementation.md)** - Irrigation module documentation
-
-### 💻 Development Guides
-- **[Implementation Complete](development/IMPLEMENTATION_COMPLETE.md)** - Implementation status and checklist
-- **[Implementation Steps](development/IMPLEMENTATION_STEPS.md)** - Step-by-step implementation guide
-- **[Services Documentation](development/README_SERVICES.md)** - Backend services overview
-- **[Irrigation ML Operations](IRRIGATION_ML_OPERATIONS.md)** - Irrigation ML models, metrics, and endpoints
-- **[Plant Profile Analysis](development/PLANT_PROFILE_ANALYSIS.md)** - Plant data analysis and ML integration
-- **[Plant Growth Integration](development/PLANT_GROWTH_INTEGRATION.md)** - Plant growth tracking system
-- **[CSRF Fix Summary](development/CSRF_FIX_SUMMARY.md)** - Security improvements documentation
-- **[Repository Guidelines](../AGENTS.md)** - Contributor guide with structure, commands, and style
-
-### 🎯 Setup & Configuration
-- **[Enhanced Features Setup](setup/ENHANCED_FEATURES_SETUP.md)** - Advanced features configuration
-- **[Quick Start Unit Selector](setup/QUICK_START_UNIT_SELECTOR.md)** - Unit selector feature setup
-
-### 📦 Project Overview
-- **[Project Summary](PROJECT_SUMMARY.md)** - Comprehensive project overview
-- **[Complete Summary](COMPLETE_SUMMARY.md)** - Complete implementation summary
-- **[Release Notes](RELEASE_NOTES.md)** - Latest release notes and changelog
-- **[ESP32-C6 UX Recommendations](ESP32-C6-User-Experience-Recommendations.md)** - User experience guidelines
+> **Current version:** v3.0.0 · February 2026
 
 ---
 
-## 📊 Documentation Structure
+## Getting Started
+
+| Doc | Description |
+|-----|-------------|
+| [Quick Start](setup/QUICK_START.md) | Up and running in 5 minutes |
+| [Installation Guide](setup/INSTALLATION_GUIDE.md) | Full setup with all options |
+| [Windows Setup](setup/WINDOWS_INSTALL_GUIDE.md) | Windows-specific steps |
+| [Enhanced Features](setup/ENHANCED_FEATURES_SETUP.md) | Camera, MQTT, Redis configuration |
+
+---
+
+## Architecture
+
+| Doc | Description |
+|-----|-------------|
+| [Architecture Overview](architecture/ARCHITECTURE.md) | System layers, modules, and data flow |
+| [AI Architecture](architecture/AI_ARCHITECTURE.md) | ML services, training pipeline, model lifecycle |
+| [Persistence Strategy](architecture/PERSISTENCE_STRATEGY.md) | Database design decisions and SQLite usage |
+| [Design Guide](architecture/DESIGN_GUIDE.md) | UI design system and CSS conventions |
+| [Quick Start Guide](architecture/QUICK_START_GUIDE.md) | Developer onboarding checklist |
+
+---
+
+## API Reference
+
+| Doc | Description |
+|-----|-------------|
+| [API Usage (JS client)](API_USAGE.md) | How to call the backend from `api.js` |
+| [ML / AI API](api/ML_AI_API.md) | ML prediction, training, and health endpoints |
+| [Actuator Endpoints](ACTUATOR_API_ENDPOINTS.md) | Actuator control and status API |
+| [Device Schedule Class](api/DEVICE_SCHEDULE_CLASS.md) | `DeviceSchedule` model and schedule endpoints |
+| [API Updates Summary](api/API_UPDATES_SUMMARY.md) | Changelog of API additions by release |
+| [ESP32-C3 API](api/ESP32-C3-API-Documentation.md) | ESP32-C3 firmware integration reference |
+| [ESP32-C6 Irrigation](api/ESP32-C6-Irrigation-Module-Implementation.md) | Irrigation module firmware integration |
+
+---
+
+## AI / ML
+
+| Doc | Description |
+|-----|-------------|
+| [AI/ML Overview](ai_ml/README.md) | Index of all ML docs |
+| [Irrigation ML Operations](ai_ml/IRRIGATION_ML_OPERATIONS.md) | Irrigation predictor models, gating, retraining |
+| [Bayesian Learning](ai_ml/BAYESIAN_LEARNING.md) | Bayesian threshold optimizer |
+| [Automated Retraining](ai_ml/AUTOMATED_RETRAINING.md) | Scheduled and drift-triggered retraining |
+| [Climate Optimizer](ai_ml/CLIMATE_OPTIMIZER.md) | Climate prediction model |
+| [Continuous Monitoring](ai_ml/CONTINUOUS_MONITORING.md) | Real-time ML health monitoring |
+| [Plant Health Monitoring](ai_ml/PLANT_HEALTH_MONITORING.md) | Disease risk and health scoring |
+| [Plant Health API](ai_ml/PLANT_HEALTH_API_REFERENCE.md) | Plant health endpoints reference |
+| [LLM Advisor](ai_ml/LLM_ADVISOR.md) | LLM-based recommendation system |
+| [LLM Setup](ai_ml/LLM_SETUP.md) | Configuring Ollama / OpenAI / Claude backends |
+| [Quick Reference](ai_ml/QUICK_REFERENCE.md) | Common ML commands and patterns |
+| [FAQ](ai_ml/FAQ.md) | Common ML questions |
+
+---
+
+## Hardware & Sensors
+
+| Doc | Description |
+|-----|-------------|
+| [Sensor Integration Guide](SENSOR_INTEGRATION_GUIDE.md) | Wiring, calibration, and adding new sensor types |
+| [Sensors Reference](hardware/sensors.md) | Supported sensor types and their schemas |
+| [Actuators Reference](hardware/actuators.md) | Supported actuator types and control API |
+| [Device Schedules Quick Ref](DEVICE_SCHEDULES_QUICK_REF.md) | Schedule API cheat sheet |
+| [Plant Handler Quick Ref](PLANT_HANDLER_QUICK_REFERENCE.md) | Plant management API cheat sheet |
+| [ESP32-C6 UX Recommendations](ESP32-C6-User-Experience-Recommendations.md) | UX guidelines for ESP32-C6 firmware |
+
+---
+
+## Features
+
+| Doc | Description |
+|-----|-------------|
+| [Energy Monitoring Quick Ref](ENERGY_MONITORING_QUICK_REFERENCE.md) | Energy API cheat sheet |
+| [Threshold Service Integration](THRESHOLD_SERVICE_INTEGRATION.md) | How thresholds integrate with AI and hardware |
+| [Frontend Plant Health](FRONTEND_PLANT_HEALTH_IMPLEMENTATION.md) | Plant health UI integration guide |
+| [Frontend Design](frontend-design.md) | UI component patterns and styling guide |
+| [Configuration Reference](CONFIGURATION.md) | All environment variables and config keys |
+
+---
+
+## Project
+
+| Doc | Description |
+|-----|-------------|
+| [Audit Executive Report](AUDIT_EXECUTIVE_REPORT.md) | Feb 2026 code audit — grades, findings, priorities |
+| [Release Notes (EN)](../releases/v3.0.0-RELEASE-EN.md) | v3.0.0 changelog (English) |
+| [Release Notes (ES)](../releases/v3.0.0-RELEASE-ES.md) | v3.0.0 changelog (Spanish) |
+| [Backlog](../BACKLOG.md) | Open work items — security, infra, features, testing |
+
+---
+
+## Structure
 
 ```
 docs/
-├── INDEX.md (this file)
-├── PROJECT_SUMMARY.md
-├── COMPLETE_SUMMARY.md
-├── RELEASE_NOTES.md
+├── INDEX.md                    ← you are here
+├── AUDIT_EXECUTIVE_REPORT.md
+├── CONFIGURATION.md
+├── API_USAGE.md
+├── ACTUATOR_API_ENDPOINTS.md
+├── DEVICE_SCHEDULES_QUICK_REF.md
+├── ENERGY_MONITORING_QUICK_REFERENCE.md
+├── SENSOR_INTEGRATION_GUIDE.md
+├── THRESHOLD_SERVICE_INTEGRATION.md
+├── PLANT_HANDLER_QUICK_REFERENCE.md
+├── FRONTEND_PLANT_HEALTH_IMPLEMENTATION.md
+├── frontend-design.md
 ├── ESP32-C6-User-Experience-Recommendations.md
-├── setup/                          # Installation & Setup
-│   ├── INSTALLATION_GUIDE.md
-│   ├── QUICK_START.md
-│   ├── WINDOWS_INSTALL_GUIDE.md
-│   ├── WINDOWS_SUCCESS.md
-│   ├── ENHANCED_FEATURES_SETUP.md
-│   └── QUICK_START_UNIT_SELECTOR.md
-├── architecture/                   # System Architecture
-│   ├── NEW_ARCHITECTURE.md
-│   ├── DESIGN_GUIDE.md
-│   ├── SENIOR_ARCHITECTURE_REVIEW.md
-│   ├── REFACTORING_PLAN.md
-│   └── REFACTORING_ANALYSIS.md
-├── api/                           # API Documentation
-│   ├── API_UPDATES_SUMMARY.md
-│   ├── FRONTEND_TEMPLATE_UPDATES.md
-│   ├── GROWTH_UNITS_INTEGRATION.md
-│   ├── DEVICE_SCHEDULES_MIGRATION.md
-│   ├── DEVICE_SCHEDULE_CLASS.md
-│   ├── ESP32-C3-API-Documentation.md
-│   └── ESP32-C6-Irrigation-Module-Implementation.md
-├── development/                    # Development Guides
-│   ├── IMPLEMENTATION_COMPLETE.md
-│   ├── IMPLEMENTATION_STEPS.md
-│   ├── README_SERVICES.md
-│   ├── PLANT_PROFILE_ANALYSIS.md
-│   ├── PLANT_GROWTH_INTEGRATION.md
-│   └── CSRF_FIX_SUMMARY.md
+├── enhanced_plant_template.json
+├── ai_ml/                      ← all ML/AI documentation
+├── api/                        ← API references and changelogs
+├── architecture/               ← system design and strategy
+├── hardware/                   ← sensor and actuator references
+└── setup/                      ← installation and configuration guides
 ```
-
----
-
-## 🎯 Documentation by Use Case
-
-### I want to...
-
-**...install and run the system**
-→ Start with [Quick Start Guide](setup/QUICK_START.md) or [Installation Guide](setup/INSTALLATION_GUIDE.md)
-
-**...understand the system architecture**
-→ Read [Architecture Overview](architecture/NEW_ARCHITECTURE.md) and [Design Guide](architecture/DESIGN_GUIDE.md)
-
-**...integrate with the API**
-→ Check [API Updates Summary](api/API_UPDATES_SUMMARY.md) and specific API docs in `api/`
-
-**...develop new features**
-→ Review [Implementation Steps](development/IMPLEMENTATION_STEPS.md) and [Services Documentation](development/README_SERVICES.md)
-
-**...configure ESP32 devices**
-→ See [ESP32-C3 API](api/ESP32-C3-API-Documentation.md) and [ESP32-C6 Irrigation](api/ESP32-C6-Irrigation-Module-Implementation.md)
-
-**...understand recent changes**
-→ Read [Release Notes](RELEASE_NOTES.md) and [Complete Summary](COMPLETE_SUMMARY.md)
-
-**...troubleshoot installation issues**
-→ Check [Windows Success Guide](setup/WINDOWS_SUCCESS.md)
-
----
-
-## 🔄 Keeping Documentation Updated
 
 When creating new documentation:
 1. Place in the appropriate subdirectory (`setup/`, `architecture/`, `api/`, or `development/`)

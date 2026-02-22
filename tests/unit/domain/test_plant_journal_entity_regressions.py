@@ -12,7 +12,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[3]
 
 if not hasattr(dt, "UTC"):
-    dt.UTC = dt.timezone.utc  # noqa: UP017
+    dt.UTC = dt.timezone.utc
 
 
 def _load_module(module_name: str, module_path: Path):

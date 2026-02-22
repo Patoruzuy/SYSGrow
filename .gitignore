@@ -69,3 +69,7 @@ docs/FRONTEND_AUDIT_REPORT.md
 .github/skills/CLAUDE.md
 .github/skills/PROJECT_OVERVIEW.md
 .github/skills/frontend-design.md
+var/pytest_check.txt
+var/pytest_final.txt
+var/pytest_run.txt
+var/pytest_targeted.txt

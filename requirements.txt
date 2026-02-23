@@ -22,7 +22,9 @@ pycryptodome>=3.18.0,<4.0.0
 cryptography>=41.0.0,<43.0.0
 
 # ===== DATA SCIENCE & MACHINE LEARNING =====
-numpy>=1.24.0,<2.0.0
+# NumPy 1.x has no wheels for Python 3.13; use NumPy 2.x there to avoid source builds in CI.
+numpy>=1.24.0,<2.0.0; python_version < "3.13"
+numpy>=2.1.0,<3.0.0; python_version >= "3.13"
 pandas>=2.0.0,<3.0.0
 scikit-learn>=1.3.0,<2.0.0
 joblib>=1.3.0,<2.0.0
@@ -80,7 +82,9 @@ colorlog>=6.7.0,<7.0.0
 
 # ===== WEB SCRAPING & API CLIENTS =====
 beautifulsoup4>=4.12.0,<5.0.0
-lxml>=4.9.0,<5.0.0
+# lxml 4.x does not provide Python 3.13 wheels; use lxml 5.x on 3.13 to avoid build deps.
+lxml>=4.9.0,<5.0.0; python_version < "3.13"
+lxml>=5.3.0,<6.0.0; python_version >= "3.13"
 
 # ===== ASYNC SUPPORT =====
 asyncio-mqtt>=0.16.0,<1.0.0

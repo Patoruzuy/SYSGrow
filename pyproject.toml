@@ -97,7 +97,7 @@ windows = [
 ]
 
 linux = [
-  "python-systemd>=234; platform_system=='Linux'",
+  "systemd-python>=234; platform_system=='Linux'",
 ]
 
 zigbee = [

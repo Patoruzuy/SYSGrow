@@ -112,8 +112,8 @@ pyserial>=3.5,<4.0.0
 # For Windows development
 pywin32>=306; platform_system=="Windows"
 
-# For Linux systems
-python-systemd>=234; platform_system=="Linux"
+# For Linux systemd integration (optional; mainly on deployed ARM devices)
+systemd-python>=234; platform_system=="Linux" and (platform_machine=="armv7l" or platform_machine=="aarch64")
 
 # ===== VERSION COMPATIBILITY =====
 setuptools>=68.0.0,<69.0.0

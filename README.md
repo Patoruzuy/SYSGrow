@@ -40,8 +40,8 @@ SYSGrow is a modular Flask backend that turns a Raspberry Pi (or any Python host
 
 ```bash
 # 1. Clone
-git clone https://github.com/yourusername/SYSGrow.git
-cd SYSGrow/backend
+git clone https://github.com/Patoruzuy/SYSGrow.git
+cd SYSGrow
 
 # 2. Virtual environment
 python -m venv .venv

@@ -73,3 +73,13 @@ var/pytest_check.txt
 var/pytest_final.txt
 var/pytest_run.txt
 var/pytest_targeted.txt
+.github/AUDIT_AI_SERVICES_REVIEW.md
+.github/AUDIT_FULL_REVIEW.md
+.github/AUDIT_SERVICES_REVIEW.md
+.github/copilot-instructions.md
+.github/agents/opus.agent.md
+.github/prompts/ask-opus.prompt.md
+.github/prompts/AUDIT_REPORT.md
+.github/prompts/audit.md
+.github/prompts/full-review.md
+.github/prompts/opus.agent.md

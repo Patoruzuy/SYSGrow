@@ -50,7 +50,7 @@ sqlalchemy>=2.0.0  # For advanced database operations
 
 # ===== API DEVELOPMENT =====
 httpie>=3.2.0
-postman-cli>=1.0.0
+# Postman CLI is not published on PyPI; install separately (npm/Homebrew/manual) if needed.
 
 # ===== ENVIRONMENT MANAGEMENT =====
 python-dotenv>=1.0.0

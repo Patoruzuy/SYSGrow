@@ -406,8 +406,8 @@ def get_plant_detail_unified(plant_id: int) -> Response:
             or (isinstance(active, dict) and active.get("plant_id") == plant_id)
         ):
             is_active = True
-    except Exception:
-        pass
+    except (RuntimeError, ValueError, TypeError, AttributeError) as exc:
+        logger.debug("Failed to resolve active plant for unit %s: %s", unit_id, exc)
 
     # Stage change impact (if active)
     stage_info = {
@@ -427,8 +427,8 @@ def get_plant_detail_unified(plant_id: int) -> Response:
                 growth_stage=plant_dict.get("current_stage", ""),
                 current_conditions={},
             )
-    except Exception:
-        pass
+    except (RuntimeError, ValueError, TypeError, AttributeError) as exc:
+        logger.debug("Personalized recommendations unavailable for plant %s: %s", plant_id, exc)
 
     return _success(
         {

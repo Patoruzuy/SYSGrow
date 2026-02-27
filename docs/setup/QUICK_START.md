@@ -11,7 +11,7 @@
 
 Before you begin, ensure you have:
 
-- ✅ Python 3.8+ installed
+- ✅ Python 3.11+ installed
 - ✅ Flask application running
 - ✅ SQLite database (`sysgrow.db`)
 - ✅ Basic understanding of Flask blueprints

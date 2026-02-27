@@ -252,6 +252,22 @@ class PlantsUIManager extends BaseManager {
         const scoreEl = document.getElementById('health-score');
         if (scoreEl) {
             scoreEl.textContent = score || 0;
+            // Animate SVG gauge
+            const circle = document.getElementById('health-circle');
+            if (circle) {
+                const max = 339.292;
+                const offset = max * (1 - (score || 0) / 100);
+                circle.style.transition = 'stroke-dashoffset 0.6s ease, stroke 0.4s ease';
+                circle.style.strokeDashoffset = offset;
+                // Color thresholds
+                if (score >= 80) {
+                    circle.style.stroke = 'var(--success-500)';
+                } else if (score >= 50) {
+                    circle.style.stroke = 'var(--warning-500)';
+                } else {
+                    circle.style.stroke = 'var(--danger-500)';
+                }
+            }
             // Update status title and message
             const statusTitle = document.getElementById('status-title');
             const statusMessage = document.getElementById('status-message');

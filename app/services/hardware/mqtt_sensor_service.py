@@ -132,8 +132,8 @@ class MQTTSensorService:
         try:
             self.event_bus.subscribe(DeviceEvent.SENSOR_CREATED, lambda _p: self._clear_mapping_caches())
             self.event_bus.subscribe(DeviceEvent.SENSOR_DELETED, lambda _p: self._clear_mapping_caches())
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("Failed to subscribe cache-invalidation listeners: %s", exc)
 
         self._subscribe_to_topics()
         logger.info("MQTTSensorService initialized and listening")
@@ -744,8 +744,8 @@ class MQTTSensorService:
                 if sensor_id > 0:
                     self._friendly_name_cache.set(friendly_name, sensor_id)
                     return sensor_id, sensor
-        except Exception:
-            pass
+        except (RuntimeError, ValueError, TypeError, AttributeError) as exc:
+            logger.debug("Friendly-name lookup failed for '%s': %s", friendly_name, exc)
 
         return None, None
 

@@ -265,6 +265,10 @@ class IrrigationWorkflowService:
         self._execution.set_irrigation_calculator(calculator)
         logger.info("Irrigation calculator configured")
 
+    def get_irrigation_calculator(self) -> "IrrigationCalculator | None":
+        """Return the shared irrigation calculator instance, if configured."""
+        return self._irrigation_calculator
+
     def set_pump_calibration_service(self, service: "PumpCalibrationService") -> None:
         self._pump_calibration = service
         self._execution.set_pump_calibration_service(service)

@@ -777,8 +777,8 @@ class ActuatorManagementService:
             from app.workers.unified_scheduler import get_scheduler
 
             scheduling_active = get_scheduler().is_running()
-        except Exception:
-            pass
+        except (ImportError, RuntimeError, AttributeError) as exc:
+            logger.debug("Scheduler status unavailable in actuator snapshot: %s", exc)
 
         return {
             "total_actuators": len(self._actuators),
@@ -813,8 +813,8 @@ class ActuatorManagementService:
                     timestamp=result.timestamp.isoformat(),
                 ),
             )
-        except Exception:
-            pass
+        except (RuntimeError, ValueError, TypeError, AttributeError) as exc:
+            logger.debug("Failed to publish actuator state change event for %s: %s", actuator_id, exc)
 
     # ==================== Energy Monitoring ====================
 

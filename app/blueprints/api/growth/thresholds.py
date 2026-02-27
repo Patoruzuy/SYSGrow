@@ -72,7 +72,12 @@ def _apply_condition_profile_to_unit(
         try:
             growth_service = _service()
             growth_service.update_unit_thresholds(unit_id, env_thresholds)
-        except Exception:
+        except RuntimeError as exc:
+            logger.info(
+                "Condition profile apply fell back to threshold_service for unit %s: %s",
+                unit_id,
+                exc,
+            )
             threshold_service.update_unit_thresholds(unit_id, env_thresholds)
 
     profile_service.link_condition_profile(

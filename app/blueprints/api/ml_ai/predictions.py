@@ -724,9 +724,6 @@ def record_health_observation() -> Response:
     }
     """
     try:
-        from app.domain.plant_journal_entity import PlantHealthObservationEntity
-        from app.enums.common import DiseaseType, PlantHealthStatus
-
         data = request.get_json() or {}
         user_id = session.get("user_id")
 
@@ -736,13 +733,15 @@ def record_health_observation() -> Response:
         if missing:
             return _fail(f"Missing required fields: {', '.join(missing)}", 400)
 
-        # Create observation entity
-        observation = PlantHealthObservationEntity(
+        # Record via journal service
+        container = _container()
+        journal_service = container.plant_journal_service
+        observation_id = journal_service.record_health_observation_validated(
             unit_id=data["unit_id"],
             plant_id=data.get("plant_id"),
-            health_status=PlantHealthStatus(data["health_status"]),
+            health_status=data["health_status"],
             symptoms=data["symptoms"],
-            disease_type=DiseaseType(data["disease_type"]) if data.get("disease_type") else None,
+            disease_type=data.get("disease_type"),
             severity_level=data["severity_level"],
             affected_parts=data.get("affected_parts", []),
             environmental_factors=data.get("environmental_factors", {}),
@@ -753,11 +752,6 @@ def record_health_observation() -> Response:
             image_path=data.get("image_path"),
             user_id=user_id,
         )
-
-        # Record via journal service
-        container = _container()
-        journal_service = container.plant_journal_service
-        observation_id = journal_service.record_health_observation(**observation.to_service_kwargs())
 
         if observation_id:
             return _success({"observation_id": observation_id, "status": "recorded"}, 201)

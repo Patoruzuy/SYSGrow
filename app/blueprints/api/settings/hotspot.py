@@ -37,7 +37,7 @@ def get_hotspot_settings() -> Response:
 
     # Return defaults when not yet configured (200, not 404)
     if not data:
-        return _success({"ssid": "", "password_present": False, "configured": False})
+        return _success({"ssid": "", "password_present": bool(data), "configured": bool(data)})
 
     # Mask sensitive password data in the response
     response_data = {

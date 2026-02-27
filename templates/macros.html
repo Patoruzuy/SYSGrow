@@ -279,7 +279,8 @@
    article_id  - Help article id for url_for (optional)
 #}
 {% macro help_banner(title, text, icon='circle-info', link_text=none, category=none, article_id=none) %}
-<div class="help-banner">
+{% set banner_id = (category ~ '-' ~ article_id) if (category and article_id) else (title | lower | replace(' ', '-') | replace("'", '') | truncate(40, true, '')) %}
+<div class="help-banner" data-banner-id="{{ banner_id }}">
   <i class="fas fa-{{ icon }}"></i>
   <div class="help-banner-content">
     <p class="help-banner-title">{{ title }}</p>
@@ -288,6 +289,9 @@
   {% if link_text and category and article_id %}
   {{ help_link(category, article_id, link_text) }}
   {% endif %}
+  <button type="button" class="help-banner-dismiss" aria-label="Dismiss help tip" title="Dismiss">
+    <i class="fas fa-times"></i>
+  </button>
 </div>
 {% endmacro %}
 

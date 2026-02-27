@@ -16,30 +16,36 @@
 {% endblock %}
 
 {% block content %}
-<div class="dashboard-page page-shell page-shell--fluid" data-selected-unit-id="{{ selected_unit.unit_id if selected_unit else '' }}" aria-labelledby="dashboard-heading">
+<div class="dashboard-page page-shell page-shell--fluid" data-selected-unit-id="{{ selected_unit.unit_id if selected_unit else '' }}" aria-label="Dashboard">
 
-  <!-- Dashboard Header -->
-  <header class="dashboard-header">
-    <div class="dashboard-header__left">
-      <h1 id="dashboard-heading" class="dashboard-title">
-        <i class="fas fa-tachometer-alt"></i>
-        Dashboard
-      </h1>
-      <span class="unit-badge" id="current-unit-name">
-        {{ selected_unit.name if selected_unit else 'All Units' }}
-      </span>
+  {% set dash_actions %}
+  <div class="d-flex align-items-center gap-2">
+    <span class="unit-badge" id="current-unit-name">
+      {{ selected_unit.name if selected_unit else 'All Units' }}
+    </span>
+    <div class="connection-indicator" id="connection-status">
+      <span class="status-dot"></span>
+      <span class="status-text">Connecting...</span>
     </div>
-    <div class="dashboard-header__right">
-      <div class="connection-indicator" id="connection-status">
-        <span class="status-dot"></span>
-        <span class="status-text">Connecting...</span>
-      </div>
-      <span class="last-update" id="last-update-time">--:--</span>
-      <button class="refresh-btn" id="refresh-sensors" title="Refresh Dashboard">
-        <i class="fas fa-sync-alt"></i>
-      </button>
-    </div>
-  </header>
+    <span class="last-update text-muted small" id="last-update-time">--:--</span>
+    <button class="btn btn-secondary btn-sm" id="refresh-sensors" title="Refresh Dashboard">
+      <i class="fas fa-sync-alt"></i>
+      <span class="d-none d-sm-inline ms-1">Refresh</span>
+    </button>
+  </div>
+  {% endset %}
+
+  {{ ui.page_header(
+    title='Dashboard',
+    icon='fas fa-tachometer-alt',
+    subtitle='Real-time monitoring and control for your growing environment.',
+    actions=dash_actions
+  ) }}
+
+  <!-- Welcome message (populated by JS: first visit vs. returning) -->
+  <div id="welcome-banner" class="welcome-banner" data-username="{{ current_user.username if current_user and current_user.is_authenticated else 'Grower' }}" hidden>
+    <p id="welcome-msg" class="text-muted small mb-0"></p>
+  </div>
 
   <!-- Contextual Help Banner -->
   {{ ui.help_banner(
@@ -1009,5 +1015,25 @@
       window.aiInsights = new AIInsightsManager(API, window.socketManager || SocketManager);
     }
   });
+</script>
+<script>
+  // Welcome message — first visit vs. returning
+  (function () {
+    var banner = document.getElementById('welcome-banner');
+    var msg = document.getElementById('welcome-msg');
+    if (!banner || !msg) return;
+
+    var username = banner.dataset.username || 'Grower';
+    var KEY = 'sysgrow_has_visited';
+
+    if (!localStorage.getItem(KEY)) {
+      msg.textContent = 'Welcome, ' + username + '! \uD83C\uDF31 Get started by adding your plants and configuring your growth units.';
+      try { localStorage.setItem(KEY, '1'); } catch (_) {}
+    } else {
+      msg.textContent = 'Welcome back, ' + username + '!';
+    }
+
+    banner.removeAttribute('hidden');
+  })();
 </script>
 {% endblock %}

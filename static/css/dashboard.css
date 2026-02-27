@@ -367,14 +367,6 @@
 /* ============================================================================ */
 
 /* Dashboard Header - Updated */
-.dashboard-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--space-3) 0;
-  margin-bottom: var(--space-4);
-  border-bottom: 1px solid var(--border-200);
-}
 
 .dashboard-header__left {
   display: flex;

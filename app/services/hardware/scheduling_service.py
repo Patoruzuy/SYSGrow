@@ -33,7 +33,7 @@ from datetime import datetime, timedelta
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Callable
 
-from app.domain.schedules import Schedule
+from app.domain.schedules import PhotoperiodConfig, Schedule
 from app.enums import PhotoperiodSource, ScheduleState, ScheduleType
 
 if TYPE_CHECKING:
@@ -452,6 +452,39 @@ class SchedulingService:
         except Exception as e:
             logger.error("Failed to create schedule: %s", e, exc_info=True)
             return None
+
+    def build_photoperiod_config(self, photoperiod_payload: Any | None) -> PhotoperiodConfig | None:
+        """Construct a PhotoperiodConfig from a schema/dataclass-like payload."""
+        if not photoperiod_payload:
+            return None
+        return PhotoperiodConfig(
+            source=photoperiod_payload.source,
+            sensor_threshold=photoperiod_payload.sensor_threshold,
+            sensor_tolerance=photoperiod_payload.sensor_tolerance,
+            prefer_sensor=photoperiod_payload.prefer_sensor,
+            min_light_hours=photoperiod_payload.min_light_hours,
+            max_light_hours=photoperiod_payload.max_light_hours,
+        )
+
+    def build_schedule_from_payload(self, *, unit_id: int, payload: Any) -> Schedule:
+        """Construct a Schedule entity from a validated schema payload."""
+        return Schedule(
+            unit_id=unit_id,
+            name=payload.name,
+            device_type=payload.device_type,
+            actuator_id=payload.actuator_id,
+            schedule_type=payload.schedule_type,
+            start_time=payload.start_time,
+            end_time=payload.end_time,
+            interval_minutes=payload.interval_minutes,
+            duration_minutes=payload.duration_minutes,
+            days_of_week=payload.days_of_week,
+            enabled=payload.enabled,
+            state_when_active=payload.state_when_active,
+            value=payload.value,
+            photoperiod=self.build_photoperiod_config(payload.photoperiod),
+            priority=payload.priority,
+        )
 
     def get_schedule(self, schedule_id: int, unit_id: int | None = None) -> Schedule | None:
         """

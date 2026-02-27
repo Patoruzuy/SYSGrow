@@ -12,6 +12,7 @@ No external packages required.
 
 from __future__ import annotations
 
+import logging
 import re
 from typing import Any
 
@@ -21,6 +22,8 @@ from flask import Flask
 
 _PARAM_RE = re.compile(r"<(?:(\w+):)?(\w+)>")
 """Matches Flask path-parameter syntax  ``<type:name>`` or ``<name>``."""
+
+logger = logging.getLogger(__name__)
 
 _FLASK_TYPE_MAP: dict[str, dict[str, Any]] = {
     "int": {"type": "integer"},
@@ -122,10 +125,10 @@ def _collect_pydantic_schemas() -> dict[str, Any]:
                     for def_name, def_schema in defs.items():
                         if def_name not in schemas:
                             schemas[def_name] = def_schema
-                except Exception:
-                    pass
-    except Exception:
-        pass
+                except Exception as exc:
+                    logger.debug("Skipping schema %s during OpenAPI extraction: %s", name, exc)
+    except (ImportError, AttributeError, RuntimeError) as exc:
+        logger.debug("Failed to import schema package for OpenAPI generation: %s", exc)
     return schemas
 
 

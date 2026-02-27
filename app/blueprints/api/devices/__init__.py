@@ -32,4 +32,6 @@ from . import (
     zigbee,
 )
 
+_ = (actuators, esp32, sensors, shared, zigbee)
+
 __all__ = ["devices_api"]

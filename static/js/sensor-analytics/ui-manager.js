@@ -547,7 +547,17 @@
         this.elements.unitSelect.appendChild(opt);
       });
 
-      if (currentValue) this.elements.unitSelect.value = currentValue;
+      if (currentValue) {
+        // Restore previously selected value.
+        this.elements.unitSelect.value = currentValue;
+      } else if (this.units.length > 0 && !this.state.selectedUnit) {
+        // Auto-select the first available unit so the readings table populates
+        // immediately on page load without requiring manual filter selection.
+        const firstUnit = this.units[0];
+        const firstId = String(firstUnit.unit_id || firstUnit.id);
+        this.elements.unitSelect.value = firstId;
+        this.state.selectedUnit = firstId;
+      }
     }
 
     populateSensorSelect(resetSelection = false) {

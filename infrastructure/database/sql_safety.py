@@ -16,7 +16,8 @@ Usage::
     cols = safe_columns(user_data, ALLOWED, context="update_user")
     set_clause = ", ".join(f"{k} = ?" for k in cols)
     values = [cols[k] for k in cols]
-    db.execute(f"UPDATE Users SET {set_clause} WHERE id = ?", [*values, uid])
+    sql = "UPDATE Users SET " + set_clause + " WHERE id = ?"
+    db.execute(sql, [*values, uid])
 """
 
 from __future__ import annotations

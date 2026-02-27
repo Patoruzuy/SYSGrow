@@ -707,7 +707,7 @@ class UnifiedScheduler:
 
                 try:
                     self._executor.submit(self._execute_job, job_id, scheduled_for)
-                except Exception as e:
+                except RuntimeError as e:
                     logger.error("Failed to submit job %s to executor: %s", job_id, e, exc_info=True)
 
     def _execute_job(self, job_id: str, scheduled_for: datetime) -> None:

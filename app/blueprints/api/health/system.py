@@ -501,7 +501,7 @@ def register_system_routes(health_api: Blueprint):
         try:
             analytics_service = _analytics_service()
             analytics_cache_stats = analytics_service.get_cache_stats()
-        except Exception as e:
+        except (RuntimeError, ValueError, TypeError, AttributeError) as e:
             logger.warning("Could not get analytics cache stats: %s", e)
             analytics_cache_stats = {}
 

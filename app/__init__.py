@@ -176,26 +176,8 @@ def create_app(config_overrides: dict[str, Any] | None = None, *, bootstrap_runt
             "help_api",
             "blog_api",
             "docs_api",
-            # ML endpoints remain exempt (mostly read operations, lower risk)
-            "ml_predictions",
-            "ml_base",
-            "ml_models",
-            "ml_monitoring",
-            "ml_analytics",
-            "ml_retraining",
-            "ml",
-            "ml_analysis",
-            "ml_ab_testing",
-            "ml_continuous",
-            "ml_personalized",
-            "ml_training_data",
-            "ml_readiness",
-            # API endpoints (JSON-based, use auth tokens instead of CSRF)
-            "devices_api",
-            "growth_api",
-            "plants_api",
-            "settings_api",
-            "dashboard_api",
+            # Session-authenticated API blueprints are intentionally NOT exempt:
+            # mutating requests must present X-CSRF-Token.
         },
     ).init_app(flask_app)
 

@@ -36,5 +36,7 @@ from app.blueprints.api.analytics import (
     sensors,
 )
 
+_ = (actuators, batch, dashboard, efficiency, sensors)
+
 # Re-export for backwards compatibility
 __all__ = ["analytics_api"]

@@ -3,6 +3,9 @@
 # Run all:  pre-commit run --all-files
 # Update:   pre-commit autoupdate
 
+default_language_version:
+  python: python3.11
+
 repos:
   # ── Ruff (lint + format) ──────────────────────────────────────────
   - repo: https://github.com/astral-sh/ruff-pre-commit

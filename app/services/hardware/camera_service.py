@@ -123,21 +123,22 @@ class CameraService:
                 "Unit %s has camera enabled but no config; using defaults",
                 unit_id,
             )
+            missing_value = None
             return {
                 "camera_type": "esp32",
                 "ip_address": "192.168.1.100",
                 "port": 81,
                 "device_index": 0,
                 "usb_cam_index": 0,
-                "resolution": None,
-                "stream_url": None,
-                "username": None,
-                "password": None,
-                "quality": None,
-                "brightness": None,
-                "contrast": None,
-                "saturation": None,
-                "flip": None,
+                "resolution": missing_value,
+                "stream_url": missing_value,
+                "username": missing_value,
+                "password": missing_value,
+                "quality": missing_value,
+                "brightness": missing_value,
+                "contrast": missing_value,
+                "saturation": missing_value,
+                "flip": missing_value,
             }
 
         return None

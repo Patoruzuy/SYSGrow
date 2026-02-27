@@ -267,6 +267,47 @@ class PlantJournalService:
             observation_date=observation_date,
         )
 
+    def record_health_observation_validated(
+        self,
+        *,
+        unit_id: int,
+        health_status: str,
+        symptoms: list[str],
+        severity_level: int,
+        plant_id: int | None = None,
+        disease_type: str | None = None,
+        affected_parts: list[str] | None = None,
+        environmental_factors: dict[str, Any] | None = None,
+        treatment_applied: str | None = None,
+        plant_type: str | None = None,
+        growth_stage: str | None = None,
+        notes: str = "",
+        image_path: str | None = None,
+        user_id: int | None = None,
+        observation_date: str | None = None,
+    ) -> int | None:
+        """Validate and normalize a health observation before persistence."""
+        from app.domain.plant_journal_entity import PlantHealthObservationEntity
+
+        observation = PlantHealthObservationEntity(
+            unit_id=unit_id,
+            plant_id=plant_id,
+            health_status=health_status,
+            symptoms=symptoms,
+            disease_type=disease_type,
+            severity_level=severity_level,
+            affected_parts=affected_parts or [],
+            environmental_factors=environmental_factors or {},
+            treatment_applied=treatment_applied,
+            notes=notes,
+            plant_type=plant_type,
+            growth_stage=growth_stage,
+            image_path=image_path,
+            user_id=user_id,
+            observation_date=observation_date,
+        )
+        return self.record_health_observation(**observation.to_service_kwargs())
+
     # ========================================================================
     # Nutrients
     # ========================================================================

@@ -28,26 +28,21 @@ Date: January 2026
 from __future__ import annotations
 
 from datetime import timedelta
-from typing import Any, Dict
 
 from flask import Blueprint, Response, jsonify, request
 from pydantic import ValidationError
 
 from app.blueprints.api._common import (
     get_analytics_repo,
-    get_container,
-    get_device_repo,
+    get_irrigation_calculator,
     get_irrigation_service,
     get_manual_irrigation_service,
     get_plant_irrigation_model_service,
     get_plant_service,
     get_pump_calibration_service,
-    get_selected_unit_id,
-    get_unit_repo,
     get_user_id,
 )
 from app.schemas import (
-    IrrigationConfigRequest,
     IrrigationDelayRequest,
     IrrigationEligibilityTraceResponse,
     IrrigationExecutionLogResponse,
@@ -916,13 +911,11 @@ def get_irrigation_recommendations(plant_id: int) -> Response:
       503:
         description: Plant service not available
     """
-    from app.domain.irrigation_calculator import IrrigationCalculator
-
     plant_service = get_plant_service()
     if not plant_service:
         return error_response("Plant service not available", status=503)
 
-    calculator = IrrigationCalculator(plant_service)
+    calculator = get_irrigation_calculator()
 
     # Get current moisture from query param or sensor
     current_moisture = request.args.get("current_moisture", type=float)
@@ -1042,13 +1035,11 @@ def calculate_irrigation(plant_id: int) -> Response:
       503:
         description: Plant service not available
     """
-    from app.domain.irrigation_calculator import IrrigationCalculator
-
     plant_service = get_plant_service()
     if not plant_service:
         return jsonify({"ok": False, "error": {"message": "Plant service not available"}}), 503
 
-    calculator = IrrigationCalculator(plant_service)
+    calculator = get_irrigation_calculator()
 
     # Get optional params
     pump_flow_rate = request.args.get("pump_flow_rate", type=float)
@@ -1150,7 +1141,6 @@ def send_recommendation_notification(plant_id: int) -> Response:
         description: Plant service or notification service not available
     """
     from app.blueprints.api._common import get_notifications_service
-    from app.domain.irrigation_calculator import IrrigationCalculator
     from app.enums import NotificationSeverity, NotificationType
 
     plant_service = get_plant_service()
@@ -1162,7 +1152,7 @@ def send_recommendation_notification(plant_id: int) -> Response:
     if not plant:
         return jsonify({"ok": False, "error": {"message": "Plant not found"}}), 404
 
-    calculator = IrrigationCalculator(plant_service)
+    calculator = get_irrigation_calculator()
 
     # Get current moisture
     raw = request.get_json() or {}

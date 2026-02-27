@@ -22,7 +22,7 @@ from app.blueprints.api._common import (
     parse_datetime,
     success as _success,
 )
-from app.utils.http import safe_route
+from app.utils.http import safe_error, safe_route
 from app.utils.time import utc_now
 
 dashboard_api = Blueprint("dashboard_api", __name__)
@@ -53,14 +53,14 @@ def _get_service():
     if svc is None:
         try:
             from app.services.application.dashboard_service import DashboardService
-        except Exception as exc:
+        except ImportError as exc:
             logger.debug("DashboardService import unavailable; using legacy summary fallback: %s", exc)
             return None
 
         try:
             svc = DashboardService(container)
             container._dashboard_service = svc  # cache on container
-        except Exception as exc:
+        except (RuntimeError, ValueError, TypeError, AttributeError) as exc:
             logger.debug("DashboardService initialization failed; using legacy summary fallback: %s", exc)
             return None
     return svc
@@ -95,7 +95,8 @@ def _build_snapshot_or_analytics(container, selected_unit_id: int | None):
         return {}, {}, None
     try:
         current = analytics.get_latest_sensor_reading(unit_id=selected_unit_id) or {}
-    except Exception:
+    except (RuntimeError, ValueError, TypeError) as exc:
+        logger.debug("Dashboard snapshot fallback due to analytics read error: %s", exc)
         current = {}
     return current, {}, None
 
@@ -109,7 +110,8 @@ def _build_plants_summary(container, selected_unit_id, growth_service, plant_hea
         plants = unit.get("plants", []) if isinstance(unit, dict) else []
         current_plant = plants[0] if plants else None
         return plants, current_plant, None
-    except Exception:
+    except (RuntimeError, ValueError, TypeError, AttributeError) as exc:
+        logger.debug("Dashboard plants fallback due to growth-service error: %s", exc)
         return [], None, None
 
 
@@ -129,13 +131,15 @@ def _build_devices_summary(container, selected_unit_id):
     try:
         if sensor_service:
             sensors = sensor_service.list_sensors(unit_id=selected_unit_id) or []
-    except Exception:
+    except (RuntimeError, ValueError, TypeError) as exc:
+        logger.debug("Dashboard sensors fallback due to sensor-service error: %s", exc)
         sensors = []
 
     try:
         if actuator_service:
             actuators = actuator_service.list_actuators(unit_id=selected_unit_id) or []
-    except Exception:
+    except (RuntimeError, ValueError, TypeError) as exc:
+        logger.debug("Dashboard actuators fallback due to actuator-service error: %s", exc)
         actuators = []
 
     total_devices = len(sensors) + len(actuators)
@@ -204,7 +208,7 @@ def get_current_sensor_data() -> Response:
         unit_id = _resolve_unit_id()
         return _success(svc.get_current_sensor_data(unit_id))
     except RuntimeError as exc:
-        return _fail(str(exc), 503)
+        return safe_error(exc, 503, context="dashboard.current_sensor_data")
 
 
 @dashboard_api.get("/timeseries")
@@ -239,9 +243,9 @@ def get_timeseries() -> Response:
             )
         )
     except ValueError as exc:
-        return _fail(str(exc), 400)
+        return safe_error(exc, 400, context="dashboard.timeseries.parse")
     except RuntimeError as exc:
-        return _fail(str(exc), 503)
+        return safe_error(exc, 503, context="dashboard.timeseries")
 
 
 @dashboard_api.get("/actuators/recent-state")
@@ -309,7 +313,7 @@ def get_growth_stage() -> Response:
             return _fail("Container unavailable", 503)
         return _success(svc.get_growth_stage_info(_resolve_unit_id()))
     except RuntimeError as exc:
-        return _fail(str(exc), 503)
+        return safe_error(exc, 503, context="dashboard.growth_stage")
 
 
 @dashboard_api.get("/harvest-timeline")
@@ -322,7 +326,7 @@ def get_harvest_timeline() -> Response:
             return _fail("Container unavailable", 503)
         return _success(svc.get_harvest_timeline(_resolve_unit_id()))
     except RuntimeError as exc:
-        return _fail(str(exc), 503)
+        return safe_error(exc, 503, context="dashboard.harvest_timeline")
 
 
 @dashboard_api.get("/water-schedule")
@@ -335,7 +339,7 @@ def get_water_schedule() -> Response:
             return _fail("Container unavailable", 503)
         return _success(svc.get_water_schedule(_resolve_unit_id()))
     except RuntimeError as exc:
-        return _fail(str(exc), 503)
+        return safe_error(exc, 503, context="dashboard.water_schedule")
 
 
 @dashboard_api.get("/irrigation-status")

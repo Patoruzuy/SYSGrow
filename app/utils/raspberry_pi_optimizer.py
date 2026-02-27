@@ -142,8 +142,8 @@ class RaspberryPiOptimizer:
                     if line.startswith("MemTotal:"):
                         kb = int(line.split()[1])
                         return kb // 1024
-        except Exception:
-            pass
+        except (OSError, ValueError, TypeError) as exc:
+            logger.debug("Unable to read RAM info from /proc/meminfo: %s", exc)
         return 4096  # Default assumption
 
     def get_optimized_config(self, base_config: dict[str, Any]) -> dict[str, Any]:
@@ -288,8 +288,8 @@ class RaspberryPiOptimizer:
             if temp_file.exists():
                 temp = int(temp_file.read_text()) / 1000.0
                 return temp
-        except Exception:
-            pass
+        except (OSError, ValueError, TypeError) as exc:
+            logger.debug("Unable to read CPU temperature: %s", exc)
         return None
 
 

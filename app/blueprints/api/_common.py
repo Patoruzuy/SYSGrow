@@ -374,6 +374,20 @@ def get_irrigation_service():
     return container.irrigation_workflow_service
 
 
+def get_irrigation_calculator():
+    """
+    Get shared irrigation calculator from the irrigation workflow service.
+
+    Raises:
+        RuntimeError: If workflow service or calculator is not available
+    """
+    service = get_irrigation_service()
+    calculator = getattr(service, "get_irrigation_calculator", lambda: None)()
+    if calculator is None:
+        raise RuntimeError("Irrigation calculator not available")
+    return calculator
+
+
 def get_manual_irrigation_service():
     """
     Get manual irrigation service from container.

@@ -341,16 +341,16 @@ class ZigbeeManagementService:
             if self.last_health.get("status") == "healthy":
                 self.is_online = True
             self._health_event.set()
-        except Exception:
-            pass
+        except (json.JSONDecodeError, TypeError, ValueError) as exc:
+            logger.debug("Invalid Zigbee health payload ignored: %s", exc)
 
     def _handle_rename_response(self, payload: str) -> None:
         """Handle device rename response"""
         try:
             self.last_rename_response = json.loads(payload) if payload else {}
             self._rename_event.set()
-        except Exception:
-            pass
+        except (json.JSONDecodeError, TypeError, ValueError) as exc:
+            logger.debug("Invalid Zigbee rename payload ignored: %s", exc)
 
     def _handle_state_message(self, friendly_name: str, payload: str) -> None:
         """Handle device state message"""

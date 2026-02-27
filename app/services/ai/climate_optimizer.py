@@ -415,8 +415,11 @@ class ClimateOptimizer:
                     )
                     light_start = start_t.strftime("%H:%M")
                     light_end = end_t.strftime("%H:%M")
-                except Exception:
-                    pass  # Non-critical; schedule calculation is best-effort
+                except (RuntimeError, ValueError, TypeError) as exc:
+                    logger.debug(
+                        "Unable to resolve sun-time schedule for lighting recommendation: %s",
+                        exc,
+                    )
 
             return LightingRecommendation(
                 hours_per_day=hours,

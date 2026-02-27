@@ -69,8 +69,8 @@ def register_unit_routes(health_api: Blueprint):
                 actuators = actuator_svc.list_actuators(unit_id)
                 sensor_count = len(sensors) if sensors else 0
                 actuator_count = len(actuators) if actuators else 0
-            except Exception:
-                pass
+            except (RuntimeError, ValueError, TypeError) as exc:
+                logger.debug("Falling back to zero device counts for unit %s: %s", unit_id, exc)
 
             # Get climate controller health from growth service
             controller = growth_service._climate_controllers.get(unit_id)
@@ -171,8 +171,8 @@ def register_unit_routes(health_api: Blueprint):
         try:
             sensors = sensor_svc.list_sensors(unit_id) or []
             actuators = actuator_svc.list_actuators(unit_id) or []
-        except Exception:
-            pass
+        except (RuntimeError, ValueError, TypeError) as exc:
+            logger.debug("Falling back to empty device lists for unit %s: %s", unit_id, exc)
 
         # Determine status
         if is_running and stale_sensor_count == 0:

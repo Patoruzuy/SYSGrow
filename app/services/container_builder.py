@@ -94,6 +94,7 @@ from infrastructure.database.repositories.notifications import NotificationRepos
 from infrastructure.database.repositories.plant_journal import PlantJournalRepository
 from infrastructure.database.repositories.plants import PlantRepository
 from infrastructure.database.repositories.schedules import ScheduleRepository
+from infrastructure.database.repositories.sensor_anomaly import SensorAnomalyRepository
 from infrastructure.database.repositories.settings import SettingsRepository
 from infrastructure.database.repositories.units import UnitRepository
 from infrastructure.database.sqlite_handler import SQLiteDatabaseHandler
@@ -761,8 +762,8 @@ class ContainerBuilder:
             try:
                 if hasattr(utils.sensor_processor, "set_resolve_sensor"):
                     utils.sensor_processor.set_resolve_sensor(mqtt_sensor_service._get_sensor_entity)
-            except Exception:
-                pass
+            except AttributeError as exc:
+                logger.debug("Sensor resolver wiring skipped: %s", exc)
             logger.info("✓ MQTTSensorService initialized (Zigbee + ESP32)")
         else:
             logger.info("⚠️  MQTT disabled, MQTTSensorService not initialized")
@@ -812,7 +813,8 @@ class ContainerBuilder:
         plant_catalog = PlantJsonHandler()
 
         # Anomaly detection and system health
-        anomaly_detection_service = AnomalyDetectionService()
+        sensor_anomaly_repo = SensorAnomalyRepository(infra.database)
+        anomaly_detection_service = AnomalyDetectionService(anomaly_repo=sensor_anomaly_repo)
         system_health_service = SystemHealthService(
             anomaly_service=anomaly_detection_service, alert_service=infra.alert_service
         )

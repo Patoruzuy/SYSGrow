@@ -35,4 +35,6 @@ def internal_error(error) -> Response:
 # Import submodules to register routes (must be after blueprint creation)
 from . import camera, schedules, thresholds, units
 
+_ = (camera, schedules, thresholds, units)
+
 __all__ = ["growth_api"]

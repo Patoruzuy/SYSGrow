@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from flask import Response, request
 from pydantic import ValidationError
@@ -28,7 +28,6 @@ from app.blueprints.api._common import (
     get_scheduling_service as _scheduling_service,
     success as _success,
 )
-from app.domain.schedules import PhotoperiodConfig, Schedule
 from app.enums import PhotoperiodSource, ScheduleType
 from app.schemas.growth import (
     ScheduleCreateSchema,
@@ -149,36 +148,8 @@ def create_schedule(unit_id: int) -> Response:
     except ValidationError as ve:
         return _fail("Invalid schedule data", 400, details={"errors": ve.errors()})
 
-    # Build photoperiod config if provided
-    photoperiod = None
-    if payload.photoperiod:
-        photoperiod = PhotoperiodConfig(
-            source=payload.photoperiod.source,
-            sensor_threshold=payload.photoperiod.sensor_threshold,
-            sensor_tolerance=payload.photoperiod.sensor_tolerance,
-            prefer_sensor=payload.photoperiod.prefer_sensor,
-            min_light_hours=payload.photoperiod.min_light_hours,
-            max_light_hours=payload.photoperiod.max_light_hours,
-        )
-
-    # Create schedule entity
-    schedule = Schedule(
-        unit_id=unit_id,
-        name=payload.name,
-        device_type=payload.device_type,
-        actuator_id=payload.actuator_id,
-        schedule_type=payload.schedule_type,
-        start_time=payload.start_time,
-        end_time=payload.end_time,
-        interval_minutes=payload.interval_minutes,
-        duration_minutes=payload.duration_minutes,
-        days_of_week=payload.days_of_week,
-        enabled=payload.enabled,
-        state_when_active=payload.state_when_active,
-        value=payload.value,
-        photoperiod=photoperiod,
-        priority=payload.priority,
-    )
+    # Create schedule entity via service helper (keeps domain construction out of blueprint)
+    schedule = sched_service.build_schedule_from_payload(unit_id=unit_id, payload=payload)
 
     if not schedule.validate():
         return _fail("Invalid schedule configuration", 400)
@@ -272,14 +243,7 @@ def update_schedule(unit_id: int, schedule_id: int) -> Response:
     if payload.priority is not None:
         existing.priority = payload.priority
     if payload.photoperiod is not None:
-        existing.photoperiod = PhotoperiodConfig(
-            source=payload.photoperiod.source,
-            sensor_threshold=payload.photoperiod.sensor_threshold,
-            sensor_tolerance=payload.photoperiod.sensor_tolerance,
-            prefer_sensor=payload.photoperiod.prefer_sensor,
-            min_light_hours=payload.photoperiod.min_light_hours,
-            max_light_hours=payload.photoperiod.max_light_hours,
-        )
+        existing.photoperiod = sched_service.build_photoperiod_config(payload.photoperiod)
 
     existing.updated_at = datetime.now()
 
@@ -372,17 +336,45 @@ def bulk_update_schedules(unit_id: int) -> Response:
     schedule_ids = raw.get("schedule_ids", [])
     action = raw.get("action", "").lower()
 
-    if not schedule_ids:
+    if not isinstance(schedule_ids, list) or not schedule_ids:
         return _fail("'schedule_ids' is required and must be a non-empty list", 400)
 
     if action not in ("enable", "disable", "delete"):
         return _fail("'action' must be one of: enable, disable, delete", 400)
 
+    normalized_ids: list[int] = []
+    invalid_ids: list[object] = []
+    for raw_id in schedule_ids:
+        try:
+            normalized_ids.append(int(raw_id))
+        except (TypeError, ValueError):
+            invalid_ids.append(raw_id)
+    if invalid_ids:
+        return _fail("'schedule_ids' must contain integer values", 400, details={"invalid_ids": invalid_ids})
+
     # Validate all schedules belong to this unit
     results = {"success": [], "failed": [], "not_found": []}
+    action_handlers = {
+        "enable": lambda sid: sched_service.set_schedule_enabled(sid, True),
+        "disable": lambda sid: sched_service.set_schedule_enabled(sid, False),
+        "delete": sched_service.delete_schedule,
+    }
+    apply_action = action_handlers[action]
 
-    for schedule_id in schedule_ids:
-        existing = sched_service.get_schedule(schedule_id)
+    for schedule_id in normalized_ids:
+        try:
+            existing = sched_service.get_schedule(schedule_id)
+        except Exception as exc:
+            logger.exception(
+                "Bulk %s failed while loading schedule %s for unit %s: %s",
+                action,
+                schedule_id,
+                unit_id,
+                exc,
+            )
+            results["failed"].append({"id": schedule_id, "error": "Failed to load schedule"})
+            continue
+
         if not existing:
             results["not_found"].append(schedule_id)
             continue
@@ -391,19 +383,22 @@ def bulk_update_schedules(unit_id: int) -> Response:
             results["failed"].append({"id": schedule_id, "error": "Schedule does not belong to this unit"})
             continue
         try:
-            if action == "enable":
-                success = sched_service.set_schedule_enabled(schedule_id, True)
-            elif action == "disable":
-                success = sched_service.set_schedule_enabled(schedule_id, False)
-            else:  # delete
-                success = sched_service.delete_schedule(schedule_id)
+            success = bool(apply_action(schedule_id))
+        except Exception as exc:
+            logger.exception(
+                "Bulk %s failed while applying schedule %s for unit %s: %s",
+                action,
+                schedule_id,
+                unit_id,
+                exc,
+            )
+            results["failed"].append({"id": schedule_id, "error": f"Failed to {action} schedule"})
+            continue
 
-            if success:
-                results["success"].append(schedule_id)
-            else:
-                results["failed"].append({"id": schedule_id, "error": f"Failed to {action} schedule"})
-        except Exception as e:
-            results["failed"].append({"id": schedule_id, "error": str(e)})
+        if success:
+            results["success"].append(schedule_id)
+        else:
+            results["failed"].append({"id": schedule_id, "error": f"Failed to {action} schedule"})
 
     logger.info(
         f"Bulk {action}: {len(results['success'])} success, "
@@ -468,7 +463,7 @@ def get_active_schedules(unit_id: int) -> Response:
     if unit_timezone:
         try:
             tz = ZoneInfo(unit_timezone)
-        except Exception:
+        except (TypeError, ValueError, ZoneInfoNotFoundError):
             logger.warning(
                 "Invalid timezone '%s' for unit %s; using system time",
                 unit_timezone,

@@ -36,7 +36,7 @@ def main(argv: list[str] | None = None) -> int:
         finally:
             try:
                 container.shutdown()
-            except Exception:
+            except (RuntimeError, OSError, AttributeError, TypeError):
                 logger.exception("Failed to shut down scheduler cleanly")
                 return 1
         return 0
@@ -77,14 +77,14 @@ def main(argv: list[str] | None = None) -> int:
         if not args.key or not args.value:
             print("Please specify filename and JSON value")
             return 2
-        try:
-            import json as _json
+        import json as _json
 
+        try:
             obj = _json.loads(args.value)
             save_json(args.key, obj)
             print(f"Saved {args.key}")
             return 0
-        except Exception as e:
+        except (_json.JSONDecodeError, OSError, TypeError, ValueError) as e:
             print(f"Failed to write JSON: {e}")
             return 2
 

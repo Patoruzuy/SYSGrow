@@ -102,7 +102,7 @@ def register_device_routes(health_api: Blueprint):
                             else:
                                 unit_offline += 1
                                 offline_sensors += 1
-                        except Exception:
+                        except (RuntimeError, ValueError, TypeError, AttributeError):
                             unit_offline += 1
                             offline_sensors += 1
                     else:
@@ -135,7 +135,7 @@ def register_device_routes(health_api: Blueprint):
                     },
                     "actuators": {"total": len(actuators), "operational": unit_operational, "failed": unit_failed},
                 }
-            except Exception as e:
+            except (RuntimeError, ValueError, TypeError, AttributeError) as e:
                 logger.warning("Error processing unit %s devices: %s", unit_id, e)
                 continue
 

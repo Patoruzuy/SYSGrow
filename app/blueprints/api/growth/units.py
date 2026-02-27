@@ -22,12 +22,12 @@ from app.blueprints.api._common import (
     get_user_id,
     success as _success,
 )
-from app.domain.schedules import Schedule
 from app.enums.common import ConditionProfileMode, ConditionProfileTarget
 from app.schemas.growth import (
     CreateGrowthUnitRequest,
     CreateUnitPayload,
     GrowthUnitResponse,
+    ScheduleCreateSchema,
     UpdateGrowthUnitRequest,
     UpdateUnitPayload,
 )
@@ -111,7 +111,12 @@ def _apply_condition_profile_to_unit(
         try:
             growth_service = _service()
             growth_service.update_unit_thresholds(unit_id, env_thresholds)
-        except Exception:
+        except RuntimeError as exc:
+            logger.info(
+                "Growth service threshold update unavailable for unit %s; using ThresholdService fallback: %s",
+                unit_id,
+                exc,
+            )
             threshold_service.update_unit_thresholds(unit_id, env_thresholds)
 
     profile_service.link_condition_profile(
@@ -135,7 +140,7 @@ def _create_unit_device_schedules(
         return
     try:
         sched_service = _scheduling_service()
-    except Exception as exc:
+    except RuntimeError as exc:
         logger.warning("Scheduling service unavailable for unit %s: %s", unit_id, exc)
         return
 
@@ -152,13 +157,22 @@ def _create_unit_device_schedules(
                 device_type,
             )
             continue
-        schedule = Schedule.from_legacy_device_schedule(
-            unit_id=unit_id,
-            device_type=str(device_type).lower(),
-            start_time=start_time,
-            end_time=end_time,
-            enabled=bool(schedule_data.get("enabled", True)),
-        )
+        normalized_device_type = str(device_type).lower()
+        schedule_type = "photoperiod" if normalized_device_type == "light" else "simple"
+        try:
+            payload = ScheduleCreateSchema(
+                name=f"{str(device_type).title()} Schedule",
+                device_type=normalized_device_type,
+                schedule_type=schedule_type,
+                start_time=start_time,
+                end_time=end_time,
+                enabled=bool(schedule_data.get("enabled", True)),
+            )
+        except ValidationError as exc:
+            logger.warning("Skipping schedule for unit %s device %s: invalid payload (%s)", unit_id, device_type, exc)
+            continue
+
+        schedule = sched_service.build_schedule_from_payload(unit_id=unit_id, payload=payload)
         created = sched_service.create_schedule(
             schedule,
             check_conflicts=True,
@@ -204,9 +218,9 @@ def list_units() -> Response:
 
         # Pydantic models are JSON-serializable; wrap in standard envelope.
         return _success([u.model_dump() for u in typed_units])
-    except Exception as e:
-        logger.exception("Error listing units via endpoint: %s", e)
-        return _fail("Failed to list growth units", 500)
+    except RuntimeError as exc:
+        logger.warning("Growth service unavailable while listing units: %s", exc)
+        return safe_error(exc, 503, context="growth.units.list")
 
 
 @growth_api.post("/v2/units")
@@ -228,12 +242,12 @@ def create_unit() -> Response:
             if "device_schedules" in payload_data:
                 try:
                     typed = CreateUnitPayload(**payload_data)
-                except Exception:
+                except ValidationError:
                     typed = CreateGrowthUnitRequest(**payload_data)
             else:
                 try:
                     typed = CreateGrowthUnitRequest(**payload_data)
-                except Exception:
+                except ValidationError:
                     typed = CreateUnitPayload(**payload_data)
         except ValidationError as ve:
             return _fail("Invalid growth unit payload", 400, details={"errors": ve.errors()})
@@ -261,19 +275,11 @@ def create_unit() -> Response:
             return _fail("Failed to create growth unit", 500)
 
         if device_schedules:
-            try:
-                _create_unit_device_schedules(
-                    unit_id=unit_id,
-                    user_id=user_id,
-                    device_schedules=device_schedules,
-                )
-            except Exception as exc:
-                logger.error(
-                    "Failed to create device schedules for unit %s: %s",
-                    unit_id,
-                    exc,
-                    exc_info=True,
-                )
+            _create_unit_device_schedules(
+                unit_id=unit_id,
+                user_id=user_id,
+                device_schedules=device_schedules,
+            )
 
         condition_profile = None
         try:
@@ -298,9 +304,9 @@ def create_unit() -> Response:
         if condition_profile:
             payload["condition_profile"] = condition_profile
         return _success(payload, status=201)
-    except Exception as e:
-        logger.exception("Error creating growth unit: %s", e)
-        return _fail("Failed to create growth unit", 500)
+    except RuntimeError as exc:
+        logger.warning("Growth service unavailable while creating unit: %s", exc)
+        return safe_error(exc, 503, context="growth.units.create")
 
 
 @growth_api.get("/units/<int:unit_id>")
@@ -316,9 +322,9 @@ def get_unit(unit_id: int) -> Response:
 
         return _success(unit)
 
-    except Exception as e:
-        logger.exception("Error getting unit %s: %s", unit_id, e)
-        return _fail("Failed to get growth unit", 500)
+    except RuntimeError as exc:
+        logger.warning("Growth service unavailable while getting unit %s: %s", unit_id, exc)
+        return safe_error(exc, 503, context="growth.units.get")
 
 
 @growth_api.patch("/units/<int:unit_id>")
@@ -367,9 +373,9 @@ def update_unit(unit_id: int) -> Response:
     except ValueError as e:
         logger.warning("Validation error updating unit: %s", e)
         return safe_error(e, 400)
-    except Exception as e:
-        logger.exception("Error updating unit %s: %s", unit_id, e)
-        return _fail("Failed to update growth unit", 500)
+    except RuntimeError as exc:
+        logger.warning("Growth service unavailable while updating unit %s: %s", unit_id, exc)
+        return safe_error(exc, 503, context="growth.units.update")
 
 
 @growth_api.delete("/units/<int:unit_id>")
@@ -386,9 +392,9 @@ def delete_unit(unit_id: int) -> Response:
 
         return _success({"message": "Growth unit removed successfully"})
 
-    except Exception as e:
-        logger.exception("Error deleting unit %s: %s", unit_id, e)
-        return _fail("Failed to delete growth unit", 500)
+    except RuntimeError as exc:
+        logger.warning("Growth service unavailable while deleting unit %s: %s", unit_id, exc)
+        return safe_error(exc, 503, context="growth.units.delete")
 
 
 @growth_api.patch("/v2/units/<int:unit_id>")
@@ -440,9 +446,9 @@ def update_unit_v2(unit_id: int) -> Response:
 
         latest = _service().get_unit(unit_id) or unit
         return _success(_unit_to_response(latest or current).model_dump())
-    except Exception as e:
-        logger.exception("Error updating growth unit: %s", e)
-        return _fail("Failed to update growth unit", 500)
+    except RuntimeError as exc:
+        logger.warning("Growth service unavailable while updating unit v2 %s: %s", unit_id, exc)
+        return safe_error(exc, 503, context="growth.units.update_v2")
 
 
 @growth_api.delete("/v2/units/<int:unit_id>")
@@ -458,6 +464,6 @@ def delete_unit_v2(unit_id: int) -> Response:
 
         _service().delete_unit(unit_id)
         return _success({"unit_id": unit_id, "message": "Growth unit deleted"})
-    except Exception as e:
-        logger.exception("Error deleting growth unit: %s", e)
-        return _fail("Failed to delete growth unit", 500)
+    except RuntimeError as exc:
+        logger.warning("Growth service unavailable while deleting unit v2 %s: %s", unit_id, exc)
+        return safe_error(exc, 503, context="growth.units.delete_v2")

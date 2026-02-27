@@ -43,4 +43,6 @@ def internal_error(error) -> Response:
 # Import submodules to register routes (must be after blueprint creation)
 from . import actuators, crud, health, intelligence, journal, journal_extended, lifecycle, sensors
 
+_ = (actuators, crud, health, intelligence, journal, journal_extended, lifecycle, sensors)
+
 __all__ = ["plants_api"]

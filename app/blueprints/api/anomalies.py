@@ -22,21 +22,14 @@ logger = logging.getLogger(__name__)
 anomalies_api = Blueprint("anomalies_api", __name__)
 
 
-def _get_anomaly_repo():
-    """Resolve the SensorAnomalyRepository from the app container."""
+def _get_anomaly_service():
+    """Resolve the anomaly service from the app container."""
     from flask import current_app
 
     container = current_app.config.get("CONTAINER")
     if not container:
         return None
-    # Try direct attribute first, fall back to building one on the fly
-    repo = getattr(container, "sensor_anomaly_repo", None)
-    if repo:
-        return repo
-    # Fallback: construct from the database handler
-    from infrastructure.database.repositories.sensor_anomaly import SensorAnomalyRepository
-
-    return SensorAnomalyRepository(container.database)
+    return getattr(container, "anomaly_detection_service", None)
 
 
 @anomalies_api.get("/")
@@ -56,8 +49,8 @@ def list_anomalies() -> Response:
     Returns:
         ``{"anomalies": [...], "total": <int>}``
     """
-    repo = _get_anomaly_repo()
-    if not repo:
+    anomaly_service = _get_anomaly_service()
+    if not anomaly_service:
         return error_response("Anomaly service not available", 500)
 
     sensor_id = request.args.get("sensor_id", type=int)
@@ -67,7 +60,7 @@ def list_anomalies() -> Response:
     include_resolved = request.args.get("resolved", "false").lower() in {"1", "true", "yes"}
     limit = min(request.args.get("limit", 100, type=int), 500)
 
-    anomalies = repo.list_recent(
+    anomalies = anomaly_service.list_recent_anomalies(
         sensor_id=sensor_id,
         unit_id=unit_id,
         since=since,
@@ -91,10 +84,10 @@ def anomaly_summary() -> Response:
     Returns:
         ``{"active_count": <int>}``
     """
-    repo = _get_anomaly_repo()
-    if not repo:
+    anomaly_service = _get_anomaly_service()
+    if not anomaly_service:
         return error_response("Anomaly service not available", 500)
 
     sensor_id = request.args.get("sensor_id", type=int)
-    active = repo.count_active(sensor_id=sensor_id)
+    active = anomaly_service.count_active_anomalies(sensor_id=sensor_id)
     return success_response({"active_count": active})

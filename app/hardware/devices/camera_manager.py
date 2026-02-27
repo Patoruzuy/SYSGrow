@@ -73,8 +73,8 @@ class CameraHandler(CameraBase):
                 try:
                     if self.cap:
                         self.cap.release()
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logging.getLogger(__name__).debug("Failed releasing unavailable USB camera: %s", exc)
                 raise RuntimeError(f"USB camera index {usb_cam_index} not available")
             self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
             self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
@@ -99,8 +99,8 @@ class CameraHandler(CameraBase):
                 try:
                     if self.cap:
                         self.cap.release()
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logging.getLogger(__name__).debug("Failed releasing unavailable RTSP camera stream: %s", exc)
                 raise RuntimeError("Failed to open RTSP stream. Check URL/credentials/network.")
 
         elif camera_type in ["mjpeg", "http"]:

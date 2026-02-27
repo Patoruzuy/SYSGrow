@@ -625,8 +625,8 @@ class EnergyAnalyticsService:
                     power_readings = self.device_repo.get_actuator_power_readings(act_id, limit=1)
                     if power_readings:
                         current_power += power_readings[0].get("power_watts", 0.0)
-                except Exception:
-                    pass
+                except (RuntimeError, ValueError, TypeError, AttributeError) as exc:
+                    logger.debug("Skipping actuator power sample for unit %s due to read error: %s", unit_id, exc)
 
             return {
                 "unit_id": unit_id,

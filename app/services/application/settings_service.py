@@ -52,7 +52,7 @@ class SettingsService:
         self.repository.save_hotspot(ssid=ssid, encrypted_password=password)
         return {
             "ssid": ssid,
-            "password_present": True,
+            "password_present": bool(password),
         }
 
     # --- Camera ------------------------------------------------------------------

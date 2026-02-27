@@ -1,4 +1,7 @@
+import logging
 import os
+
+logger = logging.getLogger(__name__)
 
 try:
     import adafruit_ads1x15.ads1115 as ADS
@@ -515,8 +518,8 @@ class SystemConfigDefaults:
                 try:
                     bus.write_quick(addr)
                     devices.append(hex(addr))
-                except Exception:
-                    continue
+                except (OSError, RuntimeError):
+                    logger.debug("I2C probe failed for address 0x%02x", addr)
             return devices
         except Exception:
             return []

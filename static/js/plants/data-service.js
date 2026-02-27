@@ -38,8 +38,11 @@ class PlantsDataService {
                 journal: journal.status === 'fulfilled' ? journal.value : { entries: [] }
             };
             
-            // Use backend-computed summary (fallback to client-side calculation for compatibility)
-            data.healthScore = data.plantsHealth?.summary || this.calculateHealthScore(data.plantsHealth);
+            // Use backend-computed health_score from summary object.
+            // summary is { total, healthy, stressed, diseased, unknown, health_score, health_status }
+            // Fall back to client-side calculation when backend score is unavailable.
+            data.healthScore = data.plantsHealth?.summary?.health_score
+                ?? this.calculateHealthScore(data.plantsHealth);
             
             return data;
         } catch (error) {

@@ -78,6 +78,34 @@
   color: var(--text-primary);
 }
 
+/* Compact circular gauge variant (used on Plants page System Health card) */
+.gauge-container--compact {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  flex-shrink: 0;
+}
+
+.gauge-container--compact svg {
+  display: block;
+  width: 80px;
+  height: 80px;
+}
+
+/* Override default bottom-0 positioning → center the value inside the circle */
+.gauge-container--compact .gauge-value {
+  top: 50%;
+  bottom: auto;
+  transform: translate(-50%, -50%);
+  font-size: 1rem;
+  line-height: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 1px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
 .gauge-label {
   font-size: 0.75rem;
   color: var(--text-secondary);

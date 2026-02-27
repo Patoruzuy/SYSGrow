@@ -30,4 +30,6 @@ def internal_error(error) -> Response:
 # Note: light module removed - use /api/growth/v2/units/<id>/schedules instead
 from . import camera, database, environment, hotspot, notifications, retention, security, throttle
 
+_ = (camera, database, environment, hotspot, notifications, retention, security, throttle)
+
 __all__ = ["settings_api"]

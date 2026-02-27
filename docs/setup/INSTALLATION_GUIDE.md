@@ -3,7 +3,7 @@
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Python 3.8+ 
+- Python 3.11+
 - Git
 - SQLite3
 - Redis (optional, for caching)

@@ -37,6 +37,8 @@ def register_handlers():
         ml_handlers,
         sensor_handlers,
     )
+
+    _ = (ml_handlers, sensor_handlers)
     # from . import notification_handlers
     # from . import alert_handlers
 

@@ -365,8 +365,12 @@ class IrrigationExecutionService:
             try:
                 if self._actuator_service and actuator_id:
                     self._actuator_service.turn_off(actuator_id)
-            except Exception:
-                pass
+            except Exception as cleanup_exc:
+                logger.warning(
+                    "Failed to force actuator %s off during irrigation cleanup: %s",
+                    actuator_id,
+                    cleanup_exc,
+                )
             with contextlib.suppress(Exception):
                 close_valve()
 

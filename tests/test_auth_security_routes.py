@@ -56,10 +56,39 @@ def client(app):
     return app.test_client()
 
 
-def _set_user_session(client, *, username: str = "alice", user_id: int = 1) -> None:
+@pytest.fixture()
+def app_csrf_enforced(tmp_path, monkeypatch):
+    monkeypatch.setenv("SYSGROW_SECRET_KEY", "test-secret")
+    monkeypatch.setenv("SYSGROW_ENABLE_MQTT", "False")
+    monkeypatch.setenv("SYSGROW_ENABLE_REDIS", "False")
+    database_path = tmp_path / "csrf-enforced.db"
+    flask_app = create_app({"database_path": str(database_path), "debug": False})
+    flask_app.config["TESTING"] = False
+    try:
+        yield flask_app
+    finally:
+        container = flask_app.config.get("CONTAINER")
+        if container is not None:
+            container.shutdown()
+
+
+@pytest.fixture()
+def client_csrf_enforced(app_csrf_enforced):
+    return app_csrf_enforced.test_client()
+
+
+def _set_user_session(
+    client,
+    *,
+    username: str = "alice",
+    user_id: int = 1,
+    csrf_token: str | None = None,
+) -> None:
     with client.session_transaction() as session_obj:
         session_obj["user"] = username
         session_obj["user_id"] = user_id
+        if csrf_token is not None:
+            session_obj["_csrf_token"] = csrf_token
 
 
 def _auth_manager(client):
@@ -241,3 +270,31 @@ def test_generate_recovery_codes_returns_codes_on_success(client):
     assert data.get("count") == 2
     auth_manager.authenticate_user.assert_called_once_with("alice", "correct-password")
     auth_manager.generate_recovery_codes.assert_called_once_with(1)
+
+
+def test_api_write_rejects_authenticated_session_without_csrf_token(client_csrf_enforced):
+    _set_user_session(client_csrf_enforced)
+
+    response = client_csrf_enforced.post("/api/v1/devices/zigbee2mqtt/command", json={})
+    payload = response.get_json() or {}
+
+    assert response.status_code == 400
+    assert payload.get("ok") is False
+    assert payload.get("message") == "CSRF token missing or invalid"
+
+
+def test_api_write_allows_authenticated_session_with_valid_csrf_token(client_csrf_enforced):
+    csrf_token = "csrf-token-123"
+    _set_user_session(client_csrf_enforced, csrf_token=csrf_token)
+
+    response = client_csrf_enforced.post(
+        "/api/v1/devices/zigbee2mqtt/command",
+        json={},
+        headers={"X-CSRF-Token": csrf_token},
+    )
+    payload = response.get_json() or {}
+
+    # Route validation error proves request passed auth + CSRF middleware.
+    assert response.status_code == 400
+    assert payload.get("ok") is False
+    assert payload.get("message") == "friendly_name and command are required"

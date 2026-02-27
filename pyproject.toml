@@ -210,6 +210,8 @@ ignore = [
   "RUF015", # unnecessary-iterable-allocation-for-first-element
   "UP017",  # datetime-timezone-utc — prefer timezone.utc over Python 3.11+ UTC alias
 ]
+# Keep timezone.utc style even if UP017 gets explicitly selected on the CLI.
+unfixable = ["UP017"]
 
 # Do NOT auto-remove unused imports in __init__.py barrel files
 [tool.ruff.lint.per-file-ignores]
@@ -236,6 +238,7 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+minversion = "7.0"
 addopts = "-v --tb=short"
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",

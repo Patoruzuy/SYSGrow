@@ -379,8 +379,8 @@ def _get_current_environmental_data(unit_id: int) -> dict:
                     avg_data["humidity_variance_72h"] = variance
                 if moistures:
                     avg_data["avg_soil_moisture_72h"] = sum(moistures) / len(moistures)
-        except Exception:
-            pass
+        except (RuntimeError, ValueError, TypeError) as exc:
+            logger.debug("Failed to compute 72h environmental averages for unit %s: %s", unit_id, exc)
 
         return {
             "temperature": latest.get("temperature"),

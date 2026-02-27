@@ -253,8 +253,8 @@ class DatabaseMaintenanceService:
                         f"SELECT COUNT(*) FROM {table}"  # nosec B608
                     )
                     counts[table] = cursor.fetchone()[0]
-                except Exception:
-                    pass  # table may not exist
+                except Exception as exc:
+                    logger.debug("Skipping row count for table %s: %s", table, exc)
         finally:
             conn.close()
         return counts

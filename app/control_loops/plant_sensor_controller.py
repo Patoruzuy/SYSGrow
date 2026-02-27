@@ -102,8 +102,8 @@ class PlantSensorController(ThrottledAnalyticsWriter):
         for unsubscribe in self._unsubscribe_callbacks:
             try:
                 unsubscribe()
-            except Exception:
-                continue
+            except Exception as exc:
+                logger.debug("Failed to unsubscribe plant sensor callback for unit %s: %s", self.unit_id, exc)
         self._unsubscribe_callbacks = []
         logger.debug("PlantSensorController unsubscribed from events for unit %s", self.unit_id)
 

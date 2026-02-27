@@ -19,7 +19,7 @@ import contextlib
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from app.domain.irrigation import (
     DurationPrediction,
@@ -292,8 +292,8 @@ class IrrigationPredictor:
         if self._feature_engineer and hasattr(self._feature_engineer, "get_irrigation_model_features"):
             try:
                 return self._feature_engineer.get_irrigation_model_features(model_key)
-            except Exception:
-                pass
+            except (RuntimeError, ValueError, TypeError, AttributeError) as exc:
+                logger.debug("Falling back to default features for model %s: %s", model_key, exc)
         return self._default_irrigation_features(model_key)
 
     @staticmethod
@@ -435,8 +435,8 @@ class IrrigationPredictor:
         if unit_timezone:
             try:
                 return dt.astimezone(ZoneInfo(unit_timezone))
-            except Exception:
-                pass
+            except (ValueError, TypeError, ZoneInfoNotFoundError) as exc:
+                logger.debug("Invalid timezone '%s'; using UTC timestamps: %s", unit_timezone, exc)
         return dt
 
     def predict_threshold(
@@ -1479,8 +1479,8 @@ class IrrigationPredictor:
                     ts = datetime.fromisoformat(timestamp_str)
                     timestamps.append(ts)
                     moistures.append(moisture)
-                except Exception:
-                    continue
+                except (ValueError, TypeError) as exc:
+                    logger.debug("Skipping malformed moisture history row for timing predictor: %s", exc)
 
             if len(timestamps) < 5:
                 return None

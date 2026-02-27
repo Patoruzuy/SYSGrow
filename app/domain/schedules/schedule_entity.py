@@ -430,30 +430,6 @@ class Schedule:
             updated_at=updated_at,
         )
 
-    @classmethod
-    def from_legacy_device_schedule(
-        cls,
-        unit_id: int,
-        device_type: str,
-        start_time: str,
-        end_time: str,
-        enabled: bool = True,
-    ) -> "Schedule":
-        """
-        Create Schedule from legacy DeviceSchedule format.
-
-        This helps migrate from the old device_schedules JSON column.
-        """
-        return cls(
-            unit_id=unit_id,
-            name=f"{device_type.title()} Schedule",
-            device_type=device_type,
-            schedule_type=ScheduleType.PHOTOPERIOD if device_type == "light" else ScheduleType.SIMPLE,
-            start_time=start_time,
-            end_time=end_time,
-            enabled=enabled,
-        )
-
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Schedule):
             return False

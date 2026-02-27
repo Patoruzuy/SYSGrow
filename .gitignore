@@ -4,6 +4,7 @@ __pycache__/
 *.egg-info/
 .pytest_cache
 .venv/
+.venv311/
 .env
 .vscode
 .git
@@ -11,6 +12,8 @@ __pycache__/
 .log
 .pyc
 .coude/
+.github/**/*.md
+
 
 venv/
 .env/
@@ -49,6 +52,8 @@ bandit_app_summary.txt
 bandit_report_app.json
 bandit_report.json
 bandit_services.json
+bandit_json.exit
+bandit_json_stdout.txt
 radon_cc_summary.txt
 radon_dashboard.json
 radon_top_f.txt
@@ -58,6 +63,7 @@ test_results.txt
 test_failures_detail.txt
 remaining_failures.txt
 
+reports/
 service_documentation_overview_20260214_161851.ipynb
 data/user_profiles/condition_profiles/user_1_condition_profiles.json
 data/user_profiles/condition_profiles/links/user_1_condition_profile_links.json

@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 
 import requests
 
@@ -12,8 +13,8 @@ MQTT_BROKER = "mqtt-broker.local"
 MQTT_TOPIC = "zigbee2mqtt/ESP32-C6-Relay/battery_warning"
 
 # Firebase Cloud Messaging (FCM) Configuration
-FCM_SERVER_KEY = "YOUR_FIREBASE_SERVER_KEY"
-FCM_DEVICE_TOKEN = "USER_DEVICE_FCM_TOKEN"
+FCM_SERVER_KEY = os.getenv("FCM_SERVER_KEY", "")
+FCM_DEVICE_TOKEN = os.getenv("FCM_DEVICE_TOKEN", "")
 
 
 def send_firebase_notification(voltage):

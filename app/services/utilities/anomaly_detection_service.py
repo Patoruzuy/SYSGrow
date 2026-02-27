@@ -10,7 +10,7 @@ import contextlib
 import logging
 from collections import deque
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from app.domain.anomaly import Anomaly
 from app.enums import AnomalyType
@@ -165,6 +165,36 @@ class AnomalyDetectionService:
                 expected_max=exp_max,
                 description=anomaly.description,
             )
+
+    def list_recent_anomalies(
+        self,
+        *,
+        sensor_id: int | None = None,
+        unit_id: int | None = None,
+        since: str | None = None,
+        severity_min: float | None = None,
+        include_resolved: bool = False,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        """Return persisted anomalies via the configured repository."""
+        if self._anomaly_repo is None:
+            logger.warning("Anomaly repository unavailable; returning empty anomaly list")
+            return []
+        return self._anomaly_repo.list_recent(
+            sensor_id=sensor_id,
+            unit_id=unit_id,
+            since=since,
+            severity_min=severity_min,
+            include_resolved=include_resolved,
+            limit=limit,
+        )
+
+    def count_active_anomalies(self, *, sensor_id: int | None = None) -> int:
+        """Count unresolved persisted anomalies via the configured repository."""
+        if self._anomaly_repo is None:
+            logger.warning("Anomaly repository unavailable; returning zero active anomalies")
+            return 0
+        return self._anomaly_repo.count_active(sensor_id=sensor_id)
 
     def _check_stuck_value(self, sensor_id: int, value: float, field_name: str, history: deque) -> Anomaly | None:
         """Check if value is stuck (not changing)"""

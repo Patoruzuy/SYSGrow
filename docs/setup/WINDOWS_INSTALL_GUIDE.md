@@ -6,7 +6,7 @@ This guide will help you install and run the SYSGrow backend on Windows 10/11.
 
 ### ✅ Prerequisites
 
-- **Python 3.8+** (Recommended: Python 3.11 or 3.12)
+- **Python 3.11+** (Recommended: Python 3.11 or 3.12)
 - **Git** (to clone the repository)
 - **PowerShell** or **Command Prompt** with administrator privileges
 

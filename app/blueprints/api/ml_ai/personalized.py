@@ -776,17 +776,17 @@ def get_recommendations(unit_id: int) -> Response:
         except Exception as exc:
             logger.warning("Failed to load latest sensor data for unit %s: %s", unit_id, exc)
 
-    from app.domain.sensors.fields import SensorField
-
     # Use standardized keys
-    lux_value = latest_data.get(SensorField.LUX.value) if isinstance(latest_data, dict) else None
+    temperature_key = "temperature"
+    humidity_key = "humidity"
+    soil_moisture_key = "soil_moisture"
+    lux_key = "lux"
+    lux_value = latest_data.get(lux_key) if isinstance(latest_data, dict) else None
 
     current_conditions = {
-        "temperature": latest_data.get(SensorField.TEMPERATURE.value, 25.0) if isinstance(latest_data, dict) else 25.0,
-        "humidity": latest_data.get(SensorField.HUMIDITY.value, 60.0) if isinstance(latest_data, dict) else 60.0,
-        "soil_moisture": latest_data.get(SensorField.SOIL_MOISTURE.value, 50.0)
-        if isinstance(latest_data, dict)
-        else 50.0,
+        "temperature": latest_data.get(temperature_key, 25.0) if isinstance(latest_data, dict) else 25.0,
+        "humidity": latest_data.get(humidity_key, 60.0) if isinstance(latest_data, dict) else 60.0,
+        "soil_moisture": latest_data.get(soil_moisture_key, 50.0) if isinstance(latest_data, dict) else 50.0,
         "lux": lux_value if lux_value is not None else 500.0,
     }
 

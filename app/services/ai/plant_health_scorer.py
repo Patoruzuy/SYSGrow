@@ -427,8 +427,8 @@ class PlantHealthScorer:
                 if isinstance(risk, dict):
                     return risk.get("risk_level", "low")
                 return str(risk) if risk else "low"
-            except Exception:
-                pass
+            except (RuntimeError, ValueError, TypeError, AttributeError) as exc:
+                logger.debug("Disease predictor fallback for unit %s: %s", unit_id, exc)
 
         # Simple rule-based fallback
         humidity = env_metrics.get("humidity")

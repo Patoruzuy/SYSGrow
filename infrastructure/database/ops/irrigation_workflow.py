@@ -1157,46 +1157,55 @@ class IrrigationWorkflowOperations:
             db = self.get_db()
             counts = {}
 
-            # Response predictor: needs user_response and context
-            base_where = "WHERE temperature_at_detection IS NOT NULL"
-            unit_clause = f" AND unit_id = {unit_id}" if unit_id else ""
+            response_where = "WHERE temperature_at_detection IS NOT NULL"
+            response_params: list[Any] = []
+            joined_where = "WHERE p.temperature_at_detection IS NOT NULL"
+            joined_params: list[Any] = []
+            if unit_id is not None:
+                response_where += " AND unit_id = ?"
+                response_params.append(unit_id)
+                joined_where += " AND p.unit_id = ?"
+                joined_params.append(unit_id)
 
             # Response predictor count
-            cur = db.execute(f"""
-                SELECT COUNT(*) FROM PendingIrrigationRequest
-                {base_where} {unit_clause}
-                AND user_response IN ('approve', 'delay', 'cancel')
-            """)
+            response_predictor_sql = (
+                "SELECT COUNT(*) FROM PendingIrrigationRequest "
+                f"{response_where} "
+                "AND user_response IN ('approve', 'delay', 'cancel')"
+            )
+            cur = db.execute(response_predictor_sql, response_params)
             counts["response_predictor"] = cur.fetchone()[0]
 
             # Threshold optimizer count (needs feedback)
-            cur = db.execute(f"""
-                SELECT COUNT(*) FROM PendingIrrigationRequest p
-                LEFT JOIN IrrigationFeedback f ON p.feedback_id = f.feedback_id
-                {base_where} {unit_clause}
-                AND f.feedback_response IN ('triggered_too_early', 'triggered_too_late')
-            """)
+            threshold_optimizer_sql = (
+                "SELECT COUNT(*) FROM PendingIrrigationRequest p "
+                "LEFT JOIN IrrigationFeedback f ON p.feedback_id = f.feedback_id "
+                f"{joined_where} "
+                "AND f.feedback_response IN ('triggered_too_early', 'triggered_too_late')"
+            )
+            cur = db.execute(threshold_optimizer_sql, joined_params)
             counts["threshold_optimizer"] = cur.fetchone()[0]
 
             # Duration optimizer count (needs execution result)
-            cur = db.execute(f"""
-                SELECT COUNT(*)
-                FROM PendingIrrigationRequest p
-                INNER JOIN IrrigationExecutionLog l
-                    ON l.request_id = p.request_id
-                {base_where} {unit_clause}
-                AND p.status = 'executed'
-                AND l.post_moisture IS NOT NULL
-            """)
+            duration_optimizer_sql = (
+                "SELECT COUNT(*) "
+                "FROM PendingIrrigationRequest p "
+                "INNER JOIN IrrigationExecutionLog l ON l.request_id = p.request_id "
+                f"{joined_where} "
+                "AND p.status = 'executed' "
+                "AND l.post_moisture IS NOT NULL"
+            )
+            cur = db.execute(duration_optimizer_sql, joined_params)
             counts["duration_optimizer"] = cur.fetchone()[0]
 
             # Timing predictor count (delayed with delay reason)
-            cur = db.execute(f"""
-                SELECT COUNT(*) FROM PendingIrrigationRequest
-                {base_where} {unit_clause}
-                AND user_response = 'delay'
-                AND hours_since_last_irrigation IS NOT NULL
-            """)
+            timing_predictor_sql = (
+                "SELECT COUNT(*) FROM PendingIrrigationRequest "
+                f"{response_where} "
+                "AND user_response = 'delay' "
+                "AND hours_since_last_irrigation IS NOT NULL"
+            )
+            cur = db.execute(timing_predictor_sql, response_params)
             counts["timing_predictor"] = cur.fetchone()[0]
 
             return counts

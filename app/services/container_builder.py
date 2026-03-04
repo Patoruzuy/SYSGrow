@@ -74,6 +74,7 @@ from app.services.hardware.camera_service import CameraService
 from app.services.hardware.mqtt_sensor_service import MQTTSensorService
 from app.services.hardware.pump_calibration import PumpCalibrationService
 from app.services.utilities.anomaly_detection_service import AnomalyDetectionService
+from app.services.utilities.database_maintenance_service import DatabaseMaintenanceService
 from app.services.utilities.email_service import EmailService
 from app.services.utilities.system_health_service import SystemHealthService
 from app.utils.emitters import EmitterService
@@ -90,6 +91,7 @@ from infrastructure.database.repositories.devices import DeviceRepository
 from infrastructure.database.repositories.growth import GrowthRepository
 from infrastructure.database.repositories.irrigation_ml import IrrigationMLRepository
 from infrastructure.database.repositories.irrigation_workflow import IrrigationWorkflowRepository
+from infrastructure.database.repositories.maintenance import MaintenanceRepository
 from infrastructure.database.repositories.notifications import NotificationRepository
 from infrastructure.database.repositories.plant_journal import PlantJournalRepository
 from infrastructure.database.repositories.plants import PlantRepository
@@ -127,6 +129,8 @@ class InfrastructureComponents:
     alert_service: AlertService
     notifications_service: NotificationsService
     irrigation_workflow_service: IrrigationWorkflowService
+    maintenance_repo: MaintenanceRepository
+    maintenance_service: DatabaseMaintenanceService
 
 
 @dataclass
@@ -281,6 +285,10 @@ class ContainerBuilder:
             email_service=email_service,
         )
 
+        # Maintenance repository and service
+        maintenance_repo = MaintenanceRepository(database)
+        maintenance_service = DatabaseMaintenanceService(maintenance_repo)
+
         # Irrigation workflow service (dependencies wired later)
         irrigation_workflow_service = IrrigationWorkflowService(
             workflow_repo=irrigation_workflow_repo,
@@ -312,6 +320,8 @@ class ContainerBuilder:
             alert_service=alert_service,
             notifications_service=notifications_service,
             irrigation_workflow_service=irrigation_workflow_service,
+            maintenance_repo=maintenance_repo,
+            maintenance_service=maintenance_service,
         )
 
     def build_mqtt_components(self) -> MQTTComponents:
@@ -1138,6 +1148,7 @@ class ContainerBuilder:
             "alert_service": infra.alert_service,
             "notifications_service": infra.notifications_service,
             "irrigation_workflow_service": infra.irrigation_workflow_service,
+            "maintenance_service": infra.maintenance_service,
             "plant_catalog": app.plant_catalog,
             "auth_manager": app.auth_manager,
             "threshold_service": app.threshold_service,

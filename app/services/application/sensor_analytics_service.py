@@ -11,6 +11,7 @@ time-series aggregation, photoperiod enrichment, and plant readings.
 from __future__ import annotations
 
 import logging
+import sqlite3
 from collections import defaultdict
 from datetime import datetime, timedelta
 from typing import Any
@@ -26,6 +27,18 @@ from infrastructure.database.repositories.devices import DeviceRepository
 from infrastructure.database.repositories.growth import GrowthRepository
 
 logger = logging.getLogger(__name__)
+
+ANALYTICS_RECOVERABLE_ERRORS = (
+    sqlite3.Error,
+    RuntimeError,
+    ValueError,
+    TypeError,
+    AttributeError,
+    LookupError,
+    OSError,
+    ImportError,
+    ArithmeticError,
+)
 
 
 class SensorAnalyticsService:
@@ -75,7 +88,7 @@ class SensorAnalyticsService:
                 else:
                     logger.debug("No sensor readings found")
                 return reading
-            except Exception as e:
+            except ANALYTICS_RECOVERABLE_ERRORS as e:
                 logger.error("Error fetching latest sensor reading: %s", e)
                 raise
 
@@ -91,7 +104,7 @@ class SensorAnalyticsService:
             else:
                 logger.debug("No energy readings found")
             return reading
-        except Exception as e:
+        except ANALYTICS_RECOVERABLE_ERRORS as e:
             logger.error("Error fetching latest energy reading: %s", e)
             raise
 
@@ -126,7 +139,7 @@ class SensorAnalyticsService:
             except ValueError as e:
                 logger.warning("Invalid date range: %s", e)
                 raise
-            except Exception as e:
+            except ANALYTICS_RECOVERABLE_ERRORS as e:
                 logger.error("Error fetching sensor history: %s", e)
                 raise
 
@@ -159,7 +172,7 @@ class SensorAnalyticsService:
                             day_start=sched.start_time or "06:00",
                             day_end=sched.end_time or "18:00",
                         )
-                except Exception as e:
+                except ANALYTICS_RECOVERABLE_ERRORS as e:
                     self.logger.debug("Failed to get photoperiod from schedule: %s", e)
 
             enriched = []
@@ -199,7 +212,7 @@ class SensorAnalyticsService:
             }
 
             return {"readings": enriched, "summary": summary, "unit_id": unit_id, "timestamp": utc_now().isoformat()}
-        except Exception as e:
+        except ANALYTICS_RECOVERABLE_ERRORS as e:
             self.logger.error("Error enriching sensor history: %s", e, exc_info=True)
             return {"error": str(e)}
 
@@ -239,7 +252,7 @@ class SensorAnalyticsService:
             logger.debug("Calculated statistics for %s readings", count)
             return stats
 
-        except Exception as e:
+        except ANALYTICS_RECOVERABLE_ERRORS as e:
             logger.error("Error calculating sensor statistics: %s", e)
             raise
 
@@ -261,7 +274,7 @@ class SensorAnalyticsService:
             return self.device_repo.get_sensor_summaries_for_unit(
                 unit_id, start_date=start_date, end_date=end_date, sensor_type=sensor_type, limit=limit
             )
-        except Exception as exc:
+        except ANALYTICS_RECOVERABLE_ERRORS as exc:
             logger.error("Error fetching sensor summaries for unit %s: %s", unit_id, exc)
             return []
 
@@ -277,7 +290,7 @@ class SensorAnalyticsService:
             return {}
         try:
             return self.device_repo.get_sensor_summary_stats_for_harvest(unit_id, start_date, end_date)
-        except Exception as exc:
+        except ANALYTICS_RECOVERABLE_ERRORS as exc:
             logger.error("Error fetching harvest summary stats for unit %s: %s", unit_id, exc)
             return {}
 
@@ -469,7 +482,7 @@ class SensorAnalyticsService:
             latest = self.get_latest_sensor_reading(unit_id=unit_id)
             stats = self.get_sensor_statistics(start, end, unit_id=unit_id)
             return {"unit_id": unit_id, "current": latest, "daily_stats": stats, "timestamp": end.isoformat()}
-        except Exception as e:
+        except ANALYTICS_RECOVERABLE_ERRORS as e:
             self.logger.error("Error generating environmental summary: %s", e, exc_info=True)
             return {"error": str(e)}
 
@@ -561,7 +574,7 @@ class SensorAnalyticsService:
                 row = self.growth_repo.get_unit(unit_id)
                 if row:
                     unit = dict(row) if hasattr(row, "keys") else None
-            except Exception as e:
+            except ANALYTICS_RECOVERABLE_ERRORS as e:
                 self.logger.warning("Failed to fetch unit %s for analytics: %s", unit_id, e)
 
         if unit_id is not None and self.scheduling_service:
@@ -577,7 +590,7 @@ class SensorAnalyticsService:
                         photoperiod_source = (
                             schedule.photoperiod.source.value if schedule.photoperiod.source else "schedule"
                         )
-            except Exception as e:
+            except ANALYTICS_RECOVERABLE_ERRORS as e:
                 self.logger.warning("Failed to get light schedule from SchedulingService: %s", e)
 
         if unit:
@@ -754,7 +767,7 @@ class SensorAnalyticsService:
                     try:
                         all_units = self.device_repo.list_units()
                         unit_ids = [u.get("unit_id") for u in all_units if u.get("unit_id")]
-                    except Exception as e:
+                    except ANALYTICS_RECOVERABLE_ERRORS as e:
                         self.logger.warning("Could not list units for cache warming: %s", e)
                         unit_ids = []
                 else:
@@ -777,14 +790,14 @@ class SensorAnalyticsService:
                     )
                     history_windows_cached += 1
                     units_processed += 1
-                except Exception as e:
+                except ANALYTICS_RECOVERABLE_ERRORS as e:
                     self.logger.warning("Error warming cache for unit %s: %s", uid, e)
                     continue
 
             try:
                 self.get_latest_sensor_reading(unit_id=None)
                 latest_readings_cached += 1
-            except Exception as e:
+            except ANALYTICS_RECOVERABLE_ERRORS as e:
                 self.logger.warning("Error warming global latest reading cache: %s", e)
 
             execution_time_ms = round((time.monotonic() - start_time) * 1000, 2)
@@ -804,7 +817,7 @@ class SensorAnalyticsService:
                 "execution_time_ms": execution_time_ms,
             }
 
-        except Exception as e:
+        except ANALYTICS_RECOVERABLE_ERRORS as e:
             self.logger.error("Error during cache warming: %s", e, exc_info=True)
             return {
                 "units_processed": units_processed,
@@ -837,7 +850,7 @@ class SensorAnalyticsService:
         """
         try:
             return self.repository.get_plant_readings(limit=limit, offset=offset)
-        except Exception as e:
+        except ANALYTICS_RECOVERABLE_ERRORS as e:
             self.logger.error("Error fetching plant readings: %s", e, exc_info=True)
             return []
 
@@ -849,7 +862,7 @@ class SensorAnalyticsService:
         """Get the latest readings for a specific plant."""
         try:
             return self.repository.get_latest_plant_readings(plant_id, limit=limit)
-        except Exception as e:
+        except ANALYTICS_RECOVERABLE_ERRORS as e:
             self.logger.error("Error fetching latest plant readings for plant %s: %s", plant_id, e, exc_info=True)
             return []
 
@@ -863,7 +876,7 @@ class SensorAnalyticsService:
         """Get plant readings within a time window."""
         try:
             return self.repository.get_plant_readings_in_window(plant_id, start=start, end=end)
-        except Exception as e:
+        except ANALYTICS_RECOVERABLE_ERRORS as e:
             self.logger.error("Error fetching plant readings in window for plant %s: %s", plant_id, e, exc_info=True)
             return []
 
@@ -881,6 +894,6 @@ class SensorAnalyticsService:
                 moisture_threshold=moisture_threshold,
                 hours_since_reading=hours_since_reading,
             )
-        except Exception as e:
+        except ANALYTICS_RECOVERABLE_ERRORS as e:
             self.logger.error("Error fetching plants needing attention for unit %s: %s", unit_id, e, exc_info=True)
             return []

@@ -65,6 +65,10 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+SENSOR_RUNTIME_ERRORS = (RuntimeError, ValueError, TypeError, AttributeError, LookupError, OSError)
+SENSOR_EVENT_ERRORS = SENSOR_RUNTIME_ERRORS
+SENSOR_ADAPTER_ERRORS = SENSOR_RUNTIME_ERRORS
+
 
 class SensorManagementService:
     """
@@ -211,7 +215,7 @@ class SensorManagementService:
             )
 
         # Notify listeners (e.g. MQTTSensorService) to refresh any friendly-name caches.
-        with contextlib.suppress(Exception):
+        with contextlib.suppress(*SENSOR_EVENT_ERRORS):
             self.event_bus.publish(DeviceEvent.SENSOR_CREATED, {"sensor_id": int(sensor_id), "unit_id": unit_id})
 
         return int(sensor_id)
@@ -245,10 +249,10 @@ class SensorManagementService:
                         try:
                             self._zigbee_service.remove_device(friendly_name=friendly_name)
                             logger.info("Removed sensor %s from Zigbee network: %s", sensor_id, friendly_name)
-                        except Exception as e:
+                        except SENSOR_RUNTIME_ERRORS as e:
                             logger.warning("Failed to remove sensor %s from Zigbee network: %s", sensor_id, e)
 
-            with contextlib.suppress(Exception):
+            with contextlib.suppress(*SENSOR_EVENT_ERRORS):
                 self.event_bus.publish(DeviceEvent.SENSOR_DELETED, {"sensor_id": int(sensor_id)})
 
     def read_sensor(self, sensor_id: int) -> SensorReading | None:
@@ -337,11 +341,12 @@ class SensorManagementService:
             logger.debug("Sensor %s reading: %s", sensor_id, reading.data)
             return reading
 
-        except Exception as e:
+        except SENSOR_RUNTIME_ERRORS as e:
             logger.error("Error reading sensor %s: %s", sensor_id, e, exc_info=True)
 
             # Emit error event
-            self.event_bus.publish("sensor_error", {"sensor_id": sensor_id, "error": str(e)})
+            with contextlib.suppress(*SENSOR_EVENT_ERRORS):
+                self.event_bus.publish("sensor_error", {"sensor_id": sensor_id, "error": str(e)})
 
             return None
 
@@ -489,7 +494,7 @@ class SensorManagementService:
 
             return True
 
-        except Exception as e:
+        except SENSOR_RUNTIME_ERRORS as e:
             logger.error("Error registering sensor %s: %s", sensor_id, e, exc_info=True)
             return False
 
@@ -537,7 +542,7 @@ class SensorManagementService:
                     try:
                         sensor._adapter.cleanup()
                         logger.debug("Cleaned up adapter for sensor %s", sensor_id)
-                    except Exception as e:
+                    except SENSOR_ADAPTER_ERRORS as e:
                         logger.warning("Adapter cleanup failed for sensor %s: %s", sensor_id, e)
 
                 # Remove from type index
@@ -570,7 +575,7 @@ class SensorManagementService:
             logger.info("Unregistered sensor %s", sensor_id)
             return True
 
-        except Exception as e:
+        except SENSOR_RUNTIME_ERRORS as e:
             logger.error("Error unregistering sensor %s: %s", sensor_id, e, exc_info=True)
             return False
 
@@ -605,7 +610,7 @@ class SensorManagementService:
 
             return started
 
-        except Exception as e:
+        except SENSOR_RUNTIME_ERRORS as e:
             logger.error("Error starting sensor polling: %s", e, exc_info=True)
             return False
 
@@ -620,7 +625,7 @@ class SensorManagementService:
             self.polling_service.stop_polling()
             logger.info("Stopped sensor polling")
             return True
-        except Exception as e:
+        except SENSOR_RUNTIME_ERRORS as e:
             logger.error("Error stopping sensor polling: %s", e, exc_info=True)
             return False
 
@@ -658,7 +663,7 @@ class SensorManagementService:
             logger.warning("Sensor %s not found", sensor_id)
             return None
 
-        except Exception as e:
+        except SENSOR_RUNTIME_ERRORS as e:
             logger.error("Error getting sensor %s: %s", sensor_id, e, exc_info=True)
             return None
 
@@ -675,7 +680,7 @@ class SensorManagementService:
         try:
             return self.repository.list_sensor_configs(unit_id=unit_id)
 
-        except Exception as e:
+        except SENSOR_RUNTIME_ERRORS as e:
             logger.error("Error listing sensors: %s", e, exc_info=True)
             return []
 
@@ -826,7 +831,7 @@ class SensorManagementService:
 
         try:
             return adapter.send_command(command)
-        except Exception as e:
+        except SENSOR_ADAPTER_ERRORS as e:
             logger.error("Error sending command to sensor %s: %s", sensor_id, e)
             return False
 
@@ -878,7 +883,7 @@ class SensorManagementService:
         if hasattr(sensor._adapter, "identify"):
             try:
                 return sensor._adapter.identify(duration)
-            except Exception as e:
+            except SENSOR_ADAPTER_ERRORS as e:
                 logger.error("Error identifying sensor %s: %s", sensor_id, e)
                 return False
 
@@ -906,7 +911,7 @@ class SensorManagementService:
         if hasattr(sensor._adapter, "get_device_info"):
             try:
                 return sensor._adapter.get_device_info()
-            except Exception as e:
+            except SENSOR_ADAPTER_ERRORS as e:
                 logger.error("Error getting device info for sensor %s: %s", sensor_id, e)
                 return None
 
@@ -930,7 +935,7 @@ class SensorManagementService:
         if sensor._adapter and hasattr(sensor._adapter, "get_state"):
             try:
                 return sensor._adapter.get_state()
-            except Exception as e:
+            except SENSOR_ADAPTER_ERRORS as e:
                 logger.error("Error getting state for sensor %s: %s", sensor_id, e)
 
         # Fallback to last reading
@@ -966,7 +971,7 @@ class SensorManagementService:
         if hasattr(sensor._adapter, "rename"):
             try:
                 return sensor._adapter.rename(new_name)
-            except Exception as e:
+            except SENSOR_ADAPTER_ERRORS as e:
                 logger.error("Error renaming sensor %s: %s", sensor_id, e)
                 return False
 
@@ -994,7 +999,7 @@ class SensorManagementService:
         if hasattr(sensor._adapter, "remove_from_network"):
             try:
                 return sensor._adapter.remove_from_network()
-            except Exception as e:
+            except SENSOR_ADAPTER_ERRORS as e:
                 logger.error("Error removing sensor %s from network: %s", sensor_id, e)
                 return False
 
@@ -1066,7 +1071,7 @@ class SensorManagementService:
 
             return status
 
-        except Exception as e:
+        except SENSOR_RUNTIME_ERRORS as e:
             logger.error("Error getting sensor %s status: %s", sensor_id, e, exc_info=True)
             return {"sensor_id": sensor_id, "error": str(e)}
 
@@ -1093,7 +1098,7 @@ class SensorManagementService:
             # Register in runtime
             return self.register_sensor_config(sensor)
 
-        except Exception as e:
+        except SENSOR_RUNTIME_ERRORS as e:
             logger.error("Error auto-registering sensor %s: %s", sensor_id, e, exc_info=True)
             return False
 
@@ -1121,12 +1126,13 @@ class SensorManagementService:
             dev_type = data.get("type", data.get("device_type", "unknown"))
 
             logger.info("Auto-discovered sensor: %s (%s)", friendly, dev_type)
-        except Exception as exc:
+        except SENSOR_RUNTIME_ERRORS as exc:
             logger.error("Failed to handle sensor discovery payload: %s", exc, exc_info=True)
             return
 
         # Emit event for user notification
-        self.event_bus.publish("sensor_discovered", data)
+        with contextlib.suppress(*SENSOR_EVENT_ERRORS):
+            self.event_bus.publish("sensor_discovered", data)
 
     # ==================== Operational Health ====================
 
@@ -1174,7 +1180,7 @@ class SensorManagementService:
 
             logger.info("SensorManagementService shutdown complete")
 
-        except Exception as e:
+        except SENSOR_RUNTIME_ERRORS as e:
             logger.error("Error during SensorManagementService shutdown: %s", e, exc_info=True)
 
 

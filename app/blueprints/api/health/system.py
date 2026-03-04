@@ -224,8 +224,6 @@ def register_system_routes(health_api: Blueprint):
             }
         """
 
-        from app.services.utilities.database_maintenance_service import DatabaseMaintenanceService
-
         container = _container()
         system_health = container.system_health_service
         database = container.database
@@ -234,11 +232,11 @@ def register_system_routes(health_api: Blueprint):
         # Check connection status
         status = system_health.check_database_health(db_handler=database)
 
-        # Get database file path
+        # Get database file path for the response (display only)
         db_path = getattr(config, "database_path", "database/sysgrow.db") if config else "database/sysgrow.db"
 
-        # Delegate size info and table counts to DatabaseMaintenanceService
-        maintenance = DatabaseMaintenanceService(db_path)
+        # Delegate size info and table counts to the pre-built maintenance service
+        maintenance = container.maintenance_service
 
         size_info = maintenance.get_database_size_info()
         size_info["path"] = str(db_path)

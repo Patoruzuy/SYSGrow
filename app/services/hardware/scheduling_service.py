@@ -43,6 +43,17 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+SCHEDULING_RECOVERABLE_ERRORS = (
+    RuntimeError,
+    ValueError,
+    TypeError,
+    AttributeError,
+    LookupError,
+    OSError,
+    ImportError,
+    ArithmeticError,
+)
+
 
 class ScheduleAction(str, Enum):
     """Actions for schedule history logging."""
@@ -385,7 +396,7 @@ class SchedulingService:
             logger.info("Loaded %d schedules for unit %s", len(schedules), unit_id)
             return len(schedules)
 
-        except Exception as e:
+        except SCHEDULING_RECOVERABLE_ERRORS as e:
             logger.error("Failed to load schedules for unit %s: %s", unit_id, e)
             with self._schedules_lock:
                 self._loaded_units.discard(unit_id)
@@ -449,7 +460,7 @@ class SchedulingService:
                     f"for {created.device_type} on unit {created.unit_id}"
                 )
             return created
-        except Exception as e:
+        except SCHEDULING_RECOVERABLE_ERRORS as e:
             logger.error("Failed to create schedule: %s", e, exc_info=True)
             return None
 
@@ -510,7 +521,7 @@ class SchedulingService:
             return None
         try:
             return self.repository.get_by_id(schedule_id)
-        except Exception as e:
+        except SCHEDULING_RECOVERABLE_ERRORS as e:
             logger.error("Failed to get schedule %s: %s", schedule_id, e)
             return None
 
@@ -555,7 +566,7 @@ class SchedulingService:
                 schedules = self.repository.get_by_unit(unit_id)
 
             return schedules
-        except Exception as e:
+        except SCHEDULING_RECOVERABLE_ERRORS as e:
             logger.error("Failed to get schedules for unit %s: %s", unit_id, e)
             return []
 
@@ -583,7 +594,7 @@ class SchedulingService:
             return []
         try:
             return self.repository.get_by_actuator(actuator_id)
-        except Exception as e:
+        except SCHEDULING_RECOVERABLE_ERRORS as e:
             logger.error("Failed to get schedules for actuator %s: %s", actuator_id, e)
             return []
 
@@ -620,7 +631,7 @@ class SchedulingService:
         if self.repository:
             try:
                 before_schedule = self.repository.get_by_id(schedule.schedule_id)
-            except Exception as e:
+            except SCHEDULING_RECOVERABLE_ERRORS as e:
                 logger.warning(
                     "Failed to fetch schedule %s before update: %s",
                     schedule.schedule_id,
@@ -658,7 +669,7 @@ class SchedulingService:
             if memory_was_updated and before_snapshot:
                 self._update_schedule_in_memory(before_snapshot)
             return False
-        except Exception as e:
+        except SCHEDULING_RECOVERABLE_ERRORS as e:
             logger.error("Failed to update schedule %s: %s", schedule.schedule_id, e)
             if memory_was_updated and before_snapshot:
                 self._update_schedule_in_memory(before_snapshot)
@@ -701,7 +712,7 @@ class SchedulingService:
         if not schedule and self.repository:
             try:
                 schedule = self.repository.get_by_id(schedule_id)
-            except Exception as e:
+            except SCHEDULING_RECOVERABLE_ERRORS as e:
                 logger.warning("Failed to fetch schedule %s for delete: %s", schedule_id, e)
             if schedule:
                 unit_id = schedule.unit_id
@@ -735,7 +746,7 @@ class SchedulingService:
             if removed_from_memory:
                 self._add_schedule_to_memory(removed_from_memory)
             return success
-        except Exception as e:
+        except SCHEDULING_RECOVERABLE_ERRORS as e:
             logger.error("Failed to delete schedule %s: %s", schedule_id, e)
             if removed_from_memory:
                 self._add_schedule_to_memory(removed_from_memory)
@@ -763,7 +774,7 @@ class SchedulingService:
             count = self.repository.delete_by_unit(unit_id)
             logger.info("Deleted %s schedules for unit %s", count, unit_id)
             return count
-        except Exception as e:
+        except SCHEDULING_RECOVERABLE_ERRORS as e:
             logger.error("Failed to delete schedules for unit %s: %s", unit_id, e)
             return 0
 
@@ -802,7 +813,7 @@ class SchedulingService:
         if not schedule and self.repository:
             try:
                 schedule = self.repository.get_by_id(schedule_id)
-            except Exception as e:
+            except SCHEDULING_RECOVERABLE_ERRORS as e:
                 logger.warning("Failed to fetch schedule %s for enable toggle: %s", schedule_id, e)
             if schedule:
                 unit_id = schedule.unit_id
@@ -844,7 +855,7 @@ class SchedulingService:
                 memory_schedule.enabled = previous_enabled
             schedule.enabled = previous_enabled
             return success
-        except Exception as e:
+        except SCHEDULING_RECOVERABLE_ERRORS as e:
             logger.error("Failed to set schedule %s enabled=%s: %s", schedule_id, enabled, e)
             if memory_schedule is not None:
                 memory_schedule.enabled = previous_enabled
@@ -1593,6 +1604,8 @@ class SchedulingService:
                             actuator_manager.turn_off(actuator_id)
                         results["actuators_synced"] += 1
                     except Exception as e:
+                        # Actuator manager is an injected runtime boundary that may wrap
+                        # arbitrary hardware adapters; keep syncing the rest.
                         error_msg = f"Actuator {actuator_id}: {e}"
                         results["errors"].append(error_msg)
                         logger.error("Startup sync failed: %s", error_msg)
@@ -1600,6 +1613,8 @@ class SchedulingService:
                 results["units_synced"] += 1
 
             except Exception as e:
+                # Keep unit-level startup sync resilient even if one unit has bad
+                # schedule data or an unexpected runtime failure.
                 results["errors"].append(f"Unit {unit_id}: {e}")
                 logger.error("Startup sync failed for unit %s: %s", unit_id, e)
 
@@ -1689,6 +1704,8 @@ class SchedulingService:
                 return result
 
             except Exception as e:
+                # Retry envelope intentionally catches unexpected actuator/runtime
+                # failures from the injected manager and underlying adapters.
                 result.error_message = str(e)
                 result.response_time_ms = int((time_module.time() - start_time) * 1000)
 
@@ -1788,7 +1805,7 @@ class SchedulingService:
                 user_id=user_id,
                 reason=reason,
             )
-        except Exception as e:
+        except SCHEDULING_RECOVERABLE_ERRORS as e:
             logger.debug("Failed to log schedule history: %s", e)
 
     def _log_execution(self, result: ExecutionResult):
@@ -1806,7 +1823,7 @@ class SchedulingService:
                 retry_count=result.retry_count,
                 response_time_ms=result.response_time_ms,
             )
-        except Exception as e:
+        except SCHEDULING_RECOVERABLE_ERRORS as e:
             logger.debug("Failed to log schedule execution: %s", e)
 
     def get_schedule_history(
@@ -1824,7 +1841,7 @@ class SchedulingService:
                 unit_id=unit_id,
                 limit=limit,
             )
-        except Exception as e:
+        except SCHEDULING_RECOVERABLE_ERRORS as e:
             logger.error("Failed to get schedule history: %s", e)
             return []
 
@@ -1841,7 +1858,7 @@ class SchedulingService:
                 schedule_id=schedule_id,
                 limit=limit,
             )
-        except Exception as e:
+        except SCHEDULING_RECOVERABLE_ERRORS as e:
             logger.error("Failed to get execution log: %s", e)
             return []
 

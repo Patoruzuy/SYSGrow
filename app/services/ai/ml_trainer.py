@@ -35,6 +35,22 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+TRAINING_RECOVERABLE_ERRORS = (
+    RuntimeError,
+    ValueError,
+    TypeError,
+    AttributeError,
+    LookupError,
+    OSError,
+    ImportError,
+    ArithmeticError,
+    MemoryError,
+)
+
+
+class TrainingCancelledError(RuntimeError):
+    """Raised when an in-flight model training run is cancelled."""
+
 
 @dataclass
 class TrainingMetrics:
@@ -141,7 +157,7 @@ class MLTrainerService:
             self.logger.info("Collected %s training samples for %s", len(df), model_type)
             return df
 
-        except Exception as e:
+        except TRAINING_RECOVERABLE_ERRORS as e:
             self.logger.error("Failed to collect training data: %s", e, exc_info=True)
             return pd.DataFrame()
 
@@ -171,7 +187,7 @@ class MLTrainerService:
 
             return df
 
-        except Exception as e:
+        except TRAINING_RECOVERABLE_ERRORS as e:
             self.logger.warning("Error cleaning data: %s", e)
             return df
 
@@ -193,7 +209,7 @@ class MLTrainerService:
 
             return df
 
-        except Exception as e:
+        except TRAINING_RECOVERABLE_ERRORS as e:
             self.logger.warning("Error engineering features: %s", e)
             return df
 
@@ -225,12 +241,9 @@ class MLTrainerService:
 
         start_time = datetime.now()
 
-        class TrainingCancelled(Exception):
-            pass
-
         def check_cancel() -> None:
             if cancel_event is not None and cancel_event.is_set():
-                raise TrainingCancelled("Training cancelled")
+                raise TrainingCancelledError("Training cancelled")
 
         def report_progress(progress: float, message: str | None = None) -> None:
             if progress_callback:
@@ -340,7 +353,9 @@ class MLTrainerService:
                     progress_end = 15 + (((idx + 1) / total_targets) * 70)
                     report_progress(progress_end, f"Completed target: {target}")
 
-                except Exception as e:
+                except TrainingCancelledError:
+                    raise
+                except TRAINING_RECOVERABLE_ERRORS as e:
                     self.logger.error("Failed to train %s model: %s", target, e)
                     results[target] = {"error": str(e)}
 
@@ -356,9 +371,9 @@ class MLTrainerService:
                 "training_time_seconds": round(training_time, 2),
             }
 
-        except Exception as e:
-            if str(e) == "Training cancelled":
-                return {"success": False, "error": "cancelled"}
+        except TrainingCancelledError:
+            return {"success": False, "error": "cancelled"}
+        except TRAINING_RECOVERABLE_ERRORS as e:
             self.logger.error("Failed to train climate model: %s", e, exc_info=True)
             return {"success": False, "error": str(e)}
 
@@ -599,7 +614,7 @@ class MLTrainerService:
                 "training_time_seconds": round(training_time, 2),
             }
 
-        except Exception as e:
+        except TRAINING_RECOVERABLE_ERRORS as e:
             self.logger.error("Failed to train disease model: %s", e, exc_info=True)
             return {"success": False, "error": str(e)}
 
@@ -627,7 +642,7 @@ class MLTrainerService:
                 "growth_stage_num": growth_stage_map.get(row.get("growth_stage", ""), 2),
                 "days_in_stage": row.get("days_in_stage", 0) or 0,
             }
-        except Exception as e:
+        except TRAINING_RECOVERABLE_ERRORS as e:
             self.logger.warning("Failed to extract disease features: %s", e)
             return None
 
@@ -676,7 +691,7 @@ class MLTrainerService:
 
             return samples
 
-        except Exception as e:
+        except TRAINING_RECOVERABLE_ERRORS as e:
             self.logger.warning("Failed to generate healthy samples: %s", e)
             return []
 
@@ -738,7 +753,7 @@ class MLTrainerService:
                 "min_training_samples": self.min_training_samples,
             }
 
-        except Exception as e:
+        except TRAINING_RECOVERABLE_ERRORS as e:
             self.logger.error("Failed to get training status: %s", e)
             return {"available": False, "error": str(e)}
 
@@ -914,7 +929,7 @@ class MLTrainerService:
                 "training_time_seconds": round(training_time, 2),
             }
 
-        except Exception as e:
+        except TRAINING_RECOVERABLE_ERRORS as e:
             if str(e) == "cancelled":
                 return {"success": False, "error": "cancelled"}
             self.logger.error("Failed to train irrigation threshold model: %s", e, exc_info=True)
@@ -1117,7 +1132,7 @@ class MLTrainerService:
                 "training_time_seconds": round(training_time, 2),
             }
 
-        except Exception as e:
+        except TRAINING_RECOVERABLE_ERRORS as e:
             if str(e) == "cancelled":
                 return {"success": False, "error": "cancelled"}
             self.logger.error("Failed to train irrigation response model: %s", e, exc_info=True)
@@ -1318,7 +1333,7 @@ class MLTrainerService:
                 "training_time_seconds": round(training_time, 2),
             }
 
-        except Exception as e:
+        except TRAINING_RECOVERABLE_ERRORS as e:
             if str(e) == "cancelled":
                 return {"success": False, "error": "cancelled"}
             self.logger.error("Failed to train irrigation timing model: %s", e, exc_info=True)
@@ -1490,7 +1505,7 @@ class MLTrainerService:
                 "training_time_seconds": round(training_time, 2),
             }
 
-        except Exception as e:
+        except TRAINING_RECOVERABLE_ERRORS as e:
             if str(e) == "cancelled":
                 return {"success": False, "error": "cancelled"}
             self.logger.error("Failed to train irrigation duration model: %s", e, exc_info=True)
@@ -1547,7 +1562,7 @@ class MLTrainerService:
 
             return df
 
-        except Exception as e:
+        except TRAINING_RECOVERABLE_ERRORS as e:
             self.logger.error("Failed to collect threshold training data: %s", e, exc_info=True)
             return pd.DataFrame()
 
@@ -1581,7 +1596,7 @@ class MLTrainerService:
 
             return df
 
-        except Exception as e:
+        except TRAINING_RECOVERABLE_ERRORS as e:
             self.logger.error("Failed to collect response training data: %s", e, exc_info=True)
             return pd.DataFrame()
 
@@ -1618,7 +1633,7 @@ class MLTrainerService:
 
             return df
 
-        except Exception as e:
+        except TRAINING_RECOVERABLE_ERRORS as e:
             self.logger.error("Failed to collect duration training data: %s", e, exc_info=True)
             return pd.DataFrame()
 
@@ -1652,7 +1667,7 @@ class MLTrainerService:
         days: int = 120,
     ):
         """Collect training data for irrigation timing prediction model."""
-        from zoneinfo import ZoneInfo
+        from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
         import pandas as pd
 
@@ -1692,7 +1707,7 @@ class MLTrainerService:
                         return cached
                     try:
                         tz_cache[tz_name] = ZoneInfo(tz_name)
-                    except Exception:
+                    except ZoneInfoNotFoundError:
                         self.logger.debug("Invalid timezone '%s' in timing data; using UTC", tz_name)
                         tz_cache[tz_name] = None
                     return tz_cache[tz_name]
@@ -1703,7 +1718,7 @@ class MLTrainerService:
                         try:
                             detected_local.loc[idx] = detected_series.loc[idx].dt.tz_convert(tz)
                             delayed_local.loc[idx] = delayed_series.loc[idx].dt.tz_convert(tz)
-                        except Exception:
+                        except (TypeError, ValueError, AttributeError, LookupError):
                             self.logger.debug("Failed to localize timing timestamps for timezone %s", tz_name)
                 detected_series = detected_local
                 delayed_series = delayed_local
@@ -1723,7 +1738,7 @@ class MLTrainerService:
 
             return df
 
-        except Exception as e:
+        except TRAINING_RECOVERABLE_ERRORS as e:
             self.logger.error("Failed to collect timing training data: %s", e, exc_info=True)
             return pd.DataFrame()
 
@@ -1792,7 +1807,7 @@ class MLTrainerService:
                     "plant_type": plant_type,
                 }
 
-        except Exception as e:
+        except TRAINING_RECOVERABLE_ERRORS as e:
             self.logger.error("Failed to fine-tune %s for %s: %s", base_model_name, plant_type, e, exc_info=True)
             return {"success": False, "error": str(e), "plant_type": plant_type}
 
@@ -1869,7 +1884,7 @@ class MLTrainerService:
                 "optimal_conditions": optimal_conditions,
             }
 
-        except Exception as e:
+        except TRAINING_RECOVERABLE_ERRORS as e:
             self.logger.error("Climate fine-tuning error: %s", e, exc_info=True)
             return {"success": False, "error": str(e), "plant_type": plant_type}
 
@@ -1947,7 +1962,7 @@ class MLTrainerService:
                 "avg_duration": avg_duration,
             }
 
-        except Exception as e:
+        except TRAINING_RECOVERABLE_ERRORS as e:
             self.logger.error("Growth fine-tuning error: %s", e, exc_info=True)
             return {"success": False, "error": str(e), "plant_type": plant_type}
 
@@ -2006,7 +2021,7 @@ class MLTrainerService:
                 "results": results,
             }
 
-        except Exception as e:
+        except TRAINING_RECOVERABLE_ERRORS as e:
             self.logger.error("Failed to fine-tune all plant types: %s", e, exc_info=True)
             return {"success": False, "error": str(e)}
 
@@ -2188,7 +2203,7 @@ class MLTrainerService:
                 "unit_id": unit_id,
             }
 
-        except Exception as e:
+        except TRAINING_RECOVERABLE_ERRORS as e:
             self.logger.error("Health score model training error: %s", e, exc_info=True)
             return {"success": False, "error": str(e)}
 
@@ -2384,6 +2399,6 @@ class MLTrainerService:
                 "unit_id": unit_id,
             }
 
-        except Exception as e:
+        except TRAINING_RECOVERABLE_ERRORS as e:
             self.logger.error("Health status classifier training error: %s", e, exc_info=True)
             return {"success": False, "error": str(e)}

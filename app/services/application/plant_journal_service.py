@@ -17,6 +17,7 @@ from __future__ import annotations
 import contextlib
 import json
 import logging
+import sqlite3
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
@@ -26,6 +27,18 @@ if TYPE_CHECKING:
     from infrastructure.database.repositories.plant_journal import PlantJournalRepository
 
 logger = logging.getLogger(__name__)
+
+PLANT_JOURNAL_RECOVERABLE_ERRORS = (
+    RuntimeError,
+    ValueError,
+    TypeError,
+    AttributeError,
+    LookupError,
+    OSError,
+    ImportError,
+    ArithmeticError,
+    sqlite3.Error,
+)
 
 
 class PlantJournalService:
@@ -108,7 +121,7 @@ class PlantJournalService:
 
             return entry_id
 
-        except Exception as e:
+        except PLANT_JOURNAL_RECOVERABLE_ERRORS as e:
             logger.error("Failed to record observation: %s", e)
             return None
 
@@ -195,7 +208,7 @@ class PlantJournalService:
                 )
 
             return entry_id
-        except Exception as e:
+        except PLANT_JOURNAL_RECOVERABLE_ERRORS as e:
             logger.error("Failed to record watering: %s", e)
             return None
 
@@ -353,7 +366,7 @@ class PlantJournalService:
 
             return entry_id
 
-        except Exception as e:
+        except PLANT_JOURNAL_RECOVERABLE_ERRORS as e:
             logger.error("Failed to record nutrient: %s", e)
             return None
 
@@ -400,7 +413,7 @@ class PlantJournalService:
 
             return {"success": True, "entries_created": len(created_ids), "entry_ids": created_ids}
 
-        except Exception as e:
+        except PLANT_JOURNAL_RECOVERABLE_ERRORS as e:
             logger.error("Failed bulk nutrient application: %s", e)
             return {"success": False, "entries_created": 0, "error": str(e)}
 
@@ -438,7 +451,7 @@ class PlantJournalService:
 
             return entry_id
 
-        except Exception as e:
+        except PLANT_JOURNAL_RECOVERABLE_ERRORS as e:
             logger.error("Failed to record treatment: %s", e)
             return None
 
@@ -469,7 +482,7 @@ class PlantJournalService:
 
             return entry_id
 
-        except Exception as e:
+        except PLANT_JOURNAL_RECOVERABLE_ERRORS as e:
             logger.error("Failed to add note: %s", e)
             return None
 
@@ -603,7 +616,7 @@ class PlantJournalService:
 
             return correlation
 
-        except Exception as e:
+        except PLANT_JOURNAL_RECOVERABLE_ERRORS as e:
             logger.error("Failed to analyze correlation: %s", e)
             return {}
 
@@ -652,7 +665,7 @@ class PlantJournalService:
 
             return recommendations
 
-        except Exception as e:
+        except PLANT_JOURNAL_RECOVERABLE_ERRORS as e:
             logger.error("Failed to get recommendations: %s", e)
             return {}
 
@@ -666,7 +679,7 @@ class PlantJournalService:
             d1 = datetime.fromisoformat(date1.replace("Z", "+00:00"))
             d2 = datetime.fromisoformat(date2.replace("Z", "+00:00"))
             return abs((d2 - d1).days)
-        except Exception:
+        except (AttributeError, TypeError, ValueError):
             return 0
 
     def update_entry(self, entry_id: int, updates: dict[str, Any]) -> bool:
@@ -736,7 +749,7 @@ class PlantJournalService:
 
             return entry_id
 
-        except Exception as e:
+        except PLANT_JOURNAL_RECOVERABLE_ERRORS as e:
             logger.error("Failed to record pruning: %s", e)
             return None
 
@@ -778,7 +791,7 @@ class PlantJournalService:
 
             return entry_id
 
-        except Exception as e:
+        except PLANT_JOURNAL_RECOVERABLE_ERRORS as e:
             logger.error("Failed to record stage change: %s", e)
             return None
 
@@ -825,7 +838,7 @@ class PlantJournalService:
 
             return entry_id
 
-        except Exception as e:
+        except PLANT_JOURNAL_RECOVERABLE_ERRORS as e:
             logger.error("Failed to record harvest: %s", e)
             return None
 
@@ -870,7 +883,7 @@ class PlantJournalService:
 
             return entry_id
 
-        except Exception as e:
+        except PLANT_JOURNAL_RECOVERABLE_ERRORS as e:
             logger.error("Failed to record environmental adjustment: %s", e)
             return None
 
@@ -912,7 +925,7 @@ class PlantJournalService:
 
             return entry_id
 
-        except Exception as e:
+        except PLANT_JOURNAL_RECOVERABLE_ERRORS as e:
             logger.error("Failed to record transplant: %s", e)
             return None
 
@@ -949,7 +962,7 @@ class PlantJournalService:
             )
             logger.debug("Auto-journaled stage update for plant %s → %s", plant_id, new_stage)
 
-        except Exception as e:
+        except PLANT_JOURNAL_RECOVERABLE_ERRORS as e:
             logger.error("Auto-journal stage update failed: %s", e, exc_info=True)
 
     def handle_plant_added_event(self, payload) -> None:
@@ -975,7 +988,7 @@ class PlantJournalService:
             )
             logger.debug("Auto-journaled plant added: %s", plant_id)
 
-        except Exception as e:
+        except PLANT_JOURNAL_RECOVERABLE_ERRORS as e:
             logger.error("Auto-journal plant added failed: %s", e, exc_info=True)
 
     def handle_plant_removed_event(self, payload) -> None:
@@ -1001,7 +1014,7 @@ class PlantJournalService:
             )
             logger.debug("Auto-journaled plant removed: %s", plant_id)
 
-        except Exception as e:
+        except PLANT_JOURNAL_RECOVERABLE_ERRORS as e:
             logger.error("Auto-journal plant removed failed: %s", e, exc_info=True)
 
     def handle_active_plant_changed_event(self, payload) -> None:
@@ -1027,5 +1040,5 @@ class PlantJournalService:
             )
             logger.debug("Auto-journaled active plant changed: %s", plant_id)
 
-        except Exception as e:
+        except PLANT_JOURNAL_RECOVERABLE_ERRORS as e:
             logger.error("Auto-journal active plant changed failed: %s", e, exc_info=True)

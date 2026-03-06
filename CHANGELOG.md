@@ -7,6 +7,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased] — Code Audit & Quality Overhaul (Sprints 0–10)
 
+### Maintenance & Real-time Delivery Hardening (2026-03-05)
+
+#### Changed
+- Refactored database maintenance into a dedicated repository/ops path (`MaintenanceRepository` + `MaintenanceOperations`) and wired a singleton `maintenance_service` through the service container.
+- Updated settings/health database endpoints to use the pre-built maintenance service from the container instead of constructing ad-hoc service instances.
+
+#### Fixed
+- Restored maintenance failure semantics for prune/vacuum/backup paths (including missing-db handling and backup busy-timeout behavior), with regression coverage in `tests/unit/test_database_maintenance_ops.py`.
+- Ensured `/alerts`, `/notifications`, and `/session` Socket.IO namespaces auto-join user-scoped rooms so `emit_to_user(...)` delivery works on connect.
+
 ### Ruff Cleanup & Security Hardening (2026-02-19)
 
 #### Changed

@@ -46,7 +46,7 @@
     </div>
 
     {# ── Training Progress Card (shown dynamically) ── #}
-    <div class="mb-4" id="training-progress-card" style="display:none;" role="status" aria-live="polite">
+    <div class="mb-4 u-hidden-default" id="training-progress-card" role="status" aria-live="polite">
         {% call ui.content_card(title="Training in Progress", icon="fas fa-graduation-cap", variant="info") %}
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <div>
@@ -55,9 +55,9 @@
                 </div>
                 {{ ui.ui_button("Cancel Training", id="btn-cancel-training", icon="fas fa-times", variant="outline-danger", size="sm") }}
             </div>
-            <div class="progress mb-3" style="height: 1.5rem;">
+            <div class="progress mb-3 u-progress-tall">
                 <div class="progress-bar progress-bar-striped progress-bar-animated bg-info"
-                     id="training-progress-bar" role="progressbar" style="width: 0%">0%</div>
+                     id="training-progress-bar" role="progressbar" class="u-w-0">0%</div>
             </div>
             <div class="d-flex justify-content-between align-items-end">
                 <p class="mb-0 text-muted small" id="training-status">Initializing training environment...</p>
@@ -139,7 +139,7 @@
                         <span class="metric-label">System Recommendation</span>
                         <span class="metric-value text-primary fs-7" id="drift-recommendation">--</span>
                     </div>
-                    <div class="alert alert-warning mt-3 mb-0 d-none" id="drift-alert" role="alert">
+                    <div class="alert alert-warning mt-3 mb-0 u-hidden-default" id="drift-alert" role="alert">
                         <div class="d-flex align-items-start gap-3">
                             <i class="fas fa-exclamation-triangle mt-1"></i>
                             <div>
@@ -164,7 +164,7 @@
                 header_extra='
                     <div class="d-flex align-items-center gap-3">
                         <span class="scheduler-badge stopped" id="scheduler-status">
-                            <i class="fas fa-circle" style="font-size:0.5rem"></i> Checking...
+                            <i class="fas fa-circle scheduler-badge__dot"></i> Checking...
                         </span>
                         <span class="badge bg-info-subtle text-info border border-info rounded-pill" id="jobs-count">0 Jobs</span>
                     </div>
@@ -277,7 +277,7 @@
                 <div class="section-body collapsed" id="training-data-body">
                     <div class="card-body">
                         <div id="training-data-container" class="data-quality-grid">
-                            <div class="text-center py-4 text-muted" style="grid-column: 1/-1;">
+                        <div class="text-center py-4 text-muted u-grid-span-full">
                                 <i class="fas fa-database fa-2x mb-2 opacity-25"></i>
                                 <p class="mb-0 small">Expand to load training data quality metrics</p>
                             </div>
@@ -333,7 +333,7 @@
                 </div>
                 <div class="section-body collapsed" id="model-comparison-body">
                     <div class="card-body">
-                        <div class="chart-container-ml" style="height: 400px;">
+                <div class="chart-container-ml u-chart-height-400">
                             <canvas id="comparison-chart-canvas"></canvas>
                         </div>
                     </div>
@@ -363,7 +363,7 @@
                             {{ ui.ui_button("Check All Units", id="btn-check-all-readiness", icon="fas fa-sync-alt", variant="outline-primary", size="sm") }}
                         </div>
                         <div id="readiness-models-container" class="readiness-grid">
-                            <div class="text-center py-4 text-muted" style="grid-column:1/-1">
+                        <div class="text-center py-4 text-muted u-grid-span-full">
                                 <i class="fas fa-tasks fa-2x mb-2 opacity-25"></i>
                                 <p class="mb-0 small">Expand to check irrigation ML model readiness</p>
                             </div>
@@ -465,7 +465,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-4 overflow-auto">
-                <div id="feature-importance-chart" class="chart-container-ml" style="height: 600px;"></div>
+                    <div id="feature-importance-chart" class="chart-container-ml u-chart-height-600"></div>
             </div>
             <div class="modal-footer border-top-0">
                 <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Close</button>

@@ -356,7 +356,7 @@
     <!-- End GPIO Panel -->
 
     <!-- Zigbee2MQTT Tab Panel -->
-    <div id="zigbee-panel" class="tab-panel" role="tabpanel" aria-labelledby="zigbee-tab" style="display: none;">
+    <div id="zigbee-panel" class="tab-panel" role="tabpanel" aria-labelledby="zigbee-tab">
     
     <!-- Zigbee2MQTT Device Management Intro -->
     {% call ui.content_card(title="Zigbee2MQTT Device Management", icon="broadcast-tower") %}
@@ -676,7 +676,7 @@
     <!-- End Zigbee Panel -->
 
     <!-- WiFi/MQTT Tab Panel -->
-    <div id="wifi-panel" class="tab-panel" role="tabpanel" aria-labelledby="wifi-tab" style="display: none;">
+    <div id="wifi-panel" class="tab-panel" role="tabpanel" aria-labelledby="wifi-tab">
         {% call ui.content_card(title="Connectivity Guidance", icon="wifi") %}
             <p class="text-muted mb-4">
                 SYSGrow does not register arbitrary WiFi/MQTT devices from the browser in the Raspberry Pi release build.
@@ -705,7 +705,7 @@
     <!-- End WiFi Panel -->
 
     <!-- ESP32-C6 Tab Panel -->
-    <div id="esp32-panel" class="tab-panel" role="tabpanel" aria-labelledby="esp32-tab" style="display: none;">
+    <div id="esp32-panel" class="tab-panel" role="tabpanel" aria-labelledby="esp32-tab">
         {% call ui.content_card(title="ESP32-C6 Device Management", icon="microchip") %}
             <p class="text-muted mb-4">
                 Provision and manage advanced ESP32-C6 based controllers with low-power Zigbee/BLE capabilities.
@@ -896,7 +896,7 @@
     <!-- End ESP32 Panel -->
 
     <!-- Camera Tab Panel -->
-    <div id="camera-panel" class="tab-panel" role="tabpanel" aria-labelledby="camera-tab" style="display: none;">
+    <div id="camera-panel" class="tab-panel" role="tabpanel" aria-labelledby="camera-tab">
         {% call ui.content_card(title="Camera Configuration", icon="camera") %}
             <p class="text-muted mb-4">
                 Configure your camera settings and image quality for time-lapse and monitoring.
@@ -930,7 +930,7 @@
                 </div>
 
                 <!-- ESP32 Fields -->
-                <div class="row g-3 mt-1 conditional-field" data-camera="esp32" style="display:none;">
+                        <div class="row g-3 mt-1 conditional-field u-hidden-default" data-camera="esp32">
                     <div class="col-md-6">
                         {{ ui.form_field('camera-ip', 'ESP32 IP Address *', name_attr='ip_address', placeholder='192.168.1.100', help_text='IP address of your ESP32-CAM') }}
                     </div>
@@ -940,14 +940,14 @@
                 </div>
 
                 <!-- USB Fields -->
-                <div class="row g-3 mt-1 conditional-field" data-camera="usb" style="display:none;">
+                        <div class="row g-3 mt-1 conditional-field u-hidden-default" data-camera="usb">
                     <div class="col-md-12">
                         {{ ui.form_field('camera-usb-index', 'USB Camera Index', type='number', name_attr='device_index', value='0', min=0, help_text='0 for first camera, 1 for second, etc.') }}
                     </div>
                 </div>
 
                 <!-- WiFi Camera Fields (RTSP, MJPEG, HTTP) -->
-                <div class="conditional-field mt-1" data-camera="rtsp mjpeg http" style="display:none;">
+                        <div class="conditional-field mt-1 u-hidden-default" data-camera="rtsp mjpeg http">
                     <div class="row g-3">
                         <div class="col-md-12">
                             {{ ui.form_field('camera-stream-url', 'Stream URL *', name_attr='stream_url', placeholder='rtsp://192.168.1.50:554/stream', help_text='Full URL to camera stream') }}

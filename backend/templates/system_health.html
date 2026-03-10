@@ -30,7 +30,7 @@
     ) }}
 
     <!-- Alert Banner -->
-    <div id="alert-banner" class="alert alert-warning d-flex align-items-center justify-content-between mb-4 d-none">
+    <div id="alert-banner" class="alert alert-warning d-flex align-items-center justify-content-between mb-4 u-hidden-default">
         <div>
             <i class="fas fa-exclamation-triangle me-2"></i>
             <span id="alert-message">System alerts detected</span>
@@ -157,8 +157,8 @@
                         </span>
                         <span class="small fw-bold" id="storage-percent">--%</span>
                     </div>
-                    <div class="progress" style="height: 10px;">
-                        <div class="progress-bar bg-primary" id="storage-bar" role="progressbar" style="width: 0%"></div>
+                    <div class="progress u-progress-compact">
+                        <div class="progress-bar bg-primary u-w-0" id="storage-bar" role="progressbar"></div>
                     </div>
                     <div class="text-muted small mt-1" id="storage-detail">-- / --</div>
                 </div>
@@ -192,8 +192,8 @@
                                 <span>Infrastructure</span>
                                 <span class="fw-bold" id="score-infra">--</span>
                             </div>
-                            <div class="progress" style="height: 4px;">
-                                <div class="progress-bar bg-success" id="mini-infra" role="progressbar" style="width: 0%"></div>
+                            <div class="progress u-progress-micro">
+                                <div class="progress-bar bg-success u-w-0" id="mini-infra" role="progressbar"></div>
                             </div>
                         </div>
                         <div>
@@ -201,8 +201,8 @@
                                 <span>Connectivity</span>
                                 <span class="fw-bold" id="score-conn">--</span>
                             </div>
-                            <div class="progress" style="height: 4px;">
-                                <div class="progress-bar bg-success" id="mini-conn" role="progressbar" style="width: 0%"></div>
+                            <div class="progress u-progress-micro">
+                                <div class="progress-bar bg-success u-w-0" id="mini-conn" role="progressbar"></div>
                             </div>
                         </div>
                         <div>
@@ -210,8 +210,8 @@
                                 <span>Sensors</span>
                                 <span class="fw-bold" id="score-sensor">--</span>
                             </div>
-                            <div class="progress" style="height: 4px;">
-                                <div class="progress-bar bg-success" id="mini-sensor" role="progressbar" style="width: 0%"></div>
+                            <div class="progress u-progress-micro">
+                                <div class="progress-bar bg-success u-w-0" id="mini-sensor" role="progressbar"></div>
                             </div>
                         </div>
                     </div>

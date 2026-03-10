@@ -185,6 +185,25 @@
   --button-hover-color:   var(--brand-700);
   --button-secondary-color: var(--earth-600);
 
+  /* Legacy bridge aliases for modules still converging on the shared design system */
+  --primary-color: var(--brand-600);
+  --primary-hover: var(--brand-700);
+  --success-color: var(--success-600);
+  --success-light: var(--success-100);
+  --success-dark: var(--success-700);
+  --error-color: var(--danger-600);
+  --error-light: var(--danger-100);
+  --error-dark: var(--danger-700);
+  --info-color: var(--info-600);
+  --info-light: var(--info-100);
+  --text-color: var(--color-text);
+  --bg-light: var(--surface-muted);
+  --bg-dark: var(--bg-2);
+  --bg-hover: var(--color-surface-hover);
+  --border-color-light: var(--border-100);
+  --neutral-light: var(--surface-muted-translucent);
+  --neutral-dark: var(--color-text-muted);
+
   /* Borders */
   --border-200: var(--border);
   --border-300: #cbd5e1;

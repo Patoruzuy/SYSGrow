@@ -279,7 +279,7 @@
         </div>
         <div class="card-body">
           <div class="risk-meter" id="disease-risk-meter">
-            <div class="risk-meter-fill" style="width: 5%"></div>
+            <div class="risk-meter-fill u-w-5p"></div>
           </div>
           <div class="risk-stats">
             <span class="risk-level low" id="disease-risk-level">Low</span>
@@ -347,8 +347,7 @@
           <div class="optimization-ring">
             <svg viewBox="0 0 100 100" class="optimization-ring-svg">
               <circle cx="50" cy="50" r="45" class="ring-bg"/>
-              <circle cx="50" cy="50" r="45" class="ring-progress" id="optimization-ring-progress"
-                      style="stroke-dasharray: 283; stroke-dashoffset: 283"/>
+              <circle cx="50" cy="50" r="45" class="ring-progress u-progress-ring-283" id="optimization-ring-progress"/>
             </svg>
             <div class="optimization-value">
               <span class="optimization-score-value" id="optimization-score-value">--</span>
@@ -533,8 +532,7 @@
           <div class="env-quality-ring">
             <svg viewBox="0 0 100 100" class="env-quality-svg">
               <circle cx="50" cy="50" r="42" class="ring-bg"/>
-              <circle cx="50" cy="50" r="42" class="ring-progress" id="env-quality-ring-progress"
-                      style="stroke-dasharray: 264; stroke-dashoffset: 264"/>
+              <circle cx="50" cy="50" r="42" class="ring-progress u-progress-ring-264" id="env-quality-ring-progress"/>
             </svg>
             <div class="env-quality-value">
               <span class="env-quality-score" id="env-quality-score">--</span>
@@ -548,7 +546,7 @@
                 <span class="quality-factor__score" id="quality-temp-score">--%</span>
               </div>
               <div class="quality-factor__bar">
-                <div class="quality-factor__fill" id="quality-temp-bar" style="width: 0%"></div>
+                        <div class="quality-factor__fill u-w-0" id="quality-temp-bar"></div>
               </div>
             </div>
             <div class="quality-factor">
@@ -557,7 +555,7 @@
                 <span class="quality-factor__score" id="quality-humidity-score">--%</span>
               </div>
               <div class="quality-factor__bar">
-                <div class="quality-factor__fill" id="quality-humidity-bar" style="width: 0%"></div>
+                        <div class="quality-factor__fill u-w-0" id="quality-humidity-bar"></div>
               </div>
             </div>
             <div class="quality-factor">
@@ -566,7 +564,7 @@
                 <span class="quality-factor__score" id="quality-vpd-score">--%</span>
               </div>
               <div class="quality-factor__bar">
-                <div class="quality-factor__fill" id="quality-vpd-bar" style="width: 0%"></div>
+                        <div class="quality-factor__fill u-w-0" id="quality-vpd-bar"></div>
               </div>
             </div>
             <div class="quality-factor">
@@ -575,7 +573,7 @@
                 <span class="quality-factor__score" id="quality-co2-score">--%</span>
               </div>
               <div class="quality-factor__bar">
-                <div class="quality-factor__fill" id="quality-co2-bar" style="width: 0%"></div>
+                        <div class="quality-factor__fill u-w-0" id="quality-co2-bar"></div>
               </div>
             </div>
           </div>
@@ -656,7 +654,7 @@
         <div class="growth-stage-tracker">
           <div class="stage-progress">
             <div class="stage-progress-bar">
-              <div class="stage-progress-fill" id="growth-stage-progress" style="width: 0%"></div>
+          <div class="stage-progress-fill u-w-0" id="growth-stage-progress"></div>
             </div>
             <div class="stage-markers">
               <span class="stage-marker" data-stage="seedling" title="Seedling">🌱</span>
@@ -753,7 +751,7 @@
               <div class="soil-moisture-display">
                 <span class="soil-label">Soil Moisture</span>
                 <div class="soil-bar">
-                  <div class="soil-bar-fill" id="irrigation-soil-bar" style="width: 0%"></div>
+              <div class="soil-bar-fill u-w-0" id="irrigation-soil-bar"></div>
                 </div>
                 <span class="soil-value" id="irrigation-soil-value">--%</span>
               </div>
@@ -974,7 +972,7 @@
   </section>
 
   <!-- Critical Alerts Section (collapsed by default if no alerts) -->
-  <section class="dashboard-alerts-section" id="alerts-section" style="display: none;">
+  <section class="dashboard-alerts-section u-hidden-default" id="alerts-section">
     <div class="card card--warning">
       <div class="card-header">
         <h3><i class="fas fa-exclamation-triangle"></i> Critical Alerts</h3>

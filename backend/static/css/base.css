@@ -258,6 +258,7 @@ p { margin: 0 0 var(--space-3); }
 
 .list-unstyled { list-style: none; margin: 0; padding: 0; }
 .hidden, .is-hidden { display: none !important; }
+.u-hidden-default { display: none; }
 .sr-only {
   position: absolute !important;
   width: 1px;
@@ -268,6 +269,45 @@ p { margin: 0 0 var(--space-3); }
   clip: rect(0, 0, 0, 0);
   border: 0;
 }
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.ui-state-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.ui-state-icon-lg {
+  font-size: 3rem;
+}
+
+.u-max-width-200 { max-width: 200px; }
+.u-media-preview { max-width: 100%; height: auto; max-height: 200px; }
+.u-min-height-250 { min-height: 250px; }
+.u-chart-height-400 { height: 400px; }
+.u-chart-height-600 { height: 600px; }
+.u-grid-span-full { grid-column: 1 / -1; }
+.u-progress-tall { height: 1.5rem; }
+.u-progress-compact { height: 10px; }
+.u-progress-micro { height: 4px; }
+.u-w-0 { width: 0; }
+.u-w-5p { width: 5%; }
+.u-progress-ring-283 { stroke-dasharray: 283; stroke-dashoffset: 283; }
+.u-progress-ring-264 { stroke-dasharray: 264; stroke-dashoffset: 264; }
+.u-dot-icon { font-size: 0.5rem; }
 
 /* Links */
 a { color: var(--brand-700); text-decoration: none; transition: color var(--motion-normal); }

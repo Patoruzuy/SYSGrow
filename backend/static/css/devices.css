@@ -886,6 +886,14 @@
     display: block;
 }
 
+.devices-page .conditional-field[data-camera] {
+    display: none;
+}
+
+.devices-page .conditional-field[data-camera].visible {
+    display: block;
+}
+
 .devices-page #esp32-panel .conditional-field[data-connection] {
     display: none;
 }

@@ -209,3 +209,123 @@
     white-space: nowrap;
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/* Device health layout polish                                                */
+/* -------------------------------------------------------------------------- */
+.device-health-page .device-health-layout {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.device-health-page .page-header {
+  margin-bottom: 0 !important;
+}
+
+.device-health-page .device-health-header-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.device-health-page .device-health-section .card-body {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.device-health-page .device-health-kpis,
+.device-health-page .device-health-section {
+  margin-bottom: 0 !important;
+}
+
+.device-health-page .device-health-table-wrap {
+  margin-top: 0;
+  overflow: auto;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-md);
+  background: var(--card-bg);
+}
+
+.device-health-page .device-health-table thead th {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.device-health-page .device-health-table tbody td {
+  vertical-align: middle;
+}
+
+.device-health-page .device-health-table .status-pill,
+.device-health-page .device-health-table .badge,
+.device-health-page .device-health-table time {
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .device-health-page .device-health-layout {
+    gap: var(--space-2);
+  }
+
+  .device-health-page .page-header {
+    padding: var(--space-3);
+  }
+
+  .device-health-page .page-header .header-actions {
+    width: 100%;
+  }
+
+  .device-health-page .device-health-header-actions {
+    width: 100%;
+  }
+
+  .device-health-page .device-health-header-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .device-health-page .device-health-kpis {
+    --bs-gutter-x: var(--space-2);
+    --bs-gutter-y: var(--space-2);
+    margin-bottom: 0 !important;
+  }
+
+  .device-health-page .device-health-section .card-header {
+    align-items: flex-start;
+    gap: var(--space-2);
+  }
+
+  .device-health-page .device-health-section .card-header-extra {
+    width: 100%;
+  }
+
+  .device-health-page .device-health-section .card-header-extra .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 576px) {
+  .device-health-page .device-health-table-wrap {
+    margin-inline: calc(-1 * var(--space-2));
+    padding-inline: var(--space-2);
+    border-left: none;
+    border-right: none;
+    border-radius: 0;
+  }
+
+  .device-health-page .device-health-section .card-body {
+    gap: var(--space-2);
+  }
+
+  .device-health-page .device-health-table td:first-child .fw-bold {
+    min-width: 7.75rem;
+  }
+
+  .device-health-page .view-device-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}

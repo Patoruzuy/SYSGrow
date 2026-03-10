@@ -5,7 +5,7 @@
 {% block body_class %}dashboard-page{% endblock %}
 
 {% block styles %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css', v='20260308s') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css', v='20260310a') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/components/kpi-cards.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/components/timeline.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/components/energy.css') }}">
@@ -23,7 +23,7 @@
 <div class="dashboard-page page-shell page-shell--fluid" data-selected-unit-id="{{ dashboard_unit_id or '' }}" aria-label="Dashboard">
 
   {% set dash_actions %}
-  <div class="d-flex align-items-center gap-2">
+  <div class="dashboard-header-actions d-flex align-items-center gap-2">
     <span class="unit-badge" id="current-unit-name">
       {{ selected_unit.name if selected_unit else 'All Units' }}
     </span>

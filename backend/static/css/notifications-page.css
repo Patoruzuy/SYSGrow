@@ -381,3 +381,105 @@
 .notifications-page #clear-all {
   margin-left: auto;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Notifications mobile density + component consistency                       */
+/* -------------------------------------------------------------------------- */
+.notifications-page {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.notifications-page .page-header {
+  margin-bottom: 0 !important;
+}
+
+.notifications-page .notifications-header-actions {
+  justify-content: flex-end;
+}
+
+.notifications-page .notifications-card .card-body {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.notifications-page .notification-item-expanded {
+  gap: var(--space-3);
+}
+
+.notifications-page .notification-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.notifications-page .notification-actions {
+  gap: var(--space-2);
+}
+
+@media (max-width: 640px) {
+  .notifications-page {
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-2);
+  }
+
+  .notifications-page .page-header {
+    padding: var(--space-3);
+  }
+
+  .notifications-page .notifications-header-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .notifications-page .notifications-header-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .notifications-page .notifications-card .card-body {
+    gap: var(--space-2);
+    padding: var(--space-3);
+  }
+
+  .notifications-page .notifications-list-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+  }
+
+  .notifications-page #clear-all {
+    margin-left: 0;
+  }
+
+  .notifications-page .notification-item-expanded {
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .notifications-page .notification-icon {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+
+  .notifications-page .notification-content {
+    width: 100%;
+  }
+
+  .notifications-page .notification-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .notifications-page .notification-action-btn {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 420px) {
+  .notifications-page .notifications-header-actions,
+  .notifications-page .notification-actions {
+    grid-template-columns: 1fr;
+  }
+}

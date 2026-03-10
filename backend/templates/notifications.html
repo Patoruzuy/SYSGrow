@@ -5,7 +5,7 @@
 
 {% block styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/components/notifications.css', v='20260308a') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/notifications-page.css', v='20260308c') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/notifications-page.css', v='20260310a') }}">
 {% endblock %}
 
 {% block content %}
@@ -35,7 +35,7 @@
     <button type="button" class="filter-btn" data-filter="system">System</button>
   </div>
 
-  {% call ui.content_card(title="Messages", icon="envelope") %}
+  {% call ui.content_card(title="Messages", icon="envelope", class="notifications-card") %}
     <div class="notifications-list-header d-flex justify-content-between align-items-center mb-3">
       <span id="notifications-count">Loading...</span>
       <button type="button" class="btn btn-link text-danger p-0" id="clear-all" title="Clear all notifications">

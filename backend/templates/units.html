@@ -5,7 +5,7 @@
 {% block body_class %}units-page{% endblock %}
 
 {% block styles %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/units.css') }}?v=20260308g">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/units.css') }}?v=20260310a">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/components/alerts.css') }}">
 {% endblock %}
 
@@ -17,12 +17,14 @@
       icon="fas fa-cubes",
       subtitle="Comprehensive growth unit management, monitoring, and control center",
       actions='
-        <button type="button" class="btn btn-primary" data-action="open-create-unit-modal" title="Create New Unit">
-            <i class="fas fa-plus me-1"></i> New Unit
-        </button>
-        <button type="button" class="btn btn-outline-secondary" data-action="refresh-all-units" title="Refresh Data">
-            <i class="fas fa-sync-alt"></i>
-        </button>
+        <div class="units-header-actions">
+            <button type="button" class="btn btn-primary" data-action="open-create-unit-modal" title="Create New Unit">
+                <i class="fas fa-plus me-1"></i> New Unit
+            </button>
+            <button type="button" class="btn btn-outline-secondary" data-action="refresh-all-units" title="Refresh Data">
+                <i class="fas fa-sync-alt"></i>
+            </button>
+        </div>
       '
     ) }}
 
@@ -88,7 +90,7 @@
             {% set unit_name = unit.name or ('Unit ' ~ unit_id) %}
             <div class="col-xl-4 col-lg-6 col-md-6">
                 {% call ui.content_card(title=unit_name, subtitle='ID: ' ~ unit_id, icon="fas fa-cube", class="unit-card", id="unit-card-" ~ unit_id, header_extra='
-                    <div class="d-flex align-items-center gap-2">
+                    <div class="units-card-toolbar d-flex align-items-center gap-2">
                         <span class="status-indicator active" title="Unit Status"><i class="fas fa-circle fs-xs text-success"></i></span>
                         <button type="button" class="btn btn-link btn-sm p-0 text-muted camera-indicator hidden" data-action="toggle-camera" data-unit-id="' ~ unit_id ~ '" id="camera-indicator-' ~ unit_id ~ '" title="Toggle Camera">
                             <i class="fas fa-camera"></i>
@@ -97,7 +99,7 @@
                         <button type="button" class="btn btn-link btn-sm p-0 text-danger" data-action="delete-unit" data-unit-id="' ~ unit_id ~ '" title="Delete Unit"><i class="fas fa-trash"></i></button>
                     </div>
                 ', **{'data-unit-id': unit_id}) %}
-                    <div class="mb-3 d-flex justify-content-between align-items-center">
+                    <div class="unit-card-meta mb-3 d-flex justify-content-between align-items-center">
                         <div class="unit-location small text-muted">
                             <i class="fas fa-map-marker-alt me-1"></i> {{ unit.location or 'Indoor' }}
                         </div>
@@ -152,7 +154,7 @@
                     </div>
 
                     <!-- Environmental Readings -->
-                    <div class="d-flex gap-2 mb-4" id="env-chips-{{ unit_id }}">
+                    <div class="unit-env-grid d-flex gap-2 mb-4" id="env-chips-{{ unit_id }}">
                         <div class="unit-env-chip unit-env-chip--temp flex-fill border-start border-4 border-info">
                             <div class="small text-muted mb-1"><i class="fas fa-thermometer-half me-1"></i> Temp</div>
                             <div class="fw-bold env-chip-value">--°C</div>
@@ -164,7 +166,7 @@
                     </div>
 
                     <!-- Action Links -->
-                    <div class="row g-2 mb-3">
+                    <div class="unit-card-links row g-2 mb-3">
                         <div class="col-4">
                             <a href="{{ url_for('ui.plants_hub') }}" class="btn unit-link-btn btn-sm w-100 py-2">
                                 <i class="fas fa-heartbeat text-danger d-block mb-1"></i><span class="unit-link-label">Plants</span>

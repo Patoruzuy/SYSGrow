@@ -6,11 +6,11 @@
 {% import "macros.html" as ui %}
 
 {% block content %}
-<div id="device-health-page" aria-labelledby="device-health-heading">
+<div id="device-health-page" class="page-shell device-health-layout" aria-labelledby="device-health-heading">
     
     {# Standardized Page Header #}
     {% set refresh_actions %}
-        <div class="d-flex align-items-center gap-2">
+        <div class="device-health-header-actions d-flex align-items-center gap-2">
             {{ ui.ui_button("Refresh All", id="refresh-all-btn", icon="fas fa-sync-alt", variant="secondary") }}
         </div>
     {% endset %}
@@ -22,7 +22,7 @@
     ) }}
 
     <!-- Device Health Statistics -->
-    <section class="row g-4 mb-6" aria-label="Device health statistics">
+    <section class="device-health-kpis row g-4 mb-6" aria-label="Device health statistics">
         <div class="col-xl-3 col-md-6">
             {{ ui.kpi_card(
                 id='online',
@@ -72,7 +72,7 @@
     {% call ui.content_card(
         title="Device Health Alerts",
         icon="fas fa-bell",
-        class="mb-6",
+        class="mb-6 device-health-section",
         id="alerts-section",
         header_extra='<button type="button" class="btn btn-link btn-sm text-decoration-none" id="refresh-alerts-btn"><i class="fas fa-sync-alt me-1"></i> Refresh</button>'
     ) %}
@@ -90,12 +90,12 @@
     {% call ui.content_card(
         title="Actuators Health Status",
         icon="fas fa-plug",
-        class="mb-6",
+        class="mb-6 device-health-section",
         header_extra='<button type="button" class="btn btn-link btn-sm text-decoration-none" id="refresh-actuators-btn"><i class="fas fa-sync-alt me-1"></i> Refresh</button>'
     ) %}
         {% if devices_summary and devices_summary.actuators and devices_summary.actuators|length > 0 %}
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
+            <div class="table-responsive device-health-table-wrap">
+                <table class="table table-hover align-middle mb-0 device-health-table">
                     <thead class="table-light">
                         <tr>
                             <th>Device Name</th>
@@ -150,12 +150,12 @@
     {% call ui.content_card(
         title="Sensors Health Status",
         icon="fas fa-thermometer-half",
-        class="mb-6",
+        class="mb-6 device-health-section",
         header_extra='<button type="button" class="btn btn-link btn-sm text-decoration-none" id="refresh-sensors-btn"><i class="fas fa-sync-alt me-1"></i> Refresh</button>'
     ) %}
         {% if devices_summary and devices_summary.sensors and devices_summary.sensors|length > 0 %}
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
+            <div class="table-responsive device-health-table-wrap">
+                <table class="table table-hover align-middle mb-0 device-health-table">
                     <thead class="table-light">
                         <tr>
                             <th>Sensor Name</th>

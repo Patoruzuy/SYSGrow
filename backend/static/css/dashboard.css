@@ -4313,3 +4313,161 @@
   min-height: 56px !important;
   padding: var(--space-2) !important;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Dashboard mobile density + component consistency                           */
+/* -------------------------------------------------------------------------- */
+.dashboard-page .dashboard-header-actions {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.dashboard-page .dashboard-chart-section .chart-controls .form-select {
+  min-width: 11rem;
+}
+
+.dashboard-page .dashboard-unit-settings-section .card-actions .btn {
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .dashboard-page .page-header {
+    padding: var(--space-3) !important;
+    gap: var(--space-2);
+  }
+
+  .dashboard-page .page-header .header-content {
+    gap: var(--space-1);
+  }
+
+  .dashboard-page .page-header .header-actions {
+    width: 100%;
+  }
+
+  .dashboard-page .dashboard-header-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2);
+    width: 100%;
+  }
+
+  .dashboard-page .dashboard-header-actions .unit-badge {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
+  .dashboard-page .dashboard-header-actions .connection-indicator,
+  .dashboard-page .dashboard-header-actions .last-update,
+  .dashboard-page .dashboard-header-actions #refresh-sensors {
+    width: 100%;
+    min-height: 2.5rem;
+    border-radius: var(--radius-md);
+  }
+
+  .dashboard-page .dashboard-header-actions .last-update {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.55rem 0.75rem;
+    border: 1px solid var(--card-border);
+    background: var(--surface-muted-translucent);
+  }
+
+  .dashboard-page .dashboard-header-actions #refresh-sensors {
+    justify-content: center;
+  }
+
+  .dashboard-page .dashboard-kpi-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: var(--space-2) !important;
+  }
+
+  .dashboard-page .dashboard-kpi-row > .kpi-card {
+    min-width: 0;
+  }
+
+  .dashboard-page .dashboard-sensors-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: var(--space-2) !important;
+  }
+
+  .dashboard-page .dashboard-sensors-row .sensor-card {
+    gap: var(--space-2);
+    padding: var(--space-2);
+  }
+
+  .dashboard-page .dashboard-sensors-row .sensor-card__icon {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+
+  .dashboard-page .dashboard-chart-section .card-header,
+  .dashboard-page .dashboard-unit-settings-section .card-header {
+    align-items: flex-start;
+    gap: var(--space-2);
+  }
+
+  .dashboard-page .dashboard-chart-section .card-header-extra,
+  .dashboard-page .dashboard-unit-settings-section .card-header-extra {
+    width: 100%;
+  }
+
+  .dashboard-page .dashboard-chart-section .chart-controls {
+    width: 100%;
+  }
+
+  .dashboard-page .dashboard-chart-section .chart-controls .form-select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .dashboard-page .dashboard-insights-carousel {
+    gap: var(--space-1);
+  }
+
+  .dashboard-page .carousel-nav {
+    display: none;
+  }
+
+  .dashboard-page .dashboard-insights-grid.insights-carousel-track .insight-card {
+    flex-basis: min(22rem, calc(100vw - 2.75rem));
+  }
+
+  .dashboard-page .unit-settings-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-2);
+  }
+
+  .dashboard-page .dashboard-unit-settings-section .card-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .dashboard-page .dashboard-unit-settings-section .card-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 520px) {
+  .dashboard-page.page-shell--fluid {
+    padding-inline: var(--space-2) !important;
+  }
+
+  .dashboard-page .dashboard-header-actions,
+  .dashboard-page .dashboard-unit-settings-section .card-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-page .dashboard-sensors-row {
+    grid-template-columns: 1fr !important;
+  }
+
+  .dashboard-page .dashboard-sensors-row .sensor-card {
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .dashboard-page .dashboard-insights-grid.insights-carousel-track .insight-card {
+    flex-basis: calc(100vw - 2rem);
+  }
+}

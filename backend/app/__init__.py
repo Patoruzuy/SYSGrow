@@ -4,6 +4,7 @@ import atexit
 import contextlib
 import logging
 import signal
+import sys
 import threading
 from datetime import timedelta
 from pathlib import Path
@@ -123,11 +124,18 @@ def create_app(config_overrides: dict[str, Any] | None = None, *, bootstrap_runt
             if _shutdown_done:
                 return
             _shutdown_done = True
-        logging.info("Graceful shutdown initiated (%s)", reason)
+
+        suppress_shutdown_logs = reason == "atexit" or getattr(sys, "is_finalizing", lambda: False)()
+        if suppress_shutdown_logs:
+            logging.disable(logging.CRITICAL)
+        else:
+            logging.info("Graceful shutdown initiated (%s)", reason)
+
         try:
             container.shutdown()
         except Exception as exc:
-            logging.warning("Error during graceful shutdown: %s", exc)
+            if not suppress_shutdown_logs:
+                logging.warning("Error during graceful shutdown: %s", exc)
 
     def _signal_handler(signum: int, _frame: object) -> None:
         sig_name = signal.Signals(signum).name

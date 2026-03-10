@@ -1,7 +1,7 @@
 """
 Relay Control System
 
-This module defines a base class and three subclasses to control relays via different 
+This module defines a base class and three subclasses to control relays via different
 communication methods: GPIO (wired), WiFi (HTTP API), and Zigbee (MQTT).
 
 Classes:
@@ -14,16 +14,17 @@ Author: Sebastian Gomez
 Date: 01/03/2025
 """
 
-import os
-import requests
-import time
 import json
 import logging
+import os
 from logging.handlers import RotatingFileHandler
-from app.hardware.mqtt.mqtt_broker_wrapper import MQTTClientWrapper
-from app.utils.event_bus import EventBus
+
+import requests
+
 from app.enums.events import DeviceEvent
+from app.hardware.mqtt.mqtt_broker_wrapper import MQTTClientWrapper
 from app.schemas.events import RelayStatePayload
+from app.utils.event_bus import EventBus
 
 # Module-level logger with rotation (prevents unbounded log file growth)
 logger = logging.getLogger(__name__)
@@ -33,12 +34,13 @@ if not logger.handlers:
         "logs/devices.log",
         maxBytes=10 * 1024 * 1024,  # 10MB
         backupCount=3,
-        encoding="utf-8"
+        encoding="utf-8",
     )
     _handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
     logger.addHandler(_handler)
     logger.setLevel(logging.INFO)
     logger.propagate = False  # Don't duplicate to root logger
+
 
 class RelayBase:
     """
@@ -46,7 +48,7 @@ class RelayBase:
 
     Attributes:
         device (str): The name of the device controlled by the relay.
-    
+
     Methods:
         turn_on(): Turns the relay on. (Implemented in subclasses)
         turn_off(): Turns the relay off. (Implemented in subclasses)
@@ -61,12 +63,12 @@ class RelayBase:
             device (str): The name of the device controlled by the relay.
         """
         self.device = device
-        self.event_bus = EventBus() # Get the global EventBus instance
+        self.event_bus = EventBus()  # Get the global EventBus instance
 
     def turn_on(self):
         """Turns the relay on. It is implemented in subclasses."""
         pass
-        
+
     def turn_off(self):
         """Turns the relay off. It is implemented in subclasses."""
         pass
@@ -88,7 +90,7 @@ class GPIORelay(RelayBase):
     Attributes:
         device (str): The name of the controlled device.
         pin (int): The GPIO pin used to control the relay.
-    
+
     Methods:
         turn_on(): Turns the relay on by setting the GPIO pin HIGH.
         turn_off(): Turns the relay off by setting the GPIO pin LOW.
@@ -109,14 +111,15 @@ class GPIORelay(RelayBase):
         if self.GPIO:
             self.GPIO.setmode(self.GPIO.BCM)
             self.GPIO.setup(self.pin, self.GPIO.OUT)
-            logger.info(f"GPIO pin {self.pin} set as OUTPUT")
+            logger.info("GPIO pin %s set as OUTPUT", self.pin)
         else:
-            logger.warning(f"GPIO is not available.  GPIO Relay {self.device} will not function.")
+            logger.warning("GPIO is not available.  GPIO Relay %s will not function.", self.device)
 
     def _setup_gpio(self):
         """Imports and sets up GPIO only if running on Raspberry Pi."""
         try:
-            import RPi.GPIO as GPIO # type: ignore
+            import RPi.GPIO as GPIO  # type: ignore
+
             return GPIO
         except (ImportError, RuntimeError):
             logger.error("GPIO not available. Running in non-Raspberry Pi environment.")
@@ -131,11 +134,11 @@ class GPIORelay(RelayBase):
                     DeviceEvent.RELAY_STATE_CHANGED,
                     RelayStatePayload(device=self.device, state="on"),
                 )  # Publish Event
-                logger.info(f"Turned on GPIO relay for {self.device} on pin {self.pin}")
+                logger.info("Turned on GPIO relay for %s on pin %s", self.device, self.pin)
             except Exception as e:
-                logger.error(f"Error turning on GPIO relay {self.device}: {e}")
+                logger.error("Error turning on GPIO relay %s: %s", self.device, e)
         else:
-            logger.warning(f"GPIO not initialized. Cannot turn on relay {self.device}")
+            logger.warning("GPIO not initialized. Cannot turn on relay %s", self.device)
 
     def turn_off(self):
         """Turns the relay off by setting the GPIO pin LOW."""
@@ -146,20 +149,20 @@ class GPIORelay(RelayBase):
                     DeviceEvent.RELAY_STATE_CHANGED,
                     RelayStatePayload(device=self.device, state="off"),
                 )  # Publish Event
-                logger.info(f"Turned off GPIO relay for {self.device} on pin {self.pin}")
+                logger.info("Turned off GPIO relay for %s on pin %s", self.device, self.pin)
             except Exception as e:
-                logger.error(f"Error turning off GPIO relay {self.device}: {e}")
+                logger.error("Error turning off GPIO relay %s: %s", self.device, e)
         else:
-            logger.warning(f"GPIO not initialized. Cannot turn off relay {self.device}")
+            logger.warning("GPIO not initialized. Cannot turn off relay %s", self.device)
 
     def cleanup(self):
         """Releases the GPIO pin resources."""
         if self.GPIO:
             try:
                 self.GPIO.cleanup(self.pin)
-                logger.info(f"Cleaned up GPIO pin {self.pin} for {self.device}")
+                logger.info("Cleaned up GPIO pin %s for %s", self.pin, self.device)
             except Exception as e:
-                logger.error(f"Error cleaning up GPIO pin {self.pin}: {e}")
+                logger.error("Error cleaning up GPIO pin %s: %s", self.pin, e)
 
     def __enter__(self):
         """Enter the runtime context related to this object."""
@@ -174,7 +177,6 @@ class GPIORelay(RelayBase):
         self.cleanup()
 
 
-
 class WiFiRelay(RelayBase):
     """
     Controls a relay via an HTTP API (e.g., ESP8266 or ESP-01).
@@ -182,7 +184,7 @@ class WiFiRelay(RelayBase):
     Attributes:
         device (str): The name of the controlled device.
         ip (str): The IP address of the relay module.
-    
+
     Methods:
         turn_on(): Sends an HTTP request to turn on the relay.
         turn_off(): Sends an HTTP request to turn off the relay.
@@ -207,9 +209,9 @@ class WiFiRelay(RelayBase):
                 DeviceEvent.RELAY_STATE_CHANGED,
                 RelayStatePayload(device=self.device, state="on"),
             )  # Publish Event
-            logger.info(f"Turned on WiFi relay for {self.device} at {self.ip}")
+            logger.info("Turned on WiFi relay for %s at %s", self.device, self.ip)
         except Exception as e:
-            logger.error(f"Error turning on WiFi relay {self.device}: {e}")
+            logger.error("Error turning on WiFi relay %s: %s", self.device, e)
 
     def turn_off(self):
         """Sends an HTTP request to turn off the relay."""
@@ -219,9 +221,9 @@ class WiFiRelay(RelayBase):
                 DeviceEvent.RELAY_STATE_CHANGED,
                 RelayStatePayload(device=self.device, state="off"),
             )  # Publish Event
-            logger.info(f"Turned off WiFi relay for {self.device} at {self.ip}")
+            logger.info("Turned off WiFi relay for %s at %s", self.device, self.ip)
         except Exception as e:
-            logger.error(f"Error turning off WiFi relay {self.device}: {e}")
+            logger.error("Error turning off WiFi relay %s: %s", self.device, e)
 
     def _send_request(self, state: str):
         """
@@ -236,7 +238,6 @@ class WiFiRelay(RelayBase):
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             raise Exception(f"Error controlling relay at {url}: {e}") from e
-
 
 
 class WirelessRelay(RelayBase):
@@ -258,7 +259,9 @@ class WirelessRelay(RelayBase):
         update_mqtt_topic(): Updates the MQTT topic for the relay.
     """
 
-    def __init__(self, unit_id, device: str, zigbee_channel: str, connection_mode: str, mqtt_broker: str, mqtt_port: int):
+    def __init__(
+        self, unit_id, device: str, zigbee_channel: str, connection_mode: str, mqtt_broker: str, mqtt_port: int
+    ):
         """
         Initializes the relay with the chosen communication method.
 
@@ -277,10 +280,10 @@ class WirelessRelay(RelayBase):
         self.mqtt_broker = mqtt_broker
         self.mqtt_port = mqtt_port
         self.ble_client = None
-        self.mqtt_topic = zigbee_channel # Default MQTT topic
+        self.mqtt_topic = zigbee_channel  # Default MQTT topic
         self.mqtt_client = MQTTClientWrapper(mqtt_broker, mqtt_port)
 
-        print(f"Relay initialized for {device} using {connection_mode} at channel {self.zigbee_channel}")
+        logger.info("Relay initialized for %s using %s at channel %s", device, connection_mode, self.zigbee_channel)
 
     def turn_on(self):
         """Activates the relay based on the selected communication mode."""
@@ -297,9 +300,9 @@ class WirelessRelay(RelayBase):
                 DeviceEvent.RELAY_STATE_CHANGED,
                 RelayStatePayload(device=self.device, state="on"),
             )  # Publish Event
-            logger.info(f"Turned on {self.connection_mode} relay for {self.device}")
+            logger.info("Turned on %s relay for %s", self.connection_mode, self.device)
         except Exception as e:
-            logger.error(f"Error turning on relay {self.device}: {e}")
+            logger.error("Error turning on relay %s: %s", self.device, e)
 
     def turn_off(self):
         """Deactivates the relay based on the selected communication mode."""
@@ -316,9 +319,9 @@ class WirelessRelay(RelayBase):
                 DeviceEvent.RELAY_STATE_CHANGED,
                 RelayStatePayload(device=self.device, state="off"),
             )  # Publish Event
-            logger.info(f"Turned off {self.connection_mode} relay for {self.device}")
+            logger.info("Turned off %s relay for %s", self.connection_mode, self.device)
         except Exception as e:
-            logger.error(f"Error turning off relay {self.device}: {e}")
+            logger.error("Error turning off relay %s: %s", self.device, e)
 
     def set_connection_mode(self, mode: str):
         """
@@ -326,32 +329,32 @@ class WirelessRelay(RelayBase):
         Args:
             mode (str): 'WiFi', 'BLE', or 'Zigbee'
         """
-        if mode not in ['WiFi', 'BLE', 'Zigbee']:
+        if mode not in ["WiFi", "BLE", "Zigbee"]:
             raise ValueError(f"Invalid mode: {mode}")
-        logger.info(f"Switching connection mode to: {mode}")
+        logger.info("Switching connection mode to: %s", mode)
         self.connection_mode = mode
 
     def _send_mqtt_command(self, state: str):
         """
         Sends an MQTT command to the Zigbee relay.
-        
+
         Args:
             state (str): The relay state ('ON' or 'OFF').
         """
-        topic = self.mqtt_topic # Use the instance variable
+        topic = self.mqtt_topic  # Use the instance variable
         payload = {"state": state}
         self.mqtt_client.publish(topic, json.dumps(payload))
 
     def _send_http_command(self, state: str):
         """
         Sends an HTTP request to control the Wi-Fi relay.
-        
+
         Args:
             state (str): The relay state ('ON' or 'OFF').
         """
         url = f"http://{self.mqtt_broker}/relay/{self.device}/{state.lower()}"
         try:
-            response = requests.get(url, timeout=5) # Added timeout
+            response = requests.get(url, timeout=5)  # Added timeout
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             raise Exception(f"Error sending HTTP command to {url}: {e}") from e
@@ -359,14 +362,14 @@ class WirelessRelay(RelayBase):
     def _send_ble_command(self, state: str):
         """
         Sends a BLE command to control the Bluetooth relay.
-        
+
         Args:
             state (str): The relay state ('ON' or 'OFF').
         """
         if self.ble_client:
             try:
                 self.ble_client.write(f"{self.device},{state}")
-                logger.debug(f"BLE Command Sent: {state}")
+                logger.debug("BLE Command Sent: %s", state)
             except Exception as e:
                 raise Exception(f"Error sending BLE command: {e}") from e
         else:
@@ -381,10 +384,10 @@ class WirelessRelay(RelayBase):
             encrypted_payload (dict): The encrypted ssid and password
         """
         # topic = self.wifi_config_topic
-        topic = mqtt_topic # Use the parameter
-        payload = json.dumps(encrypted_payload) # Use the encrypted payload
+        topic = mqtt_topic  # Use the parameter
+        payload = json.dumps(encrypted_payload)  # Use the encrypted payload
         self.mqtt_client.publish(topic, payload)
-        logger.info(f"Sent new Wi-Fi credentials to topic {topic}")
+        logger.info("Sent new Wi-Fi credentials to topic %s", topic)
 
     def update_esp32_mqtt_topic(self, new_topic):
         """
@@ -397,7 +400,7 @@ class WirelessRelay(RelayBase):
         payload = json.dumps({"new_topic": new_topic})
         self.mqtt_client.publish(topic, payload)
         self.mqtt_topic = new_topic
-        logger.info(f"Sent MQTT topic update command to ESP32-C6: {new_topic}")
+        logger.info("Sent MQTT topic update command to ESP32-C6: %s", new_topic)
 
     def cleanup(self):
         """Stops the MQTT loop, disconnects BLE, and cleans up resources."""
@@ -407,7 +410,7 @@ class WirelessRelay(RelayBase):
                 self.ble_client.disconnect()
                 logger.info("Disconnected BLE client.")
             except Exception as e:
-                logger.error(f"Error disconnecting BLE client: {e}")
+                logger.error("Error disconnecting BLE client: %s", e)
         logger.info("Cleanup completed.")
 
     def __del__(self):

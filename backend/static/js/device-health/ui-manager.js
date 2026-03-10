@@ -16,6 +16,7 @@
       this.dataService = dataService;
       this.alerts = [];
       this.socketManager = null;
+      this.realtimeUnsubscribe = null;
 
       // UI elements (will be cached in init)
       this.elements = {};
@@ -490,6 +491,8 @@
         `;
 
         this.elements.deviceModal.removeAttribute('hidden');
+        this.elements.deviceModal.classList.add('is-open', 'active');
+        this.elements.deviceModal.setAttribute('aria-hidden', 'false');
 
         // Get device from data service
         const deviceDetails = this.dataService.getDevice(deviceId, deviceType);
@@ -640,7 +643,10 @@
      * Close device detail modal
      */
     closeModal() {
-      this.elements.deviceModal?.setAttribute('hidden', '');
+      if (!this.elements.deviceModal) return;
+      this.elements.deviceModal.setAttribute('hidden', '');
+      this.elements.deviceModal.classList.remove('is-open', 'active');
+      this.elements.deviceModal.setAttribute('aria-hidden', 'true');
     }
 
     // --------------------------------------------------------------------------
@@ -716,30 +722,51 @@
      */
     async _setupRealtimeUpdates() {
       try {
-        const { default: socketManager } = await import('/static/js/socket.js');
+        // Prefer global singleton if already loaded.
+        let socketManager = window.socketManager;
+
+        // Fallback: import module to initialize window.socketManager.
+        if (!socketManager || typeof socketManager.on !== 'function') {
+          await import('/static/js/socket.js');
+          socketManager = window.socketManager;
+        }
+
+        if (!socketManager || typeof socketManager.on !== 'function') {
+          return;
+        }
+
         this.socketManager = socketManager;
+        const unsubscribers = [];
 
         // Device status updates
-        socketManager.on('device_status_update', (data) => {
+        unsubscribers.push(socketManager.on('device_status_update', (data) => {
           this._handleDeviceStatusUpdate(data);
-        });
+        }));
 
         // Anomaly detection
-        socketManager.on('anomaly_detected', (data) => {
+        unsubscribers.push(socketManager.on('anomaly_detected', (data) => {
           this._handleAnomalyDetected(data);
-        });
+        }));
 
         // Device reconnected
-        socketManager.on('device_reconnected', (data) => {
+        unsubscribers.push(socketManager.on('device_reconnected', (data) => {
           this._handleDeviceReconnected(data);
-        });
+        }));
 
         // Device disconnected
-        socketManager.on('device_disconnected', (data) => {
+        unsubscribers.push(socketManager.on('device_disconnected', (data) => {
           this._handleDeviceDisconnected(data);
-        });
+        }));
+
+        this.realtimeUnsubscribe = () => {
+          unsubscribers.forEach((unsubscribe) => {
+            try {
+              if (typeof unsubscribe === 'function') unsubscribe();
+            } catch {}
+          });
+        };
       } catch (error) {
-        console.warn('[DeviceHealthUIManager] Socket.io not available for real-time updates', error);
+        console.debug('[DeviceHealthUIManager] Real-time socket setup skipped:', error);
       }
     }
 
@@ -857,6 +884,16 @@
       const div = document.createElement('div');
       div.textContent = String(text);
       return div.innerHTML;
+    }
+
+    destroy() {
+      if (typeof this.realtimeUnsubscribe === 'function') {
+        try {
+          this.realtimeUnsubscribe();
+        } catch {}
+        this.realtimeUnsubscribe = null;
+      }
+      super.destroy();
     }
   }
 

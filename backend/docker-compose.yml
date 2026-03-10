@@ -1,0 +1,60 @@
+# SYSGrow Smart Agriculture — Docker Compose
+# ─────────────────────────────────────────────
+# Quick start:
+#   cp ops.env.example ops.env   # edit as needed
+#   docker compose up -d
+#
+# Logs:    docker compose logs -f sysgrow
+# Stop:    docker compose down
+# Rebuild: docker compose up -d --build
+
+services:
+  sysgrow:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        INSTALL_ZIGBEE: "false"   # set "true" for Zigbee support
+    container_name: sysgrow-backend
+    restart: unless-stopped
+    ports:
+      - "${SYSGROW_PORT:-8000}:8000"
+    env_file:
+      - ops.env
+    environment:
+      - SYSGROW_ENV=production
+      - SYSGROW_HOST=0.0.0.0
+      - SYSGROW_PORT=8000
+      - SYSGROW_MQTT_HOST=mosquitto
+      - SYSGROW_MQTT_PORT=1883
+    volumes:
+      - ./database:/app/database
+      - ./data:/app/data
+      - ./logs:/app/logs
+    depends_on:
+      mosquitto:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8000/api/v1/health/live"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+
+  # ── MQTT Broker ──────────────────────────────────────────────────
+  # Mosquitto provides the MQTT backbone for sensor/actuator comms.
+  # Remove or comment out if you use an external MQTT broker.
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: sysgrow-mqtt
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./deployment/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+
+volumes:
+  mosquitto_data:
+  mosquitto_log:

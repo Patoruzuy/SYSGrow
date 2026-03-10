@@ -369,16 +369,17 @@
      */
     _renderActions(alert) {
       const actions = alert.actions || this._getDefaultActions(alert);
+      const escAttr = window.escapeHtmlAttr || (t => String(t ?? '').replace(/[&"'<>]/g, c => ({'&':'&amp;','"':'&quot;',"'":'&#39;','<':'&lt;','>':'&gt;'}[c])));
 
       if (!actions || actions.length === 0) return '';
 
       return `
         <div class="alert-timeline__actions">
           ${actions.map(action => `
-            <button class="alert-action-btn alert-action-btn--${action.type || 'default'}"
-                    data-alert-id="${alert.id}"
-                    data-action="${action.action}">
-              ${action.icon ? `<i class="${action.icon}"></i>` : ''}
+            <button class="alert-action-btn alert-action-btn--${escAttr(action.type || 'default')}"
+                    data-alert-id="${escAttr(alert.id)}"
+                    data-action="${escAttr(action.action)}">
+              ${action.icon ? `<i class="${escAttr(action.icon)}"></i>` : ''}
               ${window.escapeHtml(action.label)}
             </button>
           `).join('')}

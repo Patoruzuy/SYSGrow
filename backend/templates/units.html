@@ -5,7 +5,8 @@
 {% block body_class %}units-page{% endblock %}
 
 {% block styles %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/units.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/units.css') }}?v=20260308g">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/components/alerts.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -26,14 +27,14 @@
     ) }}
 
     <!-- Contextual Help Banner -->
-    <div class="help-banner">
-      <i class="fas fa-cubes"></i>
-      <div class="help-banner-content">
-        <p class="help-banner-title">Growth Unit Management</p>
-        <p class="help-banner-text">Configure your grow spaces, link devices, and set up automation schedules.</p>
-      </div>
-      {{ ui.help_link('schedules', 'schedule-types', 'Schedule Guide') }}
-    </div>
+    {{ ui.help_banner(
+      title='Growth Unit Management',
+      text='Configure your grow spaces, link devices, and set up automation schedules.',
+      icon='cubes',
+      link_text='Schedule Guide',
+      category='schedules',
+      article_id='schedule-types'
+    ) }}
 
     {# Status Overview Cards #}
     <div class="row g-3 mb-4" id="unitsOverview">
@@ -113,23 +114,23 @@
                     </div>
 
                     <!-- Quick Stats Pill -->
-                    <div class="d-flex gap-2 mb-4">
-                        <div class="bg-light rounded-pill px-3 py-1 flex-fill text-center">
+                    <div class="unit-pill-stats mb-4">
+                        <div class="unit-pill-stat">
                             <div class="fw-bold" id="plants-count-{{ unit_id }}">0</div>
-                            <div class="small text-muted" style="font-size: 0.7rem;">Plants</div>
+                            <div class="unit-pill-label text-muted">Plants</div>
                         </div>
-                        <div class="bg-light rounded-pill px-3 py-1 flex-fill text-center">
+                        <div class="unit-pill-stat">
                             <div class="fw-bold" id="sensors-count-{{ unit_id }}">0</div>
-                            <div class="small text-muted" style="font-size: 0.7rem;">Sensors</div>
+                            <div class="unit-pill-label text-muted">Sensors</div>
                         </div>
-                        <div class="bg-light rounded-pill px-3 py-1 flex-fill text-center">
+                        <div class="unit-pill-stat">
                             <div class="fw-bold" id="actuators-count-{{ unit_id }}">0</div>
-                            <div class="small text-muted" style="font-size: 0.7rem;">Actuators</div>
+                            <div class="unit-pill-label text-muted">Actuators</div>
                         </div>
                     </div>
 
                     <!-- Health Monitoring Section -->
-                    <div class="unit-health mb-4 p-3 bg-light rounded" id="health-{{ unit_id }}">
+                    <div class="unit-health unit-health-card mb-4" id="health-{{ unit_id }}">
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <span class="fw-bold small">Unit Health</span>
                             <span class="badge bg-success" id="health-score-{{ unit_id }}">--%</span>
@@ -152,11 +153,11 @@
 
                     <!-- Environmental Readings -->
                     <div class="d-flex gap-2 mb-4" id="env-chips-{{ unit_id }}">
-                        <div class="flex-fill p-2 bg-light border-start border-4 border-info rounded">
+                        <div class="unit-env-chip unit-env-chip--temp flex-fill border-start border-4 border-info">
                             <div class="small text-muted mb-1"><i class="fas fa-thermometer-half me-1"></i> Temp</div>
                             <div class="fw-bold env-chip-value">--°C</div>
                         </div>
-                        <div class="flex-fill p-2 bg-light border-start border-4 border-primary rounded">
+                        <div class="unit-env-chip unit-env-chip--humidity flex-fill border-start border-4 border-primary">
                             <div class="small text-muted mb-1"><i class="fas fa-tint me-1"></i> Humidity</div>
                             <div class="fw-bold env-chip-value">--%</div>
                         </div>
@@ -165,18 +166,18 @@
                     <!-- Action Links -->
                     <div class="row g-2 mb-3">
                         <div class="col-4">
-                            <a href="{{ url_for('ui.plants_hub') }}" class="btn btn-outline-light text-dark btn-sm w-100 py-2 border">
-                                <i class="fas fa-heartbeat text-danger d-block mb-1"></i><span style="font-size: 0.7rem;">Plants</span>
+                            <a href="{{ url_for('ui.plants_hub') }}" class="btn unit-link-btn btn-sm w-100 py-2">
+                                <i class="fas fa-heartbeat text-danger d-block mb-1"></i><span class="unit-link-label">Plants</span>
                             </a>
                         </div>
                         <div class="col-4">
-                            <a href="{{ url_for('ui.sensor_analytics') }}" class="btn btn-outline-light text-dark btn-sm w-100 py-2 border">
-                                <i class="fas fa-chart-line text-primary d-block mb-1"></i><span style="font-size: 0.7rem;">Sensors</span>
+                            <a href="{{ url_for('ui.sensor_analytics') }}" class="btn unit-link-btn btn-sm w-100 py-2">
+                                <i class="fas fa-chart-line text-primary d-block mb-1"></i><span class="unit-link-label">Sensors</span>
                             </a>
                         </div>
                         <div class="col-4">
-                            <a href="{{ url_for('ui.energy_analytics') }}" class="btn btn-outline-light text-dark btn-sm w-100 py-2 border">
-                                <i class="fas fa-bolt text-warning d-block mb-1"></i><span style="font-size: 0.7rem;">Energy</span>
+                            <a href="{{ url_for('ui.energy_analytics') }}" class="btn unit-link-btn btn-sm w-100 py-2">
+                                <i class="fas fa-bolt text-warning d-block mb-1"></i><span class="unit-link-label">Energy</span>
                             </a>
                         </div>
                     </div>
@@ -202,7 +203,7 @@
         {% endfor %}
     {% else %}
         <div class="col-12">
-            <div class="empty-state text-center p-5 bg-white rounded shadow-sm">
+            <div class="empty-state units-empty-state text-center p-5">
                 <div class="mb-4 display-4 text-muted"><i class="fas fa-seedling"></i></div>
                 <h3>No Growth Units Found</h3>
                 <p class="text-muted mb-4">Create your first growth unit to start managing your smart agriculture system.</p>
@@ -219,6 +220,7 @@
     <div class="modal-content large">
         <div class="modal-header">
             <h2><i class="fas fa-plus-circle"></i> Create New Growth Unit</h2>
+            <span class="profile-chip" id="unitProfileChip">No profile</span>
             <button type="button" class="modal-close" data-action="close-modal" data-modal-id="createUnitModal" aria-label="Close">&times;</button>
         </div>
         <form id="createUnitForm" class="modal-form">
@@ -310,6 +312,51 @@
             <div class="form-section">
                 <h3><i class="fas fa-camera"></i> Camera Settings</h3>
                 {{ ui.checkbox_field('cameraEnabled', 'Enable camera for this unit', name_attr='camera_enabled', wrapper_class='form-group-checkbox', help_text='Enable camera to capture time-lapse images and monitor growth', help_class='form-help') }}
+            </div>
+
+            <!-- Condition Profile -->
+            <div class="form-section">
+                <h3><i class="fas fa-layer-group"></i> Condition Profile (Optional)</h3>
+                <small class="form-help">Apply a profile to seed environment thresholds for this unit.</small>
+                <div class="profile-import-row">
+                    <input type="text" id="unitProfileImportToken" placeholder="Paste share token to import" aria-label="Import token">
+                    <button type="button" class="btn btn-outline btn-sm" data-action="import-unit-profile">
+                        <i class="fas fa-link"></i> Import
+                    </button>
+                </div>
+                <div id="unitProfileSelectable" class="profile-selectable" hidden>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="unitProfilePlantType">Plant Type</label>
+                            <input type="text" id="unitProfilePlantType" name="profile_plant_type" placeholder="e.g., Tomato">
+                        </div>
+                        <div class="form-group">
+                            <label for="unitProfileStage">Growth Stage</label>
+                            <select id="unitProfileStage" name="profile_growth_stage">
+                                <option value="">Any stage</option>
+                                <option value="seedling">Seedling</option>
+                                <option value="vegetative">Vegetative</option>
+                                <option value="flowering">Flowering</option>
+                                <option value="fruiting">Fruiting</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="profile-selection-summary" id="unitProfileSelectionSummary">
+                        No profile selected
+                    </div>
+                    <div class="profile-selection-actions">
+                        <button type="button" class="btn btn-outline btn-sm" data-action="clear-unit-profile">
+                            Clear selection
+                        </button>
+                    </div>
+                    <input type="hidden" id="unitConditionProfileId" name="condition_profile_id">
+                    <input type="hidden" id="unitConditionProfileMode" name="condition_profile_mode">
+                    <div id="unitProfileSelector" class="profile-selector"></div>
+                    <div class="form-group mt-2">
+                        <label for="unitProfileCloneName">Save as new name (optional)</label>
+                        <input type="text" id="unitProfileCloneName" name="condition_profile_name" placeholder="e.g., Winter Tomato Setup">
+                    </div>
+                </div>
             </div>
 
             <!-- Form Actions -->
@@ -604,6 +651,7 @@
     <div class="modal-content">
         <div class="modal-header">
             <h2><i class="fas fa-leaf"></i> Add Plant</h2>
+            <span class="profile-chip" id="unitPlantProfileChip">No profile</span>
             <button type="button" class="modal-close" data-action="close-modal" data-modal-id="addPlantModal" aria-label="Close">&times;</button>
         </div>
         <form id="addPlantForm" class="modal-form">
@@ -619,6 +667,32 @@
                     ('Harvest','Harvest')
                 ], required=True, name_attr='current_stage') }}
                 {{ ui.form_field('addPlantDaysInStage', 'Days in stage', type='number', min=0, step=1, value='0', name_attr='days_in_stage') }}
+            </div>
+            <div class="form-section">
+                <h3><i class="fas fa-layer-group"></i> Condition Profile (Optional)</h3>
+                <div class="profile-import-row">
+                    <input type="text" id="unitPlantProfileImportToken" placeholder="Paste share token to import">
+                    <button type="button" class="btn btn-outline btn-sm" data-action="import-unit-plant-profile">
+                        <i class="fas fa-link"></i> Import
+                    </button>
+                </div>
+                <div id="unitPlantProfileSelectable" class="profile-selectable" hidden>
+                    <div class="profile-selection-summary" id="unitPlantProfileSelectionSummary">
+                        No profile selected
+                    </div>
+                    <div class="profile-selection-actions">
+                        <button type="button" class="btn btn-outline btn-sm" data-action="clear-unit-plant-profile">
+                            Clear selection
+                        </button>
+                    </div>
+                    <input type="hidden" id="unitPlantConditionProfileId" name="condition_profile_id">
+                    <input type="hidden" id="unitPlantConditionProfileMode" name="condition_profile_mode">
+                    <div id="unitPlantProfileSelector" class="profile-selector"></div>
+                    <div class="form-group mt-2">
+                        <label for="unitPlantProfileCloneName">Save as new name (optional)</label>
+                        <input type="text" id="unitPlantProfileCloneName" name="condition_profile_name" placeholder="e.g., Quick Veg Profile">
+                    </div>
+                </div>
             </div>
             <div class="form-actions">
                 <button type="button" class="btn btn-outline" data-action="close-modal" data-modal-id="addPlantModal">Cancel</button>
@@ -823,17 +897,12 @@
 <!-- Toast Notifications -->
 <div class="toast-container" id="toastContainer"></div>
 
-    </div>
-  </div>
-</div>
-</div>
-
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/api.js') }}"></script>
 <script src="{{ url_for('static', filename='js/utils/cache-service.js') }}"></script>
-<script src="{{ url_for('static', filename='js/units/data-service.js') }}"></script>
-<script src="{{ url_for('static', filename='js/units/ui-manager.js') }}"></script>
-<script src="{{ url_for('static', filename='js/units/main.js') }}"></script>
+<script src="{{ url_for('static', filename='js/components/profile-selector.js') }}"></script>
+<script src="{{ url_for('static', filename='js/units/data-service.js', v='20260308a') }}"></script>
+<script src="{{ url_for('static', filename='js/units/ui-manager.js', v='20260308a') }}"></script>
+<script src="{{ url_for('static', filename='js/units/main.js', v='20260308a') }}"></script>
 {% endblock %}

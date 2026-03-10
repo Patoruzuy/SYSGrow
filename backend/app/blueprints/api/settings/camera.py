@@ -5,24 +5,28 @@ Camera Settings Management
 Endpoints for managing camera configuration including type, IP address,
 USB settings, and image quality parameters.
 """
+
 from __future__ import annotations
 
-from flask import request
+from flask import Response
 
-from . import settings_api
 from app.blueprints.api._common import (
-    success as _success,
     fail as _fail,
     get_json as _json,
     get_settings_service as _service,
+    success as _success,
 )
+from app.utils.http import safe_route
+
+from . import settings_api
 
 
 @settings_api.get("/camera")
-def get_camera_settings():
+@safe_route("Failed to get camera settings")
+def get_camera_settings() -> Response:
     """
     Get current camera configuration.
-    
+
     Returns:
         - camera_type: Type of camera (ip, usb, pi)
         - ip_address: IP address for network cameras
@@ -36,16 +40,33 @@ def get_camera_settings():
         - last_used: Last used timestamp
     """
     data = _service().get_camera_settings()
+
+    # Return defaults when not yet configured (200, not 404)
     if not data:
-        return _fail("Camera settings not configured.", 404)
+        return _success(
+            {
+                "camera_type": "",
+                "ip_address": "",
+                "usb_cam_index": 0,
+                "resolution": "800",
+                "quality": 10,
+                "brightness": 0,
+                "contrast": 0,
+                "saturation": 0,
+                "flip": 0,
+                "configured": False,
+            }
+        )
+    data["configured"] = True
     return _success(data, 200)
 
 
 @settings_api.put("/camera")
-def update_camera_settings():
+@safe_route("Failed to update camera settings")
+def update_camera_settings() -> Response:
     """
     Update camera configuration.
-    
+
     Request Body:
         - camera_type (required): Camera type (ip, usb, pi)
         - ip_address (optional): IP address for network cameras

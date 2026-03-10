@@ -360,6 +360,7 @@
     renderTimeline() {
       const canvas = document.getElementById(`${this.containerId}-timeline-chart`);
       if (!canvas) return;
+      const vizContainer = canvas.closest('.timeline-viz-container');
 
       const ctx = canvas.getContext('2d');
       
@@ -372,10 +373,16 @@
       
       if (filteredAlerts.length === 0) {
         canvas.style.display = 'none';
+        if (vizContainer) {
+          vizContainer.classList.add('is-empty');
+        }
         return;
       }
       
       canvas.style.display = 'block';
+      if (vizContainer) {
+        vizContainer.classList.remove('is-empty');
+      }
 
       // Prepare data for scatter plot (time vs severity)
       const data = filteredAlerts.map(alert => ({

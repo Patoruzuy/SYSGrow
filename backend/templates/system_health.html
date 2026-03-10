@@ -4,55 +4,7 @@
 {% block body_class %}system-health-page{% endblock %}
 
 {% block styles %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/system_health.css') }}">
-<style>
-    /* Design system overrides for health score */
-    .health-score-circle {
-        width: 150px;
-        height: 150px;
-        position: relative;
-        margin: 0 auto;
-    }
-    .score-svg {
-        transform: rotate(-90deg);
-        width: 100%;
-        height: 100%;
-    }
-    .score-track {
-        fill: none;
-        stroke: var(--bs-gray-200);
-        stroke-width: 10;
-    }
-    .score-indicator {
-        fill: none;
-        stroke: var(--bs-success);
-        stroke-width: 10;
-        stroke-linecap: round;
-        stroke-dasharray: 565.48; /* 2 * PI * 90 */
-        stroke-dashoffset: 565.48;
-        transition: stroke-dashoffset 1s ease-out, stroke 0.5s;
-    }
-    .score-display {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        text-align: center;
-    }
-    .score-value {
-        font-size: 2.5rem;
-        font-weight: 800;
-        line-height: 1;
-        color: var(--bs-dark);
-    }
-    .score-label {
-        font-size: 0.75rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: var(--bs-gray-600);
-    }
-</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/system-health.css', v='20260308e') }}">
 {% endblock %}
 
 {% import "macros.html" as ui %}
@@ -104,7 +56,7 @@
                         </div>
                     </div>
                     <div class="text-center">
-                        <span class="badge bg-light text-dark p-2" id="system-status">
+                        <span class="badge system-health-status-badge p-2" id="system-status">
                             <i class="fas fa-circle-notch fa-spin me-2 text-primary"></i>
                             Initializing...
                         </span>
@@ -114,36 +66,41 @@
         </div>
         
         <div class="col-lg-8">
-            <div class="row g-4 h-100">
-                <div class="col-md-6">
-                    {{ ui.kpi_card(id='uptime', label='System Uptime', value='--', value_id='system-uptime', icon='fas fa-clock', variant='primary') }}
+            <div class="system-health-hero-grid">
+                <div class="system-health-hero-kpis">
+                    <div class="system-health-hero-kpi">
+                        {{ ui.kpi_card(id='uptime', label='System Uptime', value='--', value_id='system-uptime', icon='fas fa-clock', variant='primary') }}
+                    </div>
+                    <div class="system-health-hero-kpi">
+                        {{ ui.kpi_card(id='version', label='System Version', value='--', value_id='system-version', icon='fas fa-code-branch', variant='info') }}
+                    </div>
                 </div>
-                <div class="col-md-6">
-                    {{ ui.kpi_card(id='version', label='System Version', value='--', value_id='system-version', icon='fas fa-code-branch', variant='info') }}
-                </div>
+
                 <!-- Mini Stats inside the Hero area -->
-                <div class="col-3">
-                    <div class="p-3 bg-light rounded text-center">
-                        <div class="text-muted small mb-1">Units</div>
-                        <div class="h5 mb-0 fw-bold" id="metric-units">--</div>
+                <div class="system-health-mini-grid">
+                    <div class="system-health-mini-col">
+                        <div class="system-health-mini-stat">
+                            <div class="system-health-mini-label">Units</div>
+                            <div class="system-health-mini-value" id="metric-units">--</div>
+                        </div>
                     </div>
-                </div>
-                <div class="col-3">
-                    <div class="p-3 bg-light rounded text-center">
-                        <div class="text-muted small mb-1">Plants</div>
-                        <div class="h5 mb-0 fw-bold" id="metric-plants">--</div>
+                    <div class="system-health-mini-col">
+                        <div class="system-health-mini-stat">
+                            <div class="system-health-mini-label">Plants</div>
+                            <div class="system-health-mini-value" id="metric-plants">--</div>
+                        </div>
                     </div>
-                </div>
-                <div class="col-3">
-                    <div class="p-3 bg-light rounded text-center">
-                        <div class="text-muted small mb-1">Devices</div>
-                        <div class="h5 mb-0 fw-bold" id="metric-devices">--</div>
+                    <div class="system-health-mini-col">
+                        <div class="system-health-mini-stat">
+                            <div class="system-health-mini-label">Devices</div>
+                            <div class="system-health-mini-value" id="metric-devices">--</div>
+                        </div>
                     </div>
-                </div>
-                <div class="col-3">
-                    <div class="p-3 bg-light rounded text-center border-start border-4 border-warning">
-                        <div class="text-muted small mb-1">Alerts</div>
-                        <div class="h5 mb-0 fw-bold" id="metric-alerts">--</div>
+                    <div class="system-health-mini-col">
+                        <div class="system-health-mini-stat system-health-mini-stat--alert">
+                            <div class="system-health-mini-label">Alerts</div>
+                            <div class="system-health-mini-value" id="metric-alerts">--</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -157,34 +114,34 @@
             {% call ui.content_card(title="Infrastructure Status", icon="fas fa-server", class="h-100") %}
                 <div class="list-group list-group-flush">
                     <div class="list-group-item d-flex justify-content-between align-items-center px-0 border-0 py-3">
-                        <span class="text-dark">
+                        <span>
                             <i class="fas fa-broadcast-tower me-2 text-muted"></i> API Server
                         </span>
-                        <span class="badge rounded-pill bg-light text-dark" id="status-api">--</span>
+                        <span class="badge rounded-pill system-health-pill" id="status-api">--</span>
                     </div>
                     <div class="list-group-item d-flex justify-content-between align-items-center px-0 border-0 py-3">
-                        <span class="text-dark">
+                        <span>
                             <i class="fas fa-database me-2 text-muted"></i> Database
                         </span>
-                        <span class="badge rounded-pill bg-light text-dark" id="status-db">--</span>
+                        <span class="badge rounded-pill system-health-pill" id="status-db">--</span>
                     </div>
                     <div class="list-group-item d-flex justify-content-between align-items-center px-0 border-0 py-3">
-                        <span class="text-dark">
+                        <span>
                             <i class="fas fa-exchange-alt me-2 text-muted"></i> MQTT Broker
                         </span>
-                        <span class="badge rounded-pill bg-light text-dark" id="status-mqtt">--</span>
+                        <span class="badge rounded-pill system-health-pill" id="status-mqtt">--</span>
                     </div>
                     <div class="list-group-item d-flex justify-content-between align-items-center px-0 border-0 py-3">
-                        <span class="text-dark">
+                        <span>
                             <i class="fas fa-brain me-2 text-muted"></i> ML Services
                         </span>
-                        <span class="badge rounded-pill bg-light text-dark" id="status-ml">--</span>
+                        <span class="badge rounded-pill system-health-pill" id="status-ml">--</span>
                     </div>
                     <div class="list-group-item d-flex justify-content-between align-items-center px-0 border-0 py-3">
-                        <span class="text-dark">
+                        <span>
                             <i class="fas fa-satellite-dish me-2 text-muted"></i> Zigbee Service
                         </span>
-                        <span class="badge rounded-pill bg-light text-dark" id="status-zigbee">--</span>
+                        <span class="badge rounded-pill system-health-pill" id="status-zigbee">--</span>
                     </div>
                 </div>
             {% endcall %}
@@ -195,10 +152,10 @@
             {% call ui.content_card(title="Resource Utilization", icon="fas fa-chart-bar", class="h-100") %}
                 <div class="mb-4">
                     <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span class="text-dark fw-medium">
+                        <span class="fw-medium">
                             <i class="fas fa-hdd me-2 text-muted"></i> Storage
                         </span>
-                        <span class="text-dark small fw-bold" id="storage-percent">--%</span>
+                        <span class="small fw-bold" id="storage-percent">--%</span>
                     </div>
                     <div class="progress" style="height: 10px;">
                         <div class="progress-bar bg-primary" id="storage-bar" role="progressbar" style="width: 0%"></div>
@@ -208,12 +165,12 @@
                 
                 <div class="mb-4">
                     <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span class="text-dark fw-medium">
+                        <span class="fw-medium">
                             <i class="fas fa-tachometer-alt me-2 text-muted"></i> API Performance
                         </span>
-                        <span class="text-dark small fw-bold" id="api-response">--ms</span>
+                        <span class="small fw-bold" id="api-response">--ms</span>
                     </div>
-                    <div class="p-3 bg-light rounded">
+                    <div class="p-3 rounded system-health-surface">
                         <div class="row g-2">
                             <div class="col-6">
                                 <div class="text-muted small">Daily Requests</div>
@@ -268,7 +225,7 @@
         title="Active Growth Units", 
         icon="fas fa-cube", 
         class="mb-4",
-        header_extra='<span class="badge bg-light text-dark" id="units-count">--</span>'
+        header_extra='<span class="badge system-health-pill" id="units-count">--</span>'
     ) %}
         <div id="units-list" class="row g-4">
             <div class="col-12 text-center py-5">
@@ -288,7 +245,7 @@
         <div class="row g-4">
             <div class="col-md-6">
                 <div class="p-3 border rounded d-flex align-items-center">
-                    <div class="icon-box bg-light text-primary me-3 p-3 rounded-circle" style="width: 60px; height: 60px; display: flex; align-items: center; justify-content: center;">
+                    <div class="icon-box text-primary me-3 p-3 rounded-circle system-health-icon-box">
                         <i class="fas fa-thermometer-half fa-lg"></i>
                     </div>
                     <div>
@@ -300,7 +257,7 @@
             </div>
             <div class="col-md-6">
                 <div class="p-3 border rounded d-flex align-items-center">
-                    <div class="icon-box bg-light text-success me-3 p-3 rounded-circle" style="width: 60px; height: 60px; display: flex; align-items: center; justify-content: center;">
+                    <div class="icon-box text-success me-3 p-3 rounded-circle system-health-icon-box">
                         <i class="fas fa-plug fa-lg"></i>
                     </div>
                     <div>
@@ -344,15 +301,13 @@
             Last updated: <span id="last-updated" class="fw-bold">--</span>
         </div>
         <div class="d-flex align-items-center">
-            <span class="badge bg-light text-success border me-2" id="refresh-status">
+            <span class="badge system-health-pill text-success border me-2" id="refresh-status">
                 <i class="fas fa-check-circle me-1"></i> Auto-refresh enabled
             </span>
         </div>
     </div>
 </div>
 
-<!-- Load API -->
-<script src="{{ url_for('static', filename='js/api.js') }}?v=20251214c"></script>
 <script src="{{ url_for('static', filename='js/components/alert-timeline.js') }}"></script>
 
 <script type="module">

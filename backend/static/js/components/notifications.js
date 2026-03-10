@@ -50,7 +50,9 @@
     toggleBtn = document.getElementById('notifications-toggle');
     dropdown = document.getElementById('notifications-dropdown');
     badge = document.getElementById('notification-badge');
-    listContainer = document.getElementById('notifications-list');
+    listContainer =
+      document.getElementById('header-notifications-list') ||
+      document.getElementById('notifications-list');
 
     if (!toggleBtn || !dropdown) return;
 
@@ -184,10 +186,11 @@
    */
   function showError(message) {
     if (!listContainer) return;
+    const esc = window.escapeHtml || (t => { if (!t) return ''; const d = document.createElement('div'); d.textContent = t; return d.innerHTML; });
     listContainer.innerHTML = `
       <div class="notification-empty">
         <i class="fas fa-exclamation-circle" aria-hidden="true"></i>
-        <p>${message}</p>
+        <p>${esc(message)}</p>
       </div>
     `;
   }

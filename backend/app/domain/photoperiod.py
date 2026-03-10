@@ -1,12 +1,14 @@
-"""Photoperiod domain model. 
+"""Photoperiod domain model.
 
 Author: Sebastian Gomez
 Date: 6/12/2024
 """
+
 from __future__ import annotations
+
 from dataclasses import dataclass
 from datetime import datetime, time
-from typing import Optional, Dict, Iterable, List, Sequence, Any
+from typing import Any, Iterable, Sequence
 
 
 def _parse_time(t: str) -> time:
@@ -44,7 +46,7 @@ def _sum_mask_duration_hours(timestamps: Sequence[datetime], mask: Sequence[bool
     if len(timestamps) == 1:
         return 0.0
 
-    deltas: List[float] = []
+    deltas: list[float] = []
     for i in range(len(timestamps) - 1):
         dt = timestamps[i + 1] - timestamps[i]
         deltas.append(max(dt.total_seconds(), 0.0))
@@ -67,7 +69,7 @@ def _find_transition_time(
     *,
     from_value: bool,
     to_value: bool,
-) -> Optional[datetime]:
+) -> datetime | None:
     if not timestamps or not mask or len(timestamps) != len(mask):
         return None
 
@@ -80,29 +82,29 @@ def _find_transition_time(
     return None
 
 
-def _time_of_day_offset_minutes(schedule_time: Optional[datetime], sensor_time: Optional[datetime]) -> Optional[float]:
+def _time_of_day_offset_minutes(schedule_time: datetime | None, sensor_time: datetime | None) -> float | None:
     """
     Calculate offset in minutes between two times based on time-of-day only.
-    
+
     This compares only the HH:MM portion, ignoring the date.
     Result is in range [-720, 720] (half day in either direction).
     Positive = sensor is later than schedule.
     """
     if schedule_time is None or sensor_time is None:
         return None
-    
+
     # Extract time of day in minutes since midnight
     schedule_minutes = schedule_time.hour * 60 + schedule_time.minute + schedule_time.second / 60.0
     sensor_minutes = sensor_time.hour * 60 + sensor_time.minute + sensor_time.second / 60.0
-    
+
     offset = sensor_minutes - schedule_minutes
-    
+
     # Normalize to [-720, 720] range (handle wrap-around midnight)
     if offset > 720:
         offset -= 1440
     elif offset < -720:
         offset += 1440
-    
+
     return offset
 
 
@@ -146,25 +148,25 @@ class Photoperiod:
         # wraps midnight
         return t >= start or t < end
 
-    def is_sensor_day(self, sensor_value: Optional[float]) -> Optional[bool]:
+    def is_sensor_day(self, sensor_value: float | None) -> bool | None:
         if not self.sensor_enabled:
             return None
         if sensor_value is None:
             return None
         return sensor_value >= self.sensor_threshold
 
-    def schedule_mask(self, timestamps: Iterable[datetime]) -> List[bool]:
+    def schedule_mask(self, timestamps: Iterable[datetime]) -> list[bool]:
         return [self.is_schedule_day(ts) for ts in timestamps]
 
-    def sensor_mask(self, sensor_values: Iterable[Optional[float]]) -> List[Optional[bool]]:
+    def sensor_mask(self, sensor_values: Iterable[float | None]) -> list[bool | None]:
         return [self.is_sensor_day(value) for value in sensor_values]
 
     def resolve_mask(
         self,
         timestamps: Sequence[datetime],
         *,
-        sensor_values: Optional[Sequence[Optional[float]]] = None,
-    ) -> Dict[str, Any]:
+        sensor_values: Sequence[float | None] | None = None,
+    ) -> dict[str, Any]:
         """Resolve a day/night mask for a timeseries.
 
         Returns a dict with keys:
@@ -175,11 +177,11 @@ class Photoperiod:
         """
         schedule_mask = self.schedule_mask(timestamps)
 
-        sensor_mask: Optional[List[Optional[bool]]] = None
+        sensor_mask: list[bool | None] | None = None
         if sensor_values is not None:
             sensor_mask = self.sensor_mask(sensor_values)
 
-        final_mask: List[bool] = []
+        final_mask: list[bool] = []
         agreements = 0
         comparable = 0
 
@@ -216,8 +218,8 @@ class Photoperiod:
     def analyze_alignment(
         self,
         timestamps: Sequence[datetime],
-        sensor_values: Sequence[Optional[float]],
-    ) -> Dict[str, Optional[float]]:
+        sensor_values: Sequence[float | None],
+    ) -> dict[str, float | None]:
         """
         Compare schedule vs sensor day/night over a window.
 
@@ -225,7 +227,7 @@ class Photoperiod:
         Returns only numeric values (or None when unavailable).
         """
         resolved = self.resolve_mask(timestamps, sensor_values=sensor_values)
-        schedule_mask: List[bool] = resolved["schedule_mask"]
+        schedule_mask: list[bool] = resolved["schedule_mask"]
 
         sensor_mask_opt = resolved.get("sensor_mask")
         if not sensor_mask_opt:
@@ -237,7 +239,7 @@ class Photoperiod:
                 "end_offset_minutes": None,
             }
 
-        sensor_mask: List[Optional[bool]] = sensor_mask_opt
+        sensor_mask: list[bool | None] = sensor_mask_opt
         sensor_mask_bool = [bool(v) if v is not None else False for v in sensor_mask]
 
         schedule_light_hours = _sum_mask_duration_hours(timestamps, schedule_mask)
@@ -260,7 +262,7 @@ class Photoperiod:
             "end_offset_minutes": end_offset_minutes,
         }
 
-    def evaluate(self, ts: Optional[datetime] = None, sensor_value: Optional[float] = None) -> Dict[str, Optional[object]]:
+    def evaluate(self, ts: datetime | None = None, sensor_value: float | None = None) -> dict[str, object | None]:
         """Evaluate day/night and return details.
 
         Returns a dict with keys:
@@ -285,7 +287,7 @@ class Photoperiod:
 
         correlated = None
         if sensor_day is not None:
-            correlated = (sensor_day == schedule_day)
+            correlated = sensor_day == schedule_day
 
         return {
             "schedule": schedule_day,

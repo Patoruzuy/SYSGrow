@@ -3,6 +3,7 @@ import json
 import logging
 
 from app.hardware.mqtt.client_factory import create_mqtt_client
+
 logger = logging.getLogger(__name__)
 
 

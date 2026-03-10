@@ -1,9 +1,42 @@
 /**
  * SYSGrow API Client Module
- * 
+ * ============================================================================
  * Centralized API client for all backend endpoints.
- * Provides type-safe, promise-based functions for all API routes.
- * 
+ * Exposes a single global `window.API` object organised into domain namespaces.
+ *
+ * All methods return Promises that resolve to the unwrapped response payload,
+ * or throw an Error on HTTP failures.
+ *
+ * Domain Namespaces
+ * -----------------
+ * | Namespace                   | Constant                | Approx line |
+ * |-----------------------------|-------------------------|-------------|
+ * | API.Growth                  | GrowthAPI               | 312         |
+ * | API.Plant                   | PlantAPI                | 829         |
+ * | API.Device                  | DeviceAPI               | 1318        |
+ * | API.Sensor                  | SensorAPI               | 2713        |
+ * | API.Analytics               | AnalyticsAPI            | 2351        |
+ * | API.Insights                | InsightsAPI             | 2109        |
+ * | API.Health                  | HealthAPI               | 2608        |
+ * | API.Dashboard               | DashboardAPI            | 2734        |
+ * | API.Settings                | SettingsAPI             | 2883        |
+ * | API.ML                      | MLAPI                   | 3019        |
+ * | API.AI                      | AIAPI                   | 3898        |
+ * | API.ESP32                   | ESP32API                | 4213        |
+ * | API.GrowthStages            | GrowthStagesAPI         | 3718        |
+ * | API.Retraining              | RetrainingAPI           | 3785        |
+ * | API.ABTesting               | ABTestingAPI            | 3308        |
+ * | API.MLReadiness             | MLReadinessAPI          | 3256        |
+ * | API.ContinuousMonitoring    | ContinuousMonitoringAPI | 3398        |
+ * | API.PersonalizedLearning    | PersonalizedLearningAPI | 3475        |
+ * | API.TrainingData            | TrainingDataAPI         | 3643        |
+ * | API.Session                 | SessionAPI              | 3882        |
+ * | API.Status                  | StatusAPI               | 4187        |
+ * | API.System                  | SystemAPI               | 4298        |
+ * | API.Notification            | NotificationAPI         | 4379        |
+ * | API.Irrigation              | IrrigationAPI           | 4516        |
+ * | API.fetch(url, opts)        | Generic fetch wrapper   | bottom      |
+ *
  * @module api
  * @version 1.0.0
  */
@@ -17,6 +50,21 @@ function getCsrfToken() {
     return meta ? meta.getAttribute('content') : null;
 }
 
+// Track page teardown to avoid noisy logging for aborted navigation requests.
+if (typeof window !== 'undefined' && !window.__SYSGROW_API_LIFECYCLE_HOOKS__) {
+    window.__SYSGROW_API_LIFECYCLE_HOOKS__ = true;
+    window.__SYSGROW_PAGE_UNLOADING = false;
+    const markUnloading = () => { window.__SYSGROW_PAGE_UNLOADING = true; };
+    const clearUnloading = () => { window.__SYSGROW_PAGE_UNLOADING = false; };
+    window.addEventListener('beforeunload', markUnloading);
+    window.addEventListener('pagehide', markUnloading);
+    window.addEventListener('pageshow', clearUnloading);
+}
+
+function isPageUnloading() {
+    return typeof window !== 'undefined' && window.__SYSGROW_PAGE_UNLOADING === true;
+}
+
 /**
  * Base API request handler with error handling
  * @param {string} url - API endpoint URL
@@ -24,10 +72,11 @@ function getCsrfToken() {
  * @returns {Promise<Object>} Response data
  */
 async function apiRequest(url, options = {}) {
+    const { suppressErrors = false, ...requestOptions } = options;
     const csrfToken = getCsrfToken();
     const headers = {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...requestOptions.headers
     };
     if (csrfToken) {
         headers['X-CSRF-Token'] = csrfToken;
@@ -35,7 +84,7 @@ async function apiRequest(url, options = {}) {
 
     const defaultOptions = {
         headers,
-        ...options
+        ...requestOptions
     };
 
     try {
@@ -68,7 +117,16 @@ async function apiRequest(url, options = {}) {
         if (data && data.data !== undefined) return data.data;
         return data !== null ? data : rawText;
     } catch (error) {
-        console.error(`API Request Failed: ${url}`, error);
+        const isAbort = error?.name === 'AbortError';
+        const isNavigationFetchAbort =
+            isAbort ||
+            (isPageUnloading() &&
+                error instanceof TypeError &&
+                /failed to fetch/i.test(error?.message || ''));
+
+        if (!suppressErrors && !isNavigationFetchAbort) {
+            console.error(`API Request Failed: ${url}`, error);
+        }
         throw error;
     }
 }
@@ -78,6 +136,13 @@ async function apiRequest(url, options = {}) {
  */
 function get(url) {
     return apiRequest(url, { method: 'GET' });
+}
+
+/**
+ * Helper for GET requests where expected failures should not spam console logs
+ */
+function getQuiet(url) {
+    return apiRequest(url, { method: 'GET', suppressErrors: true });
 }
 
 /**
@@ -163,6 +228,157 @@ async function postFormData(url, formData) {
         console.error(`API FormData Request Failed: ${url}`, error);
         throw error;
     }
+}
+
+/**
+ * Return the first non-nullish value from a list.
+ * @param {...any} values
+ * @returns {any}
+ */
+function firstDefined(...values) {
+    for (const value of values) {
+        if (value !== undefined && value !== null) {
+            return value;
+        }
+    }
+    return undefined;
+}
+
+/**
+ * Return a rejected promise for features intentionally unsupported in the web UI.
+ * @param {string} feature
+ * @param {string} [guidance]
+ * @returns {Promise<never>}
+ */
+function unsupportedFeature(feature, guidance = "") {
+    const suffix = guidance ? ` ${guidance}` : "";
+    return Promise.reject(new Error(`${feature} is not available from the SYSGrow web UI.${suffix}`));
+}
+
+/**
+ * Check whether a value should be treated as present in form normalization.
+ * Empty strings are considered absent.
+ * @param {any} value
+ * @returns {boolean}
+ */
+function hasFormValue(value) {
+    if (value === undefined || value === null) {
+        return false;
+    }
+    if (typeof value === "string") {
+        return value.trim() !== "";
+    }
+    return true;
+}
+
+/**
+ * Append normalized values to FormData.
+ * @param {FormData} formData
+ * @param {string} key
+ * @param {any} value
+ * @param {Object} [options]
+ * @param {boolean} [options.arrayAsCsv=false]
+ */
+function appendFormField(formData, key, value, options = {}) {
+    if (value === undefined || value === null) {
+        return;
+    }
+
+    if (Array.isArray(value)) {
+        const items = value
+            .filter((item) => item !== undefined && item !== null && item !== "")
+            .map((item) => String(item).trim())
+            .filter((item) => item !== "");
+
+        if (items.length === 0) {
+            return;
+        }
+
+        if (options.arrayAsCsv) {
+            formData.append(key, items.join(","));
+            return;
+        }
+
+        items.forEach((item) => formData.append(key, item));
+        return;
+    }
+
+    if (value instanceof Date) {
+        formData.append(key, value.toISOString());
+        return;
+    }
+
+    if (value instanceof Blob) {
+        formData.append(key, value);
+        return;
+    }
+
+    formData.append(key, String(value));
+}
+
+/**
+ * Normalize plant observation payloads to expected form-data fields.
+ * @param {Object|FormData} data
+ * @returns {FormData}
+ */
+function toPlantObservationFormData(data) {
+    if (data instanceof FormData) {
+        return data;
+    }
+
+    const payload = data && typeof data === "object" ? data : {};
+    const formData = new FormData();
+
+    appendFormField(formData, "plant_id", firstDefined(payload.plant_id, payload.plantId));
+    appendFormField(
+        formData,
+        "observation_type",
+        firstDefined(payload.observation_type, payload.observationType, "health")
+    );
+    appendFormField(formData, "notes", payload.notes);
+    appendFormField(formData, "health_status", firstDefined(payload.health_status, payload.healthStatus));
+    appendFormField(formData, "severity_level", firstDefined(payload.severity_level, payload.severityLevel));
+    appendFormField(formData, "symptoms", payload.symptoms, { arrayAsCsv: true });
+    appendFormField(formData, "image_path", firstDefined(payload.image_path, payload.imagePath));
+
+    return formData;
+}
+
+/**
+ * Normalize plant nutrient payloads to expected form-data fields.
+ * @param {Object|FormData} data
+ * @returns {FormData}
+ */
+function toPlantNutrientFormData(data) {
+    if (data instanceof FormData) {
+        return data;
+    }
+
+    const payload = data && typeof data === "object" ? data : {};
+    const formData = new FormData();
+
+    const explicitApplicationType = hasFormValue(payload.application_type)
+        ? String(payload.application_type).trim().toLowerCase()
+        : hasFormValue(payload.applicationType)
+            ? String(payload.applicationType).trim().toLowerCase()
+            : undefined;
+    const hasPlantTarget = hasFormValue(payload.plant_id) || hasFormValue(payload.plantId);
+    const hasUnitTarget = hasFormValue(payload.unit_id) || hasFormValue(payload.unitId);
+    const inferredApplicationType =
+        explicitApplicationType ||
+        (hasPlantTarget ? "single" : undefined) ||
+        (hasUnitTarget ? "bulk" : undefined);
+
+    appendFormField(formData, "application_type", inferredApplicationType);
+    appendFormField(formData, "plant_id", firstDefined(payload.plant_id, payload.plantId));
+    appendFormField(formData, "unit_id", firstDefined(payload.unit_id, payload.unitId));
+    appendFormField(formData, "nutrient_type", firstDefined(payload.nutrient_type, payload.nutrientType));
+    appendFormField(formData, "nutrient_name", firstDefined(payload.nutrient_name, payload.nutrientName));
+    appendFormField(formData, "amount", payload.amount);
+    appendFormField(formData, "unit", payload.unit);
+    appendFormField(formData, "notes", payload.notes);
+
+    return formData;
 }
 
 // ============================================================================
@@ -270,7 +486,7 @@ const GrowthAPI = {
 
         if (activePlantId !== null && activePlantId !== undefined) {
             try {
-                plant = await get(`/api/plants/plants/${unitId}/${activePlantId}`);
+                plant = await get(`/api/plants/${unitId}/${activePlantId}`);
             } catch {
                 plant = null;
             }
@@ -688,10 +904,10 @@ const GrowthAPI = {
 
 const PlantAPI = {
     /**
-     * Get health status for all plants
+     * Get health summary for all plants (from health blueprint)
      * @returns {Promise<Object>} Plant health summary
      */
-    getPlantHealth() {
+    getPlantHealthSummary() {
         return get('/api/health/plants/summary');
     },
 
@@ -724,7 +940,7 @@ const PlantAPI = {
      * @returns {Promise<Object>}
      */
     getHealthHistory(plantId, days = 30) {
-        return get(`/api/plants/plants/${plantId}/health/history?days=${days}`);
+        return get(`/api/plants/${plantId}/health/history?days=${days}`);
     },
 
     /**
@@ -751,7 +967,7 @@ const PlantAPI = {
         if (unitId === null || unitId === undefined || unitId === '') {
             throw new Error('unitId is required to fetch plant details');
         }
-        return get(`/api/plants/plants/${unitId}/${plantId}`);
+        return get(`/api/plants/${unitId}/${plantId}`);
     },
 
     getPlant(plantId, unitId = null) {
@@ -773,7 +989,7 @@ const PlantAPI = {
         }
 
         // Fallback: backend can resolve unit by plant id.
-        return get(`/api/plants/plants/${numericPlantId}`);
+        return get(`/api/plants/${numericPlantId}`);
     },
 
     /**
@@ -787,7 +1003,7 @@ const PlantAPI = {
      * @returns {Promise<Object>} Updated plant
      */
     updatePlant(plantId, updates) {
-        return put(`/api/plants/plants/${plantId}`, updates);
+        return put(`/api/plants/${plantId}`, updates);
     },
 
     /**
@@ -809,7 +1025,7 @@ const PlantAPI = {
      * @returns {Promise<Object>} Updated plant
      */
     updatePlantStage(plantId, stageData) {
-        return put(`/api/plants/plants/${plantId}/stage`, stageData);
+        return put(`/api/plants/${plantId}/stage`, stageData);
     },
 
     /**
@@ -843,7 +1059,7 @@ const PlantAPI = {
      * @returns {Promise<Object>} Link result
      */
     linkPlantToSensor(plantId, sensorId) {
-        return post(`/api/plants/plants/${plantId}/sensors/${sensorId}`);
+        return post(`/api/plants/${plantId}/sensors/${sensorId}`);
     },
 
     /**
@@ -853,7 +1069,7 @@ const PlantAPI = {
      * @returns {Promise<Object>} Unlink result
      */
     unlinkPlantFromSensor(plantId, sensorId) {
-        return del(`/api/plants/plants/${plantId}/sensors/${sensorId}`);
+        return del(`/api/plants/${plantId}/sensors/${sensorId}`);
     },
 
     /**
@@ -862,7 +1078,7 @@ const PlantAPI = {
      * @returns {Promise<Object>} Plant sensors with details
      */
     getPlantSensors(plantId) {
-        return get(`/api/plants/plants/${plantId}/sensors`);
+        return get(`/api/plants/${plantId}/sensors`);
     },
 
     // ============================================================================
@@ -885,7 +1101,7 @@ const PlantAPI = {
      * @returns {Promise<Object>} Plant actuators with details
      */
     getPlantActuators(plantId) {
-        return get(`/api/plants/plants/${plantId}/actuators`);
+        return get(`/api/plants/${plantId}/actuators`);
     },
 
     /**
@@ -895,7 +1111,7 @@ const PlantAPI = {
      * @returns {Promise<Object>} Link result
      */
     linkPlantToActuator(plantId, actuatorId) {
-        return post(`/api/plants/plants/${plantId}/actuators/${actuatorId}`);
+        return post(`/api/plants/${plantId}/actuators/${actuatorId}`);
     },
 
     /**
@@ -905,7 +1121,7 @@ const PlantAPI = {
      * @returns {Promise<Object>} Unlink result
      */
     unlinkPlantFromActuator(plantId, actuatorId) {
-        return del(`/api/plants/plants/${plantId}/actuators/${actuatorId}`);
+        return del(`/api/plants/${plantId}/actuators/${actuatorId}`);
     },
 
     // ============================================================================
@@ -928,7 +1144,7 @@ const PlantAPI = {
      * @returns {Promise<Object>} Recorded observation with correlations
      */
     recordHealthObservation(plantId, observation) {
-        return post(`/api/plants/plants/${plantId}/health/record`, observation);
+        return post(`/api/plants/${plantId}/health/record`, observation);
     },
 
     /**
@@ -943,11 +1159,39 @@ const PlantAPI = {
 
     /**
      * Record nutrient application (FormData)
-     * @param {FormData} formData - Form data for nutrient record
+     * @param {FormData|Object} formData - Form data or object payload for nutrient record
      * @returns {Promise<Object>} Recorded nutrient entry
      */
     recordNutrients(formData) {
-        return postFormData('/api/plants/journal/nutrients', formData);
+        return postFormData('/api/plants/journal/nutrients', toPlantNutrientFormData(formData));
+    },
+
+    /**
+     * Alias for getPlant (used by units data-service)
+     * @param {number} plantId - Plant ID
+     * @returns {Promise<Object>} Plant data
+     */
+    getPlantInfo(plantId) {
+        return this.getPlant(plantId);
+    },
+
+    /**
+     * Record a plant observation (simplified wrapper)
+     * Normalizes payload to backend form-data contract.
+     * @param {Object} data - Observation data including plant_id
+     * @returns {Promise<Object>} Recorded observation
+     */
+    recordObservation(data) {
+        return postFormData('/api/plants/journal/observation', toPlantObservationFormData(data));
+    },
+
+    /**
+     * Record nutrient application wrapper (normalizes to form-data).
+     * @param {Object} data - Nutrient data
+     * @returns {Promise<Object>} Recorded nutrient entry
+     */
+    recordNutrient(data) {
+        return postFormData('/api/plants/journal/nutrients', toPlantNutrientFormData(data));
     },
 
     /**
@@ -957,7 +1201,7 @@ const PlantAPI = {
      * @returns {Promise<Object>} Health history
      */
     getHealthHistory(plantId, days = 7) {
-        return get(`/api/plants/plants/${plantId}/health/history?days=${days}`);
+        return get(`/api/plants/${plantId}/health/history?days=${days}`);
     },
 
     /**
@@ -966,7 +1210,7 @@ const PlantAPI = {
      * @returns {Promise<Object>} Health recommendations
      */
     getHealthRecommendations(plantId) {
-        return get(`/api/plants/plants/${plantId}/health/recommendations`);
+        return get(`/api/plants/${plantId}/health/recommendations`);
     },
 
     // ============================================================================
@@ -980,15 +1224,21 @@ const PlantAPI = {
      * @returns {Promise<Object>} Harvest report
      */
     harvestPlant(plantId, harvestData) {
-        return post(`/api/plants/${plantId}/harvest`, harvestData);
+        return post(`/api/v1/plants/${plantId}/harvest`, harvestData);
     },
 
     /**
      * Get all harvest reports
+     * @param {Object} [params]
      * @returns {Promise<Array>} List of harvest reports
      */
-    getHarvests() {
-        return get('/api/harvests');
+    getHarvests(params = {}) {
+        const query = new URLSearchParams();
+        if (params.limit) query.set('limit', params.limit);
+        if (params.unit_id) query.set('unit_id', params.unit_id);
+        if (params.plant_id) query.set('plant_id', params.plant_id);
+        const suffix = query.toString();
+        return get(`/api/plants/harvests${suffix ? `?${suffix}` : ''}`);
     },
 
     /**
@@ -997,7 +1247,58 @@ const PlantAPI = {
      * @returns {Promise<Object>} Harvest report
      */
     getHarvest(harvestId) {
-        return get(`/api/harvests/${harvestId}`);
+        return get(`/api/v1/harvests/${harvestId}`);
+    },
+
+    /**
+     * Get unit-level harvest efficiency trends.
+     * @param {number} unitId
+     * @param {number} [limit=10]
+     * @returns {Promise<Object>}
+     */
+    getUnitHarvestStats(unitId, limit = 10) {
+        const suffix = limit ? `?limit=${encodeURIComponent(limit)}` : '';
+        return get(`/api/v1/units/${unitId}/harvest-stats${suffix}`);
+    },
+
+    /**
+     * Compare recent growth cycles for a unit.
+     * @param {number} unitId
+     * @param {number} [limit=10]
+     * @returns {Promise<Object>}
+     */
+    compareGrowthCycles(unitId, limit = 10) {
+        const suffix = limit ? `?limit=${encodeURIComponent(limit)}` : '';
+        return get(`/api/v1/units/${unitId}/growth-cycles/compare${suffix}`);
+    },
+
+    /**
+     * Compare specific harvests by ID.
+     * @param {number[]} harvestIds
+     * @returns {Promise<Object>}
+     */
+    compareHarvests(harvestIds = []) {
+        const ids = Array.isArray(harvestIds)
+            ? harvestIds.map((value) => Number(value)).filter((value) => Number.isFinite(value) && value > 0)
+            : [];
+        if (ids.length < 2) {
+            return Promise.resolve({ harvest_count: 0, comparisons: [] });
+        }
+        return get(`/api/v1/harvests/compare?ids=${ids.join(',')}`);
+    },
+
+    /**
+     * Get harvested-cycle environment statistics for a unit.
+     * @param {number} unitId
+     * @param {Object} params
+     * @returns {Promise<Object>}
+     */
+    getHarvestEnvironment(unitId, params = {}) {
+        const query = new URLSearchParams();
+        if (params.start_date) query.set('start_date', params.start_date);
+        if (params.end_date) query.set('end_date', params.end_date);
+        const suffix = query.toString();
+        return get(`/api/v1/units/${unitId}/harvest-environment${suffix ? `?${suffix}` : ''}`);
     },
 
     /**
@@ -1034,7 +1335,10 @@ const PlantAPI = {
      * Get health status for all plants
      * @returns {Promise<Object>} Plants health data
      */
-    getPlantHealth() {
+    getPlantHealth(plantId) {
+        if (plantId) {
+            return get(`/api/plants/${plantId}/health/history`);
+        }
         return get('/api/plants/health');
     },
 
@@ -1066,6 +1370,86 @@ const PlantAPI = {
         if (riskLevel) params.append('risk_level', riskLevel);
         const query = params.toString();
         return get(`/api/ml/predictions/disease/risks${query ? '?' + query : ''}`);
+    },
+
+    /**
+     * Record a confirmed disease occurrence.
+     * @param {Object} data
+     * @returns {Promise<Object>}
+     */
+    recordDiseaseOccurrence(data) {
+        return post('/api/v1/plants/disease/occurrences', data);
+    },
+
+    /**
+     * Get disease history.
+     * @param {Object} [params]
+     * @returns {Promise<Object>}
+     */
+    getDiseaseHistory(params = {}) {
+        const query = new URLSearchParams();
+        if (params.unit_id) query.set('unit_id', params.unit_id);
+        if (params.plant_id) query.set('plant_id', params.plant_id);
+        if (params.disease_type) query.set('disease_type', params.disease_type);
+        if (params.include_resolved === false) query.set('include_resolved', 'false');
+        if (params.limit) query.set('limit', params.limit);
+        if (params.offset) query.set('offset', params.offset);
+        const suffix = query.toString();
+        return get(`/api/v1/plants/disease/history${suffix ? `?${suffix}` : ''}`);
+    },
+
+    /**
+     * Get a single disease occurrence by ID.
+     * @param {number} occurrenceId
+     * @returns {Promise<Object>}
+     */
+    getDiseaseOccurrence(occurrenceId) {
+        return get(`/api/v1/plants/disease/occurrences/${occurrenceId}`);
+    },
+
+    /**
+     * Resolve a disease occurrence.
+     * @param {number} occurrenceId
+     * @param {Object} payload
+     * @returns {Promise<Object>}
+     */
+    resolveDiseaseOccurrence(occurrenceId, payload) {
+        return put(`/api/v1/plants/disease/occurrences/${occurrenceId}/resolve`, payload);
+    },
+
+    /**
+     * Get disease occurrence statistics.
+     * @param {Object} [params]
+     * @returns {Promise<Object>}
+     */
+    getDiseaseStatistics(params = {}) {
+        const query = new URLSearchParams();
+        if (params.unit_id) query.set('unit_id', params.unit_id);
+        if (params.days) query.set('days', params.days);
+        const suffix = query.toString();
+        return get(`/api/v1/plants/disease/statistics${suffix ? `?${suffix}` : ''}`);
+    },
+
+    /**
+     * Record disease prediction feedback.
+     * @param {Object} payload
+     * @returns {Promise<Object>}
+     */
+    recordDiseasePredictionFeedback(payload) {
+        return post('/api/v1/plants/disease/prediction/feedback', payload);
+    },
+
+    /**
+     * Get disease prediction accuracy metrics.
+     * @param {Object} [params]
+     * @returns {Promise<Object>}
+     */
+    getDiseasePredictionAccuracy(params = {}) {
+        const query = new URLSearchParams();
+        if (params.disease_type) query.set('disease_type', params.disease_type);
+        if (params.days) query.set('days', params.days);
+        const suffix = query.toString();
+        return get(`/api/v1/plants/disease/prediction/accuracy${suffix ? `?${suffix}` : ''}`);
     },
 
     // Plant Intelligence
@@ -1319,6 +1703,15 @@ const DeviceAPI = {
     },
 
     /**
+     * Alias for getActuatorsByUnit (used by settings data-service)
+     * @param {number} unitId - Unit ID
+     * @returns {Promise<{actuators: Array, count: number}>}
+     */
+    getActuators(unitId) {
+        return this.getActuatorsByUnit(unitId);
+    },
+
+    /**
      * Add actuator
      * @param {Object} actuatorData - Actuator data
      * @returns {Promise<Object>} Created actuator
@@ -1562,6 +1955,14 @@ const DeviceAPI = {
     },
 
     /**
+     * Get per-device energy breakdown (alias for comparative analysis)
+     * @returns {Promise<Object>} Device energy breakdown
+     */
+    getDeviceEnergyBreakdown() {
+        return get('/api/devices/actuators/energy/comparative-analysis');
+    },
+
+    /**
      * Get all devices for a unit
      * @param {number} unitId - Unit ID
      * @returns {Promise<Object>} All devices
@@ -1747,67 +2148,164 @@ const DeviceAPI = {
     },
 
     // ============================================================================
-    // MQTT BROKER MANAGEMENT
+    // DIRECT MQTT / WIFI DEVICE PROVISIONING
     // ============================================================================
 
     /**
-     * Configure MQTT broker settings
-     * @param {Object} brokerConfig - Broker configuration
-     * @returns {Promise<Object>} Configuration result
+     * Direct MQTT broker management is not exposed from the production web UI.
+     * Provision broker access on the Raspberry Pi and manage Zigbee devices via
+     * the supported Zigbee2MQTT flow instead.
      */
-    configureMQTTBroker(brokerConfig) {
-        return post('/api/mqtt/broker/config', brokerConfig);
+    configureMQTTBroker() {
+        return unsupportedFeature(
+            "Direct MQTT broker configuration",
+            "Configure Mosquitto on the Raspberry Pi and use Zigbee2MQTT or ESP32 provisioning flows instead."
+        );
     },
 
-    /**
-     * Test MQTT connection
-     * @returns {Promise<Object>} Connection test result
-     */
     testMQTTConnection() {
-        return post('/api/mqtt/test-connection', {});
+        return unsupportedFeature(
+            "Direct MQTT broker testing",
+            "Validate Mosquitto on the Raspberry Pi with system tools instead of this page."
+        );
     },
 
-    /**
-     * Discover MQTT devices
-     * @returns {Promise<Object>} Discovered devices
-     */
     discoverMQTTDevices() {
-        return post('/api/mqtt/devices/discover', {});
+        return unsupportedFeature(
+            "Generic MQTT device discovery",
+            "Use Zigbee2MQTT discovery for Zigbee devices or ESP32 provisioning for SYSGrow firmware."
+        );
     },
 
-    /**
-     * Add MQTT device
-     * @param {Object} deviceData - Device configuration
-     * @returns {Promise<Object>} Added device
-     */
-    addMQTTDevice(deviceData) {
-        return post('/api/mqtt/devices/add', deviceData);
+    addMQTTDevice() {
+        return unsupportedFeature(
+            "Generic MQTT device registration",
+            "Add supported devices through Zigbee2MQTT or the ESP32 provisioning workflow."
+        );
     },
 
-    /**
-     * Add MQTT sensor
-     * @param {Object} sensorData - Sensor configuration
-     * @returns {Promise<Object>} Added sensor
-     */
-    addMQTTSensor(sensorData) {
-        return post('/api/mqtt/sensors/add', sensorData);
+    addMQTTSensor() {
+        return unsupportedFeature(
+            "Generic MQTT sensor registration",
+            "Add supported devices through Zigbee2MQTT or the ESP32 provisioning workflow."
+        );
     },
 
-    /**
-     * Add MQTT actuator
-     * @param {Object} actuatorData - Actuator configuration
-     * @returns {Promise<Object>} Added actuator
-     */
-    addMQTTActuator(actuatorData) {
-        return post('/api/mqtt/actuators/add', actuatorData);
+    addMQTTActuator() {
+        return unsupportedFeature(
+            "Generic MQTT actuator registration",
+            "Add supported devices through Zigbee2MQTT or the ESP32 provisioning workflow."
+        );
     },
 
-    /**
-     * Get all MQTT devices
-     * @returns {Promise<Object>} All MQTT devices
-     */
     getMQTTDevices() {
-        return get('/api/mqtt/devices/all');
+        return unsupportedFeature(
+            "Generic MQTT device inventory",
+            "The release UI does not manage arbitrary MQTT devices directly."
+        );
+    },
+
+    // ============================================================================
+    // UNIT DEVICE SCHEDULES (delegates to Growth V3 schedule endpoints)
+    // ============================================================================
+
+    /**
+     * Get schedules for a unit
+     * @param {number} unitId - Unit ID
+     * @returns {Promise<Object>} Schedules
+     */
+    getSchedulesForUnit(unitId) {
+        return get(`/api/growth/v3/units/${unitId}/schedules`);
+    },
+
+    /**
+     * Create a device schedule
+     * @param {Object} payload - Schedule data (must include unit_id)
+     * @returns {Promise<Object>} Created schedule
+     */
+    createSchedule(payload) {
+        const unitId = payload.unit_id;
+        return post(`/api/growth/v3/units/${unitId}/schedules`, payload);
+    },
+
+    /**
+     * Update a device schedule
+     * @param {number} scheduleId - Schedule ID
+     * @param {Object} payload - Updated schedule data (must include unit_id)
+     * @returns {Promise<Object>} Updated schedule
+     */
+    updateSchedule(scheduleId, payload) {
+        const unitId = payload.unit_id;
+        return put(`/api/growth/v3/units/${unitId}/schedules/${scheduleId}`, payload);
+    },
+
+    /**
+     * Delete a device schedule
+     * @param {number} scheduleId - Schedule ID
+     * @param {number} [unitId] - Unit ID (used for route)
+     * @returns {Promise<Object>} Deletion result
+     */
+    deleteSchedule(scheduleId, unitId) {
+        if (unitId) {
+            return del(`/api/growth/v3/units/${unitId}/schedules/${scheduleId}`);
+        }
+        // unitId is required for the V3 schedule endpoint
+        console.warn('[DeviceAPI] deleteSchedule called without unitId — schedule deletion requires unitId');
+        return Promise.reject(new Error('unitId is required to delete a schedule'));
+    },
+
+    // ============================================================================
+    // SENSOR/ACTUATOR UNIT LINKING
+    // ============================================================================
+
+    /**
+     * Link a sensor to a unit by updating its unit_id
+     * @param {number} sensorId - Sensor ID
+     * @param {number} unitId - Target unit ID
+     * @returns {Promise<Object>} Update result
+     */
+    linkSensorToUnit(sensorId, unitId) {
+        return patch(`/api/devices/v2/sensors/${sensorId}`, { unit_id: unitId });
+    },
+
+    /**
+     * Unlink a sensor from its unit (set unit_id to 0)
+     * @param {number} sensorId - Sensor ID
+     * @returns {Promise<Object>} Update result
+     */
+    unlinkSensorFromUnit(sensorId) {
+        return patch(`/api/devices/v2/sensors/${sensorId}`, { unit_id: 0 });
+    },
+
+    /**
+     * Link an actuator to a unit
+     * @param {number} actuatorId - Actuator ID
+     * @param {number} unitId - Target unit ID
+     * @returns {Promise<Object>} Update result
+     */
+    linkActuatorToUnit(actuatorId, unitId) {
+        return post(`/api/devices/v2/actuators/${actuatorId}/command`, { unit_id: unitId, action: 'link' });
+    },
+
+    /**
+     * Unlink an actuator from its unit
+     * @param {number} actuatorId - Actuator ID
+     * @returns {Promise<Object>} Update result
+     */
+    unlinkActuatorFromUnit(actuatorId) {
+        return post(`/api/devices/v2/actuators/${actuatorId}/command`, { unit_id: 0, action: 'unlink' });
+    },
+
+    // ============================================================================
+    // DEVICE HEALTH
+    // ============================================================================
+
+    /**
+     * Get overall device health summary
+     * @returns {Promise<Object>} Device health summary
+     */
+    getDeviceHealth() {
+        return get('/api/health/devices');
     }
 };
 
@@ -2006,6 +2504,16 @@ const InsightsAPI = {
         if (params.days) query.append('days', params.days || 7);
         const queryStr = query.toString();
         return get(`/api/analytics/dashboard/energy-summary${queryStr ? '?' + queryStr : ''}`);
+    },
+
+    /**
+     * Get energy trend data for charts
+     * @param {string} [timerange='month'] - 'day', 'week', 'month', 'year'
+     * @param {string} [grouping='day'] - 'hour', 'day', 'week', 'month'
+     * @returns {Promise<Object>} Energy trend data
+     */
+    getEnergyTrend(timerange = 'month', grouping = 'day') {
+        return get(`/api/analytics/dashboard/energy-summary?timerange=${timerange}&grouping=${grouping}`);
     },
 
     /**
@@ -2401,7 +2909,7 @@ const HealthAPI = {
      * @returns {Promise<Object>} Dismiss result
      */
     dismissAlert(alertId) {
-        return post(`/api/health/alerts/${alertId}/dismiss`);
+        return post(`/api/system/alerts/${alertId}/resolve`);
     }
 };
 
@@ -2634,31 +3142,48 @@ const SettingsAPI = {
         return put('/api/settings/environment', settings);
     },
 
-    // WiFi
+    // Database maintenance
     /**
-     * Scan for WiFi networks
-     * @returns {Promise<Object>} List of networks
+     * Create a database backup on the Raspberry Pi.
+     * @param {Object} [payload]
+     * @returns {Promise<Object>} Backup metadata
      */
-    scanWiFi() {
-        return get('/api/settings/wifi/scan');
+    createDatabaseBackup(payload = {}) {
+        return post('/api/settings/database/backup', payload);
     },
 
     /**
-     * Configure WiFi for a device
-     * @param {Object} config - WiFi configuration
-     * @returns {Promise<Object>} Result
+     * Preview or prune old sensor readings.
+     * @param {Object} payload
+     * @returns {Promise<Object>} Prune result
      */
-    configureWiFi(config) {
-        return post('/api/settings/wifi/configure', config);
+    pruneSensorReadings(payload) {
+        return post('/api/settings/database/prune', payload);
     },
 
     /**
-     * Broadcast WiFi configuration
-     * @param {Object} config - WiFi configuration
-     * @returns {Promise<Object>} Result
+     * Run SQLite VACUUM.
+     * @returns {Promise<Object>} Vacuum result
      */
-    broadcastWiFi(config) {
-        return post('/api/settings/wifi/broadcast', config);
+    vacuumDatabase() {
+        return post('/api/settings/database/vacuum');
+    },
+
+    /**
+     * Get runtime retention days for actuator state history.
+     * @returns {Promise<Object>} Retention setting
+     */
+    getActuatorStateRetention() {
+        return get('/api/settings/retention/actuator-state');
+    },
+
+    /**
+     * Update runtime retention days for actuator state history.
+     * @param {number} days
+     * @returns {Promise<Object>} Updated retention setting
+     */
+    setActuatorStateRetention(days) {
+        return post('/api/settings/retention/actuator-state', { days });
     },
 
     // Throttle (unit-scoped)
@@ -2685,6 +3210,29 @@ const SettingsAPI = {
      */
     resetThrottleConfig(unitId) {
         return post(`/api/settings/throttle/reset?unit_id=${encodeURIComponent(unitId)}`);
+    },
+
+    // ============================================================================
+    // THRESHOLD MANAGEMENT (delegates to Growth thresholds endpoints)
+    // ============================================================================
+
+    /**
+     * Update thresholds for a unit
+     * @param {number} unitId - Unit ID
+     * @param {Object} thresholds - Threshold values
+     * @returns {Promise<Object>} Updated thresholds
+     */
+    updateThresholds(unitId, thresholds) {
+        return post(`/api/growth/v2/units/${unitId}/thresholds`, thresholds);
+    },
+
+    /**
+     * Get thresholds for a unit
+     * @param {number} unitId - Unit ID
+     * @returns {Promise<Object>} Current thresholds
+     */
+    getThresholds(unitId) {
+        return get(`/api/growth/v2/units/${unitId}/thresholds`);
     }
 };
 
@@ -2800,7 +3348,7 @@ const MLAPI = {
      * @returns {Promise<Object>} Schedule result
      */
     scheduleRetraining(scheduleData) {
-        return post('/api/ml/retraining/schedule', scheduleData);
+        return post('/api/ml/retraining/jobs', scheduleData);
     },
 
     /**
@@ -2886,9 +3434,60 @@ const MLAPI = {
      * @param {Object} params - Query parameters
      * @returns {Promise<Object>} Annotations
      */
-    getAnnotations(params) {
-        const query = new URLSearchParams(params).toString();
-        return get(`/api/ml/insights/annotations?${query}`);
+    async getAnnotations(params = {}) {
+        const unitId = firstDefined(params.unit_id, params.unitId);
+        const limit = firstDefined(params.limit, 20);
+        const insightType = firstDefined(params.insight_type, params.insightType);
+        const alertLevel = firstDefined(params.alert_level, params.alertLevel);
+        const startTime = firstDefined(params.start, params.start_time, params.startTime);
+        const endTime = firstDefined(params.end, params.end_time, params.endTime);
+
+        const query = new URLSearchParams();
+        if (limit !== undefined && limit !== null) query.append('limit', String(limit));
+        if (insightType) query.append('insight_type', String(insightType));
+        if (alertLevel) query.append('alert_level', String(alertLevel));
+
+        const endpoint = unitId
+            ? `/api/ml/continuous/insights/${encodeURIComponent(unitId)}`
+            : '/api/ml/continuous/insights';
+        const queryString = query.toString();
+        const payload = await get(`${endpoint}${queryString ? `?${queryString}` : ''}`);
+
+        const rawInsights = unitId
+            ? (Array.isArray(payload?.insights) ? payload.insights : [])
+            : Object.values(payload?.insights || {}).reduce((allInsights, insights) => (
+                Array.isArray(insights) ? allInsights.concat(insights) : allInsights
+            ), []);
+
+        const startMs = startTime ? new Date(startTime).getTime() : null;
+        const endMs = endTime ? new Date(endTime).getTime() : null;
+
+        const annotations = rawInsights
+            .filter((insight) => {
+                const ts = insight?.timestamp ? new Date(insight.timestamp).getTime() : NaN;
+                if (!Number.isFinite(ts)) return false;
+                if (startMs !== null && ts < startMs) return false;
+                if (endMs !== null && ts > endMs) return false;
+                return true;
+            })
+            .map((insight) => ({
+                timestamp: insight.timestamp,
+                message: firstDefined(
+                    insight.message,
+                    insight.title,
+                    insight.summary,
+                    insight.recommendation,
+                    insight.description,
+                    insight.insight,
+                    'Monitoring insight'
+                ),
+                y_position: firstDefined(params.y_position, params.yPosition, 'max'),
+                type: firstDefined(insight.insight_type, insight.type),
+                level: firstDefined(insight.alert_level, insight.level, insight.severity),
+                unit_id: firstDefined(insight.unit_id, unitId, null)
+            }));
+
+        return { annotations };
     },
 
     /**
@@ -2899,6 +3498,81 @@ const MLAPI = {
     getConfidenceBands(params) {
         const query = new URLSearchParams(params).toString();
         return get(`/api/ml/predictions/confidence-bands?${query}`);
+    },
+
+    // ---------- Disease Trends ----------
+    /**
+     * Get disease occurrence trends over time
+     * @param {number} [days=30] - Number of days to analyse
+     * @param {number} [unitId] - Optional unit filter
+     * @returns {Promise<Object>} Daily counts and disease totals
+     */
+    getDiseaseTrends(days = 30, unitId = null) {
+        const params = new URLSearchParams({ days: String(days) });
+        if (unitId) params.append('unit_id', String(unitId));
+        return get(`/api/ml/analytics/disease/trends?${params}`);
+    },
+
+    // ---------- Model Comparison ----------
+    /**
+     * Compare performance metrics of multiple models
+     * @param {string[]} modelNames - Array of model names (min 2)
+     * @returns {Promise<Object>} Comparison results
+     */
+    compareModels(modelNames) {
+        return post('/api/ml/models/compare', { models: modelNames });
+    }
+};
+
+// ============================================================================
+// ML READINESS API
+// ============================================================================
+
+const MLReadinessAPI = {
+    /**
+     * Get irrigation ML readiness status for a unit
+     * @param {number} unitId - Growth unit ID
+     * @returns {Promise<Object>} Readiness data with model progress
+     */
+    getIrrigationReadiness(unitId) {
+        return get(`/api/ml/readiness/irrigation/${unitId}`);
+    },
+
+    /**
+     * Activate an ML model for a unit
+     * @param {number} unitId - Growth unit ID
+     * @param {string} modelName - Model name to activate
+     * @returns {Promise<Object>} Activation result
+     */
+    activateModel(unitId, modelName) {
+        return post(`/api/ml/readiness/irrigation/${unitId}/activate/${modelName}`);
+    },
+
+    /**
+     * Deactivate an ML model for a unit
+     * @param {number} unitId - Growth unit ID
+     * @param {string} modelName - Model name to deactivate
+     * @returns {Promise<Object>} Deactivation result
+     */
+    deactivateModel(unitId, modelName) {
+        return post(`/api/ml/readiness/irrigation/${unitId}/deactivate/${modelName}`);
+    },
+
+    /**
+     * Get activation status of all ML models for a unit
+     * @param {number} unitId - Growth unit ID
+     * @returns {Promise<Object>} Model activation statuses (model_name -> bool)
+     */
+    getActivationStatus(unitId) {
+        return get(`/api/ml/readiness/irrigation/${unitId}/status`);
+    },
+
+    /**
+     * Trigger readiness check for all units
+     * @returns {Promise<Object>} Check results with notifications sent
+     */
+    checkAll() {
+        return post('/api/ml/readiness/check-all');
     }
 };
 
@@ -3134,6 +3808,106 @@ const PersonalizedLearningAPI = {
      */
     findSimilarGrowers(unitId, limit = 5) {
         return get(`/api/ml/personalized/similar-growers/${unitId}?limit=${limit}`);
+    },
+
+    /**
+     * Fetch condition profile selector payload for wizard UI
+     * @param {Object} params - selector filters
+     * @returns {Promise<Object>} selector payload
+     */
+    getConditionProfileSelector(params = {}) {
+        const cleaned = Object.fromEntries(
+            Object.entries(params).filter(([, value]) => (
+                value !== undefined && value !== null && value !== '' && value !== 'undefined'
+            ))
+        );
+        const query = new URLSearchParams(cleaned).toString();
+        return get(`/api/ml/personalized/condition-profiles/selector${query ? `?${query}` : ''}`);
+    },
+
+    /**
+     * List condition profiles for a user
+     * @param {number} userId - User ID
+     * @param {Object} [filters] - Optional filters
+     * @returns {Promise<Object>} Profiles list
+     */
+    listConditionProfiles(userId, filters = {}) {
+        const query = new URLSearchParams(filters).toString();
+        return get(`/api/ml/personalized/condition-profiles/user/${userId}${query ? `?${query}` : ''}`);
+    },
+
+    /**
+     * Get a single condition profile
+     * @param {Object} params - query params
+     * @returns {Promise<Object>} Profile payload
+     */
+    getConditionProfile(params = {}) {
+        const query = new URLSearchParams(params).toString();
+        return get(`/api/ml/personalized/condition-profiles${query ? `?${query}` : ''}`);
+    },
+
+    /**
+     * Create or update a condition profile
+     * @param {Object} payload - Profile data
+     * @returns {Promise<Object>} Upserted profile
+     */
+    upsertConditionProfile(payload) {
+        return post('/api/ml/personalized/condition-profiles', payload);
+    },
+
+    /**
+     * Clone a condition profile
+     * @param {Object} payload - Clone request
+     * @returns {Promise<Object>} Cloned profile
+     */
+    cloneConditionProfile(payload) {
+        return post('/api/ml/personalized/condition-profiles/clone', payload);
+    },
+
+    /**
+     * Share a condition profile
+     * @param {Object} payload - Share request
+     * @returns {Promise<Object>} Share payload
+     */
+    shareConditionProfile(payload) {
+        return post('/api/ml/personalized/condition-profiles/share', payload);
+    },
+
+    /**
+     * List public shared profiles
+     * @returns {Promise<Object>} Shared profiles
+     */
+    listSharedConditionProfiles() {
+        return get('/api/ml/personalized/condition-profiles/shared');
+    },
+
+    /**
+     * Import a shared profile
+     * @param {Object} payload - Import request
+     * @returns {Promise<Object>} Imported profile
+     */
+    importSharedConditionProfile(payload) {
+        return post('/api/ml/personalized/condition-profiles/import', payload);
+    },
+
+    /**
+     * Apply a condition profile to a unit (environment thresholds)
+     * @param {number} unitId - Unit ID
+     * @param {Object} payload - Apply request
+     * @returns {Promise<Object>} Apply result
+     */
+    applyConditionProfileToUnit(unitId, payload) {
+        return post(`/api/growth/v2/units/${unitId}/thresholds/apply-profile`, payload);
+    },
+
+    /**
+     * Apply a condition profile to a live plant
+     * @param {number} plantId - Plant ID
+     * @param {Object} payload - Apply request
+     * @returns {Promise<Object>} Apply result
+     */
+    applyConditionProfileToPlant(plantId, payload) {
+        return post(`/api/plants/${plantId}/apply-profile`, payload);
     }
 };
 
@@ -3195,6 +3969,20 @@ const TrainingDataAPI = {
      */
     getQualityMetrics(datasetType) {
         return get(`/api/ml/training-data/quality/${datasetType}`);
+    },
+
+    /**
+     * Get quality metrics for all dataset types
+     * @returns {Promise<Object>} Aggregated quality metrics
+     */
+    async getQuality() {
+        const types = ['disease', 'climate', 'growth'];
+        const results = await Promise.allSettled(types.map(t => this.getQualityMetrics(t)));
+        const quality = {};
+        types.forEach((t, i) => {
+            quality[t] = results[i].status === 'fulfilled' ? results[i].value : null;
+        });
+        return quality;
     }
 };
 
@@ -3518,20 +4306,61 @@ const AIAPI = {
      */
     async getOptimization(unitId) {
         try {
-            const recommendations = await get(`/api/ml/predictions/climate/${unitId}/recommendations`);
-            const priority = recommendations?.priority || 'low';
-            const scoreMap = {
-                critical: 35,
-                high: 55,
-                medium: 70,
-                low: 85
-            };
-            const score = scoreMap[priority] ?? 75;
-            const actions = recommendations?.actions || [];
+            const recommendations = await getQuiet(`/api/ml/predictions/climate/${unitId}/recommendations`);
+            const actions = Array.isArray(recommendations?.actions)
+                ? recommendations.actions.filter((action) => typeof action === 'string' && action.trim())
+                : [];
+            const priority = String(recommendations?.priority || '').toLowerCase();
+            const status = String(recommendations?.status || recommendations?.climate?.status || '').toLowerCase();
+            const legacyShim = String(recommendations?.climate?.status || '')
+                .toLowerCase()
+                .includes('legacy shim');
+
+            const priorityToken = ['critical', 'high', 'medium', 'low'].includes(priority)
+                ? priority
+                : ['critical', 'high', 'medium', 'low'].includes(status)
+                    ? status
+                    : 'unknown';
+
+            const explicitScoreCandidates = [
+                Number(recommendations?.score),
+                Number(recommendations?.optimization_score),
+                Number(recommendations?.climate?.score)
+            ];
+            const explicitScoreRaw = explicitScoreCandidates.find((value) => Number.isFinite(value));
+            const confidence = Number(recommendations?.confidence);
+            const confidenceScore = Number.isFinite(confidence)
+                ? (confidence <= 1 ? confidence * 100 : confidence)
+                : Number.NaN;
+            const canUseConfidenceScore = actions.length > 0
+                || ['critical', 'high', 'medium'].includes(priorityToken);
+            const explicitScore = Number.isFinite(explicitScoreRaw)
+                ? explicitScoreRaw
+                : (canUseConfidenceScore ? confidenceScore : Number.NaN);
+            const emptyLowPriority = actions.length === 0
+                && !Number.isFinite(explicitScore)
+                && (priorityToken === 'low' || priorityToken === 'unknown');
+            const invalidZeroScore = Number.isFinite(explicitScore)
+                && explicitScore <= 0
+                && actions.length === 0;
+
+            // The backend legacy shim returns static low-priority/no-actions data.
+            // Surface as "no data" instead of a misleading fixed score.
+            if ((legacyShim && actions.length === 0) || emptyLowPriority || invalidZeroScore) {
+                return {
+                    score: null,
+                    status: 'unknown',
+                    quick_actions: []
+                };
+            }
+
+            const score = Number.isFinite(explicitScore)
+                ? Math.max(0, Math.min(100, explicitScore))
+                : null;
 
             return {
                 score,
-                status: priority,
+                status: priorityToken,
                 quick_actions: actions.slice(0, 3).map((action, index) => ({
                     type: `climate-${index + 1}`,
                     label: action
@@ -3539,8 +4368,8 @@ const AIAPI = {
             };
         } catch {
             return {
-                score: 85,
-                status: 'low',
+                score: null,
+                status: 'unknown',
                 quick_actions: []
             };
         }
@@ -3559,29 +4388,21 @@ const AIAPI = {
             })
             .filter(Boolean);
 
-        let profile = null;
-        try {
-            const payload = await get(`/api/ml/personalized/profiles/${unitId}`);
-            profile = payload?.profile || null;
-        } catch {
-            profile = null;
-        }
-
         let recs = null;
         try {
-            const payload = await get(`/api/ml/personalized/recommendations/${unitId}`);
-            recs = payload?.recommendations || null;
+            const payload = await getQuiet(`/api/ml/personalized/recommendations/${unitId}`);
+            recs = payload?.recommendations || payload || null;
         } catch {
             recs = null;
         }
 
-        const successFactors = normalizeList(profile?.success_factors || recs?.success_factors);
-        const attentionAreas = normalizeList(profile?.challenge_areas || recs?.adjustments || recs?.issues);
+        const successFactors = normalizeList(recs?.success_factors || recs?.what_worked);
+        const attentionAreas = normalizeList(recs?.adjustments || recs?.issues || recs?.challenge_areas);
 
         const learningStats = {
-            cycles_analyzed: profile?.historical_patterns?.cycles_analyzed ?? 0,
-            success_rate: profile?.historical_patterns?.success_rate ?? 0,
-            profile_completeness: profile ? 100 : 0
+            cycles_analyzed: recs?.learning_stats?.cycles_analyzed ?? 0,
+            success_rate: recs?.learning_stats?.success_rate ?? 0,
+            profile_completeness: recs ? 100 : 0
         };
 
         return {
@@ -3599,11 +4420,24 @@ const AIAPI = {
      */
     async getForecast(unitId, days = 7) {
         try {
+            try {
+                const modelStatus = await getQuiet('/api/ml/models/status');
+                const climateActive = Boolean(modelStatus?.models?.climate_optimizer?.active);
+                if (!climateActive) {
+                    return {
+                        forecast: [],
+                        confidence: 0
+                    };
+                }
+            } catch {
+                // If status check fails, continue and let forecast endpoint decide.
+            }
+
             const hoursAhead = Math.min(Math.max(days, 1) * 24, 24);
             const params = new URLSearchParams();
             if (unitId !== null && unitId !== undefined) params.append('unit_id', String(unitId));
             params.append('hours_ahead', String(hoursAhead));
-            const payload = await get(`/api/ml/predictions/climate/forecast?${params.toString()}`);
+            const payload = await getQuiet(`/api/ml/predictions/climate/forecast?${params.toString()}`);
             const forecast = payload?.forecast || {};
 
             const timestamps = forecast.timestamps || [];
@@ -3673,11 +4507,11 @@ const AIAPI = {
 
 const StatusAPI = {
     /**
-     * Get status page data
+     * Get system status
      * @returns {Promise<Object>} Status data
      */
     getStatus() {
-        return get('/status/');
+        return get('/api/health/system');
     },
 
     /**
@@ -3686,6 +4520,95 @@ const StatusAPI = {
      */
     getHealth() {
         return get('/api/health/system');
+    }
+};
+
+// ============================================================================
+// ESP32 / SYSGrow Bridge API
+// ============================================================================
+
+/**
+ * ESP32 / SYSGrow bridge management endpoints.
+ * Handles BLE pairing, health checks, firmware updates, and device discovery.
+ */
+const ESP32API = {
+    /**
+     * Scan for SYSGrow devices (enable BLE pairing / permit-join)
+     * @param {Object} [options] - Scan options
+     * @param {number} [options.time] - Scan timeout in seconds (default: 30)
+     * @returns {Promise<Object>} Scan result
+     */
+    scan(options = {}) {
+        return post('/api/devices/v2/sysgrow/permit-join', {
+            value: true,
+            time: options.time || 30
+        });
+    },
+
+    /**
+     * Get SYSGrow device info by sensor ID
+     * @param {number} deviceId - Sensor/device ID
+     * @returns {Promise<Object>} Device info
+     */
+    getDevice(deviceId) {
+        return get(`/api/devices/v2/sensors/${deviceId}/device-info`);
+    },
+
+    /**
+     * Update SYSGrow device settings
+     * @param {number} deviceId - Sensor/device ID
+     * @param {Object} data - Update payload (e.g. name, config)
+     * @returns {Promise<Object>} Update result
+     */
+    updateDevice(deviceId, data) {
+        return patch(`/api/devices/v2/sensors/${deviceId}`, data);
+    },
+
+    /**
+     * Check firmware status / trigger OTA update check
+     * @param {number} deviceId - Device ID
+     * @returns {Promise<Object>} Firmware status
+     */
+    checkFirmware(deviceId) {
+        return get(`/api/devices/v2/sensors/${deviceId}/device-info`);
+    },
+
+    /**
+     * Provision / restart a SYSGrow device
+     * @param {number} deviceId - Device ID
+     * @returns {Promise<Object>} Provision result
+     */
+    provision(deviceId) {
+        return post(`/api/devices/v2/sensors/${deviceId}/command`, { restart: true });
+    },
+
+    /**
+     * Get bridge health status
+     * @returns {Promise<Object>} Bridge health
+     */
+    getHealth() {
+        return get('/api/devices/v2/sysgrow/health');
+    },
+
+    /**
+     * Restart all SYSGrow devices on the network
+     * @returns {Promise<Object>} Restart result
+     */
+    restartAll() {
+        return post('/api/devices/v2/sysgrow/restart-all', {});
+    },
+
+    /**
+     * Trigger OTA firmware update on a device
+     * @param {string} deviceId - Device friendly_name or sensor_id
+     * @param {string} firmwareUrl - Firmware binary URL
+     * @returns {Promise<Object>} OTA update result
+     */
+    otaUpdate(deviceId, firmwareUrl) {
+        return post('/api/devices/v2/sysgrow/ota-update', {
+            id: deviceId,
+            url: firmwareUrl
+        });
     }
 };
 
@@ -3752,6 +4675,17 @@ const SystemAPI = {
      */
     clearAllAlerts() {
         return post('/api/system/alerts/clear-all');
+    },
+
+    /**
+     * Export system data
+     * @param {Object} [options] - Export options
+     * @param {string} [options.format='json'] - Export format (json, csv)
+     * @returns {Promise<Object>} Export data or download URL
+     */
+    exportData(options = {}) {
+        const format = options.format || 'json';
+        return get(`/api/dashboard/summary?format=${encodeURIComponent(format)}`);
     }
 };
 
@@ -4176,10 +5110,13 @@ const API = {
     Settings: SettingsAPI,
     ML: MLAPI,
     AI: AIAPI,
+    ESP32: ESP32API,
     GrowthStages: GrowthStagesAPI,
     Retraining: RetrainingAPI,
     ABTesting: ABTestingAPI,
+    MLReadiness: MLReadinessAPI,
     ContinuousMonitoring: ContinuousMonitoringAPI,
+    Continuous: ContinuousMonitoringAPI,
     PersonalizedLearning: PersonalizedLearningAPI,
     TrainingData: TrainingDataAPI,
     Session: SessionAPI,

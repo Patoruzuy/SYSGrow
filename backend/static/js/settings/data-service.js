@@ -414,41 +414,82 @@ class SettingsDataService {
   }
 
   // ============================================================================
-  // WIFI & CONNECTIVITY
+  // DATABASE MAINTENANCE
   // ============================================================================
 
-  async scanWiFiNetworks({ force = false } = {}) {
-    const cacheKey = 'wifi_networks';
+  async loadDatabaseMaintenance({ force = false } = {}) {
+    const cacheKey = this._key('database_maintenance');
 
     try {
       return await this._cached(
         cacheKey,
         async () => {
-          const response = await this.api.Settings.scanWiFi();
-          return response?.networks || [];
+          const retention = await this.api.Settings.getActuatorStateRetention();
+          return {
+            actuatorStateRetentionDays: retention?.days ?? 90,
+            sensorPruneWindowDays: 90
+          };
         },
         { force }
       );
     } catch (error) {
-      console.error('[SettingsDataService] scanWiFiNetworks failed:', error);
+      console.error('[SettingsDataService] loadDatabaseMaintenance failed:', error);
+      return {
+        actuatorStateRetentionDays: 90,
+        sensorPruneWindowDays: 90
+      };
+    }
+  }
+
+  async saveActuatorStateRetention(days) {
+    try {
+      const response = await this.api.Settings.setActuatorStateRetention(days);
+      this.cache.invalidate(this._key('database_maintenance'));
+      return response;
+    } catch (error) {
+      console.error('[SettingsDataService] saveActuatorStateRetention failed:', error);
       throw error;
     }
   }
 
-  async sendWiFiConfig(payload) {
+  async previewDatabasePrune(payload) {
     try {
-      return await this.api.Settings.configureWiFi(payload);
+      return await this.api.Settings.pruneSensorReadings({
+        ...payload,
+        dry_run: true
+      });
     } catch (error) {
-      console.error('[SettingsDataService] sendWiFiConfig failed:', error);
+      console.error('[SettingsDataService] previewDatabasePrune failed:', error);
       throw error;
     }
   }
 
-  async broadcastWiFiConfig(payload) {
+  async runDatabasePrune(payload) {
     try {
-      return await this.api.Settings.broadcastWiFi(payload);
+      return await this.api.Settings.pruneSensorReadings({
+        ...payload,
+        dry_run: false
+      });
     } catch (error) {
-      console.error('[SettingsDataService] broadcastWiFiConfig failed:', error);
+      console.error('[SettingsDataService] runDatabasePrune failed:', error);
+      throw error;
+    }
+  }
+
+  async createDatabaseBackup(payload = {}) {
+    try {
+      return await this.api.Settings.createDatabaseBackup(payload);
+    } catch (error) {
+      console.error('[SettingsDataService] createDatabaseBackup failed:', error);
+      throw error;
+    }
+  }
+
+  async vacuumDatabase() {
+    try {
+      return await this.api.Settings.vacuumDatabase();
+    } catch (error) {
+      console.error('[SettingsDataService] vacuumDatabase failed:', error);
       throw error;
     }
   }
@@ -673,21 +714,6 @@ class SettingsDataService {
       return response;
     } catch (error) {
       console.error('[SettingsDataService] addDevice failed:', error);
-      throw error;
-    }
-  }
-
-  // ============================================================================
-  // DATA EXPORT
-  // ============================================================================
-
-  async exportAnalyticsData(format = 'csv') {
-    try {
-      // This would call a backend endpoint to generate and download the export
-      const response = await this.api.System.exportData({ format });
-      return response;
-    } catch (error) {
-      console.error('[SettingsDataService] exportAnalyticsData failed:', error);
       throw error;
     }
   }

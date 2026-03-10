@@ -317,20 +317,24 @@ class DevicesDataService {
         return response;
     }
 
+    unsupportedConnectivityFeature(feature) {
+        throw new Error(
+            `${feature} is not available from the release web UI. Use ESP32 provisioning, Zigbee2MQTT discovery, or configure Mosquitto directly on the Raspberry Pi.`
+        );
+    }
+
     /**
      * Send WiFi config
      */
     async sendWiFiConfig(configData) {
-        const response = await this.api.Settings.configureWiFi(configData);
-        return response;
+        return this.unsupportedConnectivityFeature('Direct WiFi credential push');
     }
 
     /**
      * Broadcast WiFi config
      */
     async broadcastWiFiConfig(configData) {
-        const response = await this.api.Settings.broadcastWiFi(configData);
-        return response;
+        return this.unsupportedConnectivityFeature('Broadcast WiFi provisioning');
     }
 
     // ============================================================================
@@ -341,65 +345,49 @@ class DevicesDataService {
      * Configure MQTT broker
      */
     async configureMQTTBroker(brokerConfig) {
-        const data = await this.api.Device.configureMQTTBroker(brokerConfig);
-        this.cache.clearByPattern('mqtt');
-        return data;
+        return this.unsupportedConnectivityFeature('Generic MQTT broker management');
     }
 
     /**
      * Test MQTT connection
      */
     async testMQTTConnection() {
-        return await this.api.Device.testMQTTConnection();
+        return this.unsupportedConnectivityFeature('Generic MQTT connection testing');
     }
 
     /**
      * Discover MQTT devices
      */
     async discoverMQTTDevices() {
-        const data = await this.api.Device.discoverMQTTDevices();
-        this.cache.clearByPattern('mqtt');
-        return data;
+        return this.unsupportedConnectivityFeature('Generic MQTT device discovery');
     }
 
     /**
      * Add MQTT device
      */
     async addMQTTDevice(deviceData) {
-        const data = await this.api.Device.addMQTTDevice(deviceData);
-        this.cache.clearByPattern('mqtt');
-        return data;
+        return this.unsupportedConnectivityFeature('Generic MQTT device registration');
     }
 
     /**
      * Add MQTT sensor
      */
     async addMQTTSensor(sensorData) {
-        const data = await this.api.Device.addMQTTSensor(sensorData);
-        this.cache.clearByPattern('mqtt');
-        return data;
+        return this.unsupportedConnectivityFeature('Generic MQTT sensor registration');
     }
 
     /**
      * Add MQTT actuator
      */
     async addMQTTActuator(actuatorData) {
-        const data = await this.api.Device.addMQTTActuator(actuatorData);
-        this.cache.clearByPattern('mqtt');
-        return data;
+        return this.unsupportedConnectivityFeature('Generic MQTT actuator registration');
     }
 
     /**
      * Load MQTT devices
      */
     async loadMQTTDevices() {
-        const cacheKey = 'mqtt_devices';
-        const cached = this.cache.get(cacheKey);
-        if (cached) return cached;
-
-        const data = await this.api.Device.getMQTTDevices();
-        this.cache.set(cacheKey, data);
-        return data;
+        return this.unsupportedConnectivityFeature('Generic MQTT device inventory');
     }
 
     /**

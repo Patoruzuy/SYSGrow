@@ -15,6 +15,7 @@
 
       this.dataService = dataService;
       this.socketManager = null;
+      this.realtimeUnsubscribe = null;
       this.chart = null;
 
       // UI elements (will be cached in init)
@@ -572,20 +573,41 @@
      */
     async _setupRealtimeUpdates() {
       try {
-        const { default: socketManager } = await import('/static/js/socket.js');
-        this.socketManager = socketManager;
+        // Prefer an already-initialized global socket manager.
+        let socketManager = window.socketManager;
 
-        socketManager.on('energy_update', (data) => {
+        // Fallback: load socket module to populate window.socketManager.
+        if (!socketManager || typeof socketManager.on !== 'function') {
+          await import('/static/js/socket.js');
+          socketManager = window.socketManager;
+        }
+
+        if (!socketManager || typeof socketManager.on !== 'function') {
+          return;
+        }
+
+        this.socketManager = socketManager;
+        const unsubscribers = [];
+
+        unsubscribers.push(socketManager.on('energy_update', (data) => {
           console.log('[EnergyAnalyticsUIManager] Energy update received:', data);
           this._handleEnergyUpdate(data);
-        });
+        }));
 
-        socketManager.on('device_energy_update', (data) => {
+        unsubscribers.push(socketManager.on('device_energy_update', (data) => {
           console.log('[EnergyAnalyticsUIManager] Device energy update received:', data);
           this._handleDeviceEnergyUpdate(data);
-        });
+        }));
+
+        this.realtimeUnsubscribe = () => {
+          unsubscribers.forEach((unsubscribe) => {
+            try {
+              if (typeof unsubscribe === 'function') unsubscribe();
+            } catch {}
+          });
+        };
       } catch (error) {
-        console.warn('[EnergyAnalyticsUIManager] Socket.IO not available for real-time updates', error);
+        console.debug('[EnergyAnalyticsUIManager] Real-time socket setup skipped:', error);
       }
     }
 
@@ -767,6 +789,13 @@
      * Cleanup when manager is destroyed
      */
     destroy() {
+      if (typeof this.realtimeUnsubscribe === 'function') {
+        try {
+          this.realtimeUnsubscribe();
+        } catch {}
+        this.realtimeUnsubscribe = null;
+      }
+
       // Destroy chart
       if (this.chart) {
         this.chart.destroy();

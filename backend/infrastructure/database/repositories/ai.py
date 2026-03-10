@@ -11,8 +11,9 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Dict, List, Optional, Any, TYPE_CHECKING
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING, Any
+
 import pandas as pd
 
 if TYPE_CHECKING:
@@ -24,7 +25,7 @@ logger = logging.getLogger(__name__)
 class AIHealthDataRepository:
     """
     Repository for AI health and disease prediction data access.
-    
+
     Provides domain-specific queries for:
     - Health observations and history
     - Disease training data collection
@@ -35,13 +36,13 @@ class AIHealthDataRepository:
     def __init__(self, backend: "AnalyticsOperations") -> None:
         """
         Initialize with database backend.
-        
+
         Args:
             backend: AnalyticsOperations instance for database access
         """
         self._backend = backend
 
-    def _decode_sensor_payload(self, raw: Optional[str]) -> Dict[str, Any]:
+    def _decode_sensor_payload(self, raw: str | None) -> dict[str, Any]:
         """Decode SensorReading JSON payload into a dict."""
         if not raw:
             return {}
@@ -55,13 +56,13 @@ class AIHealthDataRepository:
     # NOTE: Health observations are now stored via PlantJournalService
     # This repository only provides READ access for AI analytics
 
-    def get_observation_by_id(self, observation_id: int) -> Optional[Dict[str, Any]]:
+    def get_observation_by_id(self, observation_id: int) -> dict[str, Any] | None:
         """
         Get a single health observation by ID.
-        
+
         Args:
             observation_id: The observation ID
-            
+
         Returns:
             Observation dict if found, None otherwise
         """
@@ -105,17 +106,17 @@ class AIHealthDataRepository:
         return None
 
     def get_recent_observations(
-        self, unit_id: int, plant_id: Optional[int] = None, limit: int = 10, days: int = 30
-    ) -> List[Dict[str, Any]]:
+        self, unit_id: int, plant_id: int | None = None, limit: int = 10, days: int = 30
+    ) -> list[dict[str, Any]]:
         """
         Get recent health observations for a unit.
-        
+
         Args:
             unit_id: The unit ID
             plant_id: Optional plant ID (defaults to unit's active plant)
             limit: Maximum number of observations to return
             days: Look back period in days
-            
+
         Returns:
             List of observation dicts
         """
@@ -148,7 +149,7 @@ class AIHealthDataRepository:
                 ORDER BY created_at DESC
                 LIMIT ?
             """,
-                (unit_id, resolved_plant_id, f'-{days} days', limit),
+                (unit_id, resolved_plant_id, f"-{days} days", limit),
             )
 
             return [
@@ -180,14 +181,14 @@ class AIHealthDataRepository:
             )
             return []
 
-    def get_health_statistics(self, unit_id: int, days: int = 30) -> Dict[str, Any]:
+    def get_health_statistics(self, unit_id: int, days: int = 30) -> dict[str, Any]:
         """
         Get health statistics for a unit.
-        
+
         Args:
             unit_id: The unit ID
             days: Look back period in days
-            
+
         Returns:
             Dict with health statistics
         """
@@ -196,7 +197,7 @@ class AIHealthDataRepository:
             cursor = db.cursor()
             cursor.execute(
                 """
-                SELECT 
+                SELECT
                     COUNT(*) as total_observations,
                     SUM(CASE WHEN health_status = 'healthy' THEN 1 ELSE 0 END) as healthy_count,
                     SUM(CASE WHEN health_status = 'stressed' THEN 1 ELSE 0 END) as stressed_count,
@@ -231,27 +232,25 @@ class AIHealthDataRepository:
     # ========== Disease Training Data ==========
 
     def get_health_observations_range(
-        self, start_date: str, end_date: str, unit_id: Optional[int] = None
-    ) -> List[Dict[str, Any]]:
+        self, start_date: str, end_date: str, unit_id: int | None = None
+    ) -> list[dict[str, Any]]:
         """
         Get health observations within a date range for training.
-        
+
         Args:
             start_date: Start date (ISO format)
             end_date: End date (ISO format)
             unit_id: Optional unit ID filter
-            
+
         Returns:
             List of observations with plant info
         """
         try:
             unit_filter = "AND ph.unit_id = ?" if unit_id else ""
-            params = (
-                (start_date, end_date, unit_id) if unit_id else (start_date, end_date)
-            )
+            params = (start_date, end_date, unit_id) if unit_id else (start_date, end_date)
 
             query = f"""
-                SELECT 
+                SELECT
                     ph.*,
                     p.plant_type,
                     p.current_stage as growth_stage
@@ -265,7 +264,7 @@ class AIHealthDataRepository:
             db = self._backend.get_db()
             cursor = db.cursor()
             cursor.execute(query, params)
-            
+
             # Convert rows to dicts
             columns = [desc[0] for desc in cursor.description]
             return [dict(zip(columns, row)) for row in cursor.fetchall()]
@@ -274,30 +273,28 @@ class AIHealthDataRepository:
             logger.error(f"Error getting health observations: {e}", exc_info=True)
             return []
 
-    def get_sensor_aggregates(
-        self, unit_id: int, start_date: str, end_date: str
-    ) -> Dict[str, float]:
+    def get_sensor_aggregates(self, unit_id: int, start_date: str, end_date: str) -> dict[str, float]:
         """
         Get aggregated sensor statistics for a time period.
-        
+
         Used for feature engineering in disease prediction.
-        
+
         Args:
             unit_id: The unit ID
             start_date: Start date (ISO format)
             end_date: End date (ISO format)
-            
+
         Returns:
             Dict with aggregated sensor stats
         """
         try:
             db = self._backend.get_db()
             cursor = db.cursor()
-            
+
             # 72-hour aggregates
             cursor.execute(
                 """
-                SELECT 
+                SELECT
                     AVG(CAST(json_extract(reading_data, '$.temperature') AS REAL)) as temp_mean,
                     STDEV(CAST(json_extract(reading_data, '$.temperature') AS REAL)) as temp_std,
                     MAX(CAST(json_extract(reading_data, '$.temperature') AS REAL)) as temp_max,
@@ -328,7 +325,7 @@ class AIHealthDataRepository:
 
                 cursor.execute(
                     """
-                    SELECT 
+                    SELECT
                         AVG(CAST(json_extract(reading_data, '$.temperature') AS REAL)) as temp_mean_24h,
                         AVG(CAST(json_extract(reading_data, '$.humidity') AS REAL)) as humidity_mean_24h
                     FROM SensorReading sr
@@ -371,10 +368,10 @@ class AIHealthDataRepository:
         try:
             db = self._backend.get_db()
             cursor = db.cursor()
-            
+
             cursor.execute(
                 """
-                SELECT 
+                SELECT
                     sr.timestamp,
                     sr.reading_data
                 FROM SensorReading sr
@@ -390,13 +387,13 @@ class AIHealthDataRepository:
             if not rows:
                 return pd.DataFrame()
 
-            records: List[Dict[str, Any]] = []
+            records: list[dict[str, Any]] = []
             for row in rows:
                 timestamp = row[0]
                 payload = self._decode_sensor_payload(row[1])
                 if not payload:
                     continue
-                record: Dict[str, Any] = {"timestamp": timestamp}
+                record: dict[str, Any] = {"timestamp": timestamp}
                 for key in (
                     "temperature",
                     "humidity",
@@ -450,9 +447,7 @@ class AIHealthDataRepository:
             logger.error(f"Error getting sensor time series: {e}", exc_info=True)
             return pd.DataFrame()
 
-    def get_sensor_readings_for_period(
-        self, unit_id: int, start_time: str, end_time: str, metric: str
-    ) -> List[tuple]:
+    def get_sensor_readings_for_period(self, unit_id: int, start_time: str, end_time: str, metric: str) -> list[tuple]:
         """
         Get sensor readings for environmental correlation analysis.
 
@@ -481,7 +476,7 @@ class AIHealthDataRepository:
                 "smoke",
                 "full_spectrum",
                 "infrared",
-                "visible"
+                "visible",
             ]
             if metric not in valid_metrics:
                 logger.warning(f"Invalid metric requested: {metric}")
@@ -507,9 +502,7 @@ class AIHealthDataRepository:
             logger.error(f"Failed to get sensor readings: {e}", exc_info=True)
             return []
 
-    def get_disease_statistics(
-        self, days: int = 90, unit_id: Optional[int] = None
-    ) -> Dict[str, Any]:
+    def get_disease_statistics(self, days: int = 90, unit_id: int | None = None) -> dict[str, Any]:
         """
         Get disease occurrence statistics.
 
@@ -531,7 +524,7 @@ class AIHealthDataRepository:
 
             # Disease type distribution
             query = f"""
-                SELECT 
+                SELECT
                     disease_type,
                     COUNT(*) as count,
                     AVG(severity_level) as avg_severity
@@ -549,7 +542,7 @@ class AIHealthDataRepository:
 
             # Health status distribution
             query = f"""
-                SELECT 
+                SELECT
                     health_status,
                     COUNT(*) as count
                 FROM PlantHealthLogs ph
@@ -565,7 +558,7 @@ class AIHealthDataRepository:
 
             # Most common symptoms
             query = f"""
-                SELECT 
+                SELECT
                     symptoms,
                     COUNT(*) as count
                 FROM PlantHealthLogs ph
@@ -585,9 +578,7 @@ class AIHealthDataRepository:
                 "disease_distribution": disease_dist,
                 "health_distribution": health_dist,
                 "common_symptoms": symptom_dist,
-                "total_observations": (
-                    sum(row["count"] for row in health_dist) if health_dist else 0
-                ),
+                "total_observations": (sum(row["count"] for row in health_dist) if health_dist else 0),
             }
 
         except Exception as e:
@@ -601,9 +592,9 @@ class AIHealthDataRepository:
         unit_id: int,
         health_status: str,
         severity: int,
-        correlations: List[Dict[str, Any]],
-        observation_date: Optional[str] = None,
-    ) -> Optional[int]:
+        correlations: list[dict[str, Any]],
+        observation_date: str | None = None,
+    ) -> int | None:
         """
         Save environmental correlation data for ML training.
 
@@ -619,6 +610,7 @@ class AIHealthDataRepository:
         """
         try:
             import json
+
             from app.utils.time import iso_now
 
             db = self._backend.get_db()
@@ -646,9 +638,7 @@ class AIHealthDataRepository:
             logger.error(f"Failed to save correlation: {e}", exc_info=True)
             return None
 
-    def get_correlations_for_unit(
-        self, unit_id: int, days: int = 90
-    ) -> List[Dict[str, Any]]:
+    def get_correlations_for_unit(self, unit_id: int, days: int = 90) -> list[dict[str, Any]]:
         """
         Get environmental correlations for a unit.
 
@@ -688,12 +678,14 @@ class AIHealthDataRepository:
                     except json.JSONDecodeError:
                         env_factors = {}
 
-                results.append({
-                    "health_status": row[0],
-                    "severity_level": row[1],
-                    "environmental_factors": env_factors,
-                    "observation_date": row[3],
-                })
+                results.append(
+                    {
+                        "health_status": row[0],
+                        "severity_level": row[1],
+                        "environmental_factors": env_factors,
+                        "observation_date": row[3],
+                    }
+                )
 
             return results
 
@@ -705,7 +697,7 @@ class AIHealthDataRepository:
 class AITrainingDataRepository:
     """
     Repository for ML training data operations.
-    
+
     Handles training session metadata, model performance tracking,
     and training data collection.
     """
@@ -713,13 +705,13 @@ class AITrainingDataRepository:
     def __init__(self, backend: "AnalyticsOperations") -> None:
         """
         Initialize with database backend.
-        
+
         Args:
             backend: AnalyticsOperations instance for database access
         """
         self._backend = backend
 
-    def _decode_sensor_payload(self, raw: Optional[str]) -> Dict[str, Any]:
+    def _decode_sensor_payload(self, raw: str | None) -> dict[str, Any]:
         """Decode SensorReading JSON payload into a dict."""
         if not raw:
             return {}
@@ -734,9 +726,9 @@ class AITrainingDataRepository:
         *,
         start_date: str,
         end_date: str,
-        unit_id: Optional[int] = None,
-        limit: Optional[int] = None,
-    ) -> List[Dict[str, Any]]:
+        unit_id: int | None = None,
+        limit: int | None = None,
+    ) -> list[dict[str, Any]]:
         """
         Collect sensor readings for training from SensorReading table.
         """
@@ -772,7 +764,7 @@ class AITrainingDataRepository:
 
         from app.utils.time import coerce_datetime
 
-        env_records: List[Dict[str, Any]] = []
+        env_records: list[dict[str, Any]] = []
         for row in cursor.fetchall():
             timestamp, row_unit_id, plant_id, reading_data = row
             payload = self._decode_sensor_payload(reading_data)
@@ -814,7 +806,7 @@ class AITrainingDataRepository:
         )
         plant_rows = cursor.fetchall()
 
-        env_records_sorted: List[Dict[str, Any]] = []
+        env_records_sorted: list[dict[str, Any]] = []
         for record in env_records:
             ts = coerce_datetime(record["timestamp"])
             if ts is None:
@@ -823,11 +815,11 @@ class AITrainingDataRepository:
             env_records_sorted.append(record)
         env_records_sorted.sort(key=lambda r: r["_ts"])
 
-        records: List[Dict[str, Any]] = []
+        records: list[dict[str, Any]] = []
         records.extend(env_records_sorted)
 
         env_idx = 0
-        current_env: Optional[Dict[str, Any]] = None
+        current_env: dict[str, Any] | None = None
         for row in plant_rows:
             timestamp, row_unit_id, plant_id, soil_moisture = row
             ts = coerce_datetime(timestamp)
@@ -854,28 +846,26 @@ class AITrainingDataRepository:
             }
             records.append(merged)
 
-        records.sort(key=lambda r: r.get("_ts") or coerce_datetime(r.get("timestamp")) or datetime.min.replace(tzinfo=timezone.utc))
+        records.sort(
+            key=lambda r: r.get("_ts") or coerce_datetime(r.get("timestamp")) or datetime.min.replace(tzinfo=UTC)
+        )
         for record in records:
             record.pop("_ts", None)
 
         return records
 
     def get_training_data(
-        self,
-        model_type: str,
-        start_date: str,
-        end_date: str,
-        unit_id: Optional[int] = None
-    ) -> List[Dict[str, Any]]:
+        self, model_type: str, start_date: str, end_date: str, unit_id: int | None = None
+    ) -> list[dict[str, Any]]:
         """
         Get training data for ML models.
-        
+
         Args:
             model_type: Type of model ('climate', 'disease', 'growth')
             start_date: Start date (ISO format)
             end_date: End date (ISO format)
             unit_id: Optional unit filter
-            
+
         Returns:
             List of training data records
         """
@@ -897,10 +887,10 @@ class AITrainingDataRepository:
                 params = [start_date, end_date]
                 if unit_id:
                     params.append(unit_id)
-                    
+
                 cursor.execute(
                     f"""
-                    SELECT 
+                    SELECT
                         phl.observation_date as timestamp,
                         phl.severity_level as health_score,
                         phl.symptoms,
@@ -924,12 +914,12 @@ class AITrainingDataRepository:
                 unit_id=unit_id,
                 limit=10000,
             )
-            
+
         except Exception as e:
             logger.error(f"Failed to get training data: {e}", exc_info=True)
             return []
 
-    def save_training_session(self, session_data: Dict[str, Any]) -> Optional[str]:
+    def save_training_session(self, session_data: dict[str, Any]) -> str | None:
         """
         Save an ML training session.
 
@@ -977,13 +967,13 @@ class AITrainingDataRepository:
             logger.error(f"Failed to save training session: {e}", exc_info=True)
             return None
 
-    def get_training_session(self, session_id: str) -> Optional[Dict[str, Any]]:
+    def get_training_session(self, session_id: str) -> dict[str, Any] | None:
         """
         Get a training session by ID.
-        
+
         Args:
             session_id: The session ID
-            
+
         Returns:
             Session dict if found, None otherwise
         """
@@ -1019,16 +1009,14 @@ class AITrainingDataRepository:
             logger.error(f"Failed to get training session: {e}", exc_info=True)
         return None
 
-    def list_training_sessions(
-        self, model_type: Optional[str] = None, limit: int = 20
-    ) -> List[Dict[str, Any]]:
+    def list_training_sessions(self, model_type: str | None = None, limit: int = 20) -> list[dict[str, Any]]:
         """
         List recent training sessions.
-        
+
         Args:
             model_type: Optional filter by model type
             limit: Maximum number of sessions to return
-            
+
         Returns:
             List of session dicts
         """
@@ -1081,45 +1069,45 @@ class AITrainingDataRepository:
 
     def get_irrigation_threshold_training_data(
         self,
-        unit_id: Optional[int] = None,
-        start_date: Optional[str] = None,
+        unit_id: int | None = None,
+        start_date: str | None = None,
         limit: int = 1000,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Get training data for irrigation threshold prediction model.
-        
+
         Combines irrigation timing feedback with environmental context.
-        
+
         Args:
             unit_id: Optional unit filter
             start_date: Optional start date filter (ISO format)
             limit: Maximum records to return
-            
+
         Returns:
             List of training records with features and target
         """
         try:
             db = self._backend.get_db()
             cursor = db.cursor()
-            
+
             # Build WHERE clause
             conditions = ["f.feedback_response IN ('triggered_too_early', 'triggered_too_late')"]
             params = []
-            
+
             if unit_id:
                 conditions.append("p.unit_id = ?")
                 params.append(unit_id)
-            
+
             if start_date:
                 conditions.append("f.created_at >= ?")
                 params.append(start_date)
-            
+
             where_clause = " AND ".join(conditions)
             params.append(limit)
-            
+
             cursor.execute(
                 f"""
-                SELECT 
+                SELECT
                     f.feedback_id,
                     f.feedback_response,
                     f.created_at,
@@ -1140,55 +1128,55 @@ class AITrainingDataRepository:
                 """,
                 params,
             )
-            
+
             columns = [desc[0] for desc in cursor.description]
             return [dict(zip(columns, row)) for row in cursor.fetchall()]
-            
+
         except Exception as e:
             logger.error(f"Failed to get irrigation threshold training data: {e}", exc_info=True)
             return []
 
     def get_irrigation_response_training_data(
         self,
-        unit_id: Optional[int] = None,
-        start_date: Optional[str] = None,
+        unit_id: int | None = None,
+        start_date: str | None = None,
         limit: int = 1000,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Get training data for irrigation response prediction model.
-        
+
         Returns records of user responses (approve/delay/cancel) with context.
-        
+
         Args:
             unit_id: Optional unit filter
             start_date: Optional start date filter (ISO format)
             limit: Maximum records to return
-            
+
         Returns:
             List of training records with features and response class
         """
         try:
             db = self._backend.get_db()
             cursor = db.cursor()
-            
+
             # Build WHERE clause
             conditions = ["p.user_response IN ('approve', 'delay', 'cancel')"]
             params = []
-            
+
             if unit_id:
                 conditions.append("p.unit_id = ?")
                 params.append(unit_id)
-            
+
             if start_date:
                 conditions.append("p.detected_at >= ?")
                 params.append(start_date)
-            
+
             where_clause = " AND ".join(conditions)
             params.append(limit)
-            
+
             cursor.execute(
                 f"""
-                SELECT 
+                SELECT
                     p.request_id,
                     p.unit_id,
                     p.user_response,
@@ -1211,37 +1199,98 @@ class AITrainingDataRepository:
                 """,
                 params,
             )
-            
+
             columns = [desc[0] for desc in cursor.description]
             return [dict(zip(columns, row)) for row in cursor.fetchall()]
-            
+
         except Exception as e:
             logger.error(f"Failed to get irrigation response training data: {e}", exc_info=True)
             return []
 
+    def get_irrigation_timing_training_data(
+        self,
+        unit_id: int | None = None,
+        start_date: str | None = None,
+        limit: int = 1000,
+    ) -> list[dict[str, Any]]:
+        """
+        Get training data for irrigation timing prediction model.
+
+        Uses delayed irrigation responses with user-selected delayed times.
+        """
+        try:
+            db = self._backend.get_db()
+            cursor = db.cursor()
+
+            conditions = [
+                "p.user_response = 'delay'",
+                "p.delayed_until IS NOT NULL",
+            ]
+            params = []
+
+            if unit_id:
+                conditions.append("p.unit_id = ?")
+                params.append(unit_id)
+
+            if start_date:
+                conditions.append("p.detected_at >= ?")
+                params.append(start_date)
+
+            where_clause = " AND ".join(conditions)
+            params.append(limit)
+
+            cursor.execute(
+                f"""
+                SELECT
+                    p.request_id,
+                    p.unit_id,
+                    p.detected_at,
+                    p.delayed_until,
+                    p.soil_moisture_detected,
+                    p.soil_moisture_threshold,
+                    p.temperature_at_detection,
+                    p.humidity_at_detection,
+                    p.hours_since_last_irrigation,
+                    g.timezone
+                FROM PendingIrrigationRequest p
+                LEFT JOIN GrowthUnits g ON p.unit_id = g.unit_id
+                WHERE {where_clause}
+                ORDER BY p.detected_at DESC
+                LIMIT ?
+                """,
+                params,
+            )
+
+            columns = [desc[0] for desc in cursor.description]
+            return [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+        except Exception as e:
+            logger.error(f"Failed to get irrigation timing training data: {e}", exc_info=True)
+            return []
+
     def get_irrigation_duration_training_data(
         self,
-        unit_id: Optional[int] = None,
-        start_date: Optional[str] = None,
+        unit_id: int | None = None,
+        start_date: str | None = None,
         limit: int = 1000,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Get training data for irrigation duration prediction model.
-        
+
         Returns executed irrigations with before/after moisture readings.
-        
+
         Args:
             unit_id: Optional unit filter
             start_date: Optional start date filter (ISO format)
             limit: Maximum records to return
-            
+
         Returns:
             List of training records with features and duration
         """
         try:
             db = self._backend.get_db()
             cursor = db.cursor()
-            
+
             # Build WHERE clause - only use executed irrigations with after readings
             conditions = [
                 "p.status = 'executed'",
@@ -1249,21 +1298,21 @@ class AITrainingDataRepository:
                 "p.execution_duration_seconds IS NOT NULL",
             ]
             params = []
-            
+
             if unit_id:
                 conditions.append("p.unit_id = ?")
                 params.append(unit_id)
-            
+
             if start_date:
                 conditions.append("p.detected_at >= ?")
                 params.append(start_date)
-            
+
             where_clause = " AND ".join(conditions)
             params.append(limit)
-            
+
             cursor.execute(
                 f"""
-                SELECT 
+                SELECT
                     p.request_id,
                     p.unit_id,
                     p.soil_moisture_detected,
@@ -1281,60 +1330,60 @@ class AITrainingDataRepository:
                 """,
                 params,
             )
-            
+
             columns = [desc[0] for desc in cursor.description]
             return [dict(zip(columns, row)) for row in cursor.fetchall()]
-            
+
         except Exception as e:
             logger.error(f"Failed to get irrigation duration training data: {e}", exc_info=True)
             return []
 
     def get_harvest_training_data(
         self,
-        plant_type: Optional[str] = None,
+        plant_type: str | None = None,
         min_quality: int = 1,
-        min_yield: Optional[float] = None,
+        min_yield: float | None = None,
         days_limit: int = 365,
     ) -> pd.DataFrame:
         """
         Get harvest outcome data for plant-specific model fine-tuning.
-        
+
         This data is used to learn optimal conditions for specific plant types
         based on successful harvests.
-        
+
         Args:
             plant_type: Optional filter by plant type
             min_quality: Minimum quality rating to include (1-5)
             min_yield: Optional minimum yield in grams
             days_limit: How far back to look (default 1 year)
-            
+
         Returns:
             DataFrame with harvest outcomes and growing conditions
         """
         try:
             db = self._backend.get_db()
             cursor = db.cursor()
-            
+
             # Build WHERE clause
             conditions = [
                 f"h.harvested_date >= date('now', '-{days_limit} days')",
                 "h.quality_rating >= ?",
             ]
             params = [min_quality]
-            
+
             if plant_type:
                 conditions.append("p.plant_type = ?")
                 params.append(plant_type)
-            
+
             if min_yield is not None:
                 conditions.append("h.harvest_weight_grams >= ?")
                 params.append(min_yield)
-            
+
             where_clause = " AND ".join(conditions)
-            
+
             cursor.execute(
                 f"""
-                SELECT 
+                SELECT
                     h.harvest_id,
                     h.plant_id,
                     h.unit_id,
@@ -1366,15 +1415,15 @@ class AITrainingDataRepository:
                 """,
                 params,
             )
-            
+
             columns = [desc[0] for desc in cursor.description]
             rows = cursor.fetchall()
-            
+
             if not rows:
                 return pd.DataFrame()
-            
+
             return pd.DataFrame(rows, columns=columns)
-            
+
         except Exception as e:
             logger.error(f"Failed to get harvest training data: {e}", exc_info=True)
             return pd.DataFrame()
@@ -1384,18 +1433,18 @@ class AITrainingDataRepository:
         plant_type: str,
         min_quality: int = 4,
         limit: int = 20,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Get optimal growing conditions learned from successful harvests.
-        
+
         Analyzes top-quality harvests for a plant type to extract
         optimal temperature, humidity, and other conditions.
-        
+
         Args:
             plant_type: Plant type to analyze
             min_quality: Minimum quality rating for "successful" grows
             limit: Number of top harvests to analyze
-            
+
         Returns:
             Dict with optimal condition ranges
         """
@@ -1404,15 +1453,15 @@ class AITrainingDataRepository:
             df = self.get_harvest_training_data(
                 plant_type=plant_type,
                 min_quality=min_quality,
-                days_limit=730  # 2 years of data
+                days_limit=730,  # 2 years of data
             )
-            
+
             if df.empty or len(df) < 3:
                 return {"error": "Insufficient harvest data", "sample_count": len(df)}
-            
+
             # Limit to top performers
             df = df.head(limit)
-            
+
             # Calculate optimal ranges (mean ± std for stability)
             optimal = {
                 "plant_type": plant_type,
@@ -1431,16 +1480,24 @@ class AITrainingDataRepository:
                 },
                 "growth_duration": {
                     "avg_total_days": int(df["total_days"].mean()),
-                    "avg_vegetative_days": int(df["vegetative_days"].mean()) if df["vegetative_days"].notna().any() else None,
-                    "avg_flowering_days": int(df["flowering_days"].mean()) if df["flowering_days"].notna().any() else None,
+                    "avg_vegetative_days": int(df["vegetative_days"].mean())
+                    if df["vegetative_days"].notna().any()
+                    else None,
+                    "avg_flowering_days": int(df["flowering_days"].mean())
+                    if df["flowering_days"].notna().any()
+                    else None,
                 },
                 "outcomes": {
-                    "avg_yield_grams": round(df["harvest_weight_grams"].mean(), 1) if df["harvest_weight_grams"].notna().any() else None,
+                    "avg_yield_grams": round(df["harvest_weight_grams"].mean(), 1)
+                    if df["harvest_weight_grams"].notna().any()
+                    else None,
                     "avg_quality": round(df["quality_rating"].mean(), 2),
-                    "avg_health_score": round(df["avg_health_score"].mean(), 2) if df["avg_health_score"].notna().any() else None,
+                    "avg_health_score": round(df["avg_health_score"].mean(), 2)
+                    if df["avg_health_score"].notna().any()
+                    else None,
                 },
             }
-            
+
             # Add CO2 if available
             if df["avg_co2"].notna().any():
                 optimal["conditions"]["co2"] = {
@@ -1448,15 +1505,15 @@ class AITrainingDataRepository:
                     "range_min": round(df["avg_co2"].mean() - df["avg_co2"].std(), 0),
                     "range_max": round(df["avg_co2"].mean() + df["avg_co2"].std(), 0),
                 }
-            
+
             # Add light info if available
             if df["avg_ppfd"].notna().any():
                 optimal["conditions"]["ppfd"] = {
                     "optimal": round(df["avg_ppfd"].mean(), 0),
                 }
-            
+
             return optimal
-            
+
         except Exception as e:
             logger.error(f"Failed to get optimal conditions: {e}", exc_info=True)
             return {"error": str(e)}
@@ -1465,46 +1522,46 @@ class AITrainingDataRepository:
 
     def get_disease_occurrence_training_data(
         self,
-        unit_id: Optional[int] = None,
-        disease_type: Optional[str] = None,
+        unit_id: int | None = None,
+        disease_type: str | None = None,
         days_limit: int = 365,
         confirmed_only: bool = True,
     ) -> pd.DataFrame:
         """
         Get disease occurrence data for ML model training.
-        
+
         Args:
             unit_id: Optional filter by unit
             disease_type: Optional filter by disease type
             days_limit: How far back to look
             confirmed_only: Only include user-confirmed occurrences
-            
+
         Returns:
             DataFrame with disease occurrences and environmental features
         """
         try:
             db = self._backend.get_db()
             cursor = db.cursor()
-            
+
             conditions = [f"d.detected_at >= date('now', '-{days_limit} days')"]
             params = []
-            
+
             if unit_id:
                 conditions.append("d.unit_id = ?")
                 params.append(unit_id)
-            
+
             if disease_type:
                 conditions.append("d.disease_type = ?")
                 params.append(disease_type)
-            
+
             if confirmed_only:
                 conditions.append("d.confirmed_by_user = 1")
-            
+
             where_clause = " AND ".join(conditions)
-            
+
             cursor.execute(
                 f"""
-                SELECT 
+                SELECT
                     d.occurrence_id,
                     d.unit_id,
                     d.disease_type,
@@ -1529,59 +1586,59 @@ class AITrainingDataRepository:
                 """,
                 params,
             )
-            
+
             columns = [desc[0] for desc in cursor.description]
             rows = cursor.fetchall()
-            
+
             if not rows:
                 return pd.DataFrame()
-            
+
             return pd.DataFrame(rows, columns=columns)
-            
+
         except Exception as e:
             logger.error(f"Failed to get disease occurrence data: {e}", exc_info=True)
             return pd.DataFrame()
 
     def get_disease_prediction_feedback(
         self,
-        unit_id: Optional[int] = None,
-        disease_type: Optional[str] = None,
+        unit_id: int | None = None,
+        disease_type: str | None = None,
         days_limit: int = 180,
     ) -> pd.DataFrame:
         """
         Get prediction feedback data for model calibration.
-        
+
         Args:
             unit_id: Optional filter by unit
             disease_type: Optional filter by predicted disease type
             days_limit: How far back to look
-            
+
         Returns:
             DataFrame with predictions and outcomes
         """
         try:
             db = self._backend.get_db()
             cursor = db.cursor()
-            
+
             conditions = [
                 f"f.prediction_timestamp >= date('now', '-{days_limit} days')",
                 "f.actual_disease_occurred IS NOT NULL",  # Only feedback that was collected
             ]
             params = []
-            
+
             if unit_id:
                 conditions.append("f.unit_id = ?")
                 params.append(unit_id)
-            
+
             if disease_type:
                 conditions.append("f.predicted_disease_type = ?")
                 params.append(disease_type)
-            
+
             where_clause = " AND ".join(conditions)
-            
+
             cursor.execute(
                 f"""
-                SELECT 
+                SELECT
                     f.feedback_id,
                     f.prediction_id,
                     f.unit_id,
@@ -1604,38 +1661,38 @@ class AITrainingDataRepository:
                 """,
                 params,
             )
-            
+
             columns = [desc[0] for desc in cursor.description]
             rows = cursor.fetchall()
-            
+
             if not rows:
                 return pd.DataFrame()
-            
+
             return pd.DataFrame(rows, columns=columns)
-            
+
         except Exception as e:
             logger.error(f"Failed to get disease prediction feedback: {e}", exc_info=True)
             return pd.DataFrame()
 
-    def save_disease_occurrence(self, occurrence_data: Dict[str, Any]) -> Optional[int]:
+    def save_disease_occurrence(self, occurrence_data: dict[str, Any]) -> int | None:
         """
         Save a disease occurrence record.
-        
+
         Args:
             occurrence_data: Dict with occurrence fields
-            
+
         Returns:
             occurrence_id if saved successfully, None otherwise
         """
         try:
-            detected_at = occurrence_data.get("detected_at") or datetime.utcnow().isoformat()
+            detected_at = occurrence_data.get("detected_at") or datetime.now(UTC).isoformat()
             with self._backend.connection() as db:
                 cursor = db.cursor()
                 cursor.execute(
                     """
                     INSERT INTO DiseaseOccurrence (
                         unit_id, plant_id, disease_type, severity, detected_at,
-                        temperature_at_detection, humidity_at_detection, 
+                        temperature_at_detection, humidity_at_detection,
                         soil_moisture_at_detection, vpd_at_detection,
                         avg_temperature_72h, avg_humidity_72h, avg_soil_moisture_72h,
                         humidity_variance_72h, confirmed_by_user, symptoms,
@@ -1667,38 +1724,36 @@ class AITrainingDataRepository:
                 )
                 db.commit()
                 return cursor.lastrowid
-                
+
         except Exception as e:
             logger.error(f"Failed to save disease occurrence: {e}", exc_info=True)
             return None
 
-    def save_disease_prediction_feedback(
-        self, feedback_data: Dict[str, Any]
-    ) -> Optional[int]:
+    def save_disease_prediction_feedback(self, feedback_data: dict[str, Any]) -> int | None:
         """
         Save disease prediction feedback for model training.
-        
+
         Args:
             feedback_data: Dict with feedback fields
-            
+
         Returns:
             feedback_id if saved successfully, None otherwise
         """
         try:
-            prediction_timestamp = feedback_data.get("prediction_timestamp") or datetime.utcnow().isoformat()
-            feedback_timestamp = feedback_data.get("feedback_timestamp") or datetime.utcnow().isoformat()
+            prediction_timestamp = feedback_data.get("prediction_timestamp") or datetime.now(UTC).isoformat()
+            feedback_timestamp = feedback_data.get("feedback_timestamp") or datetime.now(UTC).isoformat()
             with self._backend.connection() as db:
                 cursor = db.cursor()
-                
+
                 # Determine prediction quality flags
                 predicted_high = feedback_data.get("predicted_risk_level") in ["high", "critical"]
                 disease_occurred = feedback_data.get("actual_disease_occurred", False)
-                
+
                 was_true_positive = predicted_high and disease_occurred
                 was_false_positive = predicted_high and not disease_occurred
                 was_true_negative = not predicted_high and not disease_occurred
                 was_false_negative = not predicted_high and disease_occurred
-                
+
                 cursor.execute(
                     """
                     INSERT OR REPLACE INTO DiseasePredictionFeedback (
@@ -1733,21 +1788,19 @@ class AITrainingDataRepository:
                 )
                 db.commit()
                 return cursor.lastrowid
-                
+
         except Exception as e:
             logger.error(f"Failed to save prediction feedback: {e}", exc_info=True)
             return None
 
-    def get_disease_prediction_accuracy(
-        self, disease_type: Optional[str] = None, days_limit: int = 90
-    ) -> Dict[str, Any]:
+    def get_disease_prediction_accuracy(self, disease_type: str | None = None, days_limit: int = 90) -> dict[str, Any]:
         """
         Calculate prediction accuracy metrics from feedback data.
-        
+
         Args:
             disease_type: Optional filter by disease type
             days_limit: How far back to analyze
-            
+
         Returns:
             Dict with accuracy metrics (precision, recall, F1, etc.)
         """
@@ -1756,22 +1809,22 @@ class AITrainingDataRepository:
                 disease_type=disease_type,
                 days_limit=days_limit,
             )
-            
+
             if df.empty:
                 return {"error": "No feedback data available"}
-            
+
             total = len(df)
             tp = df["was_true_positive"].sum()
             fp = df["was_false_positive"].sum()
             tn = df["was_true_negative"].sum()
             fn = df["was_false_negative"].sum()
-            
+
             # Calculate metrics
             precision = tp / (tp + fp) if (tp + fp) > 0 else 0
             recall = tp / (tp + fn) if (tp + fn) > 0 else 0
             f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
             accuracy = (tp + tn) / total if total > 0 else 0
-            
+
             return {
                 "total_predictions": total,
                 "true_positives": int(tp),
@@ -1785,20 +1838,20 @@ class AITrainingDataRepository:
                 "disease_type": disease_type or "all",
                 "days_analyzed": days_limit,
             }
-            
+
         except Exception as e:
             logger.error(f"Failed to calculate prediction accuracy: {e}", exc_info=True)
             return {"error": str(e)}
 
     def get_disease_history(
         self,
-        unit_id: Optional[int] = None,
-        plant_id: Optional[int] = None,
-        disease_type: Optional[str] = None,
+        unit_id: int | None = None,
+        plant_id: int | None = None,
+        disease_type: str | None = None,
         include_resolved: bool = True,
         limit: int = 100,
         offset: int = 0,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Get disease occurrence history with optional filters.
 
@@ -1826,7 +1879,7 @@ class AITrainingDataRepository:
                     FROM DiseaseOccurrence
                     WHERE 1=1
                 """
-                params: List[Any] = []
+                params: list[Any] = []
 
                 if unit_id is not None:
                     query += " AND unit_id = ?"
@@ -1853,7 +1906,7 @@ class AITrainingDataRepository:
             logger.error(f"Failed to get disease history: {e}", exc_info=True)
             return []
 
-    def get_disease_occurrence_by_id(self, occurrence_id: int) -> Optional[Dict[str, Any]]:
+    def get_disease_occurrence_by_id(self, occurrence_id: int) -> dict[str, Any] | None:
         """
         Get a single disease occurrence by ID.
 
@@ -1892,7 +1945,7 @@ class AITrainingDataRepository:
         self,
         occurrence_id: int,
         treatment_applied: str,
-        notes: Optional[str] = None,
+        notes: str | None = None,
     ) -> bool:
         """
         Mark a disease occurrence as resolved with treatment details.
@@ -1917,7 +1970,7 @@ class AITrainingDataRepository:
                         notes = COALESCE(notes || ' | Resolution: ' || ?, ?)
                     WHERE occurrence_id = ? AND resolved_at IS NULL
                     """,
-                    (treatment_applied, notes or '', notes or '', occurrence_id),
+                    (treatment_applied, notes or "", notes or "", occurrence_id),
                 )
                 db.commit()
                 return cursor.rowcount > 0
@@ -1928,9 +1981,9 @@ class AITrainingDataRepository:
 
     def get_disease_summary_stats(
         self,
-        unit_id: Optional[int] = None,
+        unit_id: int | None = None,
         days_limit: int = 90,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Get summary statistics for disease occurrences.
 
@@ -1946,7 +1999,7 @@ class AITrainingDataRepository:
                 cursor = db.cursor()
 
                 base_filter = "WHERE detected_at >= datetime('now', ?)"
-                params: List[Any] = [f'-{days_limit} days']
+                params: list[Any] = [f"-{days_limit} days"]
 
                 if unit_id is not None:
                     base_filter += " AND unit_id = ?"
@@ -2003,7 +2056,9 @@ class AITrainingDataRepository:
                     tuple(params),
                 )
                 avg_row = cursor.fetchone()
-                avg_resolution = round(avg_row["avg_resolution_days"], 1) if avg_row and avg_row["avg_resolution_days"] else None
+                avg_resolution = (
+                    round(avg_row["avg_resolution_days"], 1) if avg_row and avg_row["avg_resolution_days"] else None
+                )
 
                 return {
                     "period_days": days_limit,
@@ -2018,299 +2073,22 @@ class AITrainingDataRepository:
             logger.error(f"Failed to get disease summary stats: {e}", exc_info=True)
             return {"error": str(e)}
 
-    # ==================== Health Score ML Training Data ====================
-
-    def get_health_score_training_data(
-        self,
-        unit_id: Optional[int] = None,
-        plant_type: Optional[str] = None,
-        days_limit: int = 365,
-        min_quality: int = 1,
-    ) -> List[Dict[str, Any]]:
-        """
-        Collect training data from harvests with quality ratings.
-
-        Returns samples with environmental snapshot at harvest time
-        and quality rating as target (1-5 → 20-100).
-
-        Args:
-            unit_id: Optional filter by unit
-            plant_type: Optional filter by plant type
-            days_limit: How far back to look (default 365 days)
-            min_quality: Minimum quality rating to include (default 1)
-
-        Returns:
-            List of training sample dictionaries
-        """
-        try:
-            db = self._backend.get_db()
-            cursor = db.cursor()
-
-            conditions = [
-                f"phs.harvested_date >= date('now', '-{days_limit} days')",
-                "phs.quality_rating >= ?",
-            ]
-            params = [min_quality]
-
-            if unit_id is not None:
-                conditions.append("phs.unit_id = ?")
-                params.append(unit_id)
-
-            if plant_type:
-                conditions.append("p.plant_type = ?")
-                params.append(plant_type)
-
-            where_clause = " AND ".join(conditions)
-
-            cursor.execute(
-                f"""
-                SELECT
-                    phs.harvest_id,
-                    phs.plant_id,
-                    phs.unit_id,
-                    phs.planted_date,
-                    phs.harvested_date,
-                    phs.total_days,
-                    phs.quality_rating,
-                    phs.harvest_weight_grams,
-                    phs.avg_temperature,
-                    phs.avg_humidity,
-                    phs.avg_co2,
-                    phs.avg_health_score,
-                    p.plant_type,
-                    p.current_stage AS final_stage
-                FROM PlantHarvestSummary phs
-                LEFT JOIN Plants p ON phs.plant_id = p.plant_id
-                WHERE {where_clause}
-                ORDER BY phs.harvested_date DESC
-                """,
-                params,
-            )
-
-            columns = [desc[0] for desc in cursor.description]
-            rows = cursor.fetchall()
-
-            return [dict(zip(columns, row)) for row in rows]
-
-        except Exception as e:
-            logger.error(f"Failed to get health score training data: {e}", exc_info=True)
-            return []
-
-    def get_health_status_training_data(
-        self,
-        unit_id: Optional[int] = None,
-        days_limit: int = 365,
-        confirmed_only: bool = True,
-    ) -> List[Dict[str, Any]]:
-        """
-        Collect training data from user health observations.
-
-        Returns samples with environmental conditions at observation time
-        and user-assigned health status as target.
-
-        Args:
-            unit_id: Optional filter by unit
-            days_limit: How far back to look
-            confirmed_only: Only include user-confirmed observations
-
-        Returns:
-            List of training sample dictionaries
-        """
-        try:
-            db = self._backend.get_db()
-            cursor = db.cursor()
-
-            conditions = [
-                f"pj.created_at >= date('now', '-{days_limit} days')",
-                "pj.entry_type = 'observation'",
-                "pj.observation_type = 'health'",
-                "pj.health_status IS NOT NULL",
-            ]
-            params = []
-
-            if unit_id is not None:
-                conditions.append("pj.unit_id = ?")
-                params.append(unit_id)
-
-            if confirmed_only:
-                # Confirmed observations have user_id set
-                conditions.append("pj.user_id IS NOT NULL")
-
-            where_clause = " AND ".join(conditions)
-
-            cursor.execute(
-                f"""
-                SELECT
-                    pj.entry_id,
-                    pj.plant_id,
-                    pj.unit_id,
-                    pj.health_status,
-                    pj.severity_level,
-                    pj.symptoms,
-                    pj.disease_type,
-                    pj.affected_parts,
-                    pj.environmental_factors,
-                    pj.plant_type,
-                    pj.growth_stage,
-                    pj.created_at AS observation_date
-                FROM plant_journal pj
-                WHERE {where_clause}
-                ORDER BY pj.created_at DESC
-                """,
-                params,
-            )
-
-            columns = [desc[0] for desc in cursor.description]
-            rows = cursor.fetchall()
-
-            results = []
-            for row in rows:
-                record = dict(zip(columns, row))
-                # Parse JSON fields
-                if record.get("symptoms"):
-                    try:
-                        record["symptoms"] = json.loads(record["symptoms"])
-                    except (TypeError, ValueError):
-                        record["symptoms"] = []
-                if record.get("environmental_factors"):
-                    try:
-                        record["environmental_factors"] = json.loads(record["environmental_factors"])
-                    except (TypeError, ValueError):
-                        record["environmental_factors"] = {}
-                results.append(record)
-
-            return results
-
-        except Exception as e:
-            logger.error(f"Failed to get health status training data: {e}", exc_info=True)
-            return []
-
-    def generate_health_baseline_samples(
-        self,
-        unit_id: Optional[int] = None,
-        num_samples: int = 100,
-    ) -> List[Dict[str, Any]]:
-        """
-        Generate synthetic 'healthy' samples from periods without issues.
-
-        Uses times with no health observations as negative examples
-        (assuming no observation means plant was healthy).
-
-        Args:
-            unit_id: Optional filter by unit
-            num_samples: Number of samples to generate
-
-        Returns:
-            List of synthetic healthy sample dictionaries
-        """
-        try:
-            db = self._backend.get_db()
-            cursor = db.cursor()
-
-            # Get recent sensor readings from times without health issues
-            unit_filter = "AND sr.unit_id = ?" if unit_id else ""
-            params = [num_samples]
-            if unit_id:
-                params.insert(0, unit_id)
-
-            cursor.execute(
-                f"""
-                SELECT
-                    sr.timestamp,
-                    s.unit_id,
-                    sr.reading_data
-                FROM SensorReading sr
-                JOIN Sensor s ON s.sensor_id = sr.sensor_id
-                WHERE sr.timestamp >= date('now', '-90 days')
-                {unit_filter}
-                AND NOT EXISTS (
-                    SELECT 1 FROM plant_journal pj
-                    WHERE pj.unit_id = s.unit_id
-                    AND pj.entry_type = 'observation'
-                    AND pj.health_status IN ('stressed', 'critical', 'diseased')
-                    AND date(pj.created_at) = date(sr.timestamp)
-                )
-                ORDER BY RANDOM()
-                LIMIT ?
-                """,
-                params,
-            )
-
-            rows = cursor.fetchall()
-            samples = []
-
-            for row in rows:
-                timestamp, row_unit_id, reading_data = row
-                payload = self._decode_sensor_payload(reading_data)
-                if not payload:
-                    continue
-
-                samples.append({
-                    "observation_date": timestamp,
-                    "unit_id": row_unit_id,
-                    "health_status": "healthy",
-                    "severity_level": 1,
-                    "symptoms": [],
-                    "environmental_factors": {
-                        "temperature": payload.get("temperature"),
-                        "humidity": payload.get("humidity"),
-                    },
-                    "synthetic": True,
-                })
-
-            return samples
-
-        except Exception as e:
-            logger.error(f"Failed to generate baseline samples: {e}", exc_info=True)
-            return []
-
-    def count_health_training_samples(
-        self,
-        unit_id: Optional[int] = None,
-    ) -> Dict[str, int]:
-        """
-        Count available health training samples for readiness check.
-
-        Args:
-            unit_id: Optional filter by unit
-
-        Returns:
-            Dict with counts by source
-        """
-        try:
-            harvest_data = self.get_health_score_training_data(
-                unit_id=unit_id, days_limit=365
-            )
-            observation_data = self.get_health_status_training_data(
-                unit_id=unit_id, days_limit=365
-            )
-
-            return {
-                "harvest_samples": len(harvest_data),
-                "observation_samples": len(observation_data),
-                "total": len(harvest_data) + len(observation_data),
-            }
-
-        except Exception as e:
-            logger.error(f"Failed to count training samples: {e}", exc_info=True)
-            return {"harvest_samples": 0, "observation_samples": 0, "total": 0}
-
     # ==================== A/B Testing Persistence ====================
 
-    def save_ab_test(self, test_data: Dict[str, Any]) -> bool:
+    def save_ab_test(self, test_data: dict[str, Any]) -> bool:
         """
         Save or update an A/B test.
-        
+
         Args:
             test_data: Dict containing test configuration
-            
+
         Returns:
             True if saved successfully
         """
         try:
             db = self._backend.get_db()
             cursor = db.cursor()
-            
+
             cursor.execute(
                 """
                 INSERT OR REPLACE INTO ABTests (
@@ -2333,12 +2111,12 @@ class AITrainingDataRepository:
             )
             db.commit()
             return True
-            
+
         except Exception as e:
             logger.error(f"Failed to save A/B test: {e}", exc_info=True)
             return False
 
-    def get_ab_test(self, test_id: str) -> Optional[Dict[str, Any]]:
+    def get_ab_test(self, test_id: str) -> dict[str, Any] | None:
         """Get a single A/B test by ID."""
         try:
             db = self._backend.get_db()
@@ -2352,7 +2130,7 @@ class AITrainingDataRepository:
             logger.error(f"Failed to get A/B test: {e}", exc_info=True)
             return None
 
-    def get_active_ab_tests(self) -> List[Dict[str, Any]]:
+    def get_active_ab_tests(self) -> list[dict[str, Any]]:
         """Get all running A/B tests."""
         try:
             db = self._backend.get_db()
@@ -2365,12 +2143,12 @@ class AITrainingDataRepository:
 
     def save_ab_test_result(
         self, test_id: str, version: str, predicted: Any, actual: Any = None, error: float = None
-    ) -> Optional[int]:
+    ) -> int | None:
         """Save an A/B test result."""
         try:
             db = self._backend.get_db()
             cursor = db.cursor()
-            
+
             cursor.execute(
                 """
                 INSERT INTO ABTestResults (test_id, version, predicted, actual, error)
@@ -2380,12 +2158,12 @@ class AITrainingDataRepository:
             )
             db.commit()
             return cursor.lastrowid
-            
+
         except Exception as e:
             logger.error(f"Failed to save A/B test result: {e}", exc_info=True)
             return None
 
-    def get_ab_test_results(self, test_id: str) -> List[Dict[str, Any]]:
+    def get_ab_test_results(self, test_id: str) -> list[dict[str, Any]]:
         """Get all results for an A/B test."""
         try:
             db = self._backend.get_db()
@@ -2408,24 +2186,24 @@ class AITrainingDataRepository:
         actual: Any = None,
         confidence: float = None,
         error: float = None,
-    ) -> Optional[int]:
+    ) -> int | None:
         """
         Save a drift tracking metric.
-        
+
         Args:
             model_name: Name of the model
             prediction: Model prediction value
             actual: Actual value (if known)
             confidence: Prediction confidence
             error: Calculated error
-            
+
         Returns:
             Metric ID if saved successfully
         """
         try:
             db = self._backend.get_db()
             cursor = db.cursor()
-            
+
             cursor.execute(
                 """
                 INSERT INTO DriftMetrics (model_name, prediction, actual, confidence, error)
@@ -2435,21 +2213,19 @@ class AITrainingDataRepository:
             )
             db.commit()
             return cursor.lastrowid
-            
+
         except Exception as e:
             logger.error(f"Failed to save drift metric: {e}", exc_info=True)
             return None
 
-    def get_drift_metrics(
-        self, model_name: str, limit: int = 1000
-    ) -> List[Dict[str, Any]]:
+    def get_drift_metrics(self, model_name: str, limit: int = 1000) -> list[dict[str, Any]]:
         """
         Get recent drift metrics for a model.
-        
+
         Args:
             model_name: Model to get metrics for
             limit: Maximum records to return
-            
+
         Returns:
             List of drift metric records
         """
@@ -2458,7 +2234,7 @@ class AITrainingDataRepository:
             cursor = db.cursor()
             cursor.execute(
                 """
-                SELECT * FROM DriftMetrics 
+                SELECT * FROM DriftMetrics
                 WHERE model_name = ?
                 ORDER BY timestamp DESC
                 LIMIT ?
@@ -2473,23 +2249,23 @@ class AITrainingDataRepository:
     def cleanup_old_drift_metrics(self, model_name: str, keep_count: int = 1000) -> int:
         """
         Clean up old drift metrics, keeping only the most recent.
-        
+
         Args:
             model_name: Model to clean up
             keep_count: Number of recent records to keep
-            
+
         Returns:
             Number of records deleted
         """
         try:
             db = self._backend.get_db()
             cursor = db.cursor()
-            
+
             cursor.execute(
                 """
-                DELETE FROM DriftMetrics 
+                DELETE FROM DriftMetrics
                 WHERE model_name = ? AND metric_id NOT IN (
-                    SELECT metric_id FROM DriftMetrics 
+                    SELECT metric_id FROM DriftMetrics
                     WHERE model_name = ?
                     ORDER BY timestamp DESC
                     LIMIT ?
@@ -2500,8 +2276,7 @@ class AITrainingDataRepository:
             deleted = cursor.rowcount
             db.commit()
             return deleted
-            
+
         except Exception as e:
             logger.error(f"Failed to cleanup drift metrics: {e}", exc_info=True)
             return 0
-

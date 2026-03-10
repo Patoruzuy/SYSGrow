@@ -29,6 +29,106 @@
       this.inFlight = new Map();
     }
 
+    _coerceUnitId(unitId) {
+      const parsed = Number.parseInt(String(unitId ?? ''), 10);
+      return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+    }
+
+    setSelectedUnitId(unitId, { syncDom = true, clearCache = true } = {}) {
+      const next = this._coerceUnitId(unitId);
+      if (this.selectedUnitId === next) return;
+
+      this.selectedUnitId = next;
+
+      if (clearCache) {
+        this.cache.clear();
+      }
+
+      if (syncDom) {
+        this._syncSelectedUnitState(next);
+      }
+    }
+
+    _syncSelectedUnitState(unitId) {
+      try {
+        const pageShell = document.querySelector('.page-shell');
+        if (pageShell) {
+          pageShell.dataset.selectedUnitId = unitId ? String(unitId) : '';
+        }
+
+        if (document?.body) {
+          document.body.dataset.activeUnitId = unitId ? String(unitId) : '';
+        }
+
+        const globalUnitSwitcher = document.getElementById('global-unit-switcher');
+        if (globalUnitSwitcher && unitId) {
+          globalUnitSwitcher.value = String(unitId);
+        }
+
+        const dashboardUnitSwitcher = document.getElementById('unit-switcher');
+        if (dashboardUnitSwitcher && unitId) {
+          dashboardUnitSwitcher.value = String(unitId);
+        }
+
+        if (unitId) localStorage.setItem('selected_unit_id', String(unitId));
+        else localStorage.removeItem('selected_unit_id');
+      } catch (err) {
+        console.warn('[DashboardDataService] failed to sync selected unit state:', err);
+      }
+    }
+
+    _isMissingUnitError(error) {
+      if (!error) return false;
+
+      if (Number(error?.status) === 404) return true;
+
+      const message = String(error?.message || '').toLowerCase();
+      if (!message) return false;
+
+      return (
+        message.includes('unit') &&
+        (
+          message.includes('not found') ||
+          message.includes('invalid') ||
+          message.includes('unknown') ||
+          message.includes('does not exist')
+        )
+      );
+    }
+
+    async _recoverSelectedUnitFromError(error) {
+      if (!this.selectedUnitId || !this._isMissingUnitError(error)) {
+        return false;
+      }
+
+      try {
+        const unitsResp = await this.api.Growth.listUnits();
+        const units = Array.isArray(unitsResp?.data) ? unitsResp.data : [];
+        const unitIds = units
+          .map((u) => this._coerceUnitId(u?.unit_id ?? u?.id))
+          .filter((id) => Number.isFinite(id));
+
+        if (unitIds.length === 0) {
+          this.setSelectedUnitId(null);
+          return false;
+        }
+
+        const nextUnitId = unitIds.includes(this.selectedUnitId) ? this.selectedUnitId : unitIds[0];
+        if (nextUnitId !== this.selectedUnitId) {
+          console.warn('[DashboardDataService] recovering stale selected unit', {
+            previous: this.selectedUnitId,
+            next: nextUnitId
+          });
+          this.setSelectedUnitId(nextUnitId);
+          return true;
+        }
+      } catch (recoveryError) {
+        console.warn('[DashboardDataService] failed to recover selected unit:', recoveryError);
+      }
+
+      return false;
+    }
+
     /**
      * Unit-aware cache key builder.
      * Prevents cross-unit cache pollution (unit_1 showing for unit_2).
@@ -46,8 +146,7 @@
      * Clears legacy non-scoped cache keys once (important if you previously cached under "sensor_current").
      */
     init(unitId) {
-        const next = unitId && unitId !== '' ? Number(unitId) : null;
-        this.selectedUnitId = Number.isFinite(next) ? next : null;
+        this.setSelectedUnitId(unitId, { syncDom: true, clearCache: false });
 
         // Clear legacy keys that were not unit-scoped (one-time cleanup).
         // This prevents stale values from appearing after you deploy the fix.
@@ -88,32 +187,6 @@
       return p;
     }
 
-    /**
-     * Helper: Fetch JSON with strong error handling.
-     */
-    async _fetchJson(url, options = {}) {
-      let res;
-      try {
-        res = await fetch(url, {
-          ...options,
-          headers: { Accept: 'application/json', ...(options.headers || {}) },
-        });
-      } catch (networkErr) {
-        throw new Error(`Network error calling ${url}: ${networkErr?.message || networkErr}`);
-      }
-
-      if (!res.ok) {
-        const body = await res.text().catch(() => '');
-        throw new Error(`HTTP ${res.status} calling ${url}${body ? `: ${body.slice(0, 200)}` : ''}`);
-      }
-
-      try {
-        return await res.json();
-      } catch (parseErr) {
-        throw new Error(`Invalid JSON from ${url}: ${parseErr?.message || parseErr}`);
-      }
-    }
-
     // --------------------------------------------------------------------------
     // Data Methods
     // --------------------------------------------------------------------------
@@ -141,7 +214,7 @@
      * Load comprehensive dashboard summary - single API call for all dashboard data.
      * This is the preferred method for initial dashboard load.
      */
-    async loadDashboardSummary({ force = false } = {}) {
+    async loadDashboardSummary({ force = false, _retry = false } = {}) {
         const cacheKey = this._key('dashboard_summary');
 
         try {
@@ -174,6 +247,13 @@
                 { force }
             );
         } catch (error) {
+            if (!_retry) {
+                const recovered = await this._recoverSelectedUnitFromError(error);
+                if (recovered) {
+                    return this.loadDashboardSummary({ force: true, _retry: true });
+                }
+            }
+
             console.warn('[DashboardDataService] loadDashboardSummary failed:', error);
             // Return safe defaults
             return {
@@ -265,7 +345,7 @@
      */
     async dismissAlert(alertId) {
       try {
-        await this.api.Health.dismissAlert(alertId);
+        await this.api.System.resolveAlert(alertId);
         // Invalidate alerts cache
         this.invalidateActivityCache();
         return true;
@@ -441,31 +521,44 @@
       }
     }
 
-    async loadAutomationStatus({ force = false, unitId = null } = {}) {
-      const unit = unitId ?? this.selectedUnitId ?? 'all';
-      const cacheKey = `automation_status:${unit}`;
+    async loadAutomationStatus({ force = false, unitId = null, _retry = false } = {}) {
+      const parsedUnitId = Number.parseInt(String(unitId ?? ''), 10);
+      const parsedSelectedUnitId = Number.parseInt(String(this.selectedUnitId ?? ''), 10);
+      const resolvedUnitId = Number.isFinite(parsedUnitId)
+        ? parsedUnitId
+        : (Number.isFinite(parsedSelectedUnitId) ? parsedSelectedUnitId : null);
+      const cacheKey = `automation_status:${resolvedUnitId ?? 'all'}`;
 
       try {
         return await this._cached(cacheKey, async () => {
-          // Use schedules endpoint directly (automation-status requires plant_id, not unit_id)
-          try {
-            const schedules = await this.api.Growth?.getSchedules?.(unit !== 'all' ? unit : undefined);
-            const activeSchedules = (schedules || []).filter(s => s.is_active || s.enabled);
-            return {
-              is_active: activeSchedules.length > 0,
-              total_schedules: schedules?.length || 0,
-              active_schedules_count: activeSchedules.length,
-              active_schedules: activeSchedules.slice(0, 5).map(s => ({
-                name: s.name || s.type,
-                type: s.type || 'schedule',
-                time: s.time || s.next_run || '',
-              })),
-              lights_on: activeSchedules.filter(s => s.type === 'light' || s.type === 'lights').length,
-              fans_on: activeSchedules.filter(s => s.type === 'fan' || s.type === 'fans').length,
-              irrigation_active: activeSchedules.filter(s => s.type === 'irrigation' || s.type === 'water').length,
-            };
-          } catch (e) {
-            // Return defaults
+          if (resolvedUnitId) {
+            try {
+              const schedulesResponse = await this.api.Growth?.getSchedules?.(resolvedUnitId);
+              const schedules = Array.isArray(schedulesResponse?.schedules)
+                ? schedulesResponse.schedules
+                : (Array.isArray(schedulesResponse) ? schedulesResponse : []);
+              const activeSchedules = schedules.filter((s) => s?.is_active || s?.enabled);
+              const isType = (schedule, candidates) => {
+                const scheduleType = String(schedule?.type || schedule?.device_type || '').toLowerCase();
+                return candidates.includes(scheduleType);
+              };
+
+              return {
+                is_active: activeSchedules.length > 0,
+                total_schedules: schedules.length,
+                active_schedules_count: activeSchedules.length,
+                active_schedules: activeSchedules.slice(0, 5).map((s) => ({
+                  name: s?.name || s?.type || s?.device_type || 'Schedule',
+                  type: s?.type || s?.device_type || 'schedule',
+                  time: s?.time || s?.next_run || '',
+                })),
+                lights_on: activeSchedules.filter((s) => isType(s, ['light', 'lights', 'grow_light'])).length,
+                fans_on: activeSchedules.filter((s) => isType(s, ['fan', 'fans', 'exhaust_fan'])).length,
+                irrigation_active: activeSchedules.filter((s) => isType(s, ['irrigation', 'water', 'pump'])).length,
+              };
+            } catch (e) {
+              // fall through to defaults
+            }
           }
 
           return {
@@ -479,6 +572,13 @@
           };
         }, { force });
       } catch (error) {
+        if (!_retry) {
+          const recovered = await this._recoverSelectedUnitFromError(error);
+          if (recovered) {
+            return this.loadAutomationStatus({ force: true, unitId: this.selectedUnitId, _retry: true });
+          }
+        }
+
         console.warn('[DashboardDataService] loadAutomationStatus failed:', error);
         return null;
       }
@@ -581,7 +681,7 @@
     // Phase 1: Growth Stage Data
     // --------------------------------------------------------------------------
 
-    async loadGrowthStage({ force = false } = {}) {
+    async loadGrowthStage({ force = false, _retry = false } = {}) {
       const cacheKey = this._key('growth_stage');
 
       try {
@@ -604,6 +704,13 @@
           };
         }, { force });
       } catch (error) {
+        if (!_retry) {
+          const recovered = await this._recoverSelectedUnitFromError(error);
+          if (recovered) {
+            return this.loadGrowthStage({ force: true, _retry: true });
+          }
+        }
+
         console.warn('[DashboardDataService] loadGrowthStage failed:', error);
         return { current_stage: 'vegetative', days_in_stage: 0, days_total: 0, progress: 0 };
       }
@@ -627,7 +734,7 @@
     // Phase 1: Harvest Timeline Data
     // --------------------------------------------------------------------------
 
-    async loadHarvestTimeline({ force = false } = {}) {
+    async loadHarvestTimeline({ force = false, _retry = false } = {}) {
       const cacheKey = this._key('harvest_timeline');
 
       try {
@@ -643,6 +750,13 @@
           return { upcoming: [] };
         }, { force });
       } catch (error) {
+        if (!_retry) {
+          const recovered = await this._recoverSelectedUnitFromError(error);
+          if (recovered) {
+            return this.loadHarvestTimeline({ force: true, _retry: true });
+          }
+        }
+
         console.warn('[DashboardDataService] loadHarvestTimeline failed:', error);
         return { upcoming: [] };
       }
@@ -659,7 +773,7 @@
     // Phase 1: Water Schedule Data
     // --------------------------------------------------------------------------
 
-    async loadWaterSchedule({ force = false } = {}) {
+    async loadWaterSchedule({ force = false, _retry = false } = {}) {
       const cacheKey = this._key('water_schedule');
 
       try {
@@ -681,6 +795,13 @@
           };
         }, { force });
       } catch (error) {
+        if (!_retry) {
+          const recovered = await this._recoverSelectedUnitFromError(error);
+          if (recovered) {
+            return this.loadWaterSchedule({ force: true, _retry: true });
+          }
+        }
+
         console.warn('[DashboardDataService] loadWaterSchedule failed:', error);
         return { next_water_hours: 0, next_feed_hours: 0, water_days: [], feed_days: [] };
       }
@@ -697,7 +818,7 @@
     // Phase 1: Irrigation Status Data
     // --------------------------------------------------------------------------
 
-    async loadIrrigationStatus({ force = false } = {}) {
+    async loadIrrigationStatus({ force = false, _retry = false } = {}) {
       const cacheKey = this._key('irrigation_status');
 
       try {
@@ -720,6 +841,13 @@
           };
         }, { force });
       } catch (error) {
+        if (!_retry) {
+          const recovered = await this._recoverSelectedUnitFromError(error);
+          if (recovered) {
+            return this.loadIrrigationStatus({ force: true, _retry: true });
+          }
+        }
+
         console.warn('[DashboardDataService] loadIrrigationStatus failed:', error);
         return { last_run: null, duration_seconds: 0, amount_ml: 0, soil_moisture: 50 };
       }
@@ -746,7 +874,7 @@
       };
     }
 
-    async loadIrrigationTelemetry({ force = false, days = 7 } = {}) {
+    async loadIrrigationTelemetry({ force = false, days = 7, _retry = false } = {}) {
       const cacheKey = this._key('irrigation_telemetry');
 
       try {
@@ -772,6 +900,13 @@
           return { executions, eligibility, manual };
         }, { force });
       } catch (error) {
+        if (!_retry) {
+          const recovered = await this._recoverSelectedUnitFromError(error);
+          if (recovered) {
+            return this.loadIrrigationTelemetry({ force: true, days, _retry: true });
+          }
+        }
+
         console.warn('[DashboardDataService] loadIrrigationTelemetry failed:', error);
         return { executions: [], eligibility: [], manual: [] };
       }

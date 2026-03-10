@@ -109,3 +109,76 @@ label, .form-label { font-weight: 600; color: var(--color-text-strong); }
 .full-width { width: 100%; }
 
 .modern-form { display: flex; flex-direction: column; gap: var(--space-3); }
+
+/* =====================================================================
+   Checkbox & Toggle (Bootstrap .form-check / .form-switch compatible)
+   ===================================================================== */
+
+.form-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 1.5rem;
+  padding: 0;
+  cursor: pointer;
+}
+
+.form-check-input {
+  flex-shrink: 0;
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  appearance: none;
+  background-color: var(--color-surface);
+  border: 1.5px solid var(--border-300);
+  border-radius: var(--radius-sm);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+  cursor: pointer;
+  position: relative;
+}
+
+.form-check-input:checked {
+  background-color: var(--brand-600);
+  border-color: var(--brand-600);
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='m6 10 3 3 6-6'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 0.75rem;
+}
+
+.form-check-input:focus {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.form-check-label {
+  font-size: 0.9rem;
+  color: var(--color-text);
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Toggle / switch */
+.form-switch .form-check-input {
+  width: 2.25rem;
+  height: 1.25rem;
+  border-radius: 999px;
+  background-color: var(--border-300);
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%23fff'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: left center;
+  background-size: 1.25rem;
+  transition: background-color var(--transition-fast), background-position var(--transition-fast);
+}
+
+.form-switch .form-check-input:checked {
+  background-color: var(--brand-600);
+  border-color: var(--brand-600);
+  background-position: right center;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%23fff'/%3e%3c/svg%3e");
+}
+
+.form-switch .form-check-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

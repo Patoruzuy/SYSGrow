@@ -4,8 +4,10 @@
 {% block body_class %}plants-hub-page{% endblock %}
 
 {% block styles %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}?v=20260308b">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/plants.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/components/plants.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/components/alerts.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/components/gauge.css') }}">
 {% endblock %}
 
@@ -47,14 +49,14 @@
     ) }}
 
     <!-- Contextual Help Banner -->
-    <div class="help-banner">
-      <i class="fas fa-seedling"></i>
-      <div class="help-banner-content">
-        <p class="help-banner-title">Plant Health Monitoring</p>
-        <p class="help-banner-text">Track plant health, record observations, and get AI-powered disease detection.</p>
-      </div>
-      {{ ui.help_link('plants', 'adding-plants', 'Plant Guide') }}
-    </div>
+    {{ ui.help_banner(
+      title='Plant Health Monitoring',
+      text='Track plant health, record observations, and get AI-powered disease detection.',
+      icon='seedling',
+      link_text='Plant Guide',
+      category='plants',
+      article_id='adding-plants'
+    ) }}
 
     <!-- Alert Banner (shown when there are plant issues) -->
     <div id="alert-banner" class="alert-banner" hidden>
@@ -187,6 +189,22 @@
                     </div>
                 </div>
                 <div id="disease-units" class="disease-units"></div>
+                <div class="analytics-section">
+                    <div class="analytics-section-header">
+                        <h4>Confirmed Cases</h4>
+                        <button type="button" id="prediction-feedback-btn" class="btn btn-outline btn-sm">
+                            <i class="fas fa-check-double"></i>
+                            Prediction Feedback
+                        </button>
+                    </div>
+                    <div id="disease-ops-summary" class="risk-summary"></div>
+                    <div id="disease-history-list" class="analytics-list">
+                        <div class="loading-state">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <p>Loading disease history...</p>
+                        </div>
+                    </div>
+                </div>
             {% endcall %}
 
             <!-- Harvest Tracking -->
@@ -210,6 +228,21 @@
                     <div class="loading-state">
                         <i class="fas fa-spinner fa-spin"></i>
                         <p>Loading harvest history...</p>
+                    </div>
+                </div>
+                <div class="analytics-section">
+                    <div id="harvest-insights-summary" class="risk-summary"></div>
+                    <div id="harvest-cycle-comparison" class="analytics-section-stack">
+                        <div class="loading-state">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <p>Loading cycle comparisons...</p>
+                        </div>
+                    </div>
+                    <div id="harvest-environment-summary" class="analytics-section-stack">
+                        <div class="loading-state">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <p>Loading harvest environment summaries...</p>
+                        </div>
                     </div>
                 </div>
             {% endcall %}
@@ -254,7 +287,7 @@
                 <div class="guide-search mb-3">
                     <div class="input-group input-group-sm">
                         <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
-                        <input type="text" id="guide-search-input" class="form-control border-start-0" placeholder="Search plants...">
+                        <input type="text" id="guide-search-input" class="form-control border-start-0" placeholder="Search plants..." aria-label="Search plants">
                     </div>
                 </div>
                 <div id="guide-list" class="guide-list">
@@ -317,6 +350,7 @@
                 <i class="fas fa-seedling"></i>
                 Add New Plant
             </h2>
+            <span class="profile-chip" id="plantProfileChip">No profile</span>
             <button type="button" class="modal-close" aria-label="Close">
                 <i class="fas fa-times"></i>
             </button>
@@ -406,6 +440,35 @@
                     </div>
                     <div class="col-md-6">
                         {{ ui.form_field('days-in-stage', 'Days in Stage', type='number', name_attr='days_in_stage', value='0', min=0, wrapper_class='form-field') }}
+                    </div>
+                </div>
+
+                <div class="info-card mb-4 p-3 border rounded profile-card-panel">
+                    <h4 class="h6 mb-3">
+                        <i class="fas fa-layer-group me-1"></i> Condition Profile (Optional)
+                    </h4>
+                    <div class="profile-import-row">
+                        <input type="text" id="plantProfileImportToken" placeholder="Paste share token to import" aria-label="Import token">
+                        <button type="button" class="btn btn-outline btn-sm" data-action="import-plant-profile">
+                            <i class="fas fa-link"></i> Import
+                        </button>
+                    </div>
+                    <div id="plantProfileSelectable" class="profile-selectable" hidden>
+                        <div class="profile-selection-summary" id="plantProfileSelectionSummary">
+                            No profile selected
+                        </div>
+                        <div class="profile-selection-actions">
+                            <button type="button" class="btn btn-outline btn-sm" data-action="clear-plant-profile">
+                                Clear selection
+                            </button>
+                        </div>
+                        <input type="hidden" id="plantConditionProfileId" name="condition_profile_id">
+                        <input type="hidden" id="plantConditionProfileMode" name="condition_profile_mode">
+                        <div id="plantProfileSelector" class="profile-selector"></div>
+                        <div class="form-group mt-2">
+                            <label for="plantProfileCloneName">Save as new name (optional)</label>
+                            <input type="text" id="plantProfileCloneName" name="condition_profile_name" placeholder="e.g., Veg Boost Profile">
+                        </div>
                     </div>
                 </div>
                 
@@ -594,7 +657,7 @@
                     <input type="file" id="observation-image" name="image" class="form-control" accept="image/*">
                     <small class="field-hint">Take or upload a photo to help track visual changes over time</small>
                     <div id="image-preview" class="image-preview mt-2" hidden>
-                        <img id="preview-img" class="rounded border shadow-sm" style="max-width: 100%; height: auto; max-height: 200px;" src="" alt="Preview">
+                        <img id="preview-img" class="rounded border shadow-sm" style="max-width: 100%; height: auto; max-height: 200px;" alt="Preview">
                     </div>
                 </div>
 
@@ -708,6 +771,187 @@
     </div>
 </div>
 
+<!-- Harvest Modal -->
+<div id="harvest-modal" class="modal" hidden>
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">
+                <i class="fas fa-basket-shopping"></i>
+                Record Harvest
+            </h2>
+            <button type="button" class="modal-close" aria-label="Close">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form id="harvest-form" class="settings-form">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        {% call ui.select_field('harvest-plant', 'Plant', [], name_attr='plant_id', required=True, wrapper_class='form-field') %}
+                            <option value="">Select plant...</option>
+                        {% endcall %}
+                    </div>
+                    <div class="col-md-6">
+                        {{ ui.form_field('harvest-weight', 'Harvest Weight (g)', type='number', name_attr='harvest_weight_grams', step=0.1, min=0, required=True, wrapper_class='form-field') }}
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        {% call ui.select_field('harvest-quality', 'Quality Rating', [], name_attr='quality_rating', required=True, wrapper_class='form-field') %}
+                            <option value="5">5 - Excellent</option>
+                            <option value="4">4 - Strong</option>
+                            <option value="3">3 - Good</option>
+                            <option value="2">2 - Fair</option>
+                            <option value="1">1 - Poor</option>
+                        {% endcall %}
+                    </div>
+                    <div class="col-md-6 d-flex align-items-end">
+                        <label class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="harvest-delete-plant" name="delete_plant_data">
+                            <span class="form-check-label">Remove plant after harvest cleanup</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-field mb-4">
+                    <label for="harvest-notes" class="form-label">Notes</label>
+                    <textarea id="harvest-notes" name="notes" class="form-control" rows="4" placeholder="Quality notes, aroma, dry weight plans, or cleanup comments"></textarea>
+                </div>
+
+                <div class="form-actions d-flex gap-2">
+                    {{ ui.ui_button('Cancel', variant='secondary', class='modal-close flex-grow-1', type='button') }}
+                    {{ ui.ui_button('Save Harvest', type='submit', icon='fas fa-save', class='flex-grow-1') }}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Resolve Disease Modal -->
+<div id="resolve-disease-modal" class="modal" hidden>
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">
+                <i class="fas fa-briefcase-medical"></i>
+                Resolve Disease Case
+            </h2>
+            <button type="button" class="modal-close" aria-label="Close">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form id="resolve-disease-form" class="settings-form">
+                <input type="hidden" id="resolve-disease-occurrence-id" name="occurrence_id">
+                <p id="resolve-disease-summary" class="text-muted"></p>
+                {{ ui.form_field('resolve-treatment', 'Treatment Applied', name_attr='treatment_applied', placeholder='Neem oil, humidity reduction, prune damaged leaves...', required=True, wrapper_class='form-field') }}
+                <div class="form-field mb-4">
+                    <label for="resolve-disease-notes" class="form-label">Resolution Notes</label>
+                    <textarea id="resolve-disease-notes" name="notes" class="form-control" rows="4" placeholder="Recovery progress, final diagnosis, or next monitoring steps"></textarea>
+                </div>
+                <div class="form-actions d-flex gap-2">
+                    {{ ui.ui_button('Cancel', variant='secondary', class='modal-close flex-grow-1', type='button') }}
+                    {{ ui.ui_button('Mark Resolved', type='submit', icon='fas fa-check', class='flex-grow-1') }}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Prediction Feedback Modal -->
+<div id="prediction-feedback-modal" class="modal" hidden>
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">
+                <i class="fas fa-clipboard-check"></i>
+                Disease Prediction Feedback
+            </h2>
+            <button type="button" class="modal-close" aria-label="Close">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form id="prediction-feedback-form" class="settings-form">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        {% call ui.select_field('prediction-feedback-unit', 'Unit', [], name_attr='unit_id', required=True, wrapper_class='form-field') %}
+                            <option value="">Select unit...</option>
+                            {% for unit in units %}
+                                <option value="{{ unit.unit_id }}">{{ unit.unit_name or unit.name }}</option>
+                            {% endfor %}
+                        {% endcall %}
+                    </div>
+                    <div class="col-md-6">
+                        {% call ui.select_field('prediction-disease-type', 'Predicted Disease Type', [], name_attr='predicted_disease_type', required=True, wrapper_class='form-field') %}
+                            <option value="fungal">Fungal</option>
+                            <option value="bacterial">Bacterial</option>
+                            <option value="viral">Viral</option>
+                            <option value="pest">Pest</option>
+                            <option value="nutrient_deficiency">Nutrient Deficiency</option>
+                            <option value="environmental_stress">Environmental Stress</option>
+                        {% endcall %}
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        {% call ui.select_field('prediction-risk-level', 'Predicted Risk Level', [], name_attr='predicted_risk_level', required=True, wrapper_class='form-field') %}
+                            <option value="low">Low</option>
+                            <option value="moderate">Moderate</option>
+                            <option value="high">High</option>
+                            <option value="critical">Critical</option>
+                        {% endcall %}
+                    </div>
+                    <div class="col-md-6">
+                        {{ ui.form_field('prediction-risk-score', 'Predicted Risk Score', type='number', name_attr='predicted_risk_score', step=0.01, min=0, wrapper_class='form-field') }}
+                    </div>
+                </div>
+
+                <div class="form-field">
+                    {% call ui.select_field('prediction-actual-occurred', 'Did the issue actually occur?', [], name_attr='actual_disease_occurred', required=True, wrapper_class='form-field') %}
+                        <option value="false">No</option>
+                        <option value="true">Yes</option>
+                    {% endcall %}
+                </div>
+
+                <div id="prediction-actual-type-group" class="row g-3" hidden>
+                    <div class="col-md-6">
+                        {% call ui.select_field('prediction-actual-type', 'Actual Disease Type', [], name_attr='actual_disease_type', wrapper_class='form-field') %}
+                            <option value="">Select type...</option>
+                            <option value="fungal">Fungal</option>
+                            <option value="bacterial">Bacterial</option>
+                            <option value="viral">Viral</option>
+                            <option value="pest">Pest</option>
+                            <option value="nutrient_deficiency">Nutrient Deficiency</option>
+                            <option value="environmental_stress">Environmental Stress</option>
+                        {% endcall %}
+                    </div>
+                    <div class="col-md-6" id="prediction-actual-severity-group" hidden>
+                        {% call ui.select_field('prediction-actual-severity', 'Actual Severity', [], name_attr='actual_severity', wrapper_class='form-field') %}
+                            <option value="">Select severity...</option>
+                            <option value="mild">Mild</option>
+                            <option value="moderate">Moderate</option>
+                            <option value="severe">Severe</option>
+                        {% endcall %}
+                    </div>
+                </div>
+
+                <div id="prediction-days-group" class="form-field" hidden>
+                    {{ ui.form_field('prediction-days-to-occurrence', 'Days Until Occurrence', type='number', name_attr='days_to_occurrence', min=0, wrapper_class='form-field') }}
+                </div>
+
+                <div class="form-actions d-flex gap-2">
+                    {{ ui.ui_button('Cancel', variant='secondary', class='modal-close flex-grow-1', type='button') }}
+                    {{ ui.ui_button('Save Feedback', type='submit', icon='fas fa-save', class='flex-grow-1') }}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Plant Details Modal is now dynamically created by PlantDetailsModal component -->
 
 <!-- Link Sensor Modal -->
@@ -739,21 +983,17 @@
 
 <!-- Load utilities first -->
 <script src="{{ url_for('static', filename='js/utils/cache-service.js') }}?v=20251214183000"></script>
-<script src="{{ url_for('static', filename='js/utils/modal.js') }}?v=20251214183000"></script>
+<script src="{{ url_for('static', filename='js/utils/modal.js') }}?v=20260308a"></script>
 <script src="{{ url_for('static', filename='js/utils/base-manager.js') }}?v=20251214183000"></script>
 
-<!-- Load API layer -->
-<script src="{{ url_for('static', filename='js/api.js') }}?v=20251228193000"></script>
-
 <!-- Shared components -->
-<script src="{{ url_for('static', filename='js/components/plant-details-modal.js') }}?v=20251228193000"></script>
+<script src="{{ url_for('static', filename='js/components/plant-details-modal.js') }}?v=20260308e"></script>
+<script src="{{ url_for('static', filename='js/components/profile-selector.js') }}?v=20260128193000"></script>
 
 <!-- Load Plants modules -->
-<script src="{{ url_for('static', filename='js/plants/data-service.js') }}?v=20251228193000"></script>
-<script src="{{ url_for('static', filename='js/plants/ui-manager.js') }}?v=20251228193000"></script>
-<script src="{{ url_for('static', filename='js/plants/main.js') }}?v=20251214171000"></script>
+<script src="{{ url_for('static', filename='js/plants/data-service.js') }}?v=20260308d"></script>
+<script src="{{ url_for('static', filename='js/plants/ui-manager.js') }}?v=20260308d"></script>
+<script src="{{ url_for('static', filename='js/plants/main.js') }}?v=20260308d"></script>
 
-<!-- Load Plants Guide module if needed -->
-<script src="{{ url_for('static', filename='js/plants_guide.js') }}?v=20251214"></script>
 
 {% endblock %}

@@ -11,6 +11,7 @@
   let dataService = null;
   let uiManager = null;
   let isInitialized = false;
+  let periodicRefreshInterval = null;
 
   /**
    * Initialize the units module
@@ -61,7 +62,7 @@
       setupPeriodicRefresh();
 
     } catch (error) {
-      console.error('[Units] Initialization failed:', error);
+      window.SYSGrow.initError('Units', error);
     }
   }
 
@@ -70,7 +71,7 @@
    */
   function setupPeriodicRefresh() {
     // Refresh environmental data every 60 seconds
-    setInterval(() => {
+    periodicRefreshInterval = setInterval(() => {
       if (uiManager) {
         uiManager.refreshAllEnvironmentalData();
       }
@@ -92,6 +93,14 @@
   function getState() {
     return uiManager ? uiManager.state : null;
   }
+
+  // Cleanup on page leave
+  window.addEventListener('beforeunload', () => {
+    if (periodicRefreshInterval) {
+      clearInterval(periodicRefreshInterval);
+      periodicRefreshInterval = null;
+    }
+  });
 
   // Wait for DOM ready
   if (document.readyState === 'loading') {

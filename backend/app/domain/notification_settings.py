@@ -4,21 +4,23 @@ Notification Settings Domain Object
 
 User notification preferences dataclass.
 """
+
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 @dataclass
 class NotificationSettings:
     """User notification preferences."""
+
     user_id: int
     email_enabled: bool = False
     in_app_enabled: bool = True
-    email_address: Optional[str] = None
-    smtp_host: Optional[str] = None
+    email_address: str | None = None
+    smtp_host: str | None = None
     smtp_port: int = 587
-    smtp_username: Optional[str] = None
-    smtp_password: Optional[str] = None
+    smtp_username: str | None = None
+    smtp_password: str | None = None
     smtp_use_tls: bool = True
     notify_low_battery: bool = True
     notify_plant_needs_water: bool = True
@@ -31,12 +33,12 @@ class NotificationSettings:
     irrigation_feedback_enabled: bool = True
     irrigation_feedback_delay_minutes: int = 30
     quiet_hours_enabled: bool = False
-    quiet_hours_start: Optional[str] = None
-    quiet_hours_end: Optional[str] = None
+    quiet_hours_start: str | None = None
+    quiet_hours_end: str | None = None
     min_notification_interval_seconds: int = 300
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "NotificationSettings":
+    def from_dict(cls, data: dict[str, Any]) -> "NotificationSettings":
         """Create settings from dictionary."""
         return cls(
             user_id=data.get("user_id", 1),
@@ -64,7 +66,7 @@ class NotificationSettings:
             min_notification_interval_seconds=int(data.get("min_notification_interval_seconds", 300)),
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for database storage."""
         return {
             "email_enabled": self.email_enabled,

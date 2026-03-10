@@ -1,14 +1,43 @@
 """Database operations for Notification entities."""
+
 from __future__ import annotations
 
-import json
 import logging
 import sqlite3
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from app.utils.time import iso_now
+from infrastructure.database.sql_safety import build_insert_parts, build_set_clause, safe_columns
 
 logger = logging.getLogger(__name__)
+
+# Columns that may be written via upsert_notification_settings.
+# Keys not in this set are silently dropped.
+_NOTIF_SETTINGS_COLUMNS: frozenset[str] = frozenset(
+    {
+        "email_enabled",
+        "in_app_enabled",
+        "email_address",
+        "smtp_host",
+        "smtp_port",
+        "smtp_username",
+        "smtp_password_encrypted",
+        "smtp_use_tls",
+        "notify_low_battery",
+        "notify_plant_needs_water",
+        "notify_irrigation_confirm",
+        "notify_threshold_exceeded",
+        "notify_device_offline",
+        "notify_harvest_ready",
+        "notify_plant_health_warning",
+        "irrigation_feedback_enabled",
+        "irrigation_feedback_delay_minutes",
+        "quiet_hours_enabled",
+        "quiet_hours_start",
+        "quiet_hours_end",
+        "min_notification_interval_seconds",
+    }
+)
 
 
 class NotificationOperations:
@@ -16,64 +45,45 @@ class NotificationOperations:
 
     # --- Notification Settings ---
 
-    def get_notification_settings(self, user_id: int) -> Optional[Dict[str, Any]]:
+    def get_notification_settings(self, user_id: int) -> dict[str, Any] | None:
         """Get notification settings for a user."""
         try:
             db = self.get_db()
-            cur = db.execute(
-                "SELECT * FROM NotificationSettings WHERE user_id = ?",
-                (user_id,)
-            )
+            cur = db.execute("SELECT * FROM NotificationSettings WHERE user_id = ?", (user_id,))
             row = cur.fetchone()
             return dict(row) if row else None
         except sqlite3.Error as exc:
             logger.error("Failed to get notification settings: %s", exc)
             return None
 
-    def upsert_notification_settings(
-        self,
-        user_id: int,
-        settings: Dict[str, Any]
-    ) -> bool:
+    def upsert_notification_settings(self, user_id: int, settings: dict[str, Any]) -> bool:
         """Insert or update notification settings for a user."""
         try:
+            cols = safe_columns(settings, _NOTIF_SETTINGS_COLUMNS, context="upsert_notification_settings")
+            if not cols:
+                return True  # nothing to write
+
             db = self.get_db()
-            # Check if settings exist
-            cur = db.execute(
-                "SELECT id FROM NotificationSettings WHERE user_id = ?",
-                (user_id,)
-            )
+            cur = db.execute("SELECT id FROM NotificationSettings WHERE user_id = ?", (user_id,))
             existing = cur.fetchone()
 
             if existing:
                 # Update existing settings
-                set_clauses = []
-                params = []
-                for key, value in settings.items():
-                    if key not in ("id", "user_id", "created_at"):
-                        set_clauses.append(f"{key} = ?")
-                        params.append(value)
-                set_clauses.append("updated_at = ?")
-                params.append(iso_now())
+                cols["updated_at"] = iso_now()
+                set_sql, params = build_set_clause(cols)
                 params.append(user_id)
-
-                if set_clauses:
-                    query = f"UPDATE NotificationSettings SET {', '.join(set_clauses)} WHERE user_id = ?"
-                    db.execute(query, params)
+                db.execute(
+                    f"UPDATE NotificationSettings SET {set_sql} WHERE user_id = ?",  # nosec B608
+                    params,
+                )
             else:
                 # Insert new settings
-                columns = ["user_id"]
-                values = [user_id]
-                placeholders = ["?"]
-
-                for key, value in settings.items():
-                    if key not in ("id", "user_id", "created_at"):
-                        columns.append(key)
-                        values.append(value)
-                        placeholders.append("?")
-
-                query = f"INSERT INTO NotificationSettings ({', '.join(columns)}) VALUES ({', '.join(placeholders)})"
-                db.execute(query, values)
+                cols["user_id"] = user_id
+                col_sql, ph_sql, values = build_insert_parts(cols)
+                db.execute(
+                    f"INSERT INTO NotificationSettings ({col_sql}) VALUES ({ph_sql})",  # nosec B608
+                    values,
+                )
 
             db.commit()
             return True
@@ -91,14 +101,14 @@ class NotificationOperations:
         message: str,
         severity: str,
         channel: str,
-        source_type: Optional[str] = None,
-        source_id: Optional[int] = None,
-        unit_id: Optional[int] = None,
+        source_type: str | None = None,
+        source_id: int | None = None,
+        unit_id: int | None = None,
         requires_action: bool = False,
-        action_type: Optional[str] = None,
-        action_data: Optional[str] = None,
-        expires_at: Optional[str] = None,
-    ) -> Optional[int]:
+        action_type: str | None = None,
+        action_data: str | None = None,
+        expires_at: str | None = None,
+    ) -> int | None:
         """Create a new notification message."""
         try:
             db = self.get_db()
@@ -113,9 +123,19 @@ class NotificationOperations:
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    user_id, notification_type, title, message, severity,
-                    channel, source_type, source_id, unit_id,
-                    1 if requires_action else 0, action_type, action_data, expires_at,
+                    user_id,
+                    notification_type,
+                    title,
+                    message,
+                    severity,
+                    channel,
+                    source_type,
+                    source_id,
+                    unit_id,
+                    1 if requires_action else 0,
+                    action_type,
+                    action_data,
+                    expires_at,
                     iso_now(),
                 ),
             )
@@ -132,12 +152,12 @@ class NotificationOperations:
         unread_only: bool = False,
         limit: int = 50,
         offset: int = 0,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Get notifications for a user."""
         try:
             db = self.get_db()
             query = "SELECT * FROM NotificationMessage WHERE user_id = ?"
-            params: List[Any] = [user_id]
+            params: list[Any] = [user_id]
 
             if unread_only:
                 query += " AND in_app_read = 0"
@@ -151,14 +171,11 @@ class NotificationOperations:
             logger.error("Failed to get user notifications: %s", exc)
             return []
 
-    def get_notification_by_id(self, message_id: int) -> Optional[Dict[str, Any]]:
+    def get_notification_by_id(self, message_id: int) -> dict[str, Any] | None:
         """Get a notification by ID."""
         try:
             db = self.get_db()
-            cur = db.execute(
-                "SELECT * FROM NotificationMessage WHERE message_id = ?",
-                (message_id,)
-            )
+            cur = db.execute("SELECT * FROM NotificationMessage WHERE message_id = ?", (message_id,))
             row = cur.fetchone()
             return dict(row) if row else None
         except sqlite3.Error as exc:
@@ -197,7 +214,7 @@ class NotificationOperations:
         self,
         message_id: int,
         sent: bool,
-        error: Optional[str] = None,
+        error: str | None = None,
     ) -> bool:
         """Update email delivery status."""
         try:
@@ -271,13 +288,13 @@ class NotificationOperations:
     def get_pending_action_notifications(
         self,
         user_id: int,
-        action_type: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+        action_type: str | None = None,
+    ) -> list[dict[str, Any]]:
         """Get notifications that require user action."""
         try:
             db = self.get_db()
             query = "SELECT * FROM NotificationMessage WHERE user_id = ? AND requires_action = 1 AND action_taken = 0"
-            params: List[Any] = [user_id]
+            params: list[Any] = [user_id]
 
             if action_type:
                 query += " AND action_type = ?"
@@ -306,8 +323,11 @@ class NotificationOperations:
     def purge_old_notifications(self, retention_days: int = 30) -> int:
         """Delete old notifications. Returns count deleted."""
         try:
-            from datetime import datetime, timedelta
-            cutoff = (datetime.utcnow() - timedelta(days=retention_days)).isoformat()
+            from datetime import timedelta
+
+            from app.utils.time import utc_now
+
+            cutoff = (utc_now() - timedelta(days=retention_days)).isoformat()
 
             db = self.get_db()
             cur = db.execute(
@@ -326,15 +346,15 @@ class NotificationOperations:
         self,
         user_id: int,
         unit_id: int,
-        plant_id: Optional[int] = None,
-        actuator_id: Optional[int] = None,
-        soil_moisture_before: Optional[float] = None,
-        soil_moisture_after: Optional[float] = None,
-        irrigation_duration_seconds: Optional[int] = None,
-        feedback_response: Optional[str] = None,
-        feedback_notes: Optional[str] = None,
-        suggested_adjustment: Optional[float] = None,
-    ) -> Optional[int]:
+        plant_id: int | None = None,
+        actuator_id: int | None = None,
+        soil_moisture_before: float | None = None,
+        soil_moisture_after: float | None = None,
+        irrigation_duration_seconds: int | None = None,
+        feedback_response: str | None = None,
+        feedback_notes: str | None = None,
+        suggested_adjustment: float | None = None,
+    ) -> int | None:
         """Create an irrigation feedback record."""
         try:
             db = self.get_db()
@@ -350,10 +370,16 @@ class NotificationOperations:
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    user_id, unit_id, plant_id, actuator_id,
-                    soil_moisture_before, soil_moisture_after,
-                    irrigation_duration_seconds, feedback_response,
-                    feedback_notes, suggested_adjustment,
+                    user_id,
+                    unit_id,
+                    plant_id,
+                    actuator_id,
+                    soil_moisture_before,
+                    soil_moisture_after,
+                    irrigation_duration_seconds,
+                    feedback_response,
+                    feedback_notes,
+                    suggested_adjustment,
                     iso_now(),
                 ),
             )
@@ -368,8 +394,8 @@ class NotificationOperations:
         self,
         feedback_id: int,
         feedback_response: str,
-        feedback_notes: Optional[str] = None,
-        suggested_adjustment: Optional[float] = None,
+        feedback_notes: str | None = None,
+        suggested_adjustment: float | None = None,
     ) -> bool:
         """Update irrigation feedback response."""
         try:
@@ -392,7 +418,7 @@ class NotificationOperations:
         self,
         unit_id: int,
         limit: int = 20,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Get irrigation feedback history for a unit."""
         try:
             db = self.get_db()
@@ -409,7 +435,7 @@ class NotificationOperations:
             logger.error("Failed to get irrigation feedback history: %s", exc)
             return []
 
-    def get_pending_irrigation_feedback(self, user_id: int) -> List[Dict[str, Any]]:
+    def get_pending_irrigation_feedback(self, user_id: int) -> list[dict[str, Any]]:
         """Get irrigation feedback records awaiting user response."""
         try:
             db = self.get_db()

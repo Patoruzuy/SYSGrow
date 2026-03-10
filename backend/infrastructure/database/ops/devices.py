@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import sqlite3
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from infrastructure.database.pagination import validate_pagination
 
@@ -20,12 +20,12 @@ class DeviceOperations:
         actuator_type: str,
         protocol: str,
         model: str = "Generic",
-        config_data: Optional[Dict[str, Any]] = None,
-    ) -> Optional[int]:
+        config_data: dict[str, Any] | None = None,
+    ) -> int | None:
         """Insert actuator with new schema."""
         try:
             db = self.get_db()
-            
+
             # Insert into Actuator table
             cursor = db.execute(
                 """
@@ -46,7 +46,7 @@ class DeviceOperations:
                 ),
             )
             actuator_id = cursor.lastrowid
-            
+
             # Insert config if present
             if config_data:
                 db.execute(
@@ -56,7 +56,7 @@ class DeviceOperations:
                     """,
                     (actuator_id, json.dumps(config_data)),
                 )
-            
+
             db.commit()
             logging.info("✅ Actuator '%s' inserted successfully.", name)
             return actuator_id
@@ -74,11 +74,11 @@ class DeviceOperations:
 
     def get_actuator_configs(
         self,
-        unit_id: Optional[int] = None,
+        unit_id: int | None = None,
         *,
-        limit: Optional[int] = None,
-        offset: Optional[int] = None,
-    ) -> List[Dict[str, Any]]:
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> list[dict[str, Any]]:
         """Get actuator configs with new schema and pagination."""
         try:
             # Validate pagination parameters
@@ -103,13 +103,13 @@ class DeviceOperations:
             """
             if unit_id is not None:
                 query += " WHERE a.unit_id = ?"
-                query += f" ORDER BY a.actuator_id ASC LIMIT ? OFFSET ?"
+                query += " ORDER BY a.actuator_id ASC LIMIT ? OFFSET ?"
                 cursor = db.execute(query, (unit_id, validated_limit, validated_offset))
             else:
                 query += " ORDER BY a.actuator_id ASC LIMIT ? OFFSET ?"
                 cursor = db.execute(query, (validated_limit, validated_offset))
             rows = cursor.fetchall()
-            
+
             results = []
             for row in rows:
                 config_data = json.loads(row["config_data"]) if row["config_data"] else {}
@@ -128,19 +128,19 @@ class DeviceOperations:
                     "config": config_data,
                 }
                 results.append(actuator)
-            
+
             return results
         except sqlite3.Error as exc:
             logging.error("Error getting actuator configs: %s", exc)
             return []
 
-    def get_actuator_config_by_id(self, actuator_id: int) -> Optional[Dict[str, Any]]:
+    def get_actuator_config_by_id(self, actuator_id: int) -> dict[str, Any] | None:
         """Get actuator config by actuator_id with new schema."""
         try:
             db = self.get_db()
             cursor = db.execute(
                 """
-                SELECT 
+                SELECT
                     a.actuator_id,
                     a.unit_id,
                     a.name,
@@ -180,27 +180,71 @@ class DeviceOperations:
             logging.error("Error getting actuator config by ID: %s", exc)
             return None
 
+    def get_actuators_by_ids(self, actuator_ids: list[int]) -> dict[int, dict[str, Any]]:
+        """Batch-fetch actuator configs by a list of IDs.
+
+        Returns a dict keyed by ``actuator_id`` for O(1) lookup.
+        Eliminates N+1 queries when callers need multiple actuators.
+        """
+        if not actuator_ids:
+            return {}
+        try:
+            db = self.get_db()
+            placeholders = ",".join("?" for _ in actuator_ids)  # nosec B608
+            cursor = db.execute(
+                f"""
+                SELECT
+                    a.actuator_id, a.unit_id, a.name, a.actuator_type,
+                    a.protocol, a.model, a.ieee_address, a.is_active,
+                    a.created_at, a.updated_at, ac.config_data
+                FROM Actuator a
+                LEFT JOIN ActuatorConfig ac ON a.actuator_id = ac.actuator_id
+                WHERE a.actuator_id IN ({placeholders})
+                """,  # nosec B608 — only '?' placeholders
+                actuator_ids,
+            )
+            result: dict[int, dict[str, Any]] = {}
+            for row in cursor.fetchall():
+                config_data = json.loads(row["config_data"]) if row["config_data"] else {}
+                aid = row["actuator_id"]
+                result[aid] = {
+                    "actuator_id": aid,
+                    "unit_id": row["unit_id"],
+                    "name": row["name"],
+                    "actuator_type": row["actuator_type"],
+                    "protocol": row["protocol"],
+                    "model": row["model"],
+                    "ieee_address": row["ieee_address"],
+                    "is_active": row["is_active"],
+                    "created_at": row["created_at"],
+                    "updated_at": row["updated_at"],
+                    "config": config_data,
+                }
+            return result
+        except sqlite3.Error as exc:
+            logging.error("Error batch-fetching actuator configs: %s", exc)
+            return {}
+
     def get_all_actuators(
         self,
         *,
-        limit: Optional[int] = None,
-        offset: Optional[int] = None,
-    ) -> List[Dict[str, Any]]:
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> list[dict[str, Any]]:
         """Get all actuators with pagination."""
         # Validate pagination parameters
         validated_limit, validated_offset = validate_pagination(limit, offset)
 
         db = self.get_db()
         cursor = db.execute(
-            "SELECT * FROM Actuator ORDER BY actuator_id ASC LIMIT ? OFFSET ?",
-            (validated_limit, validated_offset)
+            "SELECT * FROM Actuator ORDER BY actuator_id ASC LIMIT ? OFFSET ?", (validated_limit, validated_offset)
         )
         return [dict(row) for row in cursor.fetchall()]
 
     def update_actuator_config(
         self,
         actuator_id: int,
-        config_data: Dict[str, Any],
+        config_data: dict[str, Any],
     ) -> bool:
         """
         Update actuator config_data (upsert pattern).
@@ -263,8 +307,8 @@ class DeviceOperations:
         sensor_type: str,
         protocol: str,
         model: str,
-        config_data: Optional[Dict[str, Any]] = None,
-    ) -> Optional[int]:
+        config_data: dict[str, Any] | None = None,
+    ) -> int | None:
         """Insert sensor with new schema."""
         try:
             db = self.get_db()
@@ -276,7 +320,7 @@ class DeviceOperations:
                 (unit_id, name, sensor_type, protocol, model),
             )
             sensor_id = cursor.lastrowid
-            
+
             # Insert config
             if config_data:
                 db.execute(
@@ -286,7 +330,7 @@ class DeviceOperations:
                     """,
                     (sensor_id, json.dumps(config_data)),
                 )
-            
+
             db.commit()
             logging.info("✅ Sensor '%s' inserted successfully.", name)
             return sensor_id
@@ -297,7 +341,7 @@ class DeviceOperations:
     def update_sensor_config(
         self,
         sensor_id: int,
-        config_data: Dict[str, Any],
+        config_data: dict[str, Any],
     ) -> bool:
         """
         Update sensor config_data (upsert pattern).
@@ -342,14 +386,14 @@ class DeviceOperations:
         self,
         sensor_id: int,
         *,
-        name: Optional[str] = None,
-        sensor_type: Optional[str] = None,
-        protocol: Optional[str] = None,
-        model: Optional[str] = None,
+        name: str | None = None,
+        sensor_type: str | None = None,
+        protocol: str | None = None,
+        model: str | None = None,
     ) -> bool:
         """Update base sensor fields (name/type/protocol/model)."""
         try:
-            updates: Dict[str, Any] = {}
+            updates: dict[str, Any] = {}
             if name is not None:
                 updates["name"] = name
             if sensor_type is not None:
@@ -362,12 +406,12 @@ class DeviceOperations:
             if not updates:
                 return True
 
-            fields = ", ".join([f"{key} = ?" for key in updates.keys()])
-            values = list(updates.values()) + [sensor_id]
+            fields = ", ".join([f"{key} = ?" for key in updates])  # nosec B608 — keys from explicit kwargs
+            values = [*list(updates.values()), sensor_id]
 
             db = self.get_db()
             db.execute(
-                f"UPDATE Sensor SET {fields} WHERE sensor_id = ?",
+                f"UPDATE Sensor SET {fields} WHERE sensor_id = ?",  # nosec B608
                 values,
             )
             db.commit()
@@ -387,11 +431,11 @@ class DeviceOperations:
 
     def get_sensor_configs(
         self,
-        unit_id: Optional[int] = None,
+        unit_id: int | None = None,
         *,
-        limit: Optional[int] = None,
-        offset: Optional[int] = None,
-    ) -> List[Dict[str, Any]]:
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> list[dict[str, Any]]:
         """Get sensor configs with new schema and pagination."""
         try:
             # Validate pagination parameters
@@ -423,7 +467,7 @@ class DeviceOperations:
                 cursor = db.execute(query, (validated_limit, validated_offset))
 
             rows = cursor.fetchall()
-            configs: List[Dict[str, Any]] = []
+            configs: list[dict[str, Any]] = []
             for row in rows:
                 config = {
                     "sensor_id": row["sensor_id"],
@@ -453,21 +497,20 @@ class DeviceOperations:
     def get_all_sensors(
         self,
         *,
-        limit: Optional[int] = None,
-        offset: Optional[int] = None,
-    ) -> List[Dict[str, Any]]:
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> list[dict[str, Any]]:
         """Get all sensors with pagination."""
         # Validate pagination parameters
         validated_limit, validated_offset = validate_pagination(limit, offset)
 
         db = self.get_db()
         cursor = db.execute(
-            "SELECT * FROM Sensor ORDER BY sensor_id ASC LIMIT ? OFFSET ?",
-            (validated_limit, validated_offset)
+            "SELECT * FROM Sensor ORDER BY sensor_id ASC LIMIT ? OFFSET ?", (validated_limit, validated_offset)
         )
         return [dict(row) for row in cursor.fetchall()]
 
-    def get_sensors_by_model(self, sensor_model: str) -> List[Any]:
+    def get_sensors_by_model(self, sensor_model: str) -> list[Any]:
         try:
             db = self.get_db()
             return db.execute("SELECT * FROM Sensor WHERE model = ?", (sensor_model,)).fetchall()
@@ -484,13 +527,13 @@ class DeviceOperations:
             logging.error("Error getting sensor by ID: %s", exc)
             return None
 
-    def get_sensor_config_by_id(self, sensor_id: int) -> Optional[Dict[str, Any]]:
+    def get_sensor_config_by_id(self, sensor_id: int) -> dict[str, Any] | None:
         """Get sensor config by sensor_id with new schema."""
         try:
             db = self.get_db()
             cursor = db.execute(
                 """
-                SELECT 
+                SELECT
                     s.sensor_id,
                     s.unit_id,
                     s.name,
@@ -528,14 +571,58 @@ class DeviceOperations:
             logging.error("Error getting sensor config by ID: %s", exc)
             return None
 
+    def get_sensors_by_ids(self, sensor_ids: list[int]) -> dict[int, dict[str, Any]]:
+        """Batch-fetch sensor configs by a list of IDs.
+
+        Returns a dict keyed by ``sensor_id`` for O(1) lookup.
+        Eliminates N+1 queries when callers need multiple sensors.
+        """
+        if not sensor_ids:
+            return {}
+        try:
+            db = self.get_db()
+            placeholders = ",".join("?" for _ in sensor_ids)  # nosec B608
+            cursor = db.execute(
+                f"""
+                SELECT
+                    s.sensor_id, s.unit_id, s.name, s.sensor_type,
+                    s.protocol, s.model, s.is_active,
+                    s.created_at, s.updated_at, sc.config_data
+                FROM Sensor s
+                LEFT JOIN SensorConfig sc ON s.sensor_id = sc.sensor_id
+                WHERE s.sensor_id IN ({placeholders})
+                """,  # nosec B608 — only '?' placeholders
+                sensor_ids,
+            )
+            result: dict[int, dict[str, Any]] = {}
+            for row in cursor.fetchall():
+                config_data = json.loads(row["config_data"]) if row["config_data"] else {}
+                sid = row["sensor_id"]
+                result[sid] = {
+                    "sensor_id": sid,
+                    "unit_id": row["unit_id"],
+                    "name": row["name"],
+                    "sensor_type": row["sensor_type"],
+                    "protocol": row["protocol"],
+                    "model": row["model"],
+                    "is_active": row["is_active"],
+                    "created_at": row["created_at"],
+                    "updated_at": row["updated_at"],
+                    "config": config_data,
+                }
+            return result
+        except sqlite3.Error as exc:
+            logging.error("Error batch-fetching sensor configs: %s", exc)
+            return {}
+
     # --- Actuator State History ----------------------------------------------
     def save_actuator_state(
         self,
         actuator_id: int,
         state: str,
-        value: Optional[float] = None,
-        timestamp: Optional[str] = None,
-    ) -> Optional[int]:
+        value: float | None = None,
+        timestamp: str | None = None,
+    ) -> int | None:
         """Persist actuator state change (on/off/partial) to ActuatorStateHistory."""
         try:
             db = self.get_db()
@@ -565,17 +652,16 @@ class DeviceOperations:
         self,
         actuator_id: int,
         limit: int = 100,
-        since: Optional[str] = None,
-        until: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+        since: str | None = None,
+        until: str | None = None,
+    ) -> list[dict[str, Any]]:
         """Fetch recent state history for an actuator."""
         try:
             db = self.get_db()
             query = (
-                "SELECT state_id, actuator_id, state, value, timestamp "
-                "FROM ActuatorStateHistory WHERE actuator_id = ?"
+                "SELECT state_id, actuator_id, state, value, timestamp FROM ActuatorStateHistory WHERE actuator_id = ?"
             )
-            params: List[Any] = [actuator_id]
+            params: list[Any] = [actuator_id]
             if since:
                 query += " AND timestamp >= ?"
                 params.append(since)
@@ -595,9 +681,9 @@ class DeviceOperations:
         self,
         unit_id: int,
         limit: int = 100,
-        since: Optional[str] = None,
-        until: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+        since: str | None = None,
+        until: str | None = None,
+    ) -> list[dict[str, Any]]:
         """Fetch recent state history for all actuators in a unit (joins Actuator)."""
         try:
             db = self.get_db()
@@ -606,7 +692,7 @@ class DeviceOperations:
                 "FROM ActuatorStateHistory h JOIN Actuator a ON a.actuator_id = h.actuator_id "
                 "WHERE a.unit_id = ?"
             )
-            params: List[Any] = [unit_id]
+            params: list[Any] = [unit_id]
             if since:
                 query += " AND h.timestamp >= ?"
                 params.append(since)
@@ -624,8 +710,8 @@ class DeviceOperations:
     def get_recent_actuator_state(
         self,
         limit: int = 100,
-        unit_id: Optional[int] = None,
-    ) -> List[Dict[str, Any]]:
+        unit_id: int | None = None,
+    ) -> list[dict[str, Any]]:
         """Fetch last N actuator state changes across system (optional unit filter)."""
         try:
             db = self.get_db()
@@ -633,7 +719,7 @@ class DeviceOperations:
                 "SELECT h.state_id, h.actuator_id, a.name, a.unit_id, h.state, h.value, h.timestamp "
                 "FROM ActuatorStateHistory h JOIN Actuator a ON a.actuator_id = h.actuator_id"
             )
-            params: List[Any] = []
+            params: list[Any] = []
             if unit_id is not None:
                 base += " WHERE a.unit_id = ?"
                 params.append(unit_id)
@@ -652,7 +738,7 @@ class DeviceOperations:
             db = self.get_db()
             cur = db.execute(
                 "DELETE FROM ActuatorStateHistory WHERE timestamp < datetime('now', ?)",
-                (f'-{int(days)} days',),
+                (f"-{int(days)} days",),
             )
             db.commit()
             return cur.rowcount or 0
@@ -667,7 +753,7 @@ class DeviceOperations:
             db = self.get_db()
             cur = db.execute(
                 "DELETE FROM SensorReading WHERE timestamp < datetime('now', ?)",
-                (f'-{int(days)} days',),
+                (f"-{int(days)} days",),
             )
             db.commit()
             return cur.rowcount or 0
@@ -681,13 +767,13 @@ class DeviceOperations:
         connection_type: str,
         status: str,
         *,
-        endpoint: Optional[str] = None,
-        port: Optional[int] = None,
-        unit_id: Optional[int] = None,
-        device_id: Optional[str] = None,
-        details: Optional[str] = None,
-        timestamp: Optional[str] = None,
-    ) -> Optional[int]:
+        endpoint: str | None = None,
+        port: int | None = None,
+        unit_id: int | None = None,
+        device_id: str | None = None,
+        details: str | None = None,
+        timestamp: str | None = None,
+    ) -> int | None:
         """Persist connectivity event in history table."""
         try:
             db = self.get_db()
@@ -735,11 +821,11 @@ class DeviceOperations:
     def get_connectivity_history(
         self,
         *,
-        connection_type: Optional[str] = None,
+        connection_type: str | None = None,
         limit: int = 100,
-        since: Optional[str] = None,
-        until: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+        since: str | None = None,
+        until: str | None = None,
+    ) -> list[dict[str, Any]]:
         """Fetch connectivity history across types (optionally filtered)."""
         try:
             db = self.get_db()
@@ -747,7 +833,7 @@ class DeviceOperations:
                 "SELECT event_id, connection_type, status, endpoint, port, unit_id, device_id, details, timestamp "
                 "FROM DeviceConnectivityHistory"
             )
-            params: List[Any] = []
+            params: list[Any] = []
             first_clause = True
             if connection_type:
                 query += " WHERE connection_type = ?"
@@ -775,13 +861,13 @@ class DeviceOperations:
         measured_value: float,
         reference_value: float,
         calibration_type: str = "linear",
-    ) -> Optional[int]:
+    ) -> int | None:
         """Save calibration point."""
         try:
             db = self.get_db()
             cursor = db.execute(
                 """
-                INSERT INTO SensorCalibration 
+                INSERT INTO SensorCalibration
                 (sensor_id, calibration_type, measured_value, reference_value)
                 VALUES (?, ?, ?, ?)
                 """,
@@ -794,13 +880,13 @@ class DeviceOperations:
             logging.error("Error saving calibration: %s", exc)
             return None
 
-    def get_calibrations(self, sensor_id: int) -> List[Dict[str, Any]]:
+    def get_calibrations(self, sensor_id: int) -> list[dict[str, Any]]:
         """Get all calibration points for a sensor."""
         try:
             db = self.get_db()
             cursor = db.execute(
                 """
-                SELECT calibration_id, calibration_type, measured_value, 
+                SELECT calibration_id, calibration_type, measured_value,
                        reference_value, created_at
                 FROM SensorCalibration
                 WHERE sensor_id = ?
@@ -822,7 +908,7 @@ class DeviceOperations:
         error_rate: float,
         total_readings: int = 0,
         failed_readings: int = 0,
-    ) -> Optional[int]:
+    ) -> int | None:
         """Save health monitoring snapshot."""
         try:
             db = self.get_db()
@@ -840,13 +926,13 @@ class DeviceOperations:
             logging.error("Error saving health snapshot: %s", exc)
             return None
 
-    def get_health_history(self, sensor_id: int, limit: int = 100) -> List[Dict[str, Any]]:
+    def get_health_history(self, sensor_id: int, limit: int = 100) -> list[dict[str, Any]]:
         """Get health history for a sensor."""
         try:
             db = self.get_db()
             cursor = db.execute(
                 """
-                SELECT history_id, health_score, status, error_rate, 
+                SELECT history_id, health_score, status, error_rate,
                        total_readings, failed_readings, recorded_at
                 FROM SensorHealthHistory
                 WHERE sensor_id = ?
@@ -860,6 +946,38 @@ class DeviceOperations:
             logging.error("Error getting health history: %s", exc)
             return []
 
+    def get_latest_health_batch(self, sensor_ids: list[int]) -> dict[int, dict[str, Any]]:
+        """Get most recent health snapshot for each sensor in a single query.
+
+        Returns a dict mapping sensor_id → latest health row.  Sensors with no
+        history are omitted from the result.
+        """
+        if not sensor_ids:
+            return {}
+
+        try:
+            db = self.get_db()
+            placeholders = ",".join(["?"] * len(sensor_ids))
+            cursor = db.execute(
+                f"""
+                SELECT h.sensor_id, h.health_score, h.status, h.error_rate,
+                       h.total_readings, h.failed_readings, h.recorded_at
+                FROM SensorHealthHistory h
+                INNER JOIN (
+                    SELECT sensor_id, MAX(recorded_at) AS max_ts
+                    FROM SensorHealthHistory
+                    WHERE sensor_id IN ({placeholders})
+                    GROUP BY sensor_id
+                ) latest ON h.sensor_id = latest.sensor_id
+                           AND h.recorded_at = latest.max_ts
+                """,
+                tuple(sensor_ids),
+            )
+            return {row["sensor_id"]: dict(row) for row in cursor.fetchall()}
+        except sqlite3.Error as exc:
+            logging.error("Error batch-fetching latest health: %s", exc)
+            return {}
+
     # --- Anomaly Detection -----------------------------------------------------
     def log_anomaly(
         self,
@@ -868,7 +986,7 @@ class DeviceOperations:
         mean_value: float,
         std_deviation: float,
         z_score: float,
-    ) -> Optional[int]:
+    ) -> int | None:
         """Log detected anomaly."""
         try:
             db = self.get_db()
@@ -887,7 +1005,7 @@ class DeviceOperations:
             logging.error("Error logging anomaly: %s", exc)
             return None
 
-    def get_anomalies(self, sensor_id: int, limit: int = 100) -> List[Dict[str, Any]]:
+    def get_anomalies(self, sensor_id: int, limit: int = 100) -> list[dict[str, Any]]:
         """Get anomalies for a sensor."""
         try:
             db = self.get_db()
@@ -908,10 +1026,10 @@ class DeviceOperations:
 
     def count_anomalies_for_sensors(
         self,
-        sensor_ids: List[int],
+        sensor_ids: list[int],
         *,
-        start: Optional[str] = None,
-        end: Optional[str] = None,
+        start: str | None = None,
+        end: str | None = None,
     ) -> int:
         """Count anomalies for a set of sensors, optionally within a datetime range."""
         if not sensor_ids:
@@ -925,7 +1043,7 @@ class DeviceOperations:
                 FROM SensorAnomaly
                 WHERE sensor_id IN ({placeholders})
             """
-            params: List[Any] = list(sensor_ids)
+            params: list[Any] = list(sensor_ids)
 
             if start:
                 sql += " AND datetime(detected_at) >= datetime(?)"
@@ -951,19 +1069,18 @@ class DeviceOperations:
         total_operations: int = 0,
         failed_operations: int = 0,
         average_response_time: float = 0.0,
-    ) -> Optional[int]:
+    ) -> int | None:
         """Save actuator health monitoring snapshot."""
         try:
             db = self.get_db()
             cursor = db.execute(
                 """
                 INSERT INTO ActuatorHealthHistory
-                (actuator_id, health_score, status, total_operations, 
+                (actuator_id, health_score, status, total_operations,
                  failed_operations, average_response_time)
                 VALUES (?, ?, ?, ?, ?, ?)
                 """,
-                (actuator_id, health_score, status, total_operations, 
-                 failed_operations, average_response_time),
+                (actuator_id, health_score, status, total_operations, failed_operations, average_response_time),
             )
             db.commit()
             return cursor.lastrowid
@@ -971,14 +1088,14 @@ class DeviceOperations:
             logging.error("Error saving actuator health snapshot: %s", exc)
             return None
 
-    def get_actuator_health_history(self, actuator_id: int, limit: int = 100) -> List[Dict[str, Any]]:
+    def get_actuator_health_history(self, actuator_id: int, limit: int = 100) -> list[dict[str, Any]]:
         """Get health history for an actuator."""
         try:
             db = self.get_db()
             cursor = db.execute(
                 """
                 SELECT history_id, health_score, status, total_operations,
-                       failed_operations, average_response_time, 
+                       failed_operations, average_response_time,
                        last_successful_operation, recorded_at
                 FROM ActuatorHealthHistory
                 WHERE actuator_id = ?
@@ -998,8 +1115,8 @@ class DeviceOperations:
         actuator_id: int,
         anomaly_type: str,
         severity: str,
-        details: Optional[Dict[str, Any]] = None,
-    ) -> Optional[int]:
+        details: dict[str, Any] | None = None,
+    ) -> int | None:
         """Log detected actuator anomaly."""
         try:
             db = self.get_db()
@@ -1018,13 +1135,13 @@ class DeviceOperations:
             logging.error("Error logging actuator anomaly: %s", exc)
             return None
 
-    def get_actuator_anomalies(self, actuator_id: int, limit: int = 100) -> List[Dict[str, Any]]:
+    def get_actuator_anomalies(self, actuator_id: int, limit: int = 100) -> list[dict[str, Any]]:
         """Get anomalies for an actuator."""
         try:
             db = self.get_db()
             cursor = db.execute(
                 """
-                SELECT anomaly_id, anomaly_type, severity, details, 
+                SELECT anomaly_id, anomaly_type, severity, details,
                        detected_at, resolved_at
                 FROM ActuatorAnomaly
                 WHERE actuator_id = ?
@@ -1067,22 +1184,22 @@ class DeviceOperations:
         self,
         actuator_id: int,
         power_watts: float,
-        voltage: Optional[float] = None,
-        current: Optional[float] = None,
-        energy_kwh: Optional[float] = None,
-        power_factor: Optional[float] = None,
-        frequency: Optional[float] = None,
-        temperature: Optional[float] = None,
+        voltage: float | None = None,
+        current: float | None = None,
+        energy_kwh: float | None = None,
+        power_factor: float | None = None,
+        frequency: float | None = None,
+        temperature: float | None = None,
         is_estimated: bool = False,
-    ) -> Optional[int]:
+    ) -> int | None:
         """
         Save actuator power reading.
-        
+
         Note: Redirected to unified EnergyReadings table.
         """
         try:
             db = self.get_db()
-            
+
             # Lookup context: unit, plant and current growth stage
             actuator = db.execute(
                 """
@@ -1090,14 +1207,14 @@ class DeviceOperations:
                 FROM Actuator a
                 LEFT JOIN Plants p ON p.unit_id = a.unit_id AND p.is_active = 1
                 WHERE a.actuator_id = ?
-                """, 
-                (actuator_id,)
+                """,
+                (actuator_id,),
             ).fetchone()
-            
+
             if not actuator:
                 logging.warning("Actuator %d not found, cannot save power reading", actuator_id)
                 return None
-                
+
             unit_id = actuator["unit_id"]
             plant_id = actuator["plant_id"]
             growth_stage = actuator["current_stage"]
@@ -1105,16 +1222,26 @@ class DeviceOperations:
             cursor = db.execute(
                 """
                 INSERT INTO EnergyReadings (
-                    device_id, unit_id, plant_id, growth_stage, 
+                    device_id, unit_id, plant_id, growth_stage,
                     voltage, current, power_watts, energy_kwh,
                     power_factor, frequency, temperature, is_estimated, source_type
                 )
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    actuator_id, unit_id, plant_id, growth_stage,
-                    voltage, current, power_watts, energy_kwh,
-                    power_factor, frequency, temperature, is_estimated, 'actuator'
+                    actuator_id,
+                    unit_id,
+                    plant_id,
+                    growth_stage,
+                    voltage,
+                    current,
+                    power_watts,
+                    energy_kwh,
+                    power_factor,
+                    frequency,
+                    temperature,
+                    is_estimated,
+                    "actuator",
                 ),
             )
             db.commit()
@@ -1124,19 +1251,16 @@ class DeviceOperations:
             return None
 
     def get_actuator_power_readings(
-        self, 
-        actuator_id: int, 
-        limit: int = 1000,
-        hours: Optional[int] = None
-    ) -> List[Dict[str, Any]]:
+        self, actuator_id: int, limit: int = 1000, hours: int | None = None
+    ) -> list[dict[str, Any]]:
         """
         Get power readings for an actuator.
-        
+
         Note: Redirected to unified EnergyReadings table.
         """
         try:
             db = self.get_db()
-            
+
             if hours:
                 query = """
                     SELECT reading_id, voltage, current, power_watts, energy_kwh,
@@ -1158,7 +1282,7 @@ class DeviceOperations:
                     LIMIT ?
                 """
                 cursor = db.execute(query, (actuator_id, limit))
-            
+
             return [dict(row) for row in cursor.fetchall()]
         except sqlite3.Error as exc:
             logging.error("Error getting actuator power readings: %s", exc)
@@ -1169,8 +1293,8 @@ class DeviceOperations:
         self,
         actuator_id: int,
         calibration_type: str,
-        calibration_data: Dict[str, Any],
-    ) -> Optional[int]:
+        calibration_data: dict[str, Any],
+    ) -> int | None:
         """Save actuator calibration (power profile, PWM curve, etc.)."""
         try:
             db = self.get_db()
@@ -1189,7 +1313,7 @@ class DeviceOperations:
             logging.error("Error saving actuator calibration: %s", exc)
             return None
 
-    def get_actuator_calibrations(self, actuator_id: int) -> List[Dict[str, Any]]:
+    def get_actuator_calibrations(self, actuator_id: int) -> list[dict[str, Any]]:
         """Get all calibrations for an actuator."""
         try:
             db = self.get_db()
@@ -1216,9 +1340,9 @@ class DeviceOperations:
     def insert_sensor_reading(
         self,
         sensor_id: int,
-        reading_data: Dict[str, Any],
+        reading_data: dict[str, Any],
         quality_score: float = 1.0,
-    ) -> Optional[int]:
+    ) -> int | None:
         """Insert sensor reading with JSON data."""
         try:
             db = self.get_db()
@@ -1234,6 +1358,37 @@ class DeviceOperations:
         except sqlite3.Error as exc:
             logging.error("Error inserting sensor reading: %s", exc)
             return None
+
+    def insert_sensor_readings_batch(
+        self,
+        readings: list[tuple[int, dict[str, Any], float]],
+    ) -> int:
+        """Batch-insert multiple sensor readings in a single transaction.
+
+        Parameters
+        ----------
+        readings:
+            List of ``(sensor_id, reading_data_dict, quality_score)`` tuples.
+
+        Returns
+        -------
+        int
+            Number of rows inserted.
+        """
+        if not readings:
+            return 0
+        try:
+            db = self.get_db()
+            rows = [(sid, json.dumps(data), qs) for sid, data, qs in readings]
+            db.executemany(
+                "INSERT INTO SensorReading (sensor_id, reading_data, quality_score) VALUES (?, ?, ?)",
+                rows,
+            )
+            db.commit()
+            return len(rows)
+        except sqlite3.Error as exc:
+            logging.error("Error batch-inserting %d sensor readings: %s", len(readings), exc)
+            return 0
 
     # --- Sensor Reading Aggregation (for Harvest Reports) -----------------------
     def aggregate_sensor_readings_for_period(
@@ -1309,26 +1464,28 @@ class DeviceOperations:
                         count_readings, stddev_value
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """
-                db.execute(insert_query, (
-                    sensor_id,
-                    unit_id,
-                    sensor_type,
-                    period_start,
-                    period_end,
-                    granularity,
-                    agg_row["min_value"],
-                    agg_row["max_value"],
-                    agg_row["avg_value"],
-                    agg_row["sum_value"],
-                    agg_row["count_readings"],
-                    stddev,
-                ))
+                db.execute(
+                    insert_query,
+                    (
+                        sensor_id,
+                        unit_id,
+                        sensor_type,
+                        period_start,
+                        period_end,
+                        granularity,
+                        agg_row["min_value"],
+                        agg_row["max_value"],
+                        agg_row["avg_value"],
+                        agg_row["sum_value"],
+                        agg_row["count_readings"],
+                        stddev,
+                    ),
+                )
                 records_created += 1
 
             db.commit()
             logging.info(
-                "Aggregated %d sensor summaries for period %s to %s",
-                records_created, period_start, period_end
+                "Aggregated %d sensor summaries for period %s to %s", records_created, period_start, period_end
             )
             return records_created
 
@@ -1344,7 +1501,7 @@ class DeviceOperations:
         period_end: str,
         mean: float,
         value_expr: str,
-    ) -> Optional[float]:
+    ) -> float | None:
         """Calculate standard deviation manually (SQLite lacks STDDEV)."""
         if mean is None:
             return None
@@ -1362,18 +1519,19 @@ class DeviceOperations:
             row = db.execute(query, (mean, mean, sensor_id, period_start, period_end)).fetchone()
             if row and row["variance"] is not None:
                 import math
+
                 return math.sqrt(row["variance"])
             return None
         except Exception:
             return None
 
-    def _sensor_value_expression(self, sensor_type: Optional[str]) -> str:
+    def _sensor_value_expression(self, sensor_type: str | None) -> str:
         """Build a safe SQL expression to extract the primary sensor value."""
         normalized = str(sensor_type or "").strip().lower()
         if normalized.endswith("_sensor"):
             normalized = normalized[: -len("_sensor")]
 
-        def coalesce(keys: List[str]) -> str:
+        def coalesce(keys: list[str]) -> str:
             # Move internal import here to avoid circular dependencies if any
             parts = [f"json_extract(reading_data, '$.{key}')" for key in keys]
             if len(parts) == 1:
@@ -1381,14 +1539,14 @@ class DeviceOperations:
             return f"COALESCE({', '.join(parts)})"
 
         from app.domain.sensors.fields import FIELD_ALIASES, SensorField
-        
+
         # Build mapping based on standard fields
-        value_keys: Dict[str, List[str]] = {}
-        
+        value_keys: dict[str, list[str]] = {}
+
         # Initialize with standard field names
         for field in SensorField:
             value_keys[field.value] = [field.value]
-            
+
         # Add aliases
         for alias, standard_field in FIELD_ALIASES.items():
             field_name = standard_field.value if isinstance(standard_field, SensorField) else standard_field
@@ -1399,13 +1557,37 @@ class DeviceOperations:
                 value_keys[field_name] = [field_name, alias]
 
         # Multi-type custom mappings
-        value_keys.update({
-            "temp_humidity": ["temperature", "humidity"],
-            "environment": ["temperature", "humidity", "lux", "co2", "voc", "pressure", "soil_moisture", "ph", "ec", "air_quality"],
-            "combo": ["temperature", "humidity", "lux", "co2", "voc", "pressure", "soil_moisture", "ph", "ec", "air_quality"],
-            "plant": ["soil_moisture", "temperature", "humidity"],
-            "light": value_keys.get("lux", ["lux"]), # legacy 'light' type uses 'lux' keys
-        })
+        value_keys.update(
+            {
+                "temp_humidity": ["temperature", "humidity"],
+                "environment": [
+                    "temperature",
+                    "humidity",
+                    "lux",
+                    "co2",
+                    "voc",
+                    "pressure",
+                    "soil_moisture",
+                    "ph",
+                    "ec",
+                    "air_quality",
+                ],
+                "combo": [
+                    "temperature",
+                    "humidity",
+                    "lux",
+                    "co2",
+                    "voc",
+                    "pressure",
+                    "soil_moisture",
+                    "ph",
+                    "ec",
+                    "air_quality",
+                ],
+                "plant": ["soil_moisture", "temperature", "humidity"],
+                "light": value_keys.get("lux", ["lux"]),  # legacy 'light' type uses 'lux' keys
+            }
+        )
 
         for key, keys in value_keys.items():
             if normalized == key or normalized.startswith(key):
@@ -1468,9 +1650,7 @@ class DeviceOperations:
                     continue
 
                 # Aggregate this day
-                created = self.aggregate_sensor_readings_for_period(
-                    period_start, period_end, "daily"
-                )
+                created = self.aggregate_sensor_readings_for_period(period_start, period_end, "daily")
                 total_created += created
                 current_date = next_date
 
@@ -1484,11 +1664,11 @@ class DeviceOperations:
     def get_sensor_summaries_for_unit(
         self,
         unit_id: int,
-        start_date: Optional[str] = None,
-        end_date: Optional[str] = None,
-        sensor_type: Optional[str] = None,
+        start_date: str | None = None,
+        end_date: str | None = None,
+        sensor_type: str | None = None,
         limit: int = 1000,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Get aggregated sensor summaries for a unit (used in harvest reports).
 
@@ -1513,7 +1693,7 @@ class DeviceOperations:
                 FROM SensorReadingSummary
                 WHERE unit_id = ?
             """
-            params: List[Any] = [unit_id]
+            params: list[Any] = [unit_id]
 
             if start_date:
                 query += " AND period_start >= ?"
@@ -1540,7 +1720,7 @@ class DeviceOperations:
         unit_id: int,
         start_date: str,
         end_date: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Get aggregated statistics for a harvest report.
 
@@ -1573,7 +1753,7 @@ class DeviceOperations:
             """
             cursor = db.execute(query, (unit_id, start_date, end_date))
 
-            stats: Dict[str, Any] = {}
+            stats: dict[str, Any] = {}
             for row in cursor.fetchall():
                 stats[row["sensor_type"]] = {
                     "min": row["overall_min"],

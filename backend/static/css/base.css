@@ -7,7 +7,9 @@ html {
 }
 body {
   margin: 0;
-  font: 14px/1.6 "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.6;
   background: var(--color-bg);
   color: var(--color-text);
   text-rendering: optimizeLegibility;
@@ -24,6 +26,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 h1, h2, h3, h4, h5, h6 {
   margin: 0 0 var(--space-2);
   color: var(--color-text-strong);
+  font-family: var(--font-heading);
   font-weight: 700;
   line-height: 1.2;
 }
@@ -95,10 +98,163 @@ p { margin: 0 0 var(--space-3); }
 .mb-2 { margin-bottom: var(--space-2); }
 .mb-3 { margin-bottom: var(--space-3); }
 .mb-4 { margin-bottom: var(--space-4); }
+.mb-5 { margin-bottom: var(--space-5); }
+.mb-6 { margin-bottom: var(--space-6); }
 .mt-2 { margin-top: var(--space-2); }
 .mt-3 { margin-top: var(--space-3); }
+.mt-4 { margin-top: var(--space-4); }
+.mt-5 { margin-top: var(--space-5); }
+.ms-1 { margin-left: var(--space-1); }
+.ms-2 { margin-left: var(--space-2); }
+.ms-3 { margin-left: var(--space-3); }
+.ms-4 { margin-left: var(--space-4); }
+.me-1 { margin-right: var(--space-1); }
+.me-2 { margin-right: var(--space-2); }
+.me-3 { margin-right: var(--space-3); }
+.pt-1 { padding-top: var(--space-1); }
+.pt-2 { padding-top: var(--space-2); }
+.pt-3 { padding-top: var(--space-3); }
+.pt-4 { padding-top: var(--space-4); }
+.pb-2 { padding-bottom: var(--space-2); }
+.pb-3 { padding-bottom: var(--space-3); }
+.pb-4 { padding-bottom: var(--space-4); }
+.ps-0 { padding-left: 0; }
+.pe-0 { padding-right: 0; }
+.px-0 { padding-left: 0; padding-right: 0; }
+.py-2 { padding-top: var(--space-2); padding-bottom: var(--space-2); }
+.py-3 { padding-top: var(--space-3); padding-bottom: var(--space-3); }
+.p-2  { padding: var(--space-2); }
+.p-3  { padding: var(--space-3); }
+.p-4  { padding: var(--space-4); }
 .section-gap { margin-bottom: var(--section-gap); }
 .ml-auto { margin-left: auto; }
+
+/* =====================================================================
+   Bootstrap Compatibility Aliases
+   Map Bootstrap utility class names to design-token values.
+   Do NOT add Bootstrap as a dependency — maintain these shims instead.
+   ===================================================================== */
+
+/* Display */
+.d-none         { display: none !important; }
+.d-block        { display: block; }
+.d-flex         { display: flex; }
+.d-grid         { display: grid; }
+.d-inline       { display: inline; }
+.d-inline-flex  { display: inline-flex; }
+.d-inline-block { display: inline-block; }
+
+/* Responsive display */
+@media (min-width: 576px) {
+  .d-sm-none        { display: none !important; }
+  .d-sm-block       { display: block; }
+  .d-sm-flex        { display: flex; }
+  .d-sm-inline      { display: inline; }
+  .d-sm-inline-flex { display: inline-flex; }
+}
+@media (min-width: 768px) {
+  .d-md-none        { display: none !important; }
+  .d-md-block       { display: block; }
+  .d-md-flex        { display: flex; }
+  .d-md-inline      { display: inline; }
+  .d-md-inline-flex { display: inline-flex; }
+}
+
+/* Flex direction */
+.flex-column { flex-direction: column; }
+.flex-row    { flex-direction: row; }
+.flex-nowrap { flex-wrap: nowrap; }
+
+/* Alignment — Bootstrap names */
+.align-items-center  { align-items: center; }
+.align-items-start   { align-items: flex-start; }
+.align-items-end     { align-items: flex-end; }
+.align-items-stretch { align-items: stretch; }
+.justify-content-between { justify-content: space-between; }
+.justify-content-center  { justify-content: center; }
+.justify-content-end     { justify-content: flex-end; }
+.justify-content-start   { justify-content: flex-start; }
+.justify-content-around  { justify-content: space-around; }
+.justify-content-evenly  { justify-content: space-evenly; }
+
+/* Overflow */
+.overflow-hidden { overflow: hidden; }
+.overflow-auto   { overflow: auto; }
+
+/* Sizing */
+.w-100 { width: 100%; }
+.h-100 { height: 100%; }
+
+/* Grid system compatibility (Bootstrap-like row/col shims) */
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.row > [class^="col"],
+.row > [class*=" col"] {
+  min-width: 0;
+}
+
+.col {
+  flex: 1 0 0%;
+  max-width: 100%;
+}
+
+.col-3  { flex: 1 1 180px; max-width: none; }
+.col-4  { flex: 1 1 240px; max-width: none; }
+.col-6  { flex: 1 1 320px; max-width: none; }
+.col-12 { flex: 0 0 100%; max-width: 100%; }
+
+@media (min-width: 576px) {
+  .col-sm-6 { flex: 1 1 280px; max-width: none; }
+}
+
+@media (min-width: 768px) {
+  .col-md-3  { flex: 1 1 220px; max-width: none; }
+  .col-md-4  { flex: 1 1 280px; max-width: none; }
+  .col-md-5  { flex: 1 1 320px; max-width: none; }
+  .col-md-6  { flex: 1 1 360px; max-width: none; }
+  .col-md-7  { flex: 1 1 420px; max-width: none; }
+  .col-md-8  { flex: 1 1 500px; max-width: none; }
+  .col-md-12 { flex: 0 0 100%; max-width: 100%; }
+}
+
+@media (min-width: 1024px) {
+  .col-lg-2 { flex: 1 1 180px; max-width: none; }
+  .col-lg-3 { flex: 1 1 220px; max-width: none; }
+  .col-lg-4 { flex: 1 1 280px; max-width: none; }
+  .col-lg-5 { flex: 1 1 340px; max-width: none; }
+  .col-lg-6 { flex: 1 1 380px; max-width: none; }
+  .col-lg-7 { flex: 1 1 440px; max-width: none; }
+  .col-lg-8 { flex: 1 1 520px; max-width: none; }
+}
+
+@media (min-width: 1280px) {
+  .col-xl-3 { flex: 1 1 220px; max-width: none; }
+  .col-xl-4 { flex: 1 1 300px; max-width: none; }
+  .col-xl-8 { flex: 1 1 540px; max-width: none; }
+}
+
+/* Grid gutters — Bootstrap g-* */
+.g-1 { gap: var(--space-1); }
+.g-2 { gap: var(--space-2); }
+.g-3 { gap: var(--space-3); }
+.g-4 { gap: var(--space-4); }
+
+/* Border utilities */
+.border        { border: 1px solid var(--border); }
+.border-top    { border-top: 1px solid var(--border); }
+.border-bottom { border-bottom: 1px solid var(--border); }
+.border-0      { border: none !important; }
+.rounded       { border-radius: var(--radius-md); }
+.rounded-sm    { border-radius: var(--radius-sm); }
+.rounded-lg    { border-radius: var(--radius-lg); }
+
+/* Background utilities */
+.bg-light { background-color: var(--color-surface-soft); }
+.bg-white { background-color: var(--bg-1); }
 
 .list-unstyled { list-style: none; margin: 0; padding: 0; }
 .hidden, .is-hidden { display: none !important; }
@@ -231,6 +387,17 @@ a[role="button"] {
 .btn-outline-primary { border-color: var(--brand-600); color: var(--brand-700); background: transparent; }
 .btn-outline-secondary { border-color: var(--border-200); color: var(--color-text); background: transparent; }
 .btn-outline-danger { border-color: var(--danger-600); color: var(--danger-600); background: transparent; }
+.btn-outline-success { border-color: var(--success-600); color: var(--success-600); background: transparent; }
+.btn-outline-warning { border-color: var(--warning-600); color: var(--warning-600); background: transparent; }
+.btn-outline-info { border-color: var(--info-600); color: var(--info-600); background: transparent; }
+.btn-outline-light { border-color: var(--card-border); color: var(--color-text); background: transparent; }
+.btn-outline-primary:hover { background: color-mix(in srgb, var(--brand-600) 8%, transparent); }
+.btn-outline-secondary:hover { background: color-mix(in srgb, var(--border-200) 20%, transparent); }
+.btn-outline-danger:hover { background: color-mix(in srgb, var(--danger-600) 8%, transparent); }
+.btn-outline-success:hover { background: color-mix(in srgb, var(--success-600) 10%, transparent); }
+.btn-outline-warning:hover { background: color-mix(in srgb, var(--warning-500) 12%, transparent); }
+.btn-outline-info:hover { background: color-mix(in srgb, var(--info-600) 10%, transparent); }
+.btn-outline-light:hover { background: var(--surface-muted-translucent); }
 .btn-muted {
   background: var(--surface-muted-translucent);
   color: var(--color-text-muted);
@@ -353,4 +520,3 @@ label, .form-label { color: var(--color-text-muted); font-weight: 600; margin-bo
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }
-

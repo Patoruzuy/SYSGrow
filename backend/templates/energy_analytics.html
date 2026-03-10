@@ -4,8 +4,13 @@
 {% block title %}Energy Analytics - SYSGrow{% endblock %}
 {% block body_class %}energy-analytics-page{% endblock %}
 
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/components/energy.css', v='20260308b') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/components/kpi-cards.css') }}">
+{% endblock %}
+
 {% block content %}
-<div id="energy-analytics-page" aria-labelledby="energy-analytics-heading">
+<div id="energy-analytics-page" class="page-shell" aria-labelledby="energy-analytics-heading">
     
     {# Using standardized page header #}
     {{ ui.page_header(
@@ -68,8 +73,8 @@
                 <div class="mb-3">
                     <i class="fas fa-chart-line fa-4x text-muted opacity-25"></i>
                 </div>
-                <h3 class="fw-bold text-dark">Energy Predictions Loading...</h3>
-                <p class="text-muted mx-auto" style="max-width: 400px;">AI-powered energy predictions and recommendations will appear here.</p>
+                <h3 class="fw-bold energy-predictions-title">Energy Predictions Loading...</h3>
+                <p class="text-muted mx-auto energy-predictions-copy">AI-powered energy predictions and recommendations will appear here.</p>
             </div>
         </div>
     {% endcall %}
@@ -80,7 +85,7 @@
             title="Energy Consumption Trends",
             icon="fas fa-chart-area"
         ) %}
-            <div class="row g-3 align-items-end mb-4 bg-light p-3 rounded border">
+            <div class="row g-3 align-items-end mb-4 energy-chart-filters">
                 <div class="col-md-4">
                     <label for="chart-timerange" class="form-label fw-bold small text-uppercase text-muted">Time Range</label>
                     <select id="chart-timerange" name="timerange" class="form-select">
@@ -107,7 +112,7 @@
                 </div>
             </div>
 
-            <div style="height: 400px; position: relative;">
+            <div class="energy-chart-canvas-wrap">
                 <canvas id="energy-chart" role="img" aria-label="Energy consumption trend chart"></canvas>
             </div>
         {% endcall %}
@@ -188,12 +193,11 @@
 </div>
 {% endblock %}
 
-{% block extra_js %}
-<script src="{{ url_for('static', filename='js/api.js') }}"></script>
+{% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="{{ url_for('static', filename='js/utils/cache-service.js') }}"></script>
-<script src="{{ url_for('static', filename='js/utils/base-manager.js') }}"></script>
-<script src="{{ url_for('static', filename='js/energy-analytics/data-service.js') }}"></script>
-<script src="{{ url_for('static', filename='js/energy-analytics/ui-manager.js') }}"></script>
-<script src="{{ url_for('static', filename='js/energy-analytics/main.js') }}"></script>
+<script src="{{ url_for('static', filename='js/utils/cache-service.js', v='20260307d') }}"></script>
+<script src="{{ url_for('static', filename='js/utils/base-manager.js', v='20260307d') }}"></script>
+<script src="{{ url_for('static', filename='js/energy-analytics/data-service.js', v='20260307d') }}"></script>
+<script src="{{ url_for('static', filename='js/energy-analytics/ui-manager.js', v='20260307d') }}"></script>
+<script src="{{ url_for('static', filename='js/energy-analytics/main.js', v='20260307d') }}"></script>
 {% endblock %}

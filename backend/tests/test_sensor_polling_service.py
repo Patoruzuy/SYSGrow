@@ -1,6 +1,4 @@
-import threading
-import time
-from datetime import datetime
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -22,7 +20,7 @@ class StubProcessor:
             sensor_type=str(getattr(getattr(sensor, "sensor_type", None), "value", "unknown")),
             sensor_name=str(getattr(sensor, "name", f"Sensor {sensor.id}")),
             data=dict(validated_data),
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
             status=ReadingStatus.SUCCESS,
         )
 
@@ -32,7 +30,9 @@ class StubProcessor:
     def build_payloads(self, *, sensor, reading):
         # Minimal stub matching CompositeProcessor.build_payloads return shape.
         # We only assert the emitter methods are called, not payload content.
-        return SimpleNamespace(device_payload={"unit_id": reading.unit_id}, dashboard_payload={"unit_id": reading.unit_id})
+        return SimpleNamespace(
+            device_payload={"unit_id": reading.unit_id}, dashboard_payload={"unit_id": reading.unit_id}
+        )
 
 
 class StubSensorManager:

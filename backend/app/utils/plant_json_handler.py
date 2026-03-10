@@ -1,8 +1,7 @@
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional
-
+from typing import Any
 
 # Point to the authoritative plants_info.json in the backend root directory
 _DEFAULT_DATASET = Path(__file__).resolve().parent.parent.parent / "plants_info.json"
@@ -13,21 +12,33 @@ class PlantJsonHandler:
     Handles reading, writing, and updating the plant JSON dataset.
     Supports all enhanced fields: automation, common_issues, companion_plants, harvest_guide.
     """
-    
+
     # Required fields for complete plant validation
     REQUIRED_FIELDS = [
-        "id", "species", "common_name", "variety", "pH_range",
-        "water_requirements", "sensor_requirements", "yield_data",
-        "nutritional_info", "automation", "growth_stages", "common_issues",
-        "companion_plants", "harvest_guide", "tips", "disease_prevention",
-        "fertilizer_recommendations"
+        "id",
+        "species",
+        "common_name",
+        "variety",
+        "pH_range",
+        "water_requirements",
+        "sensor_requirements",
+        "yield_data",
+        "nutritional_info",
+        "automation",
+        "growth_stages",
+        "common_issues",
+        "companion_plants",
+        "harvest_guide",
+        "tips",
+        "disease_prevention",
+        "fertilizer_recommendations",
     ]
 
     def __init__(self, json_file: str | Path | None = None):
         self.json_path = Path(json_file) if json_file else _DEFAULT_DATASET
         self.data = self._load_json()
 
-    def _load_json(self) -> Dict[str, Any]:
+    def _load_json(self) -> dict[str, Any]:
         """Loads the JSON file. Creates a new structure if missing or invalid."""
         if not self.json_path.exists():
             logging.info("%s not found. Initialising empty dataset.", self.json_path)
@@ -56,7 +67,7 @@ class PlantJsonHandler:
             logging.error("Failed to write plant dataset: %s", exc)
             return False
 
-    def get_growth_stages(self, plant_name: str) -> List[Dict[str, Any]]:
+    def get_growth_stages(self, plant_name: str) -> list[dict[str, Any]]:
         """
         Retrieves growth stages for a specific plant by common or scientific name.
 
@@ -68,7 +79,7 @@ class PlantJsonHandler:
         """
         target = plant_name.strip().lower()
         for entry in self.data["plants_info"]:
-            candidates: List[Optional[str]] = [
+            candidates: list[str | None] = [
                 entry.get("common_name"),
                 entry.get("species"),
                 entry.get("scientific_name"),
@@ -83,7 +94,7 @@ class PlantJsonHandler:
         logging.warning("Growth stages for '%s' not found in dataset.", plant_name)
         return []
 
-    def get_gdd_base_temp_c(self, plant_name: str) -> Optional[float]:
+    def get_gdd_base_temp_c(self, plant_name: str) -> float | None:
         """
         Retrieve base temperature (°C) for Growing Degree Days calculations.
 
@@ -95,7 +106,7 @@ class PlantJsonHandler:
         """
         target = plant_name.strip().lower()
         for entry in self.data["plants_info"]:
-            candidates: List[Optional[str]] = [
+            candidates: list[str | None] = [
                 entry.get("common_name"),
                 entry.get("species"),
                 entry.get("scientific_name"),
@@ -123,19 +134,19 @@ class PlantJsonHandler:
 
         return None
 
-    def _find_plant_entry(self, plant_name: str) -> Optional[Dict[str, Any]]:
+    def _find_plant_entry(self, plant_name: str) -> dict[str, Any] | None:
         """
         Find a plant entry by common name, species, scientific name, or alias.
-        
+
         Args:
             plant_name: Name to search for (case-insensitive).
-            
+
         Returns:
             Plant entry dict if found, None otherwise.
         """
         target = plant_name.strip().lower()
         for entry in self.data["plants_info"]:
-            candidates: List[Optional[str]] = [
+            candidates: list[str | None] = [
                 entry.get("common_name"),
                 entry.get("species"),
                 entry.get("scientific_name"),
@@ -147,16 +158,16 @@ class PlantJsonHandler:
                 return entry
         return None
 
-    def get_lighting_schedule(self, plant_name: str) -> Dict[str, Dict[str, Any]]:
+    def get_lighting_schedule(self, plant_name: str) -> dict[str, dict[str, Any]]:
         """
         Retrieves the lighting schedule for a plant, organized by growth stage.
-        
+
         The lighting schedule provides hours and intensity for each stage,
         enabling automated light regulation based on plant growth progress.
-        
+
         Args:
             plant_name: Name of the plant (common name, species, or alias).
-            
+
         Returns:
             Dictionary mapping stage names to lighting settings:
             {
@@ -171,26 +182,24 @@ class PlantJsonHandler:
         if not entry:
             logging.warning("Lighting schedule for '%s' not found in dataset.", plant_name)
             return {}
-        
+
         automation = entry.get("automation") or {}
         lighting = automation.get("lighting_schedule") or {}
-        
+
         if not lighting:
             logging.debug("No lighting schedule defined for '%s'.", plant_name)
             return {}
-        
+
         return lighting
 
-    def get_lighting_for_stage(
-        self, plant_name: str, stage: str
-    ) -> Optional[Dict[str, Any]]:
+    def get_lighting_for_stage(self, plant_name: str, stage: str) -> dict[str, Any] | None:
         """
         Retrieves lighting settings for a specific growth stage.
-        
+
         Args:
             plant_name: Name of the plant (common name, species, or alias).
             stage: Growth stage name (e.g., "seedling", "vegetative", "flowering").
-            
+
         Returns:
             Lighting settings for the stage: {"hours": 16, "intensity": 80}
             Returns None if plant/stage not found.
@@ -198,14 +207,14 @@ class PlantJsonHandler:
         lighting_schedule = self.get_lighting_schedule(plant_name)
         if not lighting_schedule:
             return None
-        
+
         # Normalize stage name for lookup (lowercase, handle variations)
         stage_lower = stage.strip().lower()
-        
+
         # Direct match
         if stage_lower in lighting_schedule:
             return lighting_schedule[stage_lower]
-        
+
         # Try common variations
         stage_mappings = {
             "germination": "seedling",
@@ -216,27 +225,29 @@ class PlantJsonHandler:
             "fruit development": "fruiting",
             "harvest": "fruiting",  # Default to fruiting settings for harvest
         }
-        
+
         mapped_stage = stage_mappings.get(stage_lower)
         if mapped_stage and mapped_stage in lighting_schedule:
             return lighting_schedule[mapped_stage]
-        
+
         logging.debug(
             "No lighting settings for stage '%s' in plant '%s'. Available stages: %s",
-            stage, plant_name, list(lighting_schedule.keys())
+            stage,
+            plant_name,
+            list(lighting_schedule.keys()),
         )
         return None
 
-    def get_automation_settings(self, plant_name: str) -> Dict[str, Any]:
+    def get_automation_settings(self, plant_name: str) -> dict[str, Any]:
         """
         Retrieves all automation settings for a plant.
-        
+
         Includes watering schedule, lighting schedule, alert thresholds,
         and environmental controls.
-        
+
         Args:
             plant_name: Name of the plant (common name, species, or alias).
-            
+
         Returns:
             Full automation settings dictionary, or empty dict if not found.
         """
@@ -244,16 +255,16 @@ class PlantJsonHandler:
         if not entry:
             logging.warning("Automation settings for '%s' not found in dataset.", plant_name)
             return {}
-        
+
         return entry.get("automation") or {}
 
-    def get_watering_schedule(self, plant_name: str) -> Dict[str, Any]:
+    def get_watering_schedule(self, plant_name: str) -> dict[str, Any]:
         """
         Retrieves the watering schedule for a plant.
-        
+
         Args:
             plant_name: Name of the plant (common name, species, or alias).
-            
+
         Returns:
             Watering schedule dictionary with frequency_hours, amount_ml_per_plant,
             soil_moisture_trigger, etc. Returns empty dict if not found.
@@ -261,7 +272,7 @@ class PlantJsonHandler:
         automation = self.get_automation_settings(plant_name)
         return automation.get("watering_schedule") or {}
 
-    def get_soil_moisture_trigger(self, plant_name: str) -> Optional[float]:
+    def get_soil_moisture_trigger(self, plant_name: str) -> float | None:
         """
         Resolve a soil moisture trigger threshold for irrigation.
 
@@ -304,13 +315,13 @@ class PlantJsonHandler:
 
         return None
 
-    def get_alert_thresholds(self, plant_name: str) -> Dict[str, Any]:
+    def get_alert_thresholds(self, plant_name: str) -> dict[str, Any]:
         """
         Retrieves alert thresholds for a plant.
-        
+
         Args:
             plant_name: Name of the plant (common name, species, or alias).
-            
+
         Returns:
             Alert thresholds dictionary with temperature_min/max, humidity_min/max,
             soil_moisture_critical, etc. Returns empty dict if not found.
@@ -318,13 +329,13 @@ class PlantJsonHandler:
         automation = self.get_automation_settings(plant_name)
         return automation.get("alert_thresholds") or {}
 
-    def get_environmental_controls(self, plant_name: str) -> Dict[str, Any]:
+    def get_environmental_controls(self, plant_name: str) -> dict[str, Any]:
         """
         Retrieves environmental control triggers for a plant.
-        
+
         Args:
             plant_name: Name of the plant (common name, species, or alias).
-            
+
         Returns:
             Environmental controls dictionary with ventilation_trigger_temp,
             heating_trigger_temp, dehumidify_trigger, etc. Returns empty dict if not found.
@@ -332,11 +343,11 @@ class PlantJsonHandler:
         automation = self.get_automation_settings(plant_name)
         return automation.get("environmental_controls") or {}
 
-    def get_plants_info(self) -> List[Dict[str, Any]]:
+    def get_plants_info(self) -> list[dict[str, Any]]:
         """Retrieves all plant information from the dataset."""
         return list(self.data.get("plants_info", []))
 
-    def add_plant(self, new_plant: Dict[str, Any]) -> bool:
+    def add_plant(self, new_plant: dict[str, Any]) -> bool:
         """Adds a new plant to the dataset if it doesn't already exist."""
         target = new_plant.get("common_name", "").strip().lower()
         if not target:
@@ -356,17 +367,15 @@ class PlantJsonHandler:
     def plant_exists(self, plant_name: str) -> bool:
         """Checks if a plant exists in the dataset."""
         target = plant_name.strip().lower()
-        return any(
-            plant.get("common_name", "").strip().lower() == target for plant in self.data["plants_info"]
-        )
+        return any(plant.get("common_name", "").strip().lower() == target for plant in self.data["plants_info"])
 
-    def list_plants(self) -> List[str]:
+    def list_plants(self) -> list[str]:
         """Returns a list of all plant names in the dataset."""
         return [plant.get("common_name", "") for plant in self.data["plants_info"] if plant.get("common_name")]
 
     # Enhanced CRUD Methods for Full Field Support
 
-    def get_plant_by_id(self, plant_id: int) -> Optional[Dict[str, Any]]:
+    def get_plant_by_id(self, plant_id: int) -> dict[str, Any] | None:
         """
         Retrieves a plant by its ID.
 
@@ -382,7 +391,7 @@ class PlantJsonHandler:
         logging.warning("Plant with ID %d not found.", plant_id)
         return None
 
-    def update_plant(self, plant_id: int, updated_data: Dict[str, Any], validate: bool = True) -> bool:
+    def update_plant(self, plant_id: int, updated_data: dict[str, Any], validate: bool = True) -> bool:
         """
         Updates an existing plant with new data, supporting all enhanced fields.
 
@@ -408,7 +417,7 @@ class PlantJsonHandler:
 
         return self.save_json()
 
-    def validate_plant_structure(self, plant_data: Dict[str, Any], strict: bool = False) -> bool:
+    def validate_plant_structure(self, plant_data: dict[str, Any], strict: bool = False) -> bool:
         """
         Validates that a plant has all required fields and proper structure.
 
@@ -453,7 +462,7 @@ class PlantJsonHandler:
 
     # Specialized Methods for Enhanced Fields
 
-    def update_automation(self, plant_id: int, automation_data: Dict[str, Any]) -> bool:
+    def update_automation(self, plant_id: int, automation_data: dict[str, Any]) -> bool:
         """
         Updates the automation section for a plant.
 
@@ -474,7 +483,7 @@ class PlantJsonHandler:
         plant["automation"].update(automation_data)
         return self.save_json()
 
-    def update_common_issues(self, plant_id: int, issues: List[Dict[str, Any]]) -> bool:
+    def update_common_issues(self, plant_id: int, issues: list[dict[str, Any]]) -> bool:
         """
         Updates the common_issues section for a plant.
 
@@ -492,7 +501,7 @@ class PlantJsonHandler:
         plant["common_issues"] = issues
         return self.save_json()
 
-    def add_companion_plant(self, plant_id: int, companion_data: Dict[str, Any]) -> bool:
+    def add_companion_plant(self, plant_id: int, companion_data: dict[str, Any]) -> bool:
         """
         Adds a companion plant entry to a plant's companion_plants section.
 
@@ -518,7 +527,7 @@ class PlantJsonHandler:
 
         return self.save_json()
 
-    def update_harvest_guide(self, plant_id: int, guide_data: Dict[str, Any]) -> bool:
+    def update_harvest_guide(self, plant_id: int, guide_data: dict[str, Any]) -> bool:
         """
         Updates the harvest_guide section for a plant.
 
@@ -541,7 +550,7 @@ class PlantJsonHandler:
 
     # Search and Filter Methods
 
-    def search_plants(self, **criteria) -> List[Dict[str, Any]]:
+    def search_plants(self, **criteria) -> list[dict[str, Any]]:
         """
         Search plants by various criteria.
 
@@ -553,16 +562,13 @@ class PlantJsonHandler:
         """
         results = []
         for plant in self.data["plants_info"]:
-            matches = all(
-                plant.get(key, "").lower() == str(value).lower()
-                for key, value in criteria.items()
-            )
+            matches = all(plant.get(key, "").lower() == str(value).lower() for key, value in criteria.items())
             if matches:
                 results.append(plant)
 
         return results
 
-    def get_plants_by_difficulty(self, difficulty_level: str) -> List[Dict[str, Any]]:
+    def get_plants_by_difficulty(self, difficulty_level: str) -> list[dict[str, Any]]:
         """
         Filter plants by difficulty level.
 
@@ -582,19 +588,16 @@ class PlantJsonHandler:
 
         return results
 
-    def get_plants_requiring_automation(self) -> List[Dict[str, Any]]:
+    def get_plants_requiring_automation(self) -> list[dict[str, Any]]:
         """
         Returns all plants that have automation configurations.
 
         Returns:
             List of plants with automation data.
         """
-        return [
-            plant for plant in self.data["plants_info"]
-            if "automation" in plant and plant["automation"]
-        ]
+        return [plant for plant in self.data["plants_info"] if plant.get("automation")]
 
-    def export_plant_summary(self, plant_id: int) -> Optional[Dict[str, Any]]:
+    def export_plant_summary(self, plant_id: int) -> dict[str, Any] | None:
         """
         Exports a simplified summary of a plant for API responses.
 

@@ -1,11 +1,12 @@
 # app/utils/cache.py
 """Tiny per-process TTL cache with explicit invalidation and metrics."""
+
 from __future__ import annotations
 
 import time
 from collections import OrderedDict
 from threading import Lock
-from typing import Any, Callable, Optional, Dict, List
+from typing import Any, Callable
 
 
 class TTLCache:
@@ -29,7 +30,7 @@ class TTLCache:
         self._misses = 0
         self._evictions = 0
 
-    def get(self, key: Any, loader: Optional[Callable[[], Any]] = None) -> Any:
+    def get(self, key: Any, loader: Callable[[], Any] | None = None) -> Any:
         """Get a cache entry by key, loading it if missing or expired."""
         if not self.enabled:
             if loader:
@@ -87,7 +88,7 @@ class TTLCache:
         with self._lock:
             self._store.clear()
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """
         Get cache statistics for monitoring.
 
@@ -132,16 +133,17 @@ class CacheRegistry:
 
     Provides centralized monitoring of all caches in the application.
     """
-    _instance: Optional['CacheRegistry'] = None
+
+    _instance: "CacheRegistry" | None = None
     _lock = Lock()
 
     def __init__(self) -> None:
         """Initialize the cache registry."""
-        self._caches: Dict[str, TTLCache] = {}
+        self._caches: dict[str, TTLCache] = {}
         self._registry_lock = Lock()
 
     @classmethod
-    def get_instance(cls) -> 'CacheRegistry':
+    def get_instance(cls) -> "CacheRegistry":
         """Get the singleton instance of CacheRegistry."""
         if cls._instance is None:
             with cls._lock:
@@ -172,7 +174,7 @@ class CacheRegistry:
         with self._registry_lock:
             self._caches.pop(name, None)
 
-    def get_all_stats(self) -> Dict[str, Dict[str, Any]]:
+    def get_all_stats(self) -> dict[str, dict[str, Any]]:
         """
         Get statistics for all registered caches.
 
@@ -182,7 +184,7 @@ class CacheRegistry:
         with self._registry_lock:
             return {name: cache.get_stats() for name, cache in self._caches.items()}
 
-    def get_summary(self) -> Dict[str, Any]:
+    def get_summary(self) -> dict[str, Any]:
         """
         Get summary statistics across all caches.
 

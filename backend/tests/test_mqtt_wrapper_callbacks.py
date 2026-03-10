@@ -3,20 +3,19 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-import pytest
-
 ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from app.services.application.zigbee_management_service import (  # noqa: E402
+from app.hardware.mqtt.mqtt_broker_wrapper import MQTTClientWrapper
+from app.services.application.zigbee_management_service import (
     ZigbeeManagementService,
 )
-from app.hardware.mqtt.mqtt_broker_wrapper import MQTTClientWrapper  # noqa: E402
 
 # Topic constants
 ZIGBEE_DEVICES_TOPIC = "zigbee2mqtt/bridge/devices"
 ZIGBEE_RENAME_RESPONSE_PREFIX = "zigbee2mqtt/bridge/response/device/rename"
+
 
 class DummyMessage:
     def __init__(self, topic: str, payload: bytes):

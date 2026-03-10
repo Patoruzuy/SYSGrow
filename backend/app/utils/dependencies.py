@@ -4,14 +4,10 @@ This module provides helpers for validating and documenting bidirectional
 dependencies in the service layer.
 """
 
-from typing import Any, Optional
+from typing import Any
 
 
-def validate_circular_dependency(
-    service: Any,
-    dependency_name: str,
-    service_name: str
-) -> None:
+def validate_circular_dependency(service: Any, dependency_name: str, service_name: str) -> None:
     """
     Validate that a circular dependency was properly initialized.
 
@@ -28,26 +24,21 @@ def validate_circular_dependency(
 
     Example:
         >>> class MyService:
-        ...     def __init__(self, other_service: Optional['OtherService'] = None):
+        ...     def __init__(self, other_service: Optional["OtherService"] = None):
         ...         self._other_service = other_service
         ...
         ...     def use_dependency(self):
-        ...         validate_circular_dependency(self, '_other_service', 'MyService')
+        ...         validate_circular_dependency(self, "_other_service", "MyService")
         ...         return self._other_service.some_method()
     """
     dep = getattr(service, dependency_name, None)
     if dep is None:
         raise RuntimeError(
-            f"{service_name}.{dependency_name} not initialized. "
-            f"Ensure ContainerBuilder.build() completed successfully."
+            f"{service_name}.{dependency_name} not initialized. Ensure ContainerBuilder.build() completed successfully."
         )
 
 
-def get_circular_dependency(
-    service: Any,
-    dependency_name: str,
-    service_name: str
-) -> Any:
+def get_circular_dependency(service: Any, dependency_name: str, service_name: str) -> Any:
     """
     Get a circular dependency with validation.
 
@@ -66,18 +57,18 @@ def get_circular_dependency(
 
     Example:
         >>> class MyService:
-        ...     def __init__(self, other: Optional['OtherService'] = None):
+        ...     def __init__(self, other: Optional["OtherService"] = None):
         ...         self._other = other
         ...
         ...     @property
-        ...     def other_service(self) -> 'OtherService':
-        ...         return get_circular_dependency(self, '_other', 'MyService')
+        ...     def other_service(self) -> "OtherService":
+        ...         return get_circular_dependency(self, "_other", "MyService")
     """
     validate_circular_dependency(service, dependency_name, service_name)
     return getattr(service, dependency_name)
 
 
 __all__ = [
-    'validate_circular_dependency',
-    'get_circular_dependency',
+    "get_circular_dependency",
+    "validate_circular_dependency",
 ]

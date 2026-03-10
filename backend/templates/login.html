@@ -1,22 +1,11 @@
 {% extends 'base.html' %}
-<<<<<<< HEAD
-
-{% block content %}
-<div class="main-content">
-    <img src="/static/images/logo.jpg" class="logo-image" alt="SYSGrow logo">
-    <form method="POST">
-        <label for="username">Username:</label>
-        <input type="text" id="username" name="username" required>
-        <label for="password">Password:</label>
-        <input type="password" id="password" name="password" required>
-        <button type="submit">Login</button>
-    </form>
-</div>
-{% endblock %}
-=======
 {% import "macros.html" as ui %}
 
 {% block body_class %}auth-page{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+{% endblock %}
 
 {% block content %}
 <div class="main-content login-container">
@@ -48,4 +37,3 @@
   </div>
 </div>
 {% endblock %}
->>>>>>> update

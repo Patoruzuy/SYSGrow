@@ -1,0 +1,42 @@
+# ── Python ──
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+build/
+dist/
+
+# ── Git & IDE ──
+.git/
+.github/
+.vscode/
+*.code-workspace
+
+# ── Tests & reports ──
+tests/
+reports/
+bandit_*.json
+radon_*.json
+radon_*.txt
+*.ipynb
+htmlcov/
+.coverage
+.pytest_cache/
+
+# ── Docs ──
+docs/
+
+# ── Runtime data (mounted as volumes) ──
+database/*.db
+database/*.db-wal
+database/*.db-shm
+logs/
+
+# ── Config templates (not secrets) ──
+ops.env
+ops.env.example
+
+# ── OS junk ──
+.DS_Store
+Thumbs.db

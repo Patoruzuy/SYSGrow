@@ -1,104 +1,33 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<<<<<<< HEAD
-    <meta charset="UTF-8">
-    <meta name="author" content="Sebastian Gomez" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SYSGrow</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-</head>
-<body>
-    <header name="base_header">
-        <div class="site-logo" tabindex="1">
-            <img src="/static/images/logo.jpg" class="logo-image" alt="SYSGrow logo">
-            <div class="logo-text">
-                <h1 class="heading">Grow Tent Management</h1>
-                <p class="subtitle">From seed to harvest</p>
-            </div>
-        </div>
-        <div class="session" tabindex="1">
-            {% if session.user %}
-                <p>Welcome, {{ session.user }}!</p>
-                <a href="{{ url_for('logout') }}" class="btn-logout">Logout</a>
-            {% else %}
-                <a href="{{ url_for('login') }}" class="btn-login">Login</a>
-                <a href="{{ url_for('register') }}" class="btn-register">Register</a>
-            {% endif %}
-        </div>
-    </header>
-    <nav>
-        <ul class="navbar-nav">
-            <li class="nav-item {% if active_page == 'index' %}active{% endif %}">
-                <a class="nav-link" href="{{ url_for('index') }}">Home</a>
-            </li>
-            <li class="nav-item {% if active_page == 'add_plant' %}active{% endif %}">
-                <a class="nav-link" href="{{ url_for('add_plant') }}">Plants</a>
-            </li>
-            <li class="nav-item {% if active_page == 'devices' %}active{% endif %}">
-                <a class="nav-link" href="{{ url_for('devices') }}">Devices</a>
-            </li>
-            <li class="nav-item {% if active_page == 'sensor_data' %}active{% endif %}">
-                <a class="nav-link" href="{{ url_for('sensor_data') }}">Sensor Data</a>
-            </li>
-            <li class="nav-item {% if active_page == 'plants_guide' %}active{% endif %}">
-                <a class="nav-link" href="{{ url_for('plants_guide') }}">Plants Guide</a>
-            </li>
-            <li class="nav-item {% if active_page == 'settings' %}active{% endif %}">
-                <a class="nav-link" href="{{ url_for('settings') }}">Settings</a>
-            </li>
-        </ul>
-    </nav>
-        {% block content %}{% endblock %}
-    <aside>
-        {% include 'aside.html' %}
-    </aside>
-    <div id="footer">
-        <p>©
-            <script type="text/javascript">document.write(new Date().getFullYear());</script>
-             by Sebastian Gomez. All rights reserved. 
-            <a href="malito:patoruzuy@tutanota.com">Questions?</a>
-        </p>
-    </div>
-    <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
-=======
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="csrf-token" content="{{ csrf_token if csrf_token is defined else '' }}">
   <title>{% block title %}SYSGrow - Smart Agriculture Platform{% endblock %}</title>
+  <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='images/logo.jpg') }}">
+
+  <!-- Typography: Outfit (headings) + Source Sans 3 (body) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&display=swap">
 
   <!-- Core design tokens + base components -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/tokens.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css', v='20260308e') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css', v='20260308c') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css', v='20260308c') }}">
 
   <!-- Shared layout/components -->
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}?v=20260308c">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/navigation.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/forms.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/tables.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/tables.css', v='20260307a') }}">
 
-  <!-- Feature / page styles -->
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/sensors.css') }}">
+  <!-- Page-level body class scoping (used by many templates) -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/analytics.css', v='20260307a') }}">
 
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/unit-selector.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/units.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/analytics.css') }}">
-
-  <!-- Reusable component styles -->
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/components/kpi-cards.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/components/actuators.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/components/plants.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/components/timeline.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/components/alerts.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/components/energy.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/components/vpd-zones.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/components/correlation-matrix.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/components/anomaly-panel.css') }}">
+  <!-- Global notification dropdown in header -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/components/notifications.css') }}">
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
@@ -107,7 +36,6 @@
 
   {# Page-specific styles injected by child templates #}
   {% block styles %}{% endblock %}
-  {% block extra_css %}{% endblock %}
 </head>
 
 {# Resolve an authoritative "active unit id" for base layout rendering #}
@@ -127,6 +55,7 @@
 <body
   class="{% block body_class %}{% endblock %}"
   {% if _active_unit_id %}data-active-unit-id="{{ _active_unit_id }}"{% endif %}
+  data-user-id="{{ session.get('user_id', 1) }}"
 >
   <a href="#main-content" class="skip-link">Skip to main content</a>
 
@@ -195,7 +124,7 @@
             </button>
 
             <div class="connection-status" aria-label="Connection status">
-              <span class="status-indicator connected" id="connection-status">
+              <span class="status-indicator connected" id="header-connection-status">
                 <i class="fas fa-wifi" aria-hidden="true"></i>
                 <span>Connected</span>
               </span>
@@ -228,7 +157,7 @@
                   </div>
                 </div>
 
-                <div class="notification-dropdown-body" id="notifications-list">
+                <div class="notification-dropdown-body" id="header-notifications-list">
                   <div class="notification-empty">
                     <i class="fas fa-bell-slash" aria-hidden="true"></i>
                     <p>No notifications</p>
@@ -287,10 +216,10 @@
 
       <!-- Dashboard Section -->
       <div class="nav-section">
-        <h3 class="nav-section-title">
+        <h4 class="nav-section-title">
           <i class="fas fa-tachometer-alt" aria-hidden="true"></i>
           Dashboard
-        </h3>
+        </h4>
         <ul class="nav-list">
           <li class="nav-item">
             <a href="{{ url_for('ui.index') }}"
@@ -473,7 +402,7 @@
   <footer class="modern-footer {% if session.get('user') %}with-sidebar{% endif %}">
     <div class="footer-container">
       <div class="footer-content">
-        <p>&copy; 2025 SYSGrow. Smart Agriculture Platform. All rights reserved.</p>
+        <p>&copy; 2026 SYSGrow. Smart Agriculture Platform. All rights reserved.</p>
         <div class="footer-links">
           <a href="{{ url_for('ui.help_page') }}" class="footer-link">
             <i class="fas fa-question-circle" aria-hidden="true"></i> Help
@@ -490,22 +419,24 @@
   </footer>
 
   <!-- JavaScript -->
-  <script src="{{ url_for('static', filename='js/base.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/base.js') }}?v=20260307g"></script>
 
   <!-- Shared Utilities (load before components) -->
+  <script src="{{ url_for('static', filename='js/api.js') }}?v=20260308d"></script>
   <script src="{{ url_for('static', filename='js/utils/html-utils.js') }}"></script>
   <script src="{{ url_for('static', filename='js/utils/date-utils.js') }}"></script>
   <script src="{{ url_for('static', filename='js/utils/sensor-fields.js') }}"></script>
   <script src="{{ url_for('static', filename='js/utils/notification-utils.js') }}"></script>
   <script src="{{ url_for('static', filename='js/utils/form-validator.js') }}"></script>
   <script src="{{ url_for('static', filename='js/utils/chart-service.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/utils/help-banner.js') }}"></script>
   <script src="{{ url_for('static', filename='js/constants/vpd-zones.js') }}"></script>
 
   <!-- ML Status Manager (Global) -->
   <script src="{{ url_for('static', filename='js/components/ml_status.js') }}"></script>
 
   <!-- Notifications Component -->
-  <script src="{{ url_for('static', filename='js/components/notifications.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/components/notifications.js', v='20260307h') }}"></script>
 
   <!-- Global unit switcher submit handler -->
   <script>
@@ -557,7 +488,5 @@
   </script>
 
   {% block scripts %}{% endblock %}
-  {% block extra_js %}{% endblock %}
->>>>>>> update
 </body>
 </html>

@@ -7,7 +7,7 @@ ISO-8601 strings with timezone offsets (e.g., "+00:00") via iso_now().
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Optional, Any
+from typing import Any
 
 
 def utc_now() -> datetime:
@@ -15,7 +15,7 @@ def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def iso_now(*, timespec: Optional[str] = None) -> str:
+def iso_now(*, timespec: str | None = None) -> str:
     """Return current UTC time as an ISO8601 string (timezone-aware)."""
     now = utc_now()
     if timespec:
@@ -26,6 +26,7 @@ def iso_now(*, timespec: Optional[str] = None) -> str:
 def get_current_utc_time() -> datetime:
     """Backward-compatible alias for retrieving UTC now."""
     return utc_now()
+
 
 def convert_utc_to_local(utc_dt: datetime) -> datetime:
     """Convert a UTC datetime (aware or naive) to the local timezone."""
@@ -48,7 +49,7 @@ def sqlite_timestamp(dt: datetime) -> str:
     return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 
-def coerce_datetime(value: Any) -> Optional[datetime]:
+def coerce_datetime(value: Any) -> datetime | None:
     """
     Coerce value to datetime, returning None on failure.
 
@@ -56,7 +57,7 @@ def coerce_datetime(value: Any) -> Optional[datetime]:
         value: String or datetime to coerce
 
     Returns:
-        Datetime in UTC or None if invalid
+        Datetime in timezone.utc or None if invalid
     """
     if value is None:
         return None

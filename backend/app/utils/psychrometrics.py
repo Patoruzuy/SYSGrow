@@ -18,11 +18,12 @@ These are stateless calculations suitable for:
 Author: Sebastian Gomez
 Date: January 2026
 """
+
 from __future__ import annotations
 
 import math
 from numbers import Number
-from typing import Any, Dict, Optional, TypeVar, overload, Sequence
+from typing import Sequence, TypeVar, overload
 
 _ArrayLike = TypeVar("_ArrayLike")
 
@@ -31,15 +32,16 @@ _ArrayLike = TypeVar("_ArrayLike")
 # Core Calculations (scalar-safe, no numpy required for normal runtime)
 # =============================================================================
 
+
 def calculate_svp_kpa(temperature_c: float) -> float:
     """
     Calculate Saturation Vapor Pressure (SVP) in kPa using Magnus formula.
-    
+
     SVP = 0.6108 × exp(17.27 × T / (T + 237.3))
-    
+
     Args:
         temperature_c: Temperature in Celsius
-        
+
     Returns:
         Saturation vapor pressure in kPa
     """
@@ -55,21 +57,22 @@ def calculate_vpd_kpa(temperature_c: float, relative_humidity: float) -> float: 
 @overload
 def calculate_vpd_kpa(temperature_c: _ArrayLike, relative_humidity: _ArrayLike) -> _ArrayLike: ...
 
+
 def calculate_vpd_kpa(temperature_c, relative_humidity):
     """
     Calculate Vapor Pressure Deficit (VPD) in kPa.
 
     VPD = SVP × (1 - RH/100)
-    
+
     Optimal VPD ranges for plants:
     - Seedlings/clones: 0.4-0.8 kPa
     - Vegetative: 0.8-1.2 kPa
     - Flowering: 1.0-1.5 kPa
-    
+
     Args:
         temperature_c: Temperature in Celsius
         relative_humidity: Relative humidity percentage (0-100)
-        
+
     Returns:
         VPD in kPa, or None if inputs are None
     """
@@ -84,6 +87,7 @@ def calculate_vpd_kpa(temperature_c, relative_humidity):
 
     # Vectorized path for numpy/pandas
     import numpy as np
+
     temp = np.asarray(temperature_c) if isinstance(temperature_c, (list, tuple)) else temperature_c
     humidity = np.asarray(relative_humidity) if isinstance(relative_humidity, (list, tuple)) else relative_humidity
     svp = 0.6108 * np.exp((17.27 * temp) / (temp + 237.3))
@@ -97,45 +101,46 @@ def calculate_dew_point_c(temperature_c: object, relative_humidity: None) -> Non
 @overload
 def calculate_dew_point_c(temperature_c: float, relative_humidity: float) -> float: ...
 
+
 def calculate_dew_point_c(temperature_c, relative_humidity):
     """
     Calculate dew point temperature in Celsius using Magnus-Tetens approximation.
-    
+
     Dew point is the temperature at which air becomes saturated and condensation begins.
     Important for:
     - Preventing mold/mildew (keep leaf temp above dew point)
     - Understanding transpiration limits
-    
+
     Formula:
         gamma = (a * T) / (b + T) + ln(RH/100)
         Td = (b * gamma) / (a - gamma)
-        
+
     Where a = 17.27, b = 237.3 (Magnus constants)
-    
+
     Args:
         temperature_c: Temperature in Celsius
         relative_humidity: Relative humidity percentage (0-100)
-        
+
     Returns:
         Dew point in Celsius, or None if inputs are None
     """
     if temperature_c is None or relative_humidity is None:
         return None
-    
+
     temp_c = float(temperature_c)
     humidity = float(relative_humidity)
-    
+
     # Clamp humidity to valid range
     if humidity <= 0:
         return None
     humidity = min(humidity, 100.0)
-    
+
     a = 17.27
     b = 237.3
-    
+
     gamma = (a * temp_c) / (b + temp_c) + math.log(humidity / 100.0)
     dew_point = (b * gamma) / (a - gamma)
-    
+
     return round(dew_point, 2)
 
 
@@ -146,40 +151,41 @@ def calculate_heat_index_c(temperature_c: object, relative_humidity: None) -> No
 @overload
 def calculate_heat_index_c(temperature_c: float, relative_humidity: float) -> float: ...
 
+
 def calculate_heat_index_c(temperature_c, relative_humidity):
     """
     Calculate heat index (apparent temperature) in Celsius.
-    
+
     Uses the Rothfusz regression equation (NOAA).
     Heat index represents "feels like" temperature accounting for humidity.
-    
+
     Important for:
     - Plant stress assessment (high heat index = transpiration stress)
     - Worker safety in grow environments
-    
+
     Note: Only valid for temperatures >= 27°C (80°F) and RH >= 40%.
     Below these thresholds, returns the actual temperature.
-    
+
     Args:
         temperature_c: Temperature in Celsius
         relative_humidity: Relative humidity percentage (0-100)
-        
+
     Returns:
         Heat index in Celsius, or None if inputs are None
     """
     if temperature_c is None or relative_humidity is None:
         return None
-    
+
     temp_c = float(temperature_c)
     humidity = float(relative_humidity)
-    
+
     # Heat index formula is only valid above ~27°C and 40% RH
     if temp_c < 27.0 or humidity < 40.0:
         return round(temp_c, 2)
-    
+
     # Convert to Fahrenheit for Rothfusz equation
-    temp_f = temp_c * 9/5 + 32
-    
+    temp_f = temp_c * 9 / 5 + 32
+
     # Rothfusz regression coefficients
     c1 = -42.379
     c2 = 2.04901523
@@ -190,15 +196,19 @@ def calculate_heat_index_c(temperature_c, relative_humidity):
     c7 = 0.00122874
     c8 = 0.00085282
     c9 = -0.00000199
-    
-    hi_f = (c1 + c2 * temp_f + c3 * humidity +
-            c4 * temp_f * humidity +
-            c5 * temp_f ** 2 +
-            c6 * humidity ** 2 +
-            c7 * temp_f ** 2 * humidity +
-            c8 * temp_f * humidity ** 2 +
-            c9 * temp_f ** 2 * humidity ** 2)
-    
+
+    hi_f = (
+        c1
+        + c2 * temp_f
+        + c3 * humidity
+        + c4 * temp_f * humidity
+        + c5 * temp_f**2
+        + c6 * humidity**2
+        + c7 * temp_f**2 * humidity
+        + c8 * temp_f * humidity**2
+        + c9 * temp_f**2 * humidity**2
+    )
+
     # Adjustments for edge cases
     if humidity < 13 and 80 <= temp_f <= 112:
         adjustment = ((13 - humidity) / 4) * math.sqrt((17 - abs(temp_f - 95)) / 17)
@@ -206,25 +216,25 @@ def calculate_heat_index_c(temperature_c, relative_humidity):
     elif humidity > 85 and 80 <= temp_f <= 87:
         adjustment = ((humidity - 85) / 10) * ((87 - temp_f) / 5)
         hi_f += adjustment
-    
+
     # Convert back to Celsius
-    hi_c = (hi_f - 32) * 5/9
+    hi_c = (hi_f - 32) * 5 / 9
     return round(hi_c, 2)
 
 
 def compute_derived_metrics(
-    temperature_c: Optional[float],
-    relative_humidity: Optional[float],
-) -> Dict[str, Optional[float]]:
+    temperature_c: float | None,
+    relative_humidity: float | None,
+) -> dict[str, float | None]:
     """
     Compute all derived psychrometric metrics from temperature and humidity.
-    
+
     This is the main entry point for enrichment processors.
-    
+
     Args:
         temperature_c: Temperature in Celsius
         relative_humidity: Relative humidity percentage (0-100)
-        
+
     Returns:
         Dictionary with keys: vpd_kpa, dew_point_c, heat_index_c
         Values are None if inputs are invalid.
@@ -240,12 +250,13 @@ def compute_derived_metrics(
 # Advanced Analytics (require pandas, for historical data processing)
 # =============================================================================
 
+
 def calculate_dif_c(
     temperature_c,
     *,
     day_start: str = "06:00",
     day_end: str = "18:00",
-    lux_values: Optional[Sequence[Optional[float]]] = None,
+    lux_values: Sequence[float | None] | None = None,
     lux_threshold: float = 100.0,
     prefer_sensor: bool = False,
     schedule_enabled: bool = True,
@@ -260,7 +271,7 @@ def calculate_dif_c(
 
     Day/night is defined by a schedule (day_start/day_end) and can optionally be
     overridden by a lux-based sensor classification.
-    
+
     Args:
         temperature_c: Pandas Series with DatetimeIndex
         day_start: Schedule day start time (HH:MM)
@@ -269,7 +280,7 @@ def calculate_dif_c(
         lux_threshold: Lux threshold for "day" classification
         prefer_sensor: If True, prefer sensor over schedule
         schedule_enabled: If False, use sensor-only classification
-        
+
     Returns:
         DIF value in Celsius, or 0.0 if insufficient data
     """

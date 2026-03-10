@@ -1,10 +1,9 @@
 from __future__ import annotations
 
+import json
 import logging
 import sqlite3
-import json
-from typing import Any, Dict, List, Optional
-
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -12,7 +11,7 @@ logger = logging.getLogger(__name__)
 class ActivityOperations:
     """Database operations for ActivityLog table."""
 
-    def insert_activity(self, activity: Dict[str, Any]) -> Optional[int]:
+    def insert_activity(self, activity: dict[str, Any]) -> int | None:
         try:
             db = self.get_db()
             cur = db.cursor()
@@ -41,11 +40,13 @@ class ActivityOperations:
             logger.debug("insert_activity failed: %s", exc)
             return None
 
-    def get_recent_activities(self, limit: int = 50, activity_type: Optional[str] = None, severity: Optional[str] = None, user_id: Optional[int] = None) -> List[Dict[str, Any]]:
+    def get_recent_activities(
+        self, limit: int = 50, activity_type: str | None = None, severity: str | None = None, user_id: int | None = None
+    ) -> list[dict[str, Any]]:
         try:
             db = self.get_db()
             query = "SELECT * FROM ActivityLog WHERE 1=1"
-            params: List[Any] = []
+            params: list[Any] = []
             if activity_type:
                 query += " AND activity_type = ?"
                 params.append(activity_type)
@@ -73,7 +74,7 @@ class ActivityOperations:
             logger.debug("get_recent_activities failed: %s", exc)
             return []
 
-    def get_activities_for_entity(self, entity_type: str, entity_id: int, limit: int = 20) -> List[Dict[str, Any]]:
+    def get_activities_for_entity(self, entity_type: str, entity_id: int, limit: int = 20) -> list[dict[str, Any]]:
         try:
             db = self.get_db()
             cur = db.execute(
@@ -95,7 +96,7 @@ class ActivityOperations:
             logger.debug("get_activities_for_entity failed: %s", exc)
             return []
 
-    def get_activity_statistics(self) -> Dict[str, Any]:
+    def get_activity_statistics(self) -> dict[str, Any]:
         try:
             db = self.get_db()
             cursor = db.execute("SELECT activity_type, COUNT(*) as count FROM ActivityLog GROUP BY activity_type")

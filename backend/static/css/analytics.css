@@ -171,3 +171,41 @@
 @media (max-width: 768px) {
   .header-actions { justify-content: flex-start; }
 }
+/* -------------------------------------------------------------------------- */
+/* Mobile table fit: analytics and health pages                               */
+/* -------------------------------------------------------------------------- */
+@media (max-width: 576px) {
+  .energy-analytics-page .table-responsive,
+  .device-health-page .table-responsive {
+    margin-inline: calc(0px - var(--space-2));
+    padding-inline: var(--space-2);
+  }
+
+  .energy-analytics-page .table th,
+  .energy-analytics-page .table td,
+  .device-health-page .table th,
+  .device-health-page .table td {
+    padding: 0.5rem;
+    font-size: 0.78rem;
+  }
+
+  .energy-analytics-page .table thead th:nth-child(3),
+  .energy-analytics-page .table tbody td:nth-child(3),
+  .energy-analytics-page .table thead th:nth-child(6),
+  .energy-analytics-page .table tbody td:nth-child(6) {
+    display: none;
+  }
+
+  .device-health-page .table thead th:nth-child(2),
+  .device-health-page .table tbody td:nth-child(2),
+  .device-health-page .table thead th:nth-child(4),
+  .device-health-page .table tbody td:nth-child(4) {
+    display: none;
+  }
+
+  .device-health-page .view-device-btn {
+    padding-inline: 0.5rem;
+    font-size: 0.75rem;
+    white-space: nowrap;
+  }
+}

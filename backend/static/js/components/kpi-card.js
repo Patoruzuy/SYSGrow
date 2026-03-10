@@ -134,14 +134,17 @@
         trendLabel = `${trendIcon} ${sign}${trendDelta.toFixed(decimals)}`;
       }
 
+      const esc = window.escapeHtml || (t => { if (!t) return ''; const d = document.createElement('div'); d.textContent = t; return d.innerHTML; });
+      const escAttr = window.escapeHtmlAttr || (t => String(t ?? '').replace(/[&"'<>]/g, c => ({'&':'&amp;','"':'&quot;',"'":'&#39;','<':'&lt;','>':'&gt;'}[c])));
+
       this.container.innerHTML = `
         <div class="sensor-card__icon">
-          <i class="${this.options.icon}"></i>
+          <i class="${escAttr(this.options.icon)}"></i>
         </div>
         <div class="sensor-card__content">
           <div class="sensor-value">${formattedValue}</div>
-          <div class="sensor-label">${this.options.label}</div>
-          <div class="sensor-status ${status}">${statusText}</div>
+          <div class="sensor-label">${esc(this.options.label)}</div>
+          <div class="sensor-status ${escAttr(status)}">${esc(statusText)}</div>
         </div>
         ${this.options.showTrend ? `
         <div class="sensor-card__trend">

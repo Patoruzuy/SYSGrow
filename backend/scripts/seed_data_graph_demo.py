@@ -7,7 +7,7 @@ so the multi-metric chart and plant overlay have data to display.
 
 import argparse
 import json
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from infrastructure.database.sqlite_handler import SQLiteDatabaseHandler
@@ -58,13 +58,13 @@ def ensure_plant(conn, unit_id: int, name: str, plant_type: str) -> int:
         INSERT INTO Plants (unit_id, name, plant_type, current_stage, days_in_stage, moisture_level, planted_date)
         VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
-        (unit_id, name, plant_type, "Vegetative", 10, 42.0, datetime.utcnow().date().isoformat()),
+        (unit_id, name, plant_type, "Vegetative", 10, 42.0, datetime.now(UTC).date().isoformat()),
     )
     return cursor.lastrowid
 
 
 def seed_readings(conn, sensor_id: int, hours: int = 48):
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     rows = []
     for i in range(hours):
         ts = now - timedelta(hours=hours - i)
@@ -89,7 +89,7 @@ def seed_readings(conn, sensor_id: int, hours: int = 48):
 
 
 def seed_health_logs(conn, unit_id: int, plant_id: int):
-    base = datetime.utcnow() - timedelta(days=7)
+    base = datetime.now(UTC) - timedelta(days=7)
     logs = []
     for i, status in enumerate(["healthy", "stressed", "stressed", "healthy", "healthy"]):
         ts = base + timedelta(days=i * 2)

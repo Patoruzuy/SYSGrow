@@ -173,8 +173,8 @@ class SensorAnalyticsCharts {
           max: 100,
         };
       }
-      
-      this.chartService.updateChart(dataGraphChart);
+
+      dataGraphChart.update('none');
     }
   }
 
@@ -188,7 +188,7 @@ class SensorAnalyticsCharts {
     if (chart && this.chartService) {
       chart.data.labels = labels;
       chart.data.datasets = datasets;
-      this.chartService.updateChart(chart);
+      chart.update('none');
     }
   }
 
@@ -202,7 +202,7 @@ class SensorAnalyticsCharts {
     if (chart && this.chartService) {
       chart.data.labels = labels;
       chart.data.datasets = datasets;
-      this.chartService.updateChart(chart);
+      chart.update('none');
     }
   }
 
@@ -232,11 +232,17 @@ class SensorAnalyticsCharts {
    * Destroy all charts
    */
   destroyCharts() {
-    if (this.chartService) {
-      this.charts.forEach((chart, key) => {
-        this.chartService.destroyChart(chart);
-      });
-    }
+    this.charts.forEach((chart) => {
+      try {
+        if (this.chartService && typeof this.chartService.destroy === 'function') {
+          this.chartService.destroy(chart);
+        } else if (chart && typeof chart.destroy === 'function') {
+          chart.destroy();
+        }
+      } catch (error) {
+        console.debug('[SensorAnalyticsCharts] Chart destroy skipped:', error);
+      }
+    });
     this.charts.clear();
   }
 

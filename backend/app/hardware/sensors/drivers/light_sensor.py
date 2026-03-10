@@ -4,8 +4,10 @@ This module should only be used by sensor adapters, not directly by application 
 """
 
 import logging
-from typing import Any, Dict
+from typing import Any
+
 from app.utils.time import iso_now
+
 from .base import BaseSensorDriver
 
 logger = logging.getLogger(__name__)
@@ -14,11 +16,11 @@ try:
     import adafruit_tsl2591
     import board
     import busio
+
     IS_PI = True
 except (ImportError, NotImplementedError):
     logger.warning("Raspberry Pi-specific libraries not available. Using mock TSL2591 sensor.")
     IS_PI = False
-
 
 
 class TSL2591Driver(BaseSensorDriver):
@@ -45,16 +47,9 @@ class TSL2591Driver(BaseSensorDriver):
             except Exception as e:
                 logger.error("Failed to initialize TSL2591 sensor: %s", e)
         else:
-            self.mock_data = {
-                'lux': 550.5,
-                'full_spectrum': 1200,
-                'infrared': 450,
-                'visible': 750,
-                'status': 'MOCK'
-            }
+            self.mock_data = {"lux": 550.5, "full_spectrum": 1200, "infrared": 450, "visible": 750, "status": "MOCK"}
 
-
-    def read(self) -> Dict[str, Any]:
+    def read(self) -> dict[str, Any]:
         """
         Read raw data from the TSL2591 light sensor.
 
@@ -68,18 +63,14 @@ class TSL2591Driver(BaseSensorDriver):
                 ir = self.sensor.infrared
                 visible = full - ir
                 return {
-                    'lux': lux,
-                    'full_spectrum': full,
-                    'infrared': ir,
-                    'visible': visible,
-                    'timestamp': iso_now(),
-                    'status': 'OK'
+                    "lux": lux,
+                    "full_spectrum": full,
+                    "infrared": ir,
+                    "visible": visible,
+                    "timestamp": iso_now(),
+                    "status": "OK",
                 }
             except Exception as e:
                 logger.error("Error reading TSL2591: %s", e)
-                return {
-                    'error': str(e),
-                    'status': 'ERROR',
-                    'timestamp': iso_now()
-                }
+                return {"error": str(e), "status": "ERROR", "timestamp": iso_now()}
         return self._return_mock()

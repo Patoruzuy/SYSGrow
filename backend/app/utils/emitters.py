@@ -27,16 +27,18 @@ Updated:
 """
 
 import logging
-from typing import Optional, Dict, Any, Iterable
+from typing import Any, Iterable
+
 from flask_socketio import SocketIO
+
+from app.enums.events import WebSocketEvent
 from app.schemas.events import (
-    DeviceSensorReadingPayload,
     DashboardSnapshotPayload,
-    UnregisteredSensorPayload,
+    DeviceSensorReadingPayload,
     NotificationPayload,
+    UnregisteredSensorPayload,
 )
 from app.schemas.session import SessionBroadcastSchema
-from app.enums.events import WebSocketEvent
 
 logger = logging.getLogger("emitters")
 
@@ -74,7 +76,7 @@ class EmitterService:
         self,
         event: str,
         payload: dict,
-        room: Optional[str] = None,
+        room: str | None = None,
         namespace: str = "/",
     ):
         """
@@ -87,13 +89,11 @@ class EmitterService:
             namespace (str): Socket.IO namespace to emit under (default "/").
         """
         try:
-            logger.info(
-                f"📡 Emitting event='{event}' to namespace='{namespace}' room='{room or 'broadcast'}'"
-            )
+            logger.info("📡 Emitting event='%s' to namespace='%s' room='%s'", event, namespace, room or "broadcast")
             self.sio.emit(event, payload, room=room, namespace=namespace)
-            logger.info(f"   ✓ Emit successful")
+            logger.info("   ✓ Emit successful")
         except Exception as e:
-            logger.exception(f"[Emitter] Failed to emit event '{event}' to room '{room}': {e}")
+            logger.exception("[Emitter] Failed to emit event '%s' to room '%s': %s", event, room, e)
 
     def emit_to_user(
         self,
@@ -113,7 +113,7 @@ class EmitterService:
         """
         room = f"user_{user_id}"
         self.emit(event=event, payload=payload, room=room, namespace=namespace)
-        logger.info(f"[Emitter] Event '{event}' emitted to user_{user_id} in namespace='{namespace}'")
+        logger.info("[Emitter] Event '%s' emitted to user_%s in namespace='%s'", event, user_id, namespace)
 
     def emit_notification(
         self,
@@ -133,7 +133,7 @@ class EmitterService:
             payload=notification.model_dump(),
             namespace=SOCKETIO_NAMESPACE_NOTIFICATIONS,
         )
-        logger.info(f"[Emitter] Notification emitted to user_{notification.userId}")
+        logger.info("[Emitter] Notification emitted to user_%s", notification.userId)
 
     def emit_session_event(
         self,
@@ -152,7 +152,7 @@ class EmitterService:
             namespace=SOCKETIO_NAMESPACE_SESSION,
         )
 
-        logger.info(f"[Emitter] Session event emitted to user '{session.userId}'")
+        logger.info("[Emitter] Session event emitted to user '%s'", session.userId)
 
     def emit_alert_event(
         self,
@@ -164,13 +164,13 @@ class EmitterService:
             payload=alert.model_dump(),
             namespace=SOCKETIO_NAMESPACE_ALERTS,
         )
-        logger.info(f"[Emitter] Alert event emitted to user '{alert.userId}'")
+        logger.info("[Emitter] Alert event emitted to user '%s'", alert.userId)
 
     def emit_error(
         self,
         event: str,
         payload: dict,
-        room: Optional[str] = None,
+        room: str | None = None,
         namespace: str = "/",
     ):
         """
@@ -188,7 +188,7 @@ class EmitterService:
             room=room,
             namespace=namespace,
         )
-        logger.info(f"[Emitter] Error event emitted to room='{room or 'broadcast'}' namespace='{namespace}'")
+        logger.info("[Emitter] Error event emitted to room='%s' namespace='%s'", room or "broadcast", namespace)
 
     # ---------------------------------------------------------------------
     # Consolidated sensor payload emitters (single source of truth)
@@ -228,27 +228,29 @@ class EmitterService:
         reading: Any,  # SensorReading object
         namespace: str = SOCKETIO_NAMESPACE_DEVICES,
         *,
-        allowed_types: Optional[Iterable[str]] = None,
-        readings_override: Optional[Dict[str, Any]] = None,
+        allowed_types: Iterable[str] | None = None,
+        readings_override: dict[str, Any] | None = None,
     ):
         """
         Emit sensor reading to WebSocket clients.
-        
+
         Args:
             sensor_id: Sensor ID
             reading: SensorReading object from processor pipeline
             namespace: SocketIO namespace ("/devices", "/dashboard")
-        
+
         Emits:
             - Single-value sensors: traditional format
             - Multi-value sensors: expanded format with all readings
         """
         try:
-            logger.info(f"🎯 EmitterService.emit_sensor_reading: sensor_id={sensor_id} namespace={namespace}")
-            raw_readings = readings_override if isinstance(readings_override, dict) else (getattr(reading, "data", None) or {})
-            logger.info(f"   Raw readings: {list(raw_readings.keys())}")
+            logger.info("🎯 EmitterService.emit_sensor_reading: sensor_id=%s namespace=%s", sensor_id, namespace)
+            raw_readings = (
+                readings_override if isinstance(readings_override, dict) else (getattr(reading, "data", None) or {})
+            )
+            logger.info("   Raw readings: %s", list(raw_readings.keys()))
             numeric_readings = self._coerce_numeric_readings(raw_readings)
-            logger.info(f"   Numeric readings: {list(numeric_readings.keys())}")
+            logger.info("   Numeric readings: %s", list(numeric_readings.keys()))
 
             if allowed_types is not None:
                 allowed = set(str(x) for x in allowed_types)
@@ -304,11 +306,13 @@ class EmitterService:
                 anomaly_reason=getattr(reading, "anomaly_reason", None),
                 calibration_applied=bool(getattr(reading, "calibration_applied", False)),
             )
-            
-            logger.info(f"   📦 Payload created: {payload.model_dump()}")
+
+            logger.info("   📦 Payload created: %s", payload.model_dump())
 
             # Emit ONE consolidated event per call
-            logger.info(f"   📤 Emitting consolidated '{WS_EVENT_DEVICE_READING}' to namespace={namespace} room=unit_{payload.unit_id}")
+            logger.info(
+                f"   📤 Emitting consolidated '{WS_EVENT_DEVICE_READING}' to namespace={namespace} room=unit_{payload.unit_id}"
+            )
             self.emit(
                 event=WS_EVENT_DEVICE_READING,
                 payload=payload.model_dump(),
@@ -316,18 +320,18 @@ class EmitterService:
                 namespace=namespace,
             )
             logger.info("   ✅ Emitted consolidated device_sensor_reading event")
-            
+
             logger.debug(
                 f"[Emitter] Sensor reading emitted: sensor_id={sensor_id}, "
                 f"unit_id={reading.unit_id}, readings={list(numeric_readings.keys())}, "
                 f"namespace='{namespace}'"
             )
         except Exception as e:
-            logger.exception(f"[Emitter] Failed to emit sensor reading for sensor {sensor_id}: {e}")
-    
-    def _coerce_numeric_readings(self, readings: Dict[str, Any]) -> Dict[str, float]:
+            logger.exception("[Emitter] Failed to emit sensor reading for sensor %s: %s", sensor_id, e)
+
+    def _coerce_numeric_readings(self, readings: dict[str, Any]) -> dict[str, float]:
         """Filter/coerce raw reading values to numeric types for websocket payloads."""
-        result: Dict[str, float] = {}
+        result: dict[str, float] = {}
         for key, value in (readings or {}).items():
             if value is None:
                 continue
@@ -344,18 +348,19 @@ class EmitterService:
 
         return result
 
-    def _get_units_for_readings(self, readings: Dict[str, Any]) -> Dict[str, str]:
+    def _get_units_for_readings(self, readings: dict[str, Any]) -> dict[str, str]:
         """
         Get units for each reading type.
-        
+
         Args:
             readings: Sensor readings dict
-            
+
         Returns:
             Dictionary mapping reading type to unit string
         """
         from app.hardware.sensors.processors.utils import UNIT_MAP
-        return {k: UNIT_MAP.get(k, "") for k in (readings or {}).keys()}
+
+        return {k: UNIT_MAP.get(k, "") for k in (readings or {})}
 
     def ping(self):
         """

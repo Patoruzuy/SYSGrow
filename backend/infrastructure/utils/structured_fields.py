@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
-def parse_json_object(raw: Any) -> Optional[Any]:
+def parse_json_object(raw: Any) -> Any | None:
     """
     Parse a JSON-serializable object from a string or pass through dict/list.
 
@@ -29,7 +29,7 @@ def parse_json_object(raw: Any) -> Optional[Any]:
     return None
 
 
-def normalize_dimensions(raw: Any) -> Optional[Dict[str, Any]]:
+def normalize_dimensions(raw: Any) -> dict[str, Any] | None:
     """
     Normalize dimensions to a dict with width/height/depth keys.
     """
@@ -42,7 +42,7 @@ def normalize_dimensions(raw: Any) -> Optional[Dict[str, Any]]:
     return dict(parsed)
 
 
-def normalize_device_schedules(raw: Any) -> Optional[Dict[str, Any]]:
+def normalize_device_schedules(raw: Any) -> dict[str, Any] | None:
     """Normalize device schedules into a dictionary."""
     parsed = parse_json_object(raw)
     if parsed is None:
@@ -52,7 +52,7 @@ def normalize_device_schedules(raw: Any) -> Optional[Dict[str, Any]]:
     return dict(parsed)
 
 
-def dump_json_field(value: Any) -> Optional[str]:
+def dump_json_field(value: Any) -> str | None:
     """Safely serialize structured fields to JSON strings for storage."""
     if value is None:
         return None

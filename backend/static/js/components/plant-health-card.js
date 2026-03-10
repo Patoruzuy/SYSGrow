@@ -131,12 +131,13 @@
       const imageUrl = window.escapeHtml(
         plant.custom_image || plant.image || plant.image_url || '/static/img/plant-placeholder.svg'
       );
+      const isPlaceholderImage = /plant-placeholder|placeholder\.svg|placeholder\.png/i.test(imageUrl);
       const lastWatered = window.escapeHtml(plant.last_watered || 'N/A');
       const daysInStage = plant.days_in_stage ? `${Number(plant.days_in_stage)} days in stage` : '';
 
       return `
         <article class="plant-card-lg" data-plant-id="${id}">
-          <div class="plant-card__image">
+          <div class="plant-card__image ${isPlaceholderImage ? 'is-placeholder' : ''}">
             <img src="${imageUrl}" alt="${name}" loading="lazy">
           </div>
 

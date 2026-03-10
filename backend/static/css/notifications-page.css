@@ -1,0 +1,383 @@
+/* Notifications page styles */
+
+.notifications-page {
+  padding: var(--space-4);
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+.notifications-page .page-header {
+  margin-bottom: var(--space-3) !important;
+}
+
+.notifications-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.notifications-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-lg);
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+}
+
+.notifications-header h1 {
+  margin: 0;
+  font-size: 1.75rem;
+  color: var(--text-primary);
+}
+
+.notifications-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.notifications-filters {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.filter-btn {
+  padding: 0.45rem 0.95rem;
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.filter-btn:hover {
+  border-color: var(--brand-primary);
+  color: var(--brand-primary);
+}
+
+.filter-btn.active {
+  background: var(--brand-primary);
+  border-color: var(--brand-primary);
+  color: white;
+}
+
+.notifications-list-container {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.notifications-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+}
+
+.notifications-list-header span {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.notifications-list {
+  min-height: 200px;
+  display: grid;
+  gap: 0;
+}
+
+/* Override notification-item styles for full page */
+.notifications-list .notification-item {
+  padding: var(--space-3) var(--space-4);
+  border-radius: 0;
+}
+
+.notifications-list .notification-item:last-child {
+  border-bottom: none;
+}
+
+.notification-item-expanded {
+  display: flex;
+  gap: var(--spacing-md);
+  align-items: flex-start;
+}
+
+.notification-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-xs);
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.notification-meta .tag {
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  font-size: 11px;
+}
+
+.notification-meta .tag.unread {
+  background: var(--status-info-bg);
+  color: var(--status-info);
+}
+
+/* Empty state */
+.notifications-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: var(--text-tertiary);
+}
+
+.notifications-empty i {
+  font-size: 64px;
+  margin-bottom: var(--spacing-md);
+  opacity: 0.5;
+}
+
+.notifications-empty h3 {
+  margin: 0 0 var(--spacing-sm);
+  color: var(--text-secondary);
+}
+
+.notifications-empty p {
+  margin: 0;
+  font-size: 14px;
+}
+
+/* Loading state */
+.notifications-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: var(--text-secondary);
+}
+
+.notifications-loading i {
+  font-size: 32px;
+  animation: spin 1s linear infinite;
+}
+
+/* Pagination */
+.notifications-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  border-top: 1px solid var(--border-color);
+}
+
+.pagination-btn {
+  padding: 8px 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  border-color: var(--brand-primary);
+  color: var(--brand-primary);
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-info {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* Irrigation request card */
+.irrigation-request-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: var(--spacing-md);
+  margin-top: var(--spacing-sm);
+}
+
+.irrigation-request-card .request-info {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
+  font-size: 13px;
+}
+
+.irrigation-request-card .request-info dt {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.irrigation-request-card .request-info dd {
+  margin: 0;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .notifications-page {
+    padding: var(--space-3);
+  }
+
+  .notifications-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+  }
+
+  .notifications-header-actions {
+    width: 100%;
+  }
+
+  .notifications-header-actions .btn {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .notifications-filters {
+    overflow-x: visible;
+    flex-wrap: wrap;
+    padding-bottom: 0;
+    gap: var(--space-2);
+  }
+
+  .filter-btn {
+    white-space: nowrap;
+    flex: 0 1 auto;
+    min-width: 96px;
+    text-align: center;
+  }
+
+  .notifications-list-header {
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    align-items: flex-start;
+  }
+
+  .notifications-list .notification-item {
+    padding: var(--space-3);
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Notifications spacing + consistency pass                                    */
+/* -------------------------------------------------------------------------- */
+.notifications-page {
+  max-width: 1080px;
+}
+
+.notifications-page .page-header {
+  padding-bottom: var(--space-2);
+}
+
+.notifications-page .notifications-filters {
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.notifications-page .filter-btn {
+  background: var(--surface-muted-translucent);
+  border-color: var(--card-border);
+  color: var(--color-text);
+}
+
+.notifications-page .filter-btn:hover {
+  border-color: var(--brand-600);
+  color: var(--color-text-strong);
+}
+
+.notifications-page .filter-btn.active {
+  background: color-mix(in srgb, var(--brand-600) 32%, var(--card-bg));
+  border-color: var(--brand-600);
+  color: var(--color-on-brand);
+}
+
+.notifications-page .card .card-body {
+  padding: var(--space-3);
+}
+
+.notifications-page .notifications-list-header {
+  padding: var(--space-2) 0 var(--space-3);
+  margin-bottom: var(--space-2);
+  border-bottom: 1px solid var(--card-border);
+}
+
+.notifications-page .notifications-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.notifications-page .notifications-list .notification-item {
+  margin: 0;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-md);
+  background: var(--surface-muted-translucent);
+}
+
+.notifications-page .notifications-list .notification-item:last-child {
+  border-bottom: 1px solid var(--card-border);
+}
+
+.notifications-page #pagination {
+  margin-top: var(--space-3) !important;
+  gap: var(--space-2);
+}
+
+@media (max-width: 640px) {
+  .notifications-page .notifications-filters {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .notifications-page .filter-btn {
+    width: 100%;
+    min-width: 0;
+    text-align: center;
+  }
+
+  .notifications-page .notifications-list-header {
+    gap: var(--space-2);
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Notifications layout polish                                                */
+/* -------------------------------------------------------------------------- */
+.notifications-page .card {
+  border-radius: var(--radius-lg);
+}
+
+.notifications-page .notifications-list .notification-item {
+  padding: var(--space-3) !important;
+}
+
+.notifications-page .notifications-list .notification-item + .notification-item {
+  margin-top: var(--space-1);
+}
+
+.notifications-page #clear-all {
+  margin-left: auto;
+}

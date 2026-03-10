@@ -7,7 +7,7 @@
   --footer-h: 70px;
 
   /* Radius & elevation */
-  --radius: 12px;
+  --radius: var(--radius-lg); /* @deprecated — use --radius-lg (12px) from theme.css */
   --elev-1: 0 4px 6px rgba(0,0,0,.08);
   --elev-2: 0 8px 20px rgba(0,0,0,.12);
 

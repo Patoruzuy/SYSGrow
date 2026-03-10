@@ -219,11 +219,12 @@ class HealthDashboardUI {
 
         unitsList.innerHTML = units.map(unit => {
             const status = unit.status || 'unknown';
+            const esc = window.escapeHtml || (t => { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; });
             return `
-                <div class="unit-card ${status}">
+                <div class="unit-card ${esc(status)}">
                     <div class="unit-header">
-                        <span class="unit-name">${unit.name || 'Unit ' + unit.unit_id}</span>
-                        <span class="unit-status-badge ${status}">${status}</span>
+                        <span class="unit-name">${esc(unit.name || 'Unit ' + unit.unit_id)}</span>
+                        <span class="unit-status-badge ${esc(status)}">${esc(status)}</span>
                     </div>
                     <div class="unit-stats">
                         <div class="unit-stat">
@@ -272,17 +273,20 @@ class HealthDashboardUI {
             return;
         }
 
-        feed.innerHTML = activities.slice(0, 10).map(item => `
+        feed.innerHTML = activities.slice(0, 10).map(item => {
+            const esc = window.escapeHtml || (t => { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; });
+            return `
             <div class="activity-item">
                 <div class="activity-icon">
                     <i class="fas fa-${this.getActivityIcon(item.activity_type || item.type)}"></i>
                 </div>
                 <div class="activity-content">
-                    <div class="activity-title">${item.description || item.title || 'Activity'}</div>
+                    <div class="activity-title">${esc(item.description || item.title || 'Activity')}</div>
                     <div class="activity-time">${this.formatTimestamp(item.timestamp)}</div>
                 </div>
             </div>
-        `).join('');
+        `;
+        }).join('');
     }
 
     renderAlertBanner(health) {
@@ -598,7 +602,8 @@ export class SystemHealthDashboard {
                 startAutoRefresh();
             }
         }
-
+        // Cleanup on page leave
+        window.addEventListener('beforeunload', stopAutoRefresh);
         console.log('Ô£à Dashboard initialized');
         return { ui };
     }

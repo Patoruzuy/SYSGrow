@@ -63,4 +63,3 @@ def test_recommended_thresholds_happy_path(client, app):
     # Raw map from ThresholdService should be included for advanced clients.
     raw = data.get("raw")
     assert isinstance(raw, dict)
-

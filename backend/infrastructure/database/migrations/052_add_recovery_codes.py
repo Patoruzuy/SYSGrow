@@ -12,21 +12,25 @@ Usage:
 import sqlite3
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from infrastructure.database.sqlite_handler import SQLiteDatabaseHandler
 
 
-def migrate(db_path: str) -> bool:
+def migrate(db_handler: "SQLiteDatabaseHandler") -> bool:
     """
     Add RecoveryCodes table for offline password recovery.
 
     Args:
-        db_path: Path to SQLite database
+        db_handler: SQLiteDatabaseHandler instance
 
     Returns:
         True if successful
     """
-    print(f"Running migration 052 on {db_path}")
+    print("Running migration 052")
 
-    conn = sqlite3.connect(db_path)
+    conn = db_handler.get_db()
     cursor = conn.cursor()
 
     try:
@@ -64,8 +68,6 @@ def migrate(db_path: str) -> bool:
         print(f"Error during migration: {e}")
         conn.rollback()
         return False
-    finally:
-        conn.close()
 
 
 if __name__ == "__main__":

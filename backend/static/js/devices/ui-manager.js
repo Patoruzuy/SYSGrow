@@ -183,9 +183,6 @@ class DevicesUIManager extends BaseManager {
         // ESP32 handlers
         this.setupESP32Handlers();
         
-        // MQTT handlers
-        this.setupMQTTHandlers();
-        
         // Zigbee discovery
         const zigbeeDiscoverBtn = document.getElementById('zigbee-discover') || document.getElementById('discover-zigbee-btn');
         if (zigbeeDiscoverBtn) {
@@ -266,8 +263,8 @@ class DevicesUIManager extends BaseManager {
 
     setupPolling() {
         // Refresh device health every 30 seconds
-        setInterval(() => this.loadDeviceHealthMetrics(), 30000);
-        setInterval(() => this.loadZigbeeSensors(), 30000);
+        this._healthPollInterval = setInterval(() => this.loadDeviceHealthMetrics(), 30000);
+        this._zigbeePollInterval = setInterval(() => this.loadZigbeeSensors(), 30000);
     }
 
     // ============================================================================
@@ -1870,15 +1867,6 @@ class DevicesUIManager extends BaseManager {
             });
         }
 
-        const sendWiFiBtn = document.getElementById('send-wifi-config');
-        if (sendWiFiBtn) {
-            this.addEventListener(sendWiFiBtn, 'click', () => this.sendWiFiConfigFromUI());
-        }
-
-        const broadcastBtn = document.getElementById('broadcast-wifi');
-        if (broadcastBtn) {
-            this.addEventListener(broadcastBtn, 'click', () => this.broadcastWiFiConfigFromUI());
-        }
     }
 
     async scanForDevices() {
@@ -1923,47 +1911,21 @@ class DevicesUIManager extends BaseManager {
     }
 
     getWiFiConfigFromUI() {
-        const ssid = document.getElementById('setup-ssid')?.value?.trim();
-        const password = document.getElementById('setup-password')?.value || '';
-        const deviceId = document.getElementById('device-list')?.value || null;
-        const setupMethod = document.getElementById('wifi-setup-method')?.value || null;
-        return { ssid, password, device_id: deviceId || undefined, setup_method: setupMethod || undefined };
+        return {};
     }
 
     async sendWiFiConfigFromUI() {
-        const config = this.getWiFiConfigFromUI();
-        if (!config.ssid || !config.password) {
-            this.showNotification('Please enter WiFi credentials', 'warning');
-            return;
-        }
-
-        try {
-            await this.dataService.sendWiFiConfig(config);
-            this.showNotification('WiFi config sent successfully', 'success');
-        } catch (error) {
-            this.log('Failed to send WiFi config:', error);
-            this.showNotification('Failed to send WiFi config', 'error');
-        }
+        this.showNotification(
+            'Direct WiFi credential push is not available from the release web UI. Use the ESP32 provisioning workflow instead.',
+            'warning'
+        );
     }
 
     async broadcastWiFiConfigFromUI() {
-        const config = this.getWiFiConfigFromUI();
-        if (!config.ssid || !config.password) {
-            this.showNotification('Please enter WiFi credentials', 'warning');
-            return;
-        }
-
-        try {
-            await this.dataService.broadcastWiFiConfig({
-                ssid: config.ssid,
-                password: config.password,
-                setup_method: config.setup_method
-            });
-            this.showNotification('WiFi config broadcasted to all devices', 'success');
-        } catch (error) {
-            this.log('Failed to broadcast WiFi config:', error);
-            this.showNotification('Failed to broadcast WiFi config', 'error');
-        }
+        this.showNotification(
+            'Broadcast WiFi provisioning is not available from the release web UI. Provision devices individually.',
+            'warning'
+        );
     }
 
     // ============================================================================
@@ -1971,107 +1933,45 @@ class DevicesUIManager extends BaseManager {
     // ============================================================================
 
     setupMQTTHandlers() {
-        const brokerForm = document.getElementById('mqtt-broker-form');
-        if (brokerForm) {
-            this.addEventListener(brokerForm, 'submit', (e) => this.handleMQTTBrokerConfig(e));
-        }
-
-        const testBtn = document.getElementById('test-mqtt-connection') || document.getElementById('test-mqtt-connection-btn');
-        if (testBtn) {
-            this.addEventListener(testBtn, 'click', () => this.testMQTTConnection());
-        }
-
-        const discoverBtn = document.getElementById('discover-mqtt-devices') || document.getElementById('discover-mqtt-devices-btn');
-        if (discoverBtn) {
-            this.addEventListener(discoverBtn, 'click', () => this.discoverMQTTDevices());
-        }
-
-        const addMQTTForm = document.getElementById('mqtt-device-form') || document.getElementById('add-mqtt-device-form');
-        if (addMQTTForm) {
-            this.addEventListener(addMQTTForm, 'submit', (e) => this.handleAddMQTTDevice(e));
-        }
+        return;
     }
 
     async handleMQTTBrokerConfig(event) {
-        event.preventDefault();
-        const form = event.target;
-        const formData = new FormData(form);
-
-        try {
-            await this.dataService.configureMQTTBroker(Object.fromEntries(formData));
-            this.showNotification('MQTT broker configured successfully', 'success');
-        } catch (error) {
-            this.log('Failed to configure MQTT broker:', error);
-            this.showNotification('Failed to configure MQTT broker', 'error');
-        }
+        event?.preventDefault?.();
+        this.showNotification(
+            'Direct MQTT broker configuration is not available from the release web UI. Configure Mosquitto on the Raspberry Pi instead.',
+            'warning'
+        );
     }
 
     async testMQTTConnection() {
-        try {
-            const result = await this.dataService.testMQTTConnection();
-            if (result.success) {
-                this.showNotification('MQTT connection successful', 'success');
-            } else {
-                this.showNotification('MQTT connection failed', 'error');
-            }
-        } catch (error) {
-            this.log('Failed to test MQTT connection:', error);
-            this.showNotification('MQTT connection test failed', 'error');
-        }
+        this.showNotification(
+            'Use Raspberry Pi system tools to validate Mosquitto. Generic MQTT testing is not exposed from this page.',
+            'warning'
+        );
     }
 
     async discoverMQTTDevices() {
-        try {
-            await this.dataService.discoverMQTTDevices();
-            this.showNotification('MQTT discovery started', 'success');
-            setTimeout(() => this.loadMQTTDevices(), 5000);
-        } catch (error) {
-            this.log('Failed to start MQTT discovery:', error);
-            this.showNotification('Failed to start MQTT discovery', 'error');
-        }
+        this.showNotification(
+            'Generic MQTT discovery is not supported here. Use Zigbee2MQTT discovery or ESP32 provisioning.',
+            'warning'
+        );
     }
 
     async handleAddMQTTDevice(event) {
-        event.preventDefault();
-        const form = event.target;
-        const formData = new FormData(form);
-
-        try {
-            await this.dataService.addMQTTDevice(Object.fromEntries(formData));
-            this.showNotification('MQTT device added successfully', 'success');
-            form.reset();
-            await this.loadMQTTDevices();
-        } catch (error) {
-            this.log('Failed to add MQTT device:', error);
-            this.showNotification('Failed to add MQTT device', 'error');
-        }
+        event?.preventDefault?.();
+        this.showNotification(
+            'Generic MQTT device registration is not part of the release web UI. Use supported SYSGrow device workflows instead.',
+            'warning'
+        );
     }
 
     async loadMQTTDevices() {
-        try {
-            const devices = await this.dataService.loadMQTTDevices();
-            this.renderMQTTDevices(devices);
-        } catch (error) {
-            this.log('Failed to load MQTT devices:', error);
-        }
+        this.renderMQTTDevices([]);
     }
 
     renderMQTTDevices(devices) {
-        const container = document.getElementById('mqtt-devices-list');
-        if (!container) return;
-
-        if (!devices || devices.length === 0) {
-            container.innerHTML = '<p class="text-muted">No MQTT devices found</p>';
-            return;
-        }
-
-        container.innerHTML = devices.map(device => `
-            <div class="device-card">
-                <h4>${device.name}</h4>
-                <p>Topic: ${device.topic}</p>
-                <p>Type: ${device.device_type}</p>
-            </div>
-        `).join('');
+        return;
     }
 
     // ============================================================================
@@ -2252,5 +2152,24 @@ class DevicesUIManager extends BaseManager {
             notification.style.animation = 'slideOut 0.3s ease-in';
             setTimeout(() => notification.remove(), 300);
         }, 5000);
+    }
+
+    /**
+     * Clean up polling intervals and delegate to BaseManager
+     */
+    destroy() {
+        if (this._healthPollInterval) {
+            clearInterval(this._healthPollInterval);
+            this._healthPollInterval = null;
+        }
+        if (this._zigbeePollInterval) {
+            clearInterval(this._zigbeePollInterval);
+            this._zigbeePollInterval = null;
+        }
+        if (this._permitJoinTimer) {
+            clearInterval(this._permitJoinTimer);
+            this._permitJoinTimer = null;
+        }
+        super.destroy();
     }
 }

@@ -19,8 +19,6 @@ class PlantsDataService {
      */
     async loadAll() {
         try {
-            console.log('[PlantsDataService] Loading all plants data...');
-            
             // Use allSettled to handle failures gracefully
             const results = await Promise.allSettled([
                 this.loadPlantsHealth(),
@@ -29,8 +27,6 @@ class PlantsDataService {
                 this.loadHarvests(),
                 this.loadJournal()
             ]);
-            
-            console.log('[PlantsDataService] Load results:', results);
             
             const [plantsHealth, plantsGuide, diseaseRisk, harvests, journal] = results;
             
@@ -42,10 +38,12 @@ class PlantsDataService {
                 journal: journal.status === 'fulfilled' ? journal.value : { entries: [] }
             };
             
-            // Use backend-computed summary (fallback to client-side calculation for compatibility)
-            data.healthScore = data.plantsHealth?.summary || this.calculateHealthScore(data.plantsHealth);
+            // Use backend-computed health_score from summary object.
+            // summary is { total, healthy, stressed, diseased, unknown, health_score, health_status }
+            // Fall back to client-side calculation when backend score is unavailable.
+            data.healthScore = data.plantsHealth?.summary?.health_score
+                ?? this.calculateHealthScore(data.plantsHealth);
             
-            console.log('[PlantsDataService] Final data:', data);
             return data;
         } catch (error) {
             console.error('[PlantsDataService] Failed to load data:', error);
@@ -90,12 +88,103 @@ class PlantsDataService {
     }
 
     /**
+     * Load confirmed disease occurrence history.
+     */
+    async loadDiseaseHistory(params = {}) {
+        const cacheKey = `disease_history_${JSON.stringify(params)}`;
+        return this._fetchWithCache(cacheKey, async () => {
+            const response = await this.api.Plant.getDiseaseHistory(params);
+            return response.data || response;
+        });
+    }
+
+    /**
+     * Load a single disease occurrence.
+     */
+    async getDiseaseOccurrence(occurrenceId) {
+        const cacheKey = `disease_occurrence_${occurrenceId}`;
+        return this._fetchWithCache(cacheKey, async () => {
+            const response = await this.api.Plant.getDiseaseOccurrence(occurrenceId);
+            return response.data || response;
+        });
+    }
+
+    /**
+     * Load disease statistics summary.
+     */
+    async loadDiseaseStatistics(params = {}) {
+        const cacheKey = `disease_stats_${JSON.stringify(params)}`;
+        return this._fetchWithCache(cacheKey, async () => {
+            const response = await this.api.Plant.getDiseaseStatistics(params);
+            return response.data || response;
+        });
+    }
+
+    /**
+     * Load disease prediction accuracy metrics.
+     */
+    async loadDiseasePredictionAccuracy(params = {}) {
+        const cacheKey = `disease_accuracy_${JSON.stringify(params)}`;
+        return this._fetchWithCache(cacheKey, async () => {
+            const response = await this.api.Plant.getDiseasePredictionAccuracy(params);
+            return response.data || response;
+        });
+    }
+
+    /**
      * Load harvest records
      */
     async loadHarvests(params = {}) {
         const cacheKey = `harvests_${JSON.stringify(params)}`;
         return this._fetchWithCache(cacheKey, async () => {
             const response = await this.api.Plant.getHarvests(params);
+            return response.data || response;
+        });
+    }
+
+    /**
+     * Load unit-level harvest efficiency trends.
+     */
+    async loadUnitHarvestStats(unitId, limit = 10) {
+        const cacheKey = `unit_harvest_stats_${unitId}_${limit}`;
+        return this._fetchWithCache(cacheKey, async () => {
+            const response = await this.api.Plant.getUnitHarvestStats(unitId, limit);
+            return response.data || response;
+        });
+    }
+
+    /**
+     * Load recent growth cycle comparison for a unit.
+     */
+    async loadGrowthCycleComparison(unitId, limit = 10) {
+        const cacheKey = `growth_cycle_compare_${unitId}_${limit}`;
+        return this._fetchWithCache(cacheKey, async () => {
+            const response = await this.api.Plant.compareGrowthCycles(unitId, limit);
+            return response.data || response;
+        });
+    }
+
+    /**
+     * Load environment comparison across specific harvest IDs.
+     */
+    async loadHarvestComparison(harvestIds = []) {
+        const normalizedIds = Array.isArray(harvestIds)
+            ? harvestIds.map((value) => Number(value)).filter((value) => Number.isFinite(value) && value > 0)
+            : [];
+        const cacheKey = `harvest_compare_${normalizedIds.join('_')}`;
+        return this._fetchWithCache(cacheKey, async () => {
+            const response = await this.api.Plant.compareHarvests(normalizedIds);
+            return response.data || response;
+        });
+    }
+
+    /**
+     * Load environment stats for a completed harvest cycle.
+     */
+    async loadHarvestEnvironment(unitId, params = {}) {
+        const cacheKey = `harvest_environment_${unitId}_${JSON.stringify(params)}`;
+        return this._fetchWithCache(cacheKey, async () => {
+            const response = await this.api.Plant.getHarvestEnvironment(unitId, params);
             return response.data || response;
         });
     }
@@ -136,6 +225,42 @@ class PlantsDataService {
     async recordNutrient(data) {
         const response = await this.api.Plant.recordNutrient(data);
         this.invalidateCache(['journal']);
+        return response;
+    }
+
+    /**
+     * Record a confirmed disease occurrence.
+     */
+    async recordDiseaseOccurrence(data) {
+        const response = await this.api.Plant.recordDiseaseOccurrence(data);
+        this.invalidateCache(['disease_history', 'disease_stats', 'disease_accuracy', 'disease_risk']);
+        return response;
+    }
+
+    /**
+     * Resolve a disease occurrence.
+     */
+    async resolveDiseaseOccurrence(occurrenceId, data) {
+        const response = await this.api.Plant.resolveDiseaseOccurrence(occurrenceId, data);
+        this.invalidateCache(['disease_history', 'disease_stats']);
+        return response;
+    }
+
+    /**
+     * Record feedback on a disease prediction.
+     */
+    async recordDiseasePredictionFeedback(data) {
+        const response = await this.api.Plant.recordDiseasePredictionFeedback(data);
+        this.invalidateCache(['disease_accuracy']);
+        return response;
+    }
+
+    /**
+     * Record a harvest for a plant.
+     */
+    async recordHarvest(plantId, data) {
+        const response = await this.api.Plant.harvestPlant(plantId, data);
+        this.invalidateCache(['harvests', 'unit_harvest_stats', 'growth_cycle_compare', 'harvest_compare', 'harvest_environment']);
         return response;
     }
 
@@ -189,19 +314,15 @@ class PlantsDataService {
         const cached = this.catalogCache.get(cacheKey);
         
         if (cached) {
-            console.log('[PlantsDataService] Using cached catalog');
             return cached;
         }
         
-        console.log('[PlantsDataService] Fetching plant catalog...');
         try {
             const result = await API.Plant.getCatalog();
-            console.log('[PlantsDataService] Raw API response:', result);
             
             // API unwraps the response, so result is the actual data
             const catalog = Array.isArray(result) ? result : [];
             this.catalogCache.set(cacheKey, catalog);
-            console.log(`[PlantsDataService] Loaded ${catalog.length} plants from catalog`);
             return catalog;
         } catch (error) {
             console.error('[PlantsDataService] Error loading catalog:', error);
@@ -221,12 +342,10 @@ class PlantsDataService {
      * Save custom plant to catalog
      */
     async saveCustomPlant(plantData) {
-        console.log('[PlantsDataService] Saving custom plant:', plantData);
         try {
             const result = await API.Plant.saveCustomPlant(plantData);
             // Invalidate catalog cache to force reload
             this.catalogCache.clear();
-            console.log('[PlantsDataService] Custom plant saved successfully');
             return result;
         } catch (error) {
             console.error('[PlantsDataService] Error saving custom plant:', error);

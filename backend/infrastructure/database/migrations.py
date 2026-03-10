@@ -1,9 +1,10 @@
 """Database migration utilities for startup tasks."""
+
 from __future__ import annotations
 
-import json
+import contextlib
 import hashlib
-from typing import Optional
+import json
 
 from app.utils.time import iso_now
 
@@ -53,7 +54,9 @@ def run_startup_migrations(db_handler) -> int:
                 if cnt and int(cnt) > 0:
                     return 0
 
-            cur = conn.execute("SELECT alert_id, timestamp, alert_type, title, message, source_type, source_id, metadata FROM Alert ORDER BY timestamp DESC")
+            cur = conn.execute(
+                "SELECT alert_id, timestamp, alert_type, title, message, source_type, source_id, metadata FROM Alert ORDER BY timestamp DESC"
+            )
             rows = cur.fetchall()
             for r in rows:
                 try:
@@ -71,10 +74,8 @@ def run_startup_migrations(db_handler) -> int:
                     last_seen = md.get("last_seen") or row.get("timestamp") or iso_now()
 
                     # Update Alert metadata if needed
-                    try:
+                    with contextlib.suppress(Exception):
                         conn.execute("UPDATE Alert SET metadata = ? WHERE alert_id = ?", (json.dumps(md), aid))
-                    except Exception:
-                        pass
 
                     # Upsert AlertDedupe
                     cur2 = conn.execute("SELECT dedupe_id, occurrences FROM AlertDedupe WHERE dedup_key = ?", (dk,))

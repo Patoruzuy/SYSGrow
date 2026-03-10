@@ -34,6 +34,30 @@
     </label>
     {% endif %}
     
+    {% set _auto = autocomplete %}
+    {% set _field_key = (name_attr or field_id or '') | lower %}
+    {% if _auto is none %}
+      {% if type == 'password' %}
+        {% if 'new' in _field_key or 'confirm' in _field_key or 'reset' in _field_key %}
+          {% set _auto = 'new-password' %}
+        {% elif 'current' in _field_key or 'old' in _field_key %}
+          {% set _auto = 'current-password' %}
+        {% else %}
+          {% set _auto = 'current-password' %}
+        {% endif %}
+      {% elif type == 'email' or 'email' in _field_key %}
+        {% set _auto = 'email' %}
+      {% elif 'user' in _field_key or 'identifier' in _field_key %}
+        {% set _auto = 'username' %}
+      {% elif type == 'url' %}
+        {% set _auto = 'url' %}
+      {% elif type == 'tel' %}
+        {% set _auto = 'tel' %}
+      {% elif type == 'text' %}
+        {% set _auto = 'off' %}
+      {% endif %}
+    {% endif %}
+
     {% if input_container_class %}<div class="{{ input_container_class }}">{% endif %}
       <input
         id="{{ field_id }}"
@@ -49,7 +73,7 @@
         {% if step is not none %}step="{{ step }}"{% endif %}
         {% if readonly %}readonly{% endif %}
         {% if maxlength is not none %}maxlength="{{ maxlength }}"{% endif %}
-        {% if autocomplete is not none %}autocomplete="{{ autocomplete }}"{% endif %}
+        {% if _auto is not none %}autocomplete="{{ _auto }}"{% endif %}
         {{ kwargs|xmlattr }}
       >
       {% if suffix_html %}{{ suffix_html | safe }}{% endif %}
@@ -166,7 +190,10 @@
 {# Dashboard KPI Card macro - tweaked for JS compatibility #}
 {% macro kpi_card(id=none, label=none, value='--', icon=none, trend=none, variant='default', subtext=none, value_id=none, label_id=none, title=none, footer=none, unit=none) %}
 {% set final_label = label or title %}
-<div class="kpi-card kpi-card--{{ variant }}" id="kpi-card-{{ id or 'generic' }}" data-kpi="{{ id or 'generic' }}">
+{% set resolved_card_id = ('kpi-card-' ~ id) if id else none %}
+{% set resolved_value_id = value_id or ((id ~ '-value') if id else none) %}
+{% set resolved_label_id = label_id or ((id ~ '-text') if id else none) %}
+<div class="kpi-card kpi-card--{{ variant }}" {% if resolved_card_id %}id="{{ resolved_card_id }}"{% endif %} data-kpi="{{ id or 'generic' }}">
   <div class="kpi-card__icon">
     {% if icon %}
       <i class="{{ icon }}"></i>
@@ -175,8 +202,8 @@
     {% endif %}
   </div>
   <div class="kpi-card__body">
-    <div class="kpi-value" id="{{ value_id or (id ~ '-value' if id else value_id) }}">{{ value }}{% if unit %}<span class="kpi-unit">{{ unit }}</span>{% endif %}</div>
-    <div class="kpi-label" id="{{ label_id or (id ~ '-text' if id else label_id) }}">{{ final_label }}</div>
+    <div class="kpi-value" {% if resolved_value_id %}id="{{ resolved_value_id }}"{% endif %}>{{ value }}{% if unit %}<span class="kpi-unit">{{ unit }}</span>{% endif %}</div>
+    <div class="kpi-label" {% if resolved_label_id %}id="{{ resolved_label_id }}"{% endif %}>{{ final_label }}</div>
     {% if subtext %}
       <div class="kpi-subtext">{{ subtext }}</div>
     {% endif %}
@@ -188,14 +215,14 @@
 {% endmacro %}
 
 {# Generic Content Card #}
-{% macro content_card(title=none, icon=none, subtitle=none, class='', id=none, header_extra=none, variant=none, actions=none) %}
+{% macro content_card(title=none, icon=none, subtitle=none, class='', id=none, header_extra=none, variant=none, actions=none, heading_level=3) %}
 {% set final_header_extra = header_extra or actions %}
 <div class="card {{ class }} {% if variant %}card--{{ variant }}{% endif %}" {% if id %}id="{{ id }}"{% endif %} {{ kwargs|xmlattr }}>
   {% if title or icon or final_header_extra or subtitle %}
   <div class="card-header">
     <div class="card-header-main">
       {% if title or icon %}
-      <h3>{% if icon %}<i class="{{ icon }}"></i> {% endif %}{{ title }}</h3>
+      <h{{ heading_level }}>{% if icon %}<i class="{{ icon }}"></i> {% endif %}{{ title }}</h{{ heading_level }}>
       {% endif %}
       {% if subtitle %}
       <p class="card-subtitle">{{ subtitle }}</p>
@@ -267,6 +294,32 @@
   </div>
   {% endif %}
 </header>
+{% endmacro %}
+
+{# Contextual Help Banner - informational strip at the top of a page section #}
+{# Parameters:
+   title       - Bold heading line
+   text        - Supporting description text
+   icon        - Font Awesome icon class (without 'fas '), default 'circle-info'
+   link_text   - Optional link text (requires category + article_id)
+   category    - Help article category for url_for (optional)
+   article_id  - Help article id for url_for (optional)
+#}
+{% macro help_banner(title, text, icon='circle-info', link_text=none, category=none, article_id=none) %}
+{% set banner_id = (category ~ '-' ~ article_id) if (category and article_id) else (title | lower | replace(' ', '-') | replace("'", '') | truncate(40, true, '')) %}
+<div class="help-banner" data-banner-id="{{ banner_id }}">
+  <i class="fas fa-{{ icon }}"></i>
+  <div class="help-banner-content">
+    <p class="help-banner-title">{{ title }}</p>
+    <p class="help-banner-text">{{ text }}</p>
+  </div>
+  {% if link_text and category and article_id %}
+  {{ help_link(category, article_id, link_text) }}
+  {% endif %}
+  <button type="button" class="help-banner-dismiss" aria-label="Dismiss help tip" title="Dismiss">
+    <i class="fas fa-times"></i>
+  </button>
+</div>
 {% endmacro %}
 
 {# Contextual Help Link - Links to relevant help articles #}

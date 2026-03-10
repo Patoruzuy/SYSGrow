@@ -1,12 +1,11 @@
-import os
-import json
-from pathlib import Path
+import contextlib
 import logging
+from pathlib import Path
 
-from infrastructure.database.sqlite_handler import SQLiteDatabaseHandler
-from infrastructure.database.repositories.alerts import AlertRepository
 from app.services.application.alert_service import AlertService
 from app.services.application.device_health_service import DeviceHealthService
+from infrastructure.database.repositories.alerts import AlertRepository
+from infrastructure.database.sqlite_handler import SQLiteDatabaseHandler
 
 # Setup logging for test run
 logging.basicConfig(level=logging.DEBUG)
@@ -84,10 +83,8 @@ def test_create_alert_end_to_end():
     assert "sensor_anomaly" in types
 
     # Cleanup DB file
-    try:
+    with contextlib.suppress(Exception):
         dbpath.unlink()
-    except Exception:
-        pass
 
 
 if __name__ == "__main__":

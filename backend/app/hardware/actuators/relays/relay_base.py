@@ -2,10 +2,11 @@
 This file contains the abstract base class for all relay types.
 The RelayBase class defines the common interface for all relay classes. It provides methods to turn the relay on and off, and to get the device name.
 
-    
+
 """
 
 from app.utils.event_bus import EventBus
+
 
 class RelayBase:
     """
@@ -13,7 +14,7 @@ class RelayBase:
 
     Attributes:
         device (str): The name of the device controlled by the relay.
-    
+
     Methods:
         turn_on(): Turns the relay on. (Implemented in subclasses)
         turn_off(): Turns the relay off. (Implemented in subclasses)

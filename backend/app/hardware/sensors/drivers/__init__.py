@@ -24,10 +24,10 @@ from .soil_moisture_sensor import SoilMoistureSensorV2
 from .temp_humidity_sensor import BME280Sensor
 
 __all__ = [
-    'ENS160_AHT21Sensor',
-    'DHT11Sensor',
-    'TSL2591Driver',
-    'MQ2Sensor',
-    'SoilMoistureSensorV2',
-    'BME280Sensor',
+    "BME280Sensor",
+    "DHT11Sensor",
+    "ENS160_AHT21Sensor",
+    "MQ2Sensor",
+    "SoilMoistureSensorV2",
+    "TSL2591Driver",
 ]

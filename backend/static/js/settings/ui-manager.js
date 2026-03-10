@@ -97,14 +97,15 @@ class SettingsUIManager extends BaseManager {
 
       // Buttons
       suggestButton: document.getElementById('suggest-thresholds'),
-      scanWiFiButton: document.getElementById('scan-wifi'),
-      sendWiFiButton: document.getElementById('send-wifi-config'),
-      broadcastWiFiButton: document.getElementById('broadcast-wifi'),
       deviceScanButton: document.getElementById('device-scan'),
       checkFirmwareButton: document.getElementById('check-firmware'),
       provisionButton: document.getElementById('provision-device'),
       zigbeeDiscoverButton: document.getElementById('zigbee-discover'),
-      exportDataButton: document.getElementById('export-data-btn'),
+      saveRetentionButton: document.getElementById('save-retention-btn'),
+      previewPruneButton: document.getElementById('preview-prune-btn'),
+      runPruneButton: document.getElementById('run-prune-btn'),
+      createBackupButton: document.getElementById('create-backup-btn'),
+      vacuumDatabaseButton: document.getElementById('vacuum-db-btn'),
 
       // Other elements
       deviceList: document.getElementById('device-list'),
@@ -114,6 +115,12 @@ class SettingsUIManager extends BaseManager {
       commSelect: document.getElementById('communication-type-add'),
       zigbeeFields: document.getElementById('zigbee-fields-add'),
       addDeviceForm: document.getElementById('add-device-form'),
+      sensorPruneDaysInput: document.getElementById('sensor-prune-days'),
+      actuatorStateRetentionInput: document.getElementById('actuator-state-retention'),
+      pruneScopeSelect: document.getElementById('prune-scope'),
+      pruneVacuumCheckbox: document.getElementById('prune-vacuum'),
+      backupLabelInput: document.getElementById('backup-label'),
+      maintenanceResult: document.getElementById('maintenance-last-result'),
 
       // Irrigation workflow elements
       irrigationWorkflowForm: document.getElementById('irrigation-workflow-form'),
@@ -615,6 +622,7 @@ class SettingsUIManager extends BaseManager {
         this.loadHotspotSettings(),
         this.loadCameraSettings(),
         this.loadAnalyticsSettings(),
+        this.loadDatabaseMaintenance(),
         this.loadThrottleConfig(),
         this.loadIrrigationWorkflow(),  // Load irrigation workflow settings
         this.loadSecuritySettings()  // Load security settings (recovery codes count)
@@ -1879,96 +1887,24 @@ class SettingsUIManager extends BaseManager {
   // ============================================================================
 
   async handleScanWiFi() {
-    const button = this.elements.scanWiFiButton;
-    const ssidSelect = document.getElementById('setup-ssid');
-    if (!ssidSelect) return;
-
-    this.setButtonLoading(button, true, 'Scanning...');
-
-    try {
-      const networks = await this.dataService.scanWiFiNetworks({ force: true });
-
-      ssidSelect.innerHTML = '<option value="">Select a network...</option>';
-
-      if (networks && networks.length > 0) {
-        networks.forEach(network => {
-          const option = document.createElement('option');
-          option.value = network.ssid || network;
-          option.textContent = network.ssid || network;
-          if (network.signal) option.textContent += ` (Signal: ${network.signal})`;
-          ssidSelect.appendChild(option);
-        });
-        this.displayMessage(`Found ${networks.length} networks`, 'success');
-      } else {
-        const option = document.createElement('option');
-        option.disabled = true;
-        option.textContent = 'No networks found';
-        ssidSelect.appendChild(option);
-      }
-    } catch (error) {
-      this.displayMessage(`WiFi scan failed: ${this.normalizeError(error)}`, 'error');
-    } finally {
-      this.setButtonLoading(button, false);
-    }
+    this.displayMessage(
+      'WiFi scanning is not exposed from the release settings UI. Use the device provisioning flow or configure networking directly on the Raspberry Pi.',
+      'warning'
+    );
   }
 
   async handleSendWiFiConfig() {
-    const deviceId = document.getElementById('device-id')?.value || '';
-    const ssid = document.getElementById('setup-ssid')?.value || '';
-    const password = document.getElementById('setup-password')?.value || '';
-    const setupMethod = document.getElementById('wifi-setup-method')?.value || '';
-
-    if (!deviceId) {
-      this.displayMessage('Please select a device first', 'error');
-      return;
-    }
-    if (!ssid) {
-      this.displayMessage('Please select a WiFi network', 'error');
-      return;
-    }
-
-    const button = this.elements.sendWiFiButton;
-    this.setButtonLoading(button, true, 'Sending...');
-
-    try {
-      const payload = { device_id: deviceId, ssid, password, method: setupMethod };
-      await this.dataService.sendWiFiConfig(payload);
-      this.displayMessage('WiFi configuration sent successfully', 'success');
-
-      const pw = document.getElementById('setup-password');
-      if (pw) pw.value = '';
-    } catch (error) {
-      this.displayMessage(`Failed to send WiFi configuration: ${this.normalizeError(error)}`, 'error');
-    } finally {
-      this.setButtonLoading(button, false);
-    }
+    this.displayMessage(
+      'Direct WiFi credential push is not available from the release web UI. Use ESP32 provisioning or local Raspberry Pi networking tools instead.',
+      'warning'
+    );
   }
 
   async handleBroadcastWiFi() {
-    const ssid = document.getElementById('setup-ssid')?.value || '';
-    const password = document.getElementById('setup-password')?.value || '';
-    const setupMethod = document.getElementById('wifi-setup-method')?.value || '';
-
-    if (!ssid) {
-      this.displayMessage('Please select a WiFi network', 'error');
-      return;
-    }
-
-    const button = this.elements.broadcastWiFiButton;
-    this.setButtonLoading(button, true, 'Broadcasting...');
-
-    try {
-      const payload = { ssid, password, method: setupMethod, broadcast: true };
-      const response = await this.dataService.broadcastWiFiConfig(payload);
-      this.displayMessage(`WiFi configuration broadcast to ${response?.deviceCount || 'all'} devices`, 'success');
-
-      const pw = document.getElementById('setup-password');
-      if (pw) pw.value = '';
-    } catch (error) {
-      this.displayMessage(`Failed to broadcast WiFi configuration: ${this.normalizeError(error)}`, 'error');
-    } finally {
-      this.setButtonLoading(button, false);
-    }
+    this.displayMessage(
+      'Broadcast WiFi provisioning is not available from the release web UI. Use the supported provisioning path for each device instead.',
+      'warning'
+    );
   }
 
   // ============================================================================
@@ -2314,10 +2250,99 @@ class SettingsUIManager extends BaseManager {
 
       if (this.elements.energyForm) this.markFormPristine(this.elements.energyForm);
       if (this.elements.alertsForm) this.markFormPristine(this.elements.alertsForm);
-      if (this.elements.dataForm) this.markFormPristine(this.elements.dataForm);
     } catch (error) {
       this.warn('Failed to load analytics settings:', error);
     }
+  }
+
+  async loadDatabaseMaintenance({ force = false } = {}) {
+    try {
+      const settings = await this.dataService.loadDatabaseMaintenance({ force });
+      if (!settings) return;
+
+      if (this.elements.sensorPruneDaysInput && settings.sensorPruneWindowDays !== undefined) {
+        this.elements.sensorPruneDaysInput.value = String(settings.sensorPruneWindowDays);
+      }
+
+      if (this.elements.actuatorStateRetentionInput && settings.actuatorStateRetentionDays !== undefined) {
+        this.elements.actuatorStateRetentionInput.value = String(settings.actuatorStateRetentionDays);
+      }
+
+      if (this.elements.pruneScopeSelect && !this.elements.pruneScopeSelect.value) {
+        this.elements.pruneScopeSelect.value = this.dataService.selectedUnitId ? 'selected' : 'all';
+      }
+
+      if (this.elements.maintenanceResult) {
+        this.elements.maintenanceResult.hidden = true;
+        this.elements.maintenanceResult.textContent = '';
+      }
+
+      if (this.elements.dataForm) this.markFormPristine(this.elements.dataForm);
+    } catch (error) {
+      console.error('[SettingsUIManager] loadDatabaseMaintenance failed:', error);
+      this.displayMessage(`Failed to load database maintenance settings: ${this.normalizeError(error)}`, 'error');
+    }
+  }
+
+  getPruneUnitId() {
+    const scope = this.elements.pruneScopeSelect?.value || 'selected';
+    if (scope !== 'selected') return null;
+
+    const unitId = this.dataService.selectedUnitId;
+    if (!Number.isFinite(unitId)) {
+      throw new Error('Select a unit before running a unit-scoped prune');
+    }
+
+    return unitId;
+  }
+
+  getDatabaseMaintenancePayload() {
+    const retentionDays = parseInt(this.elements.sensorPruneDaysInput?.value || '90', 10);
+    const actuatorStateRetentionDays = parseInt(this.elements.actuatorStateRetentionInput?.value || '90', 10);
+    const backupLabel = (this.elements.backupLabelInput?.value || '').trim();
+    const vacuum = Boolean(this.elements.pruneVacuumCheckbox?.checked);
+
+    if (!Number.isFinite(retentionDays) || retentionDays < 0) {
+      throw new Error('Sensor prune window must be 0 days or greater');
+    }
+
+    if (!Number.isFinite(actuatorStateRetentionDays) || actuatorStateRetentionDays < 1) {
+      throw new Error('Actuator state retention must be at least 1 day');
+    }
+
+    return {
+      retentionDays,
+      actuatorStateRetentionDays,
+      backupLabel,
+      vacuum,
+      unitId: this.getPruneUnitId()
+    };
+  }
+
+  renderMaintenanceResult(title, result) {
+    if (!this.elements.maintenanceResult) return;
+
+    const lines = [title];
+
+    if (result?.backup?.filename) {
+      lines.push(`Backup: ${result.backup.filename}`);
+    }
+    if (result?.deleted !== undefined) {
+      lines.push(`Deleted sensor readings: ${result.deleted}`);
+    }
+    if (result?.cutoff) {
+      lines.push(`Cutoff: ${result.cutoff}`);
+    }
+    if (result?.unit_id !== undefined && result?.unit_id !== null) {
+      lines.push(`Unit: ${result.unit_id}`);
+    }
+    if (result?.days !== undefined) {
+      lines.push(`Actuator retention: ${result.days} days`);
+    }
+
+    const detailJson = JSON.stringify(result, null, 2);
+    this.elements.maintenanceResult.textContent = `${lines.join('\n')}\n\n${detailJson}`;
+    this.elements.maintenanceResult.hidden = false;
   }
 
   async handleAnalyticsSubmit(event, section) {
@@ -2368,24 +2393,87 @@ class SettingsUIManager extends BaseManager {
     }
   }
 
-  async handleExportData() {
-    const button = this.elements.exportDataButton;
-    this.setButtonLoading(button, true, 'Exporting...');
+  async handleDatabaseMaintenanceSubmit(event) {
+    event.preventDefault();
 
     try {
-      const formatRadio = document.querySelector('input[name="export-format"]:checked');
-      const format = formatRadio ? formatRadio.value : 'csv';
-
-      const result = await this.dataService.exportAnalyticsData(format);
-
-      if (result?.url) {
-        window.location.href = result.url;
-        this.displayMessage('Data exported successfully', 'success');
-      } else {
-        this.displayMessage('Export initiated - check downloads', 'success');
-      }
+      const payload = this.getDatabaseMaintenancePayload();
+      const result = await this.dataService.saveActuatorStateRetention(payload.actuatorStateRetentionDays);
+      this.markFormPristine(event.target);
+      this.renderMaintenanceResult('Runtime retention updated', result);
+      this.displayMessage('Runtime actuator retention updated', 'success');
     } catch (error) {
-      this.displayMessage(`Failed to export data: ${this.normalizeError(error)}`, 'error');
+      this.displayMessage(`Failed to update retention settings: ${this.normalizeError(error)}`, 'error');
+    }
+  }
+
+  async handlePreviewPrune() {
+    const button = this.elements.previewPruneButton;
+    this.setButtonLoading(button, true, 'Previewing...');
+
+    try {
+      const payload = this.getDatabaseMaintenancePayload();
+      const result = await this.dataService.previewDatabasePrune({
+        retention_days: payload.retentionDays,
+        unit_id: payload.unitId
+      });
+      this.renderMaintenanceResult('Prune preview', result);
+      this.displayMessage('Prune preview completed', 'success');
+    } catch (error) {
+      this.displayMessage(`Failed to preview prune: ${this.normalizeError(error)}`, 'error');
+    } finally {
+      this.setButtonLoading(button, false);
+    }
+  }
+
+  async handleRunPrune() {
+    const button = this.elements.runPruneButton;
+    this.setButtonLoading(button, true, 'Pruning...');
+
+    try {
+      const payload = this.getDatabaseMaintenancePayload();
+      const result = await this.dataService.runDatabasePrune({
+        retention_days: payload.retentionDays,
+        unit_id: payload.unitId,
+        vacuum: payload.vacuum
+      });
+      this.renderMaintenanceResult('Prune completed', result);
+      this.displayMessage('Database prune completed', 'success');
+    } catch (error) {
+      this.displayMessage(`Failed to prune sensor readings: ${this.normalizeError(error)}`, 'error');
+    } finally {
+      this.setButtonLoading(button, false);
+    }
+  }
+
+  async handleCreateBackup() {
+    const button = this.elements.createBackupButton;
+    this.setButtonLoading(button, true, 'Creating...');
+
+    try {
+      const payload = this.getDatabaseMaintenancePayload();
+      const result = await this.dataService.createDatabaseBackup({
+        label: payload.backupLabel || 'manual'
+      });
+      this.renderMaintenanceResult('Backup created', result);
+      this.displayMessage('Database backup created', 'success');
+    } catch (error) {
+      this.displayMessage(`Failed to create backup: ${this.normalizeError(error)}`, 'error');
+    } finally {
+      this.setButtonLoading(button, false);
+    }
+  }
+
+  async handleVacuumDatabase() {
+    const button = this.elements.vacuumDatabaseButton;
+    this.setButtonLoading(button, true, 'Vacuuming...');
+
+    try {
+      const result = await this.dataService.vacuumDatabase();
+      this.renderMaintenanceResult('VACUUM completed', result);
+      this.displayMessage('Database vacuum completed', 'success');
+    } catch (error) {
+      this.displayMessage(`Failed to vacuum database: ${this.normalizeError(error)}`, 'error');
     } finally {
       this.setButtonLoading(button, false);
     }
@@ -2620,6 +2708,11 @@ class SettingsUIManager extends BaseManager {
       this.addEventListener(closeScheduleModalBtn, 'click', () => this.closeScheduleModal());
     }
 
+    const cancelScheduleBtn = document.getElementById('cancel-schedule-btn');
+    if (cancelScheduleBtn) {
+      this.addEventListener(cancelScheduleBtn, 'click', () => this.closeScheduleModal());
+    }
+
     // Modal close buttons (generic)
     document.querySelectorAll('[data-action="close-modal"]').forEach(btn => {
       this.addEventListener(btn, 'click', () => {
@@ -2671,7 +2764,7 @@ class SettingsUIManager extends BaseManager {
     }
 
     if (this.elements.dataForm) {
-      this.addEventListener(this.elements.dataForm, 'submit', (e) => this.handleAnalyticsSubmit(e, 'data'));
+      this.addEventListener(this.elements.dataForm, 'submit', (e) => this.handleDatabaseMaintenanceSubmit(e));
     }
 
     if (this.elements.addDeviceForm) {
@@ -2679,18 +2772,6 @@ class SettingsUIManager extends BaseManager {
     }
 
     // Buttons
-    if (this.elements.scanWiFiButton) {
-      this.addEventListener(this.elements.scanWiFiButton, 'click', () => this.handleScanWiFi());
-    }
-
-    if (this.elements.sendWiFiButton) {
-      this.addEventListener(this.elements.sendWiFiButton, 'click', () => this.handleSendWiFiConfig());
-    }
-
-    if (this.elements.broadcastWiFiButton) {
-      this.addEventListener(this.elements.broadcastWiFiButton, 'click', () => this.handleBroadcastWiFi());
-    }
-
     if (this.elements.deviceScanButton) {
       this.addEventListener(this.elements.deviceScanButton, 'click', () => this.handleScanDevices());
     }
@@ -2711,8 +2792,20 @@ class SettingsUIManager extends BaseManager {
       this.addEventListener(this.elements.zigbeeDiscoverButton, 'click', () => this.handleDiscoverZigbee());
     }
 
-    if (this.elements.exportDataButton) {
-      this.addEventListener(this.elements.exportDataButton, 'click', () => this.handleExportData());
+    if (this.elements.previewPruneButton) {
+      this.addEventListener(this.elements.previewPruneButton, 'click', () => this.handlePreviewPrune());
+    }
+
+    if (this.elements.runPruneButton) {
+      this.addEventListener(this.elements.runPruneButton, 'click', () => this.handleRunPrune());
+    }
+
+    if (this.elements.createBackupButton) {
+      this.addEventListener(this.elements.createBackupButton, 'click', () => this.handleCreateBackup());
+    }
+
+    if (this.elements.vacuumDatabaseButton) {
+      this.addEventListener(this.elements.vacuumDatabaseButton, 'click', () => this.handleVacuumDatabase());
     }
 
     // Conditional fields

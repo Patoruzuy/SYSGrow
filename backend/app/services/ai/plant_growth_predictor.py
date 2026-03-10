@@ -13,9 +13,11 @@ Author: SYSGrow Team
 Date: December 2025
 """
 
+from __future__ import annotations
+
 import logging
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any
 
 from app.enums import PlantStage
 
@@ -24,6 +26,7 @@ from app.enums import PlantStage
 
 if TYPE_CHECKING:
     from app.services.ai.model_registry import ModelRegistry
+    from app.services.application.threshold_service import ThresholdService
 
 logger = logging.getLogger(__name__)
 
@@ -34,14 +37,15 @@ GrowthStage = PlantStage
 @dataclass
 class GrowthConditions:
     """Optimal environmental conditions for plant growth."""
+
     temperature: float  # °C
     humidity: float  # %
     soil_moisture: float  # %
     lighting_hours: float  # hours/day
     confidence: float  # 0.0-1.0
     stage: str
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "temperature": self.temperature,
@@ -51,7 +55,7 @@ class GrowthConditions:
             "confidence": self.confidence,
             "stage": self.stage,
         }
-    
+
     def get_recommendation(self) -> str:
         """Get human-readable recommendation."""
         return (
@@ -64,13 +68,14 @@ class GrowthConditions:
 @dataclass
 class StageTransition:
     """Analysis of growth stage transition readiness."""
+
     from_stage: str
     to_stage: str
     ready: bool
-    conditions_met: Dict[str, bool]
-    recommendations: List[str]
-    
-    def to_dict(self) -> Dict[str, Any]:
+    conditions_met: dict[str, bool]
+    recommendations: list[str]
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "from_stage": self.from_stage,
@@ -130,8 +135,9 @@ class PlantGrowthPredictor:
 
     def __init__(
         self,
-        model_registry: Optional["ModelRegistry"] = None,
+        model_registry: "ModelRegistry" | None = None,
         enable_validation: bool = True,
+        threshold_service: "ThresholdService" | None = None,
     ):
         """
         Initialize plant growth predictor.
@@ -139,16 +145,18 @@ class PlantGrowthPredictor:
         Args:
             model_registry: Optional ModelRegistry for ML model access
             enable_validation: If True, validate predictions against known ranges
+            threshold_service: Optional ThresholdService for plant-specific defaults
         """
         self.model_registry = model_registry
         self.enable_validation = enable_validation
+        self.threshold_service = threshold_service
 
         # Lazy-loaded components
-        self._model: Optional[Any] = None
-        self._stage_encoder: Optional[Any] = None
+        self._model: Any | None = None
+        self._stage_encoder: Any | None = None
         self._model_loaded = False
-        self._model_error: Optional[str] = None
-        
+        self._model_error: str | None = None
+
         logger.info("PlantGrowthPredictor initialized")
 
     def _load_models(self) -> bool:
@@ -168,27 +176,20 @@ class PlantGrowthPredictor:
 
         try:
             # Try to load growth stage predictor model
-            model_info = self.model_registry.get_model(
-                model_type="growth_stage",
-                version="latest"
-            )
-            
+            model_info = self.model_registry.get_model(model_type="growth_stage", version="latest")
+
             if not model_info:
                 self._model_error = "Growth stage model not found in registry"
-                logger.debug(f"{self._model_error}. Using fallback conditions.")
+                logger.debug("%s. Using fallback conditions.", self._model_error)
                 return False
 
             # Load the model
-            self._model = self.model_registry.load_model_artifact(
-                model_type="growth_stage",
-                version=model_info.version
-            )
-            
+            self._model = self.model_registry.load_model_artifact(model_type="growth_stage", version=model_info.version)
+
             # Load encoder if available
             try:
                 self._stage_encoder = self.model_registry.load_model_artifact(
-                    model_type="growth_stage_encoder",
-                    version=model_info.version
+                    model_type="growth_stage_encoder", version=model_info.version
                 )
             except Exception:
                 logger.debug("Stage encoder not found, will use direct encoding")
@@ -196,11 +197,11 @@ class PlantGrowthPredictor:
 
             self._model_loaded = True
             self._model_error = None
-            logger.info(f"Growth stage model loaded: {model_info.version}")
+            logger.info("Growth stage model loaded: %s", model_info.version)
             return True
 
         except Exception as e:
-            self._model_error = f"Failed to load growth models: {str(e)}"
+            self._model_error = f"Failed to load growth models: {e!s}"
             logger.debug(self._model_error)
             return False
 
@@ -221,7 +222,7 @@ class PlantGrowthPredictor:
         """Check if ML models are available for predictions."""
         return self._model_loaded or self._load_models()
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """
         Get predictor status and configuration.
 
@@ -241,8 +242,8 @@ class PlantGrowthPredictor:
         self,
         stage_name: str,
         use_fallback: bool = True,
-        days_in_stage: Optional[int] = None,
-    ) -> Optional[GrowthConditions]:
+        days_in_stage: int | None = None,
+    ) -> GrowthConditions | None:
         """
         Predict optimal environmental conditions for a given growth stage.
 
@@ -274,9 +275,7 @@ class PlantGrowthPredictor:
 
                 # Validate prediction
                 if self.enable_validation and not self._validate_prediction(prediction):
-                    logger.warning(
-                        f"Invalid ML prediction for stage '{stage_name}', using fallback"
-                    )
+                    logger.warning("Invalid ML prediction for stage '%s', using fallback", stage_name)
                 else:
                     # Return ML prediction with high confidence
                     conditions = GrowthConditions(
@@ -290,22 +289,22 @@ class PlantGrowthPredictor:
 
                     # Apply stage-specific adjustments if days provided
                     if days_in_stage is not None:
-                        conditions = self._adjust_for_stage_progress(
-                            conditions, days_in_stage
-                        )
+                        conditions = self._adjust_for_stage_progress(conditions, days_in_stage)
 
-                    logger.debug(
-                        f"ML prediction for '{stage_name}': {conditions.to_dict()}"
-                    )
+                    logger.debug("ML prediction for '%s': %s", stage_name, conditions.to_dict())
                     return conditions
 
             except Exception as e:
-                logger.error(
-                    f"Prediction error for stage '{stage_name}': {e}", exc_info=True
-                )
+                logger.error("Prediction error for stage '%s': %s", stage_name, e, exc_info=True)
 
         # Fallback to defaults
         if use_fallback:
+            # Prefer ThresholdService (profile-aware, plant-specific)
+            ts_conditions = self._conditions_from_threshold_service(stage_name)
+            if ts_conditions is not None:
+                logger.debug("Using ThresholdService conditions for stage '%s'", stage_name)
+                return ts_conditions
+
             default = self.DEFAULT_CONDITIONS.get(stage_name)
             if default is None:
                 # Try case-insensitive match
@@ -315,12 +314,10 @@ class PlantGrowthPredictor:
                         break
                 else:
                     # Ultimate fallback
-                    logger.warning(
-                        f"Unknown stage '{stage_name}', using Vegetative defaults"
-                    )
+                    logger.warning("Unknown stage '%s', using Vegetative defaults", stage_name)
                     default = self.DEFAULT_CONDITIONS["Vegetative"]
 
-            logger.debug(f"Using default conditions for stage '{stage_name}'")
+            logger.debug("Using default conditions for stage '%s'", stage_name)
             return default
 
         return None
@@ -348,9 +345,53 @@ class PlantGrowthPredictor:
             and self.VALID_RANGES["lighting_hours"][0] <= light <= self.VALID_RANGES["lighting_hours"][1]
         )
 
-    def _adjust_for_stage_progress(
-        self, conditions: GrowthConditions, days_in_stage: int
-    ) -> GrowthConditions:
+    # ------------------------------------------------------------------
+    # ThresholdService integration (A9)
+    # ------------------------------------------------------------------
+
+    def _conditions_from_threshold_service(
+        self,
+        stage_name: str,
+    ) -> GrowthConditions | None:
+        """Try to build GrowthConditions from ThresholdService.
+
+        Returns ``None`` when the service is unavailable or lacks data.
+        """
+        if not self.threshold_service:
+            return None
+        try:
+            ranges = self.threshold_service.get_threshold_ranges(
+                plant_type=None,  # generic
+                growth_stage=stage_name,
+            )
+            if not ranges:
+                return None
+
+            temp = ranges.get("temperature", {})
+            hum = ranges.get("humidity", {})
+            sm = ranges.get("soil_moisture", {})
+
+            # Need at least temperature to be useful
+            if "optimal" not in temp:
+                return None
+
+            # Default lighting from DEFAULT_CONDITIONS if available
+            default = self.DEFAULT_CONDITIONS.get(stage_name)
+            lighting_hours = default.lighting_hours if default else 16.0
+
+            return GrowthConditions(
+                temperature=temp["optimal"],
+                humidity=hum.get("optimal", 60.0),
+                soil_moisture=sm.get("optimal", 70.0),
+                lighting_hours=lighting_hours,
+                confidence=0.7,
+                growth_stage=stage_name,
+            )
+        except Exception as exc:
+            logger.debug("ThresholdService lookup for growth predictor failed: %s", exc)
+            return None
+
+    def _adjust_for_stage_progress(self, conditions: GrowthConditions, days_in_stage: int) -> GrowthConditions:
         """
         Fine-tune conditions based on progression through growth stage.
 
@@ -379,7 +420,7 @@ class PlantGrowthPredictor:
         self,
         current_stage: str,
         days_in_stage: int,
-        actual_conditions: Dict[str, float],
+        actual_conditions: dict[str, float],
     ) -> StageTransition:
         """
         Analyze if plant is ready to transition to next growth stage.
@@ -395,13 +436,9 @@ class PlantGrowthPredictor:
         # Determine next stage
         stage_sequence = list(GrowthStage)
         try:
-            current_idx = next(
-                i for i, s in enumerate(stage_sequence) if s.value == current_stage
-            )
+            current_idx = next(i for i, s in enumerate(stage_sequence) if s.value == current_stage)
             next_stage = (
-                stage_sequence[current_idx + 1].value
-                if current_idx < len(stage_sequence) - 1
-                else current_stage
+                stage_sequence[current_idx + 1].value if current_idx < len(stage_sequence) - 1 else current_stage
             )
         except (StopIteration, IndexError):
             next_stage = current_stage
@@ -418,9 +455,7 @@ class PlantGrowthPredictor:
         recommendations = []
 
         if optimal:
-            temp_diff = abs(
-                actual_conditions.get("temperature", 0) - optimal.temperature
-            )
+            temp_diff = abs(actual_conditions.get("temperature", 0) - optimal.temperature)
             conditions_met["temperature"] = temp_diff < 3.0
             if not conditions_met["temperature"]:
                 recommendations.append(
@@ -434,9 +469,7 @@ class PlantGrowthPredictor:
                     f"Adjust humidity to {optimal.humidity}% (currently off by {humidity_diff:.1f}%)"
                 )
 
-            moisture_diff = abs(
-                actual_conditions.get("soil_moisture", 0) - optimal.soil_moisture
-            )
+            moisture_diff = abs(actual_conditions.get("soil_moisture", 0) - optimal.soil_moisture)
             conditions_met["soil_moisture"] = moisture_diff < 10.0
             if not conditions_met["soil_moisture"]:
                 recommendations.append(
@@ -446,17 +479,13 @@ class PlantGrowthPredictor:
         conditions_met["time"] = time_ready
         if not time_ready:
             days_remaining = min_days - days_in_stage
-            recommendations.append(
-                f"Wait {days_remaining} more days before transitioning"
-            )
+            recommendations.append(f"Wait {days_remaining} more days before transitioning")
 
         # Overall readiness
         ready = all(conditions_met.values())
 
         if ready and next_stage != current_stage:
-            recommendations.append(
-                f"Plant is ready to transition to {next_stage} stage"
-            )
+            recommendations.append(f"Plant is ready to transition to {next_stage} stage")
 
         return StageTransition(
             from_stage=current_stage,
@@ -466,7 +495,7 @@ class PlantGrowthPredictor:
             recommendations=recommendations,
         )
 
-    def get_all_stage_conditions(self) -> Dict[str, GrowthConditions]:
+    def get_all_stage_conditions(self) -> dict[str, GrowthConditions]:
         """
         Get predicted conditions for all growth stages.
 
@@ -480,9 +509,7 @@ class PlantGrowthPredictor:
                 results[stage.value] = conditions
         return results
 
-    def compare_conditions(
-        self, actual: Dict[str, float], stage: str
-    ) -> Dict[str, Any]:
+    def compare_conditions(self, actual: dict[str, float], stage: str) -> dict[str, Any]:
         """
         Compare actual conditions against optimal predictions.
 

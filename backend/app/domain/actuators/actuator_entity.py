@@ -3,17 +3,19 @@ Actuator Domain Entities
 
 Domain model for actuators with dataclasses.
 """
+
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-import time
-from typing import Any, Dict, Optional, List, Protocol as TypingProtocol
+from typing import Any, Protocol as TypingProtocol
 
 
 class Protocol(str, Enum):
     """Communication protocols"""
+
     GPIO = "gpio"
     HTTP = "http"
     WIFI = "wifi"
@@ -23,26 +25,16 @@ class Protocol(str, Enum):
     BLE = "ble"
 
 
-class ActuatorType(str, Enum):
-    """Types of actuators"""
-    RELAY = "relay"
-    LIGHT = "light"
-    PUMP = "pump"
-    FAN = "fan"
-    HEATER = "heater"
-    COOLER = "cooler"
-    HUMIDIFIER = "humidifier"
-    DEHUMIDIFIER = "dehumidifier"
-    VALVE = "valve"
-    MOTOR = "motor"
-    DIMMER = "dimmer"
-    SWITCH = "switch"
-    SENSOR = "sensor"  # For devices with actuator capabilities
-    UNKNOWN = "unknown"
+# ActuatorType is now defined canonically in app.enums.device and re-exported
+# here for backward compatibility.  All members (including PUMP alias) are
+# available.  The _missing_ hook on the canonical enum handles legacy lowercase
+# values like "pump", "light", etc.
+from app.enums.device import ActuatorType
 
 
 class ActuatorState(str, Enum):
     """Actuator states"""
+
     ON = "on"
     OFF = "off"
     UNKNOWN = "unknown"
@@ -52,6 +44,7 @@ class ActuatorState(str, Enum):
 
 class ControlMode(str, Enum):
     """Control modes for actuators"""
+
     MANUAL = "manual"
     AUTO = "auto"
     SCHEDULE = "schedule"
@@ -64,7 +57,7 @@ class ActuatorConfig:
     Actuator configuration.
 
     For pump actuators, the `metadata` field stores calibration data:
-    
+
     Pump-specific metadata fields:
         flow_rate_ml_per_second (float): Calibrated flow rate
         calibration_volume_ml (float): Volume used in calibration
@@ -87,121 +80,64 @@ class ActuatorConfig:
             "feedback_adjustments_count": 1
         }
     """
+
     name: str
     actuator_type: ActuatorType
     protocol: Protocol
     # Protocol-specific configuration
-    gpio_pin: Optional[int] = None
-    mqtt_topic: Optional[str] = None
-    ip_address: Optional[str] = None
-    zigbee_id: Optional[str] = None
+    gpio_pin: int | None = None
+    mqtt_topic: str | None = None
+    ip_address: str | None = None
+    zigbee_id: str | None = None
     # Control and safety
     control_mode: ControlMode = ControlMode.MANUAL
     min_value: float = 0.0
     max_value: float = 100.0
     invert_logic: bool = False
-    pwm_frequency: Optional[int] = None
-    max_runtime_seconds: Optional[float] = None
-    cooldown_seconds: Optional[float] = None
+    pwm_frequency: int | None = None
+    max_runtime_seconds: float | None = None
+    cooldown_seconds: float | None = None
     # Monitoring
-    power_watts: Optional[float] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    power_watts: float | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
 class ActuatorCommand:
     """Command to send to actuator"""
+
     command_type: str  # 'on', 'off', 'toggle', 'set_brightness', etc.
     value: Any = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
     timestamp: datetime = field(default_factory=datetime.now)
 
 
 @dataclass
 class ActuatorReading:
     """Reading from actuator (state, power, etc.)"""
+
     actuator_id: int
     state: ActuatorState
     timestamp: datetime = field(default_factory=datetime.now)
     value: Any = None  # For dimmers, brightness level, etc.
-    power: Optional[float] = None  # Current power consumption in watts
-    energy: Optional[float] = None  # Cumulative energy in kWh
-    runtime_seconds: Optional[float] = None  # Duration of the last ON cycle
-    error_message: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
-
-
-@dataclass
-class Schedule:
-    """Schedule for actuator"""
-    schedule_id: Optional[int] = None
-    actuator_id: int = 0
-    name: str = ""
-    enabled: bool = True
-    
-    # Time-based schedule
-    start_time: Optional[str] = None  # HH:MM format
-    end_time: Optional[str] = None    # HH:MM format
-    days_of_week: List[int] = field(default_factory=lambda: [0, 1, 2, 3, 4, 5, 6])  # 0=Monday
-    
-    # Control parameters
-    state: ActuatorState = ActuatorState.ON
-    value: Any = None  # For dimmers, etc.
-    metadata: Dict[str, Any] = field(default_factory=dict)
-
-    def is_active_now(self, now: Optional[datetime] = None) -> bool:
-        """
-        Check if the schedule is currently active.
-
-        Supports schedules that span midnight.
-        """
-        if not self.enabled:
-            return False
-        if not self.start_time or not self.end_time:
-            return False
-
-        now_dt = now or datetime.now()
-        weekday = now_dt.weekday()  # 0=Monday
-
-        try:
-            start_parts = self.start_time.split(":")
-            end_parts = self.end_time.split(":")
-            start_minutes = int(start_parts[0]) * 60 + int(start_parts[1])
-            end_minutes = int(end_parts[0]) * 60 + int(end_parts[1])
-        except Exception:
-            return False
-
-        now_minutes = now_dt.hour * 60 + now_dt.minute
-
-        if start_minutes == end_minutes:
-            return weekday in self.days_of_week
-
-        if start_minutes < end_minutes:
-            if weekday not in self.days_of_week:
-                return False
-            return start_minutes <= now_minutes < end_minutes
-
-        # Cross-midnight schedule:
-        # - from start_time to 23:59 on start day
-        # - from 00:00 to end_time on the next day
-        if now_minutes >= start_minutes:
-            return weekday in self.days_of_week
-
-        prev_day = (weekday - 1) % 7
-        return prev_day in self.days_of_week and now_minutes < end_minutes
+    power: float | None = None  # Current power consumption in watts
+    energy: float | None = None  # Cumulative energy in kWh
+    runtime_seconds: float | None = None  # Duration of the last ON cycle
+    error_message: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class ActuatorAdapter(TypingProtocol):
     """Protocol for actuator adapters"""
-    
+
     def turn_on(self) -> bool | None:
         """Turn actuator on"""
         ...
-    
+
     def turn_off(self) -> bool | None:
         """Turn actuator off"""
         ...
-    
+
     # Optional capabilities supported by some adapters.
     def set_level(self, value: float) -> bool | None:  # pragma: no cover
         ...
@@ -224,38 +160,38 @@ class ActuatorAdapter(TypingProtocol):
 class ActuatorEntity:
     """
     Actuator entity with domain logic.
-    
+
     This is the main domain object that encapsulates actuator behavior.
     """
+
     actuator_id: int
     config: ActuatorConfig
     adapter: ActuatorAdapter
-    
+
     # Runtime state
     current_state: ActuatorState = ActuatorState.UNKNOWN
-    last_reading: Optional[ActuatorReading] = None
-    last_command: Optional[ActuatorCommand] = None
+    last_reading: ActuatorReading | None = None
+    last_command: ActuatorCommand | None = None
     control_mode: ControlMode = ControlMode.MANUAL
 
-    # Scheduling and safety
-    schedule: Optional[Schedule] = None
-    interlocks: List[int] = field(default_factory=list)
-    
+    # Safety configuration
+    interlocks: list[int] = field(default_factory=list)
+
     # Statistics
     total_runtime_seconds: float = 0.0  # Total runtime in seconds
     cycle_count: int = 0
-    last_on_time: Optional[datetime] = None
-    last_off_time: Optional[datetime] = None
-    
+    last_on_time: datetime | None = None
+    last_off_time: datetime | None = None
+
     # Safety
     is_locked: bool = False
-    lock_reason: Optional[str] = None
+    lock_reason: str | None = None
 
     # Optional per-device limits (used by SafetyService)
-    max_runtime_seconds: Optional[float] = None
-    cooldown_seconds: Optional[float] = None
+    max_runtime_seconds: float | None = None
+    cooldown_seconds: float | None = None
 
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     @property
     def name(self) -> str:
@@ -264,7 +200,7 @@ class ActuatorEntity:
     @property
     def is_on(self) -> bool:
         return self.current_state == ActuatorState.ON
-    
+
     def turn_on(self) -> ActuatorReading:
         """Turn actuator on and return an ActuatorReading."""
         if self.is_locked:
@@ -275,7 +211,7 @@ class ActuatorEntity:
             )
             self.last_reading = reading
             return reading
-        
+
         now = datetime.now()
         try:
             result = self.adapter.turn_on()
@@ -306,7 +242,7 @@ class ActuatorEntity:
         self.last_command = ActuatorCommand(command_type="on", timestamp=now)
         self.last_reading = reading
         return reading
-    
+
     def turn_off(self) -> ActuatorReading:
         """Turn actuator off and return an ActuatorReading."""
         now = datetime.now()
@@ -319,7 +255,7 @@ class ActuatorEntity:
             success = True if result is None else bool(result)
             error_message = None
 
-        runtime_seconds: Optional[float] = None
+        runtime_seconds: float | None = None
         if success:
             if self.last_on_time:
                 runtime_seconds = (now - self.last_on_time).total_seconds()
@@ -344,7 +280,7 @@ class ActuatorEntity:
         self.last_command = ActuatorCommand(command_type="off", timestamp=now)
         self.last_reading = reading
         return reading
-    
+
     def get_state(self) -> ActuatorReading:
         """Get current state from adapter and return an ActuatorReading."""
         now = datetime.now()
@@ -383,7 +319,7 @@ class ActuatorEntity:
         )
         self.last_reading = reading
         return reading
-    
+
     def is_available(self) -> bool:
         """Check if actuator is available"""
         if hasattr(self.adapter, "is_available"):
@@ -436,12 +372,6 @@ class ActuatorEntity:
         time.sleep(max(0.0, float(duration_seconds)))
         return self.turn_off()
 
-    def set_schedule(self, schedule: Schedule) -> None:
-        self.schedule = schedule
-
-    def clear_schedule(self) -> None:
-        self.schedule = None
-
     def add_interlock(self, other_actuator_id: int) -> None:
         if other_actuator_id not in self.interlocks:
             self.interlocks.append(other_actuator_id)
@@ -449,12 +379,12 @@ class ActuatorEntity:
     def remove_interlock(self, other_actuator_id: int) -> None:
         if other_actuator_id in self.interlocks:
             self.interlocks.remove(other_actuator_id)
-    
+
     def lock(self, reason: str) -> None:
         """Lock actuator (safety)"""
         self.is_locked = True
         self.lock_reason = reason
-    
+
     def unlock(self) -> None:
         """Unlock actuator"""
         self.is_locked = False

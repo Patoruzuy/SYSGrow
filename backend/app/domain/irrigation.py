@@ -3,28 +3,31 @@ Irrigation Prediction Domain Objects
 =====================================
 Dataclasses for ML-based irrigation predictions.
 """
+
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 class PredictionConfidence(str, Enum):
     """Confidence levels for predictions."""
-    LOW = "low"          # < 50% confidence
-    MEDIUM = "medium"    # 50-75% confidence
-    HIGH = "high"        # > 75% confidence
+
+    LOW = "low"  # < 50% confidence
+    MEDIUM = "medium"  # 50-75% confidence
+    HIGH = "high"  # > 75% confidence
 
 
 @dataclass
 class UserResponsePrediction:
     """Prediction of user response to irrigation request."""
+
     approve_probability: float
     delay_probability: float
     cancel_probability: float
     most_likely: str  # "approve", "delay", or "cancel"
     confidence: float
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "probabilities": {
@@ -40,6 +43,7 @@ class UserResponsePrediction:
 @dataclass
 class ThresholdPrediction:
     """Prediction of optimal soil moisture threshold."""
+
     optimal_threshold: float
     current_threshold: float
     adjustment_direction: str  # "increase", "decrease", "maintain"
@@ -47,7 +51,7 @@ class ThresholdPrediction:
     confidence: float
     reasoning: str
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "optimal_threshold": round(self.optimal_threshold, 1),
@@ -62,13 +66,14 @@ class ThresholdPrediction:
 @dataclass
 class DurationPrediction:
     """Prediction of optimal irrigation duration."""
+
     recommended_seconds: int
     current_default_seconds: int
     expected_moisture_increase: float
     confidence: float
     reasoning: str
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "recommended_seconds": self.recommended_seconds,
@@ -82,14 +87,15 @@ class DurationPrediction:
 @dataclass
 class TimingPrediction:
     """Prediction of preferred irrigation time."""
+
     preferred_time: str  # "HH:MM" format
     preferred_hour: int
     preferred_minute: int
-    avoid_times: List[str]  # Times user typically delays/cancels
+    avoid_times: list[str]  # Times user typically delays/cancels
     confidence: float
     reasoning: str
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "preferred_time": self.preferred_time,
@@ -104,6 +110,7 @@ class TimingPrediction:
 @dataclass
 class MoistureDeclinePrediction:
     """Prediction of when next irrigation will be needed."""
+
     current_moisture: float
     threshold: float
     decline_rate_per_hour: float
@@ -113,7 +120,7 @@ class MoistureDeclinePrediction:
     reasoning: str
     samples_used: int
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "current_moisture": round(self.current_moisture, 1),
@@ -134,22 +141,23 @@ class IrrigationPrediction:
 
     Combines all prediction types into a single recommendation.
     """
+
     unit_id: int
     generated_at: str
 
     # Individual predictions
-    threshold: Optional[ThresholdPrediction] = None
-    user_response: Optional[UserResponsePrediction] = None
-    duration: Optional[DurationPrediction] = None
-    timing: Optional[TimingPrediction] = None
-    next_irrigation: Optional[MoistureDeclinePrediction] = None
+    threshold: ThresholdPrediction | None = None
+    user_response: UserResponsePrediction | None = None
+    duration: DurationPrediction | None = None
+    timing: TimingPrediction | None = None
+    next_irrigation: MoistureDeclinePrediction | None = None
 
     # Overall recommendations
-    recommendations: List[str] = field(default_factory=list)
+    recommendations: list[str] = field(default_factory=list)
     overall_confidence: float = 0.0
-    models_used: List[str] = field(default_factory=list)
+    models_used: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for API response."""
         return {
             "unit_id": self.unit_id,

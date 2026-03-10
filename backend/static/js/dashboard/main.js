@@ -14,6 +14,7 @@
   let environmentalChart;
   let efficiencyScore;
   let alertTimeline;
+  let alertRefreshInterval;
 
   const DEBUG = localStorage.getItem('dashboard:debug') === '1';
 
@@ -25,29 +26,27 @@
 
   async function init() {
     try {
-      const pageShell = document.querySelector('.page-shell');
-      const raw = pageShell?.dataset?.selectedUnitId ?? null;
-
-      const parsed = raw !== null && raw !== '' ? parseInt(raw, 10) : null;
-      const selectedUnitId = Number.isFinite(parsed) ? parsed : null;
+      const initialUnitId = resolveSelectedUnitId();
 
       dataService = new window.DashboardDataService();
-      dataService.init(selectedUnitId);
+      dataService.init(initialUnitId);
 
       uiManager = new window.DashboardUIManager(dataService);
       await uiManager._safeInit();
 
+      const resolvedUnitId = resolveRuntimeUnitId();
+
       // Initialize Environmental Overview Chart if available
-      await initEnvironmentalChart(selectedUnitId);
+      await initEnvironmentalChart(resolvedUnitId);
 
       // Setup chart time range selector
-      setupChartControls(selectedUnitId);
+      setupChartControls();
 
       // Initialize System Efficiency Score component
-      initEfficiencyScore(selectedUnitId);
+      initEfficiencyScore(resolvedUnitId);
 
       // Initialize Intelligent Alert Timeline component
-      initAlertTimeline(selectedUnitId);
+      initAlertTimeline(resolvedUnitId);
 
       // Expose only in debug mode to avoid accidental coupling.
       if (DEBUG) {
@@ -56,8 +55,33 @@
 
       console.log('[Dashboard] Initialized');
     } catch (error) {
-      console.error('[Dashboard] Initialization failed:', error);
+      window.SYSGrow.initError('Dashboard', error);
     }
+  }
+
+  function resolveSelectedUnitId() {
+    const candidates = [
+      document.querySelector('.page-shell')?.dataset?.selectedUnitId,
+      document.body?.dataset?.activeUnitId,
+      document.getElementById('global-unit-switcher')?.value,
+    ];
+
+    for (const rawValue of candidates) {
+      const parsed = Number.parseInt(String(rawValue ?? '').trim(), 10);
+      if (Number.isFinite(parsed) && parsed > 0) {
+        return parsed;
+      }
+    }
+
+    return null;
+  }
+
+  function resolveRuntimeUnitId() {
+    const fromService = Number.parseInt(String(dataService?.getSelectedUnitId?.() ?? ''), 10);
+    if (Number.isFinite(fromService) && fromService > 0) {
+      return fromService;
+    }
+    return resolveSelectedUnitId();
   }
 
   /**
@@ -117,6 +141,8 @@
 
       const ctx = canvas.getContext('2d');
 
+      const { cssVar } = window.SYSGrow;
+
       new Chart(ctx, {
         type: 'line',
         data: {
@@ -125,8 +151,8 @@
             {
               label: 'Temperature (°C)',
               data: temperatures,
-              borderColor: '#ff6b6b',
-              backgroundColor: 'rgba(255, 107, 107, 0.1)',
+              borderColor: cssVar('--chart-temperature'),
+              backgroundColor: cssVar('--chart-temperature-bg'),
               fill: false,
               tension: 0.4,
               pointRadius: 0,
@@ -135,8 +161,8 @@
             {
               label: 'Humidity (%)',
               data: humidities,
-              borderColor: '#4dabf7',
-              backgroundColor: 'rgba(77, 171, 247, 0.1)',
+              borderColor: cssVar('--chart-humidity'),
+              backgroundColor: cssVar('--chart-humidity-bg'),
               fill: false,
               tension: 0.4,
               pointRadius: 0,
@@ -145,8 +171,8 @@
             {
               label: 'Soil Moisture (%)',
               data: soilMoistures,
-              borderColor: '#8b5a2b',
-              backgroundColor: 'rgba(139, 90, 43, 0.1)',
+              borderColor: cssVar('--chart-soil'),
+              backgroundColor: cssVar('--chart-soil-bg'),
               fill: false,
               tension: 0.4,
               pointRadius: 0,
@@ -186,7 +212,7 @@
             },
             y: {
               beginAtZero: false,
-              grid: { color: 'rgba(0, 0, 0, 0.05)' }
+              grid: { color: cssVar('--chart-grid') }
             }
           }
         }
@@ -201,20 +227,21 @@
   /**
    * Setup chart time range controls
    */
-  function setupChartControls(unitId) {
+  function setupChartControls() {
     const selector = document.getElementById('chart-timerange');
     if (!selector) return;
 
     selector.addEventListener('change', async (e) => {
       const hours = parseInt(e.target.value, 10);
       const canvas = document.getElementById('environmental-chart');
+      const activeUnitId = resolveRuntimeUnitId();
 
       if (environmentalChart && environmentalChart.setTimeRange) {
         // Use the chart's built-in method if available
         await environmentalChart.setTimeRange(hours);
       } else if (canvas) {
         // Recreate the simple chart with new time range
-        await createSimpleEnvironmentalChart(canvas, unitId);
+        await createSimpleEnvironmentalChart(canvas, activeUnitId);
       }
     });
   }
@@ -252,12 +279,11 @@
     try {
       if (typeof window.IntelligentAlertTimeline !== 'undefined') {
         alertTimeline = new window.IntelligentAlertTimeline('intelligent-alert-timeline-container', {
-          unitId: unitId,
-          maxItems: 10,
-          autoRefresh: true,
-          refreshInterval: 60000
+          updateInterval: 60000,
+          timeRange: 48,
+          maxAlerts: 50
         });
-        alertTimeline.init();
+        alertTimeline.init(unitId || null);
         console.log('[Dashboard] IntelligentAlertTimeline initialized');
       } else if (typeof window.AlertTimeline !== 'undefined') {
         // Fallback to AlertTimeline component with action handlers
@@ -272,10 +298,10 @@
         addAlertToolbar(container);
         
         // Load initial alerts
-        loadAndRenderAlerts(unitId);
+      loadAndRenderAlerts(unitId);
         
-        // Auto-refresh alerts
-        setInterval(() => loadAndRenderAlerts(unitId), 60000);
+        // Auto-refresh alerts (store ID for cleanup)
+        alertRefreshInterval = setInterval(() => loadAndRenderAlerts(), 60000);
         
         console.log('[Dashboard] AlertTimeline initialized with actions');
       } else {
@@ -307,8 +333,7 @@
     
     // Bind events
     document.getElementById('refresh-alerts-btn')?.addEventListener('click', () => {
-      const unitId = document.querySelector('.page-shell')?.dataset?.selectedUnitId;
-      loadAndRenderAlerts(unitId ? parseInt(unitId) : null);
+      loadAndRenderAlerts();
     });
     
     document.getElementById('clear-all-alerts-btn')?.addEventListener('click', () => {
@@ -321,7 +346,7 @@
   /**
    * Load alerts from API and render
    */
-  async function loadAndRenderAlerts(unitId) {
+  async function loadAndRenderAlerts(unitId = resolveRuntimeUnitId()) {
     try {
       const options = { limit: 50 };
       if (unitId) options.unit_id = unitId;
@@ -361,11 +386,12 @@
       await API.System.resolveAlert(alertId);
       console.log(`[Dashboard] Alert ${alertId} resolved`);
       // Refresh alerts
-      const unitId = document.querySelector('.page-shell')?.dataset?.selectedUnitId;
-      loadAndRenderAlerts(unitId ? parseInt(unitId) : null);
+      loadAndRenderAlerts();
     } catch (error) {
       console.error('[Dashboard] Failed to resolve alert:', error);
-      alert('Failed to resolve alert. Please try again.');
+      if (window.showNotification) {
+        window.showNotification('Failed to resolve alert. Please try again.', 'error');
+      }
     }
   }
 
@@ -405,15 +431,17 @@
         alertTimeline.clear();
       }
       // Reload to confirm
-      const unitId = document.querySelector('.page-shell')?.dataset?.selectedUnitId;
-      setTimeout(() => loadAndRenderAlerts(unitId ? parseInt(unitId) : null), 500);
+      setTimeout(() => loadAndRenderAlerts(), 500);
     } catch (error) {
       console.error('[Dashboard] Failed to clear all alerts:', error);
-      alert('Failed to clear alerts. Please try again.');
+      if (window.showNotification) {
+        window.showNotification('Failed to clear alerts. Please try again.', 'error');
+      }
     }
   }
 
   window.addEventListener('beforeunload', () => {
+    if (alertRefreshInterval) clearInterval(alertRefreshInterval);
     try { uiManager?.destroy?.(); } catch {}
     try { environmentalChart?.destroy?.(); } catch {}
     try { efficiencyScore?.destroy?.(); } catch {}

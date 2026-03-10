@@ -8,13 +8,13 @@ Tests the air-science derived metric calculations:
 """
 
 import pytest
+
 from app.utils.psychrometrics import (
-    calculate_svp_kpa,
-    calculate_vpd_kpa,
     calculate_dew_point_c,
     calculate_heat_index_c,
+    calculate_svp_kpa,
+    calculate_vpd_kpa,
     compute_derived_metrics,
-    calculate_dif_c,
 )
 
 
@@ -136,7 +136,7 @@ class TestComputeDerivedMetrics:
 
 class TestDIF:
     """Test DIF (Difference between Day and Night Temperature) calculation.
-    
+
     Note: calculate_dif_c takes a sequence of temperature readings with timestamps
     and calculates the average difference between day and night periods.
     For now, we skip these tests as they require pandas and more complex setup.

@@ -104,4 +104,3 @@ def test_get_recent_observations_honors_explicit_plant_id() -> None:
 
     assert len(observations) == 1
     assert observations[0]["plant_id"] == 456
-

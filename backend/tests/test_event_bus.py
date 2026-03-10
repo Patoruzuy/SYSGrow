@@ -1,6 +1,8 @@
 import time
 import unittest
+
 from app.utils.event_bus import EventBus
+
 
 class TestEventBus(unittest.TestCase):
     """Unit tests for the EventBus module."""
@@ -26,13 +28,11 @@ class TestEventBus(unittest.TestCase):
 
     def test_multiple_subscribers(self):
         """Test multiple subscribers receiving events."""
-        listener_1_data = []
-        listener_2_data = []
 
         import time
         import unittest
-        from app.utils.event_bus import EventBus
 
+        from app.utils.event_bus import EventBus
 
         class TestEventBus(unittest.TestCase):
             """Unit tests for the EventBus module."""
@@ -83,7 +83,6 @@ class TestEventBus(unittest.TestCase):
                     self.event_bus.publish("unsubscribed_event", {"data": "test"})
                 except Exception as e:
                     self.fail(f"Event publishing failed unexpectedly: {e}")
-
 
         if __name__ == "__main__":
             unittest.main()

@@ -13,15 +13,15 @@ Features:
 Author: Sebastian Gomez
 Date: January 2026
 """
+
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
-import json
+from typing import TYPE_CHECKING, Any
 
 from app.domain.schedules import Schedule
 from app.domain.schedules.repository import ScheduleRepository as ScheduleRepositoryProtocol
 from app.utils.time import iso_now
-from infrastructure.database.decorators import repository_cache, invalidates_caches
+from infrastructure.database.decorators import invalidates_caches, repository_cache
 
 if TYPE_CHECKING:
     from infrastructure.database.ops.schedules import ScheduleOperations
@@ -30,14 +30,14 @@ if TYPE_CHECKING:
 class ScheduleRepository:
     """
     Concrete implementation of ScheduleRepository protocol.
-    
+
     Wraps the ScheduleOperations mixin to provide repository pattern access.
     """
 
     def __init__(self, backend: "ScheduleOperations") -> None:
         """
         Initialize with database backend.
-        
+
         Args:
             backend: Database handler that implements ScheduleOperations
         """
@@ -46,32 +46,32 @@ class ScheduleRepository:
     # ==================== CRUD Operations ====================
 
     @invalidates_caches
-    def create(self, schedule: Schedule) -> Optional[Schedule]:
+    def create(self, schedule: Schedule) -> Schedule | None:
         """Create a new schedule."""
         return self._backend.create_schedule(schedule)
 
-    @repository_cache(maxsize=256, invalidate_on=['create', 'update', 'delete', 'delete_by_unit', 'set_enabled'])
-    def get_by_id(self, schedule_id: int) -> Optional[Schedule]:
+    @repository_cache(maxsize=256, invalidate_on=["create", "update", "delete", "delete_by_unit", "set_enabled"])
+    def get_by_id(self, schedule_id: int) -> Schedule | None:
         """Get schedule by ID."""
         return self._backend.get_schedule_by_id(schedule_id)
 
-    @repository_cache(maxsize=64, invalidate_on=['create', 'update', 'delete', 'delete_by_unit', 'set_enabled'])
-    def get_by_unit(self, unit_id: int) -> List[Schedule]:
+    @repository_cache(maxsize=64, invalidate_on=["create", "update", "delete", "delete_by_unit", "set_enabled"])
+    def get_by_unit(self, unit_id: int) -> list[Schedule]:
         """Get all schedules for a growth unit."""
         return self._backend.get_schedules_by_unit(unit_id)
 
-    @repository_cache(maxsize=128, invalidate_on=['create', 'update', 'delete', 'delete_by_unit', 'set_enabled'])
-    def get_by_device_type(self, unit_id: int, device_type: str) -> List[Schedule]:
+    @repository_cache(maxsize=128, invalidate_on=["create", "update", "delete", "delete_by_unit", "set_enabled"])
+    def get_by_device_type(self, unit_id: int, device_type: str) -> list[Schedule]:
         """Get all schedules for a specific device type in a unit."""
         return self._backend.get_schedules_by_device_type(unit_id, device_type)
 
-    @repository_cache(maxsize=128, invalidate_on=['create', 'update', 'delete', 'set_enabled'])
-    def get_by_actuator(self, actuator_id: int) -> List[Schedule]:
+    @repository_cache(maxsize=128, invalidate_on=["create", "update", "delete", "set_enabled"])
+    def get_by_actuator(self, actuator_id: int) -> list[Schedule]:
         """Get all schedules for a specific actuator."""
         return self._backend.get_schedules_by_actuator(actuator_id)
 
     @invalidates_caches
-    def update(self, schedule: Schedule) -> Optional[Schedule]:
+    def update(self, schedule: Schedule) -> Schedule | None:
         """Update an existing schedule."""
         result = self._backend.update_schedule(schedule)
         # Return the updated schedule on success
@@ -96,23 +96,23 @@ class ScheduleRepository:
 
     # ==================== Query Operations ====================
 
-    @repository_cache(maxsize=64, invalidate_on=['create', 'update', 'delete', 'delete_by_unit', 'set_enabled'])
-    def get_enabled_schedules(self, unit_id: int) -> List[Schedule]:
+    @repository_cache(maxsize=64, invalidate_on=["create", "update", "delete", "delete_by_unit", "set_enabled"])
+    def get_enabled_schedules(self, unit_id: int) -> list[Schedule]:
         """Get all enabled schedules for a unit."""
         return self._backend.get_enabled_schedules_by_unit(unit_id)
 
-    @repository_cache(maxsize=64, invalidate_on=['create', 'update', 'delete', 'delete_by_unit', 'set_enabled'])
-    def get_active_schedules(self, unit_id: int) -> List[Schedule]:
+    @repository_cache(maxsize=64, invalidate_on=["create", "update", "delete", "delete_by_unit", "set_enabled"])
+    def get_active_schedules(self, unit_id: int) -> list[Schedule]:
         """
         Get schedules that are currently active (enabled and within time window).
-        
-        Note: This is an alias for get_enabled_schedules. 
+
+        Note: This is an alias for get_enabled_schedules.
         Actual time-based evaluation is done by the SchedulingService.
         """
         return self._backend.get_enabled_schedules_by_unit(unit_id)
 
-    @repository_cache(maxsize=64, invalidate_on=['create', 'update', 'delete', 'delete_by_unit', 'set_enabled'])
-    def get_light_schedule(self, unit_id: int) -> Optional[Schedule]:
+    @repository_cache(maxsize=64, invalidate_on=["create", "update", "delete", "delete_by_unit", "set_enabled"])
+    def get_light_schedule(self, unit_id: int) -> Schedule | None:
         """Get the primary light schedule for a unit."""
         return self._backend.get_light_schedule(unit_id)
 
@@ -123,13 +123,13 @@ class ScheduleRepository:
         schedule_id: int,
         unit_id: int,
         action: str,
-        device_type: Optional[str] = None,
-        before_state: Optional[str] = None,
-        after_state: Optional[str] = None,
-        changed_fields: Optional[str] = None,
+        device_type: str | None = None,
+        before_state: str | None = None,
+        after_state: str | None = None,
+        changed_fields: str | None = None,
         source: str = "user",
-        user_id: Optional[int] = None,
-        reason: Optional[str] = None,
+        user_id: int | None = None,
+        reason: str | None = None,
     ) -> bool:
         """Log a schedule change to history table."""
         try:
@@ -143,9 +143,17 @@ class ScheduleRepository:
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    schedule_id, unit_id, action, device_type,
-                    before_state, after_state, changed_fields,
-                    source, user_id, reason, iso_now()
+                    schedule_id,
+                    unit_id,
+                    action,
+                    device_type,
+                    before_state,
+                    after_state,
+                    changed_fields,
+                    source,
+                    user_id,
+                    reason,
+                    iso_now(),
                 ),
             )
             db.commit()
@@ -155,26 +163,26 @@ class ScheduleRepository:
 
     def get_history(
         self,
-        schedule_id: Optional[int] = None,
-        unit_id: Optional[int] = None,
+        schedule_id: int | None = None,
+        unit_id: int | None = None,
         limit: int = 100,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Get schedule history records."""
         try:
             db = self._backend.get_db()
             query = "SELECT * FROM ScheduleHistory WHERE 1=1"
             params = []
-            
+
             if schedule_id:
                 query += " AND schedule_id = ?"
                 params.append(schedule_id)
             if unit_id:
                 query += " AND unit_id = ?"
                 params.append(unit_id)
-            
+
             query += " ORDER BY created_at DESC LIMIT ?"
             params.append(limit)
-            
+
             rows = db.execute(query, params).fetchall()
             return [dict(row) for row in rows]
         except Exception:
@@ -185,12 +193,12 @@ class ScheduleRepository:
     def log_execution(
         self,
         schedule_id: int,
-        actuator_id: Optional[int],
+        actuator_id: int | None,
         action: str,
         success: bool,
-        error_message: Optional[str] = None,
+        error_message: str | None = None,
         retry_count: int = 0,
-        response_time_ms: Optional[int] = None,
+        response_time_ms: int | None = None,
     ) -> bool:
         """Log a schedule execution to the execution log table."""
         try:
@@ -203,9 +211,14 @@ class ScheduleRepository:
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    schedule_id, actuator_id, iso_now(),
-                    action, 1 if success else 0, error_message,
-                    retry_count, response_time_ms
+                    schedule_id,
+                    actuator_id,
+                    iso_now(),
+                    action,
+                    1 if success else 0,
+                    error_message,
+                    retry_count,
+                    response_time_ms,
                 ),
             )
             db.commit()
@@ -215,22 +228,22 @@ class ScheduleRepository:
 
     def get_execution_log(
         self,
-        schedule_id: Optional[int] = None,
+        schedule_id: int | None = None,
         limit: int = 100,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Get schedule execution log records."""
         try:
             db = self._backend.get_db()
             if schedule_id:
                 query = """
-                    SELECT * FROM ScheduleExecutionLog 
-                    WHERE schedule_id = ? 
+                    SELECT * FROM ScheduleExecutionLog
+                    WHERE schedule_id = ?
                     ORDER BY execution_time DESC LIMIT ?
                 """
                 rows = db.execute(query, (schedule_id, limit)).fetchall()
             else:
                 query = """
-                    SELECT * FROM ScheduleExecutionLog 
+                    SELECT * FROM ScheduleExecutionLog
                     ORDER BY execution_time DESC LIMIT ?
                 """
                 rows = db.execute(query, (limit,)).fetchall()

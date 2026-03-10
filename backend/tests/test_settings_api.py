@@ -16,7 +16,11 @@ def app(tmp_path, monkeypatch):
 
 @pytest.fixture()
 def client(app):
-    return app.test_client()
+    c = app.test_client()
+    with c.session_transaction() as sess:
+        sess["user"] = "testuser"
+        sess["user_id"] = 1
+    return c
 
 
 def _create_unit(client) -> int:
@@ -42,8 +46,12 @@ def test_plants_seeded(app):
 
 
 def test_hotspot_settings_roundtrip(client):
+    # Before any setup, GET returns 200 with configured=False defaults
     response = client.get("/api/settings/hotspot")
-    assert response.status_code == 404
+    assert response.status_code == 200
+    initial = (response.get_json() or {}).get("data", {})
+    assert initial.get("configured") is False
+    assert initial.get("ssid") == ""
 
     payload = {"ssid": "GrowTent", "password": "secret123"}
     response = client.put("/api/settings/hotspot", json=payload)
@@ -102,11 +110,17 @@ def test_camera_settings_roundtrip(client):
 def test_device_schedule_roundtrip(client):
     """Test device schedules using the Growth API (replaces deprecated settings/light endpoint)."""
     unit_id = _create_unit(client)
-    
+
     # Set light schedule via Growth API (v3 requires a `name`)
     response = client.post(
         f"/api/growth/v3/units/{unit_id}/schedules",
-        json={"name": "Morning Light", "device_type": "light", "start_time": "08:00", "end_time": "20:00", "enabled": True}
+        json={
+            "name": "Morning Light",
+            "device_type": "light",
+            "start_time": "08:00",
+            "end_time": "20:00",
+            "enabled": True,
+        },
     )
     assert response.status_code in (200, 201)
 
@@ -117,7 +131,10 @@ def test_device_schedule_roundtrip(client):
     assert payload.get("ok") is True
     data = payload.get("data") or {}
     schedules = data.get("schedules") or []
-    assert any(s.get("device_type") == "light" and s.get("start_time") == "08:00" and s.get("end_time") == "20:00" for s in schedules)
+    assert any(
+        s.get("device_type") == "light" and s.get("start_time") == "08:00" and s.get("end_time") == "20:00"
+        for s in schedules
+    )
 
 
 def test_environment_thresholds_validation(client):
@@ -137,7 +154,6 @@ def test_environment_thresholds_validation(client):
             "unit_id": unit_id,
             "temperature_threshold": 24.5,
             "humidity_threshold": 55.0,
-            "soil_moisture_threshold": 35.0,
         },
     )
     assert good_response.status_code == 200

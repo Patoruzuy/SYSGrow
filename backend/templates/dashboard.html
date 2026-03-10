@@ -4,47 +4,63 @@
 {% block title %}Dashboard{% endblock %}
 {% block body_class %}dashboard-page{% endblock %}
 
-{% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/system-efficiency-score.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/ai_insights.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/sensor-analytics/intelligent-alert-timeline.css') }}">
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css', v='20260308s') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/components/kpi-cards.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/components/timeline.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/components/energy.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/components/alerts.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/system-efficiency-score.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/ai-insights.css', v='20260308o') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/sensor-analytics/intelligent-alert-timeline.css', v='20260308b') }}">
 {% endblock %}
 
 {% block content %}
-<div class="dashboard-page page-shell page-shell--fluid" data-selected-unit-id="{{ selected_unit.unit_id if selected_unit else '' }}" aria-labelledby="dashboard-heading">
+{% set dashboard_unit_id =
+  (selected_unit.unit_id if selected_unit else
+   (selected_unit_id if selected_unit_id is defined and selected_unit_id else session.get('selected_unit')))
+%}
+<div class="dashboard-page page-shell page-shell--fluid" data-selected-unit-id="{{ dashboard_unit_id or '' }}" aria-label="Dashboard">
 
-  <!-- Dashboard Header -->
-  <header class="dashboard-header">
-    <div class="dashboard-header__left">
-      <h1 id="dashboard-heading" class="dashboard-title">
-        <i class="fas fa-tachometer-alt"></i>
-        Dashboard
-      </h1>
-      <span class="unit-badge" id="current-unit-name">
-        {{ selected_unit.name if selected_unit else 'All Units' }}
-      </span>
+  {% set dash_actions %}
+  <div class="d-flex align-items-center gap-2">
+    <span class="unit-badge" id="current-unit-name">
+      {{ selected_unit.name if selected_unit else 'All Units' }}
+    </span>
+    <div class="connection-indicator" id="dashboard-connection-status">
+      <span class="status-dot"></span>
+      <span class="status-text">Connecting...</span>
     </div>
-    <div class="dashboard-header__right">
-      <div class="connection-indicator" id="connection-status">
-        <span class="status-dot"></span>
-        <span class="status-text">Connecting...</span>
-      </div>
-      <span class="last-update" id="last-update-time">--:--</span>
-      <button class="refresh-btn" id="refresh-sensors" title="Refresh Dashboard">
-        <i class="fas fa-sync-alt"></i>
-      </button>
-    </div>
-  </header>
+    <span class="last-update text-muted small" id="last-update-time">--:--</span>
+    <button class="btn btn-secondary btn-sm" id="refresh-sensors" title="Refresh Dashboard">
+      <i class="fas fa-sync-alt"></i>
+      <span class="d-none d-sm-inline ms-1">Refresh</span>
+    </button>
+  </div>
+  {% endset %}
+
+  {{ ui.page_header(
+    title='Dashboard',
+    icon='fas fa-tachometer-alt',
+    subtitle='Real-time monitoring and control for your growing environment.',
+    actions=dash_actions
+  ) }}
+
+  <!-- Welcome message (populated by JS: first visit vs. returning) -->
+  <div id="welcome-banner" class="welcome-banner" data-username="{{ current_user.username if current_user and current_user.is_authenticated else 'Grower' }}" hidden>
+    <p id="welcome-msg" class="text-muted small mb-0"></p>
+  </div>
 
   <!-- Contextual Help Banner -->
-  <div class="help-banner">
-    <i class="fas fa-rocket"></i>
-    <div class="help-banner-content">
-      <p class="help-banner-title">New to SYSGrow?</p>
-      <p class="help-banner-text">Get started with our quick setup guide and learn how to monitor your plants.</p>
-    </div>
-    {{ ui.help_link('getting-started', 'quick-start', 'Quick Start Guide') }}
+  <div class="dashboard-help-wrap">
+    {{ ui.help_banner(
+      title='New to SYSGrow?',
+      text='Get started with our quick setup guide and learn how to monitor your plants.',
+      icon='rocket',
+      link_text='Quick Start Guide',
+      category='getting-started',
+      article_id='quick-start'
+    ) }}
   </div>
 
   <!-- Top KPI Row: VPD, Efficiency, Plant Health, Alerts -->
@@ -66,7 +82,7 @@
     {{ ui.sensor_tile('lux', 'Light', 'fas fa-sun', ' lux') }}
     {{ ui.sensor_tile('energy_usage', 'Power', 'fas fa-bolt', ' W') }}
   </section>
-  
+
   <!-- Environmental Overview Chart -->
   <section class="dashboard-chart-section">
     {% call ui.content_card(title='Environmental Overview', icon='fas fa-chart-area') %}
@@ -78,7 +94,7 @@
           <option value="48">Last 48 hours</option>
         </select>
       </div>
-      <div class="chart-container" style="height: 280px;">
+      <div class="chart-container chart-container--environmental">
         <canvas id="environmental-chart"></canvas>
       </div>
     {% endcall %}
@@ -177,8 +193,8 @@
     </div>
   </section>
 
-
-    <!-- Tent Settings (selected unit) -->
+  <!-- Tent Settings (selected unit) -->
+  <section class="section" aria-label="Unit settings">
     <div class="sub-section dashboard-unit-settings-section" aria-label="Tent settings for selected unit">
       <div class="card">
         <div class="card-header">
@@ -254,10 +270,10 @@
   </section>
 
   <!-- AI Prediction Cards Row -->
-  <section class="section" aria-label="AI Predictions">
+  <section class="section dashboard-ai-predictions-section" aria-label="AI Predictions">
     <div class="dashboard-ai-grid">
       <!-- Disease Risk Card -->
-      <div class="card ai-prediction-card">
+      <div class="card ai-prediction-card ai-prediction-card--disease">
         <div class="card-header">
           <h3><i class="fas fa-shield-virus"></i> Disease Risk</h3>
         </div>
@@ -276,7 +292,7 @@
       </div>
 
       <!-- Growth Stage Card -->
-      <div class="card ai-prediction-card">
+      <div class="card ai-prediction-card ai-prediction-card--growth">
         <div class="card-header">
           <h3><i class="fas fa-seedling"></i> Growth Progress</h3>
         </div>
@@ -304,7 +320,7 @@
       </div>
 
       <!-- Harvest Forecast Card -->
-      <div class="card ai-prediction-card">
+      <div class="card ai-prediction-card ai-prediction-card--harvest">
         <div class="card-header">
           <h3><i class="fas fa-calendar-check"></i> Harvest Forecast</h3>
         </div>
@@ -323,7 +339,7 @@
       </div>
 
       <!-- Optimization Score Card -->
-      <div class="card ai-prediction-card">
+      <div class="card ai-prediction-card ai-prediction-card--optimization">
         <div class="card-header">
           <h3><i class="fas fa-sliders-h"></i> Optimization</h3>
         </div>
@@ -331,7 +347,7 @@
           <div class="optimization-ring">
             <svg viewBox="0 0 100 100" class="optimization-ring-svg">
               <circle cx="50" cy="50" r="45" class="ring-bg"/>
-              <circle cx="50" cy="50" r="45" class="ring-progress" id="optimization-ring-progress" 
+              <circle cx="50" cy="50" r="45" class="ring-progress" id="optimization-ring-progress"
                       style="stroke-dasharray: 283; stroke-dashoffset: 283"/>
             </svg>
             <div class="optimization-value">
@@ -404,7 +420,7 @@
   </section>
 
   <!-- Community Insights (optional, hidden by default) -->
-  <section class="section" aria-label="Community Insights" id="community-insights-section" style="display: none;">
+  <section class="section section--hidden" aria-label="Community Insights" id="community-insights-section">
     <div class="card">
       <div class="card-header">
         <h3><i class="fas fa-users"></i> Similar Growers</h3>
@@ -517,7 +533,7 @@
           <div class="env-quality-ring">
             <svg viewBox="0 0 100 100" class="env-quality-svg">
               <circle cx="50" cy="50" r="42" class="ring-bg"/>
-              <circle cx="50" cy="50" r="42" class="ring-progress" id="env-quality-ring-progress" 
+              <circle cx="50" cy="50" r="42" class="ring-progress" id="env-quality-ring-progress"
                       style="stroke-dasharray: 264; stroke-dashoffset: 264"/>
             </svg>
             <div class="env-quality-value">
@@ -830,32 +846,33 @@
               </a>
             </div>
 
-            <!-- Telemetry -->
-            <div class="irrigation-telemetry">
-            <div class="telemetry-header">
-              <h6 class="telemetry-title"><i class="fas fa-chart-line"></i> Telemetry</h6>
-              <div class="telemetry-controls">
-                <div class="telemetry-range" role="group" aria-label="Telemetry range">
-                  <button class="btn btn-sm btn-outline-secondary" data-days="1">24h</button>
-                  <button class="btn btn-sm btn-outline-secondary active" data-days="7">7d</button>
-                  <button class="btn btn-sm btn-outline-secondary" data-days="30">30d</button>
-                </div>
-                <button type="button" class="btn btn-sm btn-outline-secondary" id="refresh-irrigation-telemetry" title="Refresh irrigation telemetry">
-                  <i class="fas fa-sync-alt"></i>
-                </button>
+          </div>
+        </div>
+
+        <!-- Telemetry -->
+        <div class="irrigation-telemetry">
+          <div class="telemetry-header">
+            <h6 class="telemetry-title"><i class="fas fa-chart-line"></i> Telemetry</h6>
+            <div class="telemetry-controls">
+              <div class="telemetry-range" role="group" aria-label="Telemetry range">
+                <button class="btn btn-sm btn-outline-secondary" data-days="1">24h</button>
+                <button class="btn btn-sm btn-outline-secondary active" data-days="7">7d</button>
+                <button class="btn btn-sm btn-outline-secondary" data-days="30">30d</button>
               </div>
-            </div>
-              <div class="telemetry-tabs" id="irrigation-telemetry-tabs">
-                <button class="telemetry-tab active" data-tab="executions">Executions</button>
-                <button class="telemetry-tab" data-tab="eligibility">Eligibility</button>
-                <button class="telemetry-tab" data-tab="manual">Manual</button>
-              </div>
-              <div class="telemetry-list" id="irrigation-telemetry-list">
-                <div class="empty-message">Loading telemetry...</div>
-              </div>
-              <div class="telemetry-footnote" id="irrigation-telemetry-footnote"></div>
+              <button type="button" class="btn btn-sm btn-outline-secondary" id="refresh-irrigation-telemetry" title="Refresh irrigation telemetry">
+                <i class="fas fa-sync-alt"></i>
+              </button>
             </div>
           </div>
+          <div class="telemetry-tabs" id="irrigation-telemetry-tabs">
+            <button class="telemetry-tab active" data-tab="executions">Executions</button>
+            <button class="telemetry-tab" data-tab="eligibility">Eligibility</button>
+            <button class="telemetry-tab" data-tab="manual">Manual</button>
+          </div>
+          <div class="telemetry-list" id="irrigation-telemetry-list">
+            <div class="empty-message">Loading telemetry...</div>
+          </div>
+          <div class="telemetry-footnote" id="irrigation-telemetry-footnote"></div>
         </div>
       </div>
     </div>
@@ -974,8 +991,7 @@
 </div>
 {% endblock %}
 
-{% block extra_js %}
-<script src="{{ url_for('static', filename='js/api.js') }}?v=20251228193000"></script>
+{% block scripts %}
 <script src="{{ url_for('static', filename='js/utils/cache-service.js') }}"></script>
 <script src="{{ url_for('static', filename='js/utils/base-manager.js') }}"></script>
 <script src="{{ url_for('static', filename='js/socket.js') }}"></script>
@@ -994,11 +1010,11 @@
 <script src="{{ url_for('static', filename='js/sensor-analytics/environmental-overview-chart.js') }}"></script>
 <script src="{{ url_for('static', filename='js/sensor-analytics/intelligent-alert-timeline.js') }}"></script>
 <!-- AI Dashboard -->
-<script src="{{ url_for('static', filename='js/ai_dashboard.js') }}"></script>
+<script src="{{ url_for('static', filename='js/ai_dashboard.js', v='20260308n') }}"></script>
 <!-- Dashboard -->
-<script src="{{ url_for('static', filename='js/dashboard/data-service.js') }}"></script>
-<script src="{{ url_for('static', filename='js/dashboard/ui-manager.js') }}"></script>
-<script src="{{ url_for('static', filename='js/dashboard/main.js') }}"></script>
+<script src="{{ url_for('static', filename='js/dashboard/data-service.js', v='20260308c') }}"></script>
+<script src="{{ url_for('static', filename='js/dashboard/ui-manager.js', v='20260308l') }}"></script>
+<script src="{{ url_for('static', filename='js/dashboard/main.js', v='20260308c') }}"></script>
 <script>
   // Initialize AI Insights Manager
   document.addEventListener('DOMContentLoaded', function() {
@@ -1006,5 +1022,25 @@
       window.aiInsights = new AIInsightsManager(API, window.socketManager || SocketManager);
     }
   });
+</script>
+<script>
+  // Welcome message — first visit vs. returning
+  (function () {
+    var banner = document.getElementById('welcome-banner');
+    var msg = document.getElementById('welcome-msg');
+    if (!banner || !msg) return;
+
+    var username = banner.dataset.username || 'Grower';
+    var KEY = 'sysgrow_has_visited';
+
+    if (!localStorage.getItem(KEY)) {
+      msg.textContent = 'Welcome, ' + username + '! \uD83C\uDF31 Get started by adding your plants and configuring your growth units.';
+      try { localStorage.setItem(KEY, '1'); } catch (_) {}
+    } else {
+      msg.textContent = 'Welcome back, ' + username + '!';
+    }
+
+    banner.removeAttribute('hidden');
+  })();
 </script>
 {% endblock %}

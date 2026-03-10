@@ -71,7 +71,9 @@
                                 window.location.reload();
                             } catch (err) {
                                 console.error('Failed to delete plant', err);
-                                alert('Failed to delete plant');
+                                if (window.showNotification) {
+                                    window.showNotification('Failed to delete plant', 'error');
+                                }
                             }
                         })();
                     }
@@ -80,7 +82,7 @@
 
             console.log('[Plants Hub] Initialized successfully');
         } catch (error) {
-            console.error('[Plants Hub] Initialization failed:', error);
+            window.SYSGrow.initError('PlantsHub', error);
         }
     }
 })();

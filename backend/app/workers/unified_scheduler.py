@@ -19,6 +19,7 @@ Future Celery Migration:
 Author: SYSGrow Team
 Date: December 2024
 """
+
 from __future__ import annotations
 
 import heapq
@@ -30,13 +31,14 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
 from functools import wraps
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple
+from typing import Any, Callable
 
 logger = logging.getLogger(__name__)
 
 
 class JobStatus(Enum):
     """Status of a scheduled job."""
+
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -47,22 +49,24 @@ class JobStatus(Enum):
 
 class ScheduleType(Enum):
     """Types of schedules."""
+
     INTERVAL = "interval"  # Every N seconds/minutes/hours
-    DAILY = "daily"        # At specific time each day
-    WEEKLY = "weekly"      # Specific day and time each week
-    ONCE = "once"          # One-time execution
-    CRON = "cron"          # Cron-like expression (future)
+    DAILY = "daily"  # At specific time each day
+    WEEKLY = "weekly"  # Specific day and time each week
+    ONCE = "once"  # One-time execution
+    CRON = "cron"  # Cron-like expression (future)
 
 
 @dataclass
 class JobResult:
     """Result of a job execution."""
+
     job_id: str
     success: bool
     started_at: datetime
     completed_at: datetime
     result: Any = None
-    error: Optional[str] = None
+    error: str | None = None
 
     @property
     def duration_seconds(self) -> float:
@@ -79,6 +83,7 @@ class ScheduledJob:
     - args/kwargs map to task arguments
     - schedule_type/interval map to Celery beat schedule
     """
+
     job_id: str
     task_name: str
     namespace: str  # e.g., "plant", "actuator", "ml", "maintenance"
@@ -86,30 +91,30 @@ class ScheduledJob:
     enabled: bool = True
 
     # Task execution
-    func: Optional[Callable] = None
-    args: Tuple = field(default_factory=tuple)
-    kwargs: Dict[str, Any] = field(default_factory=dict)
+    func: Callable | None = None
+    args: tuple = field(default_factory=tuple)
+    kwargs: dict[str, Any] = field(default_factory=dict)
 
     # Schedule configuration
-    interval_seconds: Optional[int] = None  # For INTERVAL type
-    time_of_day: Optional[str] = None       # "HH:MM" for DAILY type
-    day_of_week: Optional[int] = None       # 0-6 (Mon-Sun) for WEEKLY type
-    run_at: Optional[datetime] = None       # For ONCE type
+    interval_seconds: int | None = None  # For INTERVAL type
+    time_of_day: str | None = None  # "HH:MM" for DAILY type
+    day_of_week: int | None = None  # 0-6 (Mon-Sun) for WEEKLY type
+    run_at: datetime | None = None  # For ONCE type
 
     # Execution tracking
-    next_run: Optional[datetime] = None
-    last_run: Optional[datetime] = None
+    next_run: datetime | None = None
+    last_run: datetime | None = None
     run_count: int = 0
     success_count: int = 0
     failure_count: int = 0
-    last_error: Optional[str] = None
+    last_error: str | None = None
 
     # Options (kept for forward-compat; not enforcing hard timeouts in threads)
     max_retries: int = 0
     retry_delay_seconds: int = 60
-    timeout_seconds: Optional[int] = None
+    timeout_seconds: int | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary (for API responses)."""
         return {
             "job_id": self.job_id,
@@ -128,16 +133,13 @@ class ScheduledJob:
             "last_error": self.last_error,
         }
 
-    def to_celery_schedule(self) -> Dict[str, Any]:
+    def to_celery_schedule(self) -> dict[str, Any]:
         """
         Convert to Celery beat schedule format.
 
         Use this when migrating to Celery:
         ```python
-        app.conf.beat_schedule = {
-            job.job_id: job.to_celery_schedule()
-            for job in scheduler.get_jobs()
-        }
+        app.conf.beat_schedule = {job.job_id: job.to_celery_schedule() for job in scheduler.get_jobs()}
         ```
         """
         from datetime import timedelta as td
@@ -158,15 +160,14 @@ class ScheduledJob:
                 h, m = self.time_of_day.split(":")
                 schedule_config["schedule_crontab"] = {"hour": int(h), "minute": int(m)}
 
-        elif self.schedule_type == ScheduleType.WEEKLY:
+        elif self.schedule_type == ScheduleType.WEEKLY and self.time_of_day and self.day_of_week is not None:
             # Celery: schedule=crontab(hour=H, minute=M, day_of_week=D)
-            if self.time_of_day and self.day_of_week is not None:
-                h, m = self.time_of_day.split(":")
-                schedule_config["schedule_crontab"] = {
-                    "hour": int(h),
-                    "minute": int(m),
-                    "day_of_week": self.day_of_week,
-                }
+            h, m = self.time_of_day.split(":")
+            schedule_config["schedule_crontab"] = {
+                "hour": int(h),
+                "minute": int(m),
+                "day_of_week": self.day_of_week,
+            }
 
         return schedule_config
 
@@ -196,7 +197,7 @@ class UnifiedScheduler:
         - scheduler.run_now -> task.delay() or task.apply_async()
     """
 
-    _instance: Optional["UnifiedScheduler"] = None
+    _instance: "UnifiedScheduler" | None = None
     _lock = threading.Lock()
 
     def __new__(cls, *args, **kwargs) -> "UnifiedScheduler":
@@ -231,32 +232,32 @@ class UnifiedScheduler:
         self._max_workers = int(max_workers)
 
         # Job storage
-        self._jobs: Dict[str, ScheduledJob] = {}
-        self._tasks: Dict[str, Callable] = {}  # task_name -> function
+        self._jobs: dict[str, ScheduledJob] = {}
+        self._tasks: dict[str, Callable] = {}  # task_name -> function
 
         # Heap storage
         # Entries: (run_at_ts, seq, job_id)
-        self._job_heap: List[Tuple[float, int, str]] = []
+        self._job_heap: list[tuple[float, int, str]] = []
         self._heap_seq = 0
 
         # Execution history
-        self._history: List[JobResult] = []
+        self._history: list[JobResult] = []
 
         # Thread management
         self._running = False
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
         self._job_lock = threading.RLock()
 
         # Bounded executor for job execution
-        self._executor: Optional[ThreadPoolExecutor] = ThreadPoolExecutor(
+        self._executor: ThreadPoolExecutor | None = ThreadPoolExecutor(
             max_workers=self._max_workers,
             thread_name_prefix="UnifiedSchedulerJob",
         )
 
         # Callbacks
-        self._on_job_start: Optional[Callable[[ScheduledJob], None]] = None
-        self._on_job_complete: Optional[Callable[[ScheduledJob, JobResult], None]] = None
-        self._on_job_error: Optional[Callable[[ScheduledJob, Exception], None]] = None
+        self._on_job_start: Callable[[ScheduledJob], None] | None = None
+        self._on_job_complete: Callable[[ScheduledJob, JobResult], None] | None = None
+        self._on_job_error: Callable[[ScheduledJob, Exception], None] | None = None
 
         self._initialized = True
         logger.info("UnifiedScheduler initialized (singleton)")
@@ -274,9 +275,10 @@ class UnifiedScheduler:
             def check_plant_health(unit_id: int):
                 pass
         """
+
         def decorator(func: Callable) -> Callable:
             self._tasks[name] = func
-            logger.debug(f"Registered task: {name}")
+            logger.debug("Registered task: %s", name)
 
             @wraps(func)
             def wrapper(*args, **kwargs):
@@ -289,12 +291,13 @@ class UnifiedScheduler:
             )
 
             return wrapper
+
         return decorator
 
     def register_task(self, name: str, func: Callable) -> None:
         """Register a task function programmatically."""
         self._tasks[name] = func
-        logger.debug(f"Registered task: {name}")
+        logger.debug("Registered task: %s", name)
 
     def clear_jobs(self) -> None:
         """Remove all scheduled jobs and pending heap entries."""
@@ -341,10 +344,10 @@ class UnifiedScheduler:
         task_name: str,
         interval_seconds: int,
         *,
-        job_id: Optional[str] = None,
-        namespace: Optional[str] = None,
-        args: Tuple = (),
-        kwargs: Optional[Dict[str, Any]] = None,
+        job_id: str | None = None,
+        namespace: str | None = None,
+        args: tuple = (),
+        kwargs: dict[str, Any] | None = None,
         enabled: bool = True,
         start_immediately: bool = False,
     ) -> ScheduledJob:
@@ -371,7 +374,7 @@ class UnifiedScheduler:
         )
 
         self._add_job(job)
-        logger.info(f"Scheduled interval job: {job_id} (every {interval_seconds}s)")
+        logger.info("Scheduled interval job: %s (every %ss)", job_id, interval_seconds)
         return job
 
     def schedule_daily(
@@ -379,10 +382,10 @@ class UnifiedScheduler:
         task_name: str,
         time_of_day: str,
         *,
-        job_id: Optional[str] = None,
-        namespace: Optional[str] = None,
-        args: Tuple = (),
-        kwargs: Optional[Dict[str, Any]] = None,
+        job_id: str | None = None,
+        namespace: str | None = None,
+        args: tuple = (),
+        kwargs: dict[str, Any] | None = None,
         enabled: bool = True,
     ) -> ScheduledJob:
         """Schedule a task to run daily at a specific time."""
@@ -407,7 +410,7 @@ class UnifiedScheduler:
         )
 
         self._add_job(job)
-        logger.info(f"Scheduled daily job: {job_id} (at {time_of_day})")
+        logger.info("Scheduled daily job: %s (at %s)", job_id, time_of_day)
         return job
 
     def schedule_weekly(
@@ -416,10 +419,10 @@ class UnifiedScheduler:
         day_of_week: int,
         time_of_day: str,
         *,
-        job_id: Optional[str] = None,
-        namespace: Optional[str] = None,
-        args: Tuple = (),
-        kwargs: Optional[Dict[str, Any]] = None,
+        job_id: str | None = None,
+        namespace: str | None = None,
+        args: tuple = (),
+        kwargs: dict[str, Any] | None = None,
         enabled: bool = True,
     ) -> ScheduledJob:
         """Schedule a task to run weekly on a specific day and time."""
@@ -446,7 +449,7 @@ class UnifiedScheduler:
         )
 
         self._add_job(job)
-        logger.info(f"Scheduled weekly job: {job_id} (day {day_of_week} at {time_of_day})")
+        logger.info("Scheduled weekly job: %s (day %s at %s)", job_id, day_of_week, time_of_day)
         return job
 
     def schedule_once(
@@ -454,10 +457,10 @@ class UnifiedScheduler:
         task_name: str,
         run_at: datetime,
         *,
-        job_id: Optional[str] = None,
-        namespace: Optional[str] = None,
-        args: Tuple = (),
-        kwargs: Optional[Dict[str, Any]] = None,
+        job_id: str | None = None,
+        namespace: str | None = None,
+        args: tuple = (),
+        kwargs: dict[str, Any] | None = None,
     ) -> ScheduledJob:
         """Schedule a task to run once at a specific time."""
         if job_id is None:
@@ -479,16 +482,16 @@ class UnifiedScheduler:
         )
 
         self._add_job(job)
-        logger.info(f"Scheduled one-time job: {job_id} (at {run_at})")
+        logger.info("Scheduled one-time job: %s (at %s)", job_id, run_at)
         return job
 
     def run_now(
         self,
         task_name: str,
         *,
-        args: Tuple = (),
-        kwargs: Optional[Dict[str, Any]] = None,
-    ) -> Optional[JobResult]:
+        args: tuple = (),
+        kwargs: dict[str, Any] | None = None,
+    ) -> JobResult | None:
         """
         Run a task immediately (synchronously).
 
@@ -496,7 +499,7 @@ class UnifiedScheduler:
         """
         func = self._tasks.get(task_name)
         if func is None:
-            logger.error(f"Task not found: {task_name}")
+            logger.error("Task not found: %s", task_name)
             return None
 
         started_at = datetime.now()
@@ -516,7 +519,7 @@ class UnifiedScheduler:
 
         except Exception as e:
             completed_at = datetime.now()
-            logger.error(f"Immediate task {task_name} failed: {e}", exc_info=True)
+            logger.error("Immediate task %s failed: %s", task_name, e, exc_info=True)
 
             job_result = JobResult(
                 job_id=f"{task_name}_immediate_{int(started_at.timestamp())}",
@@ -542,7 +545,7 @@ class UnifiedScheduler:
             if job_id in self._jobs:
                 del self._jobs[job_id]
                 # Note: we do not delete heap entries in-place; they will be skipped as stale.
-                logger.info(f"Removed job: {job_id}")
+                logger.info("Removed job: %s", job_id)
                 return True
         return False
 
@@ -561,7 +564,7 @@ class UnifiedScheduler:
                     self._schedule_next_run(job, reference_time=datetime.now())
                 self._push_heap(job)
 
-            logger.info(f"Job {job_id} {'enabled' if job.enabled else 'disabled'}")
+            logger.info("Job %s %s", job_id, "enabled" if job.enabled else "disabled")
             return True
 
     def pause_job(self, job_id: str) -> bool:
@@ -572,15 +575,15 @@ class UnifiedScheduler:
         """Resume a paused job (alias for enable)."""
         return self.enable_job(job_id, enabled=True)
 
-    def get_job(self, job_id: str) -> Optional[ScheduledJob]:
+    def get_job(self, job_id: str) -> ScheduledJob | None:
         """Get a job by ID."""
         return self._jobs.get(job_id)
 
     def get_jobs(
         self,
-        namespace: Optional[str] = None,
+        namespace: str | None = None,
         enabled_only: bool = False,
-    ) -> List[ScheduledJob]:
+    ) -> list[ScheduledJob]:
         """Get all jobs, optionally filtered."""
         jobs = list(self._jobs.values())
 
@@ -592,7 +595,7 @@ class UnifiedScheduler:
 
         return jobs
 
-    def get_namespaces(self) -> Set[str]:
+    def get_namespaces(self) -> set[str]:
         """Get all job namespaces."""
         return {job.namespace for job in self._jobs.values()}
 
@@ -655,7 +658,7 @@ class UnifiedScheduler:
                 self._process_due_jobs()
                 time.sleep(self._check_interval)
             except Exception as e:
-                logger.error(f"Error in scheduler loop: {e}", exc_info=True)
+                logger.error("Error in scheduler loop: %s", e, exc_info=True)
                 time.sleep(1)
 
         logger.debug("Scheduler loop ended")
@@ -704,8 +707,8 @@ class UnifiedScheduler:
 
                 try:
                     self._executor.submit(self._execute_job, job_id, scheduled_for)
-                except Exception as e:
-                    logger.error(f"Failed to submit job {job_id} to executor: {e}", exc_info=True)
+                except RuntimeError as e:
+                    logger.error("Failed to submit job %s to executor: %s", job_id, e, exc_info=True)
 
     def _execute_job(self, job_id: str, scheduled_for: datetime) -> None:
         """
@@ -729,7 +732,7 @@ class UnifiedScheduler:
             try:
                 self._on_job_start(job)
             except Exception as e:
-                logger.warning(f"Job start callback failed: {e}")
+                logger.warning("Job start callback failed: %s", e)
 
         try:
             func = job.func or self._tasks.get(job.task_name)
@@ -760,11 +763,13 @@ class UnifiedScheduler:
                 try:
                     self._on_job_complete(job, job_result)
                 except Exception as e:
-                    logger.warning(f"Job complete callback failed: {e}")
+                    logger.warning("Job complete callback failed: %s", e)
 
             logger.debug(
-                f"Job {job.job_id} completed in {job_result.duration_seconds:.2f}s "
-                f"(scheduled_for={scheduled_for.isoformat()})"
+                "Job %s completed in %.2fs (scheduled_for=%s)",
+                job.job_id,
+                job_result.duration_seconds,
+                scheduled_for.isoformat(),
             )
 
         except Exception as e:
@@ -790,16 +795,16 @@ class UnifiedScheduler:
                 try:
                     self._on_job_error(job, e)
                 except Exception as cb_e:
-                    logger.warning(f"Job error callback failed: {cb_e}")
+                    logger.warning("Job error callback failed: %s", cb_e)
 
-            logger.error(f"Job {job.job_id} failed: {e}", exc_info=True)
+            logger.error("Job %s failed: %s", job.job_id, e, exc_info=True)
 
     def _schedule_next_run(
         self,
         job: ScheduledJob,
         *,
         reference_time: datetime,
-        scheduled_time: Optional[datetime] = None,
+        scheduled_time: datetime | None = None,
     ) -> None:
         """
         Calculate and set the next run time for a job.
@@ -877,15 +882,15 @@ class UnifiedScheduler:
         with self._job_lock:
             self._history.append(result)
             if len(self._history) > self._max_history:
-                self._history = self._history[-self._max_history:]
+                self._history = self._history[-self._max_history :]
 
     # ==================== Callbacks ====================
 
     def set_callbacks(
         self,
-        on_start: Optional[Callable[[ScheduledJob], None]] = None,
-        on_complete: Optional[Callable[[ScheduledJob, JobResult], None]] = None,
-        on_error: Optional[Callable[[ScheduledJob, Exception], None]] = None,
+        on_start: Callable[[ScheduledJob], None] | None = None,
+        on_complete: Callable[[ScheduledJob, JobResult], None] | None = None,
+        on_error: Callable[[ScheduledJob, Exception], None] | None = None,
     ) -> None:
         """Set callbacks for job lifecycle events."""
         self._on_job_start = on_start
@@ -894,7 +899,7 @@ class UnifiedScheduler:
 
     # ==================== Status & History ====================
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """Get scheduler status."""
         with self._job_lock:
             enabled_jobs = [j for j in self._jobs.values() if j.enabled]
@@ -911,33 +916,33 @@ class UnifiedScheduler:
                 "max_workers": self._max_workers,
             }
 
-    def health_check(self) -> Dict[str, Any]:
+    def health_check(self) -> dict[str, Any]:
         """
         Perform a comprehensive health check on the scheduler.
-        
+
         Returns a structured health report including:
         - Overall health status (healthy/degraded/unhealthy)
         - Scheduler running state
         - Job execution statistics
         - Recent failure analysis
         - Stale job detection
-        
+
         Returns:
             Health check report dictionary
         """
         with self._job_lock:
             now = datetime.now()
-            
+
             # Basic status
             is_running = self._running
             total_jobs = len(self._jobs)
             enabled_jobs = [j for j in self._jobs.values() if j.enabled]
-            
+
             # Recent execution analysis
             recent_history = self._history[-50:] if self._history else []
             recent_failures = [r for r in recent_history if not r.success]
             failure_rate = len(recent_failures) / len(recent_history) if recent_history else 0.0
-            
+
             # Stale job detection (jobs that haven't run in expected time)
             stale_jobs = []
             for job in enabled_jobs:
@@ -945,14 +950,16 @@ class UnifiedScheduler:
                     expected_interval = timedelta(seconds=job.interval_seconds or 60)
                     time_since_last = now - job.last_run
                     if time_since_last > expected_interval * 3:  # 3x overdue
-                        stale_jobs.append({
-                            "job_id": job.job_id,
-                            "task_name": job.task_name,
-                            "last_run": job.last_run.isoformat(),
-                            "expected_interval_seconds": job.interval_seconds,
-                            "overdue_seconds": time_since_last.total_seconds() - (job.interval_seconds or 60),
-                        })
-            
+                        stale_jobs.append(
+                            {
+                                "job_id": job.job_id,
+                                "task_name": job.task_name,
+                                "last_run": job.last_run.isoformat(),
+                                "expected_interval_seconds": job.interval_seconds,
+                                "overdue_seconds": time_since_last.total_seconds() - (job.interval_seconds or 60),
+                            }
+                        )
+
             # Determine overall health
             if not is_running:
                 health = "unhealthy"
@@ -969,7 +976,7 @@ class UnifiedScheduler:
             else:
                 health = "healthy"
                 health_reason = "All systems operational"
-            
+
             # Recent failures detail
             failure_summary = {}
             for r in recent_failures:
@@ -977,7 +984,7 @@ class UnifiedScheduler:
                     failure_summary[r.job_id] = {"count": 0, "last_error": None}
                 failure_summary[r.job_id]["count"] += 1
                 failure_summary[r.job_id]["last_error"] = r.error
-            
+
             return {
                 "health": health,
                 "reason": health_reason,
@@ -997,10 +1004,10 @@ class UnifiedScheduler:
 
     def get_history(
         self,
-        job_id: Optional[str] = None,
-        namespace: Optional[str] = None,
+        job_id: str | None = None,
+        namespace: str | None = None,
         limit: int = 100,
-    ) -> List[JobResult]:
+    ) -> list[JobResult]:
         """Get job execution history."""
         results = list(self._history)
 
@@ -1013,13 +1020,9 @@ class UnifiedScheduler:
 
         return sorted(results, key=lambda r: r.started_at, reverse=True)[: int(limit)]
 
-    def export_celery_config(self) -> Dict[str, Any]:
+    def export_celery_config(self) -> dict[str, Any]:
         """Export scheduler configuration in Celery beat format."""
-        return {
-            job.job_id: job.to_celery_schedule()
-            for job in self._jobs.values()
-            if job.enabled
-        }
+        return {job.job_id: job.to_celery_schedule() for job in self._jobs.values() if job.enabled}
 
 
 def get_scheduler() -> UnifiedScheduler:

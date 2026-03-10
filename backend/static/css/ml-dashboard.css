@@ -1,0 +1,726 @@
+/**
+ * ML Dashboard Styles
+ * Scoped under .ml-dashboard-page to avoid global leaks
+ */
+
+/* =========================================================================
+   Scoped CSS Variables (theme token extensions for ML)
+   ========================================================================= */
+.ml-dashboard-page {
+    --ml-blue: #3b82f6;
+    --ml-violet: #8b5cf6;
+}
+
+/* =========================================================================
+   Health Indicators
+   ========================================================================= */
+.ml-dashboard-page .health-dot,
+.ml-dashboard-page .ws-status-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 8px;
+    transition: all 0.3s ease;
+}
+
+.ml-dashboard-page .health-dot.healthy {
+    background-color: var(--success-500);
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+}
+
+.ml-dashboard-page .health-dot.error {
+    background-color: var(--danger-500);
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
+}
+
+.ml-dashboard-page .ws-status-dot.connected {
+    background-color: var(--success-500);
+    animation: ml-pulse 2s infinite;
+}
+
+.ml-dashboard-page .ws-status-dot.disconnected {
+    background-color: var(--color-text-muted);
+}
+
+@keyframes ml-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+/* =========================================================================
+   Model Type Filter Buttons (scoped)
+   ========================================================================= */
+.ml-dashboard-page .header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ml-dashboard-page .btn-group-sm .btn {
+    font-size: 0.875rem;
+    padding: 0.25rem 0.75rem;
+}
+
+/* =========================================================================
+   Confidence Badge
+   ========================================================================= */
+.ml-dashboard-page .confidence-badge {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+/* =========================================================================
+   Drift Alert
+   ========================================================================= */
+.ml-dashboard-page #drift-alert {
+    border-left: 4px solid var(--warning-500);
+    animation: ml-slideIn 0.3s ease-out;
+}
+
+@keyframes ml-slideIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* =========================================================================
+   Metric Rows
+   ========================================================================= */
+.ml-dashboard-page .metric-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.ml-dashboard-page .metric-row:last-child {
+    border-bottom: none;
+}
+
+.ml-dashboard-page .metric-label {
+    font-weight: 500;
+    color: var(--color-text-muted);
+}
+
+.ml-dashboard-page .metric-value {
+    font-weight: 600;
+    color: var(--color-text-strong);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ml-dashboard-page .metric-value .text-muted {
+    font-weight: 400;
+    font-size: 0.875rem;
+}
+
+/* =========================================================================
+   Badge Enhancements (scoped)
+   ========================================================================= */
+.ml-dashboard-page .badge {
+    padding: 0.35rem 0.65rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 0.375rem;
+}
+
+.ml-dashboard-page .badge-success { background-color: var(--success-500); color: white; }
+.ml-dashboard-page .badge-warning { background-color: var(--warning-500); color: white; }
+.ml-dashboard-page .badge-danger  { background-color: var(--danger-500); color: white; }
+.ml-dashboard-page .badge-info    { background-color: var(--ml-blue); color: white; }
+.ml-dashboard-page .badge-primary { background-color: var(--ml-violet); color: white; }
+
+/* =========================================================================
+   Model Items Enhancement
+   ========================================================================= */
+.ml-dashboard-page .ml-models-scroll {
+    max-height: 32rem;
+    min-height: 16rem;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 0.2rem;
+}
+
+.ml-dashboard-page .models-list,
+.ml-dashboard-page .job-list {
+    list-style: none !important;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 0.75rem;
+}
+
+.ml-dashboard-page .model-item {
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-md);
+    background: var(--surface-muted-translucent);
+    padding: 0.875rem;
+    transition: all 0.2s ease;
+}
+
+.ml-dashboard-page .model-item:hover {
+    transform: translateX(2px);
+    box-shadow: var(--shadow-sm);
+    border-color: var(--brand-600);
+}
+
+.ml-dashboard-page .model-header,
+.ml-dashboard-page .job-name {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.4rem;
+}
+
+.ml-dashboard-page .model-name {
+    font-weight: 600;
+    color: var(--color-text-strong);
+    overflow-wrap: anywhere;
+}
+
+.ml-dashboard-page .model-version {
+    font-size: 0.82rem;
+    color: var(--color-text-muted);
+    margin-bottom: 0.55rem;
+}
+
+.ml-dashboard-page .model-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.55rem;
+    margin-bottom: 0.65rem;
+}
+
+.ml-dashboard-page .model-metric {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-sm);
+    padding: 0.45rem 0.55rem;
+    display: grid;
+    gap: 0.15rem;
+}
+
+.ml-dashboard-page .model-metric-label {
+    font-size: 0.68rem;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.ml-dashboard-page .model-metric-value {
+    font-size: 0.82rem;
+    color: var(--color-text-strong);
+    font-weight: 600;
+}
+
+.ml-dashboard-page .job-item {
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-md);
+    background: var(--surface-muted-translucent);
+    padding: 0.8rem;
+}
+
+.ml-dashboard-page .job-info {
+    display: grid;
+    gap: 0.45rem;
+}
+
+.ml-dashboard-page .job-schedule {
+    color: var(--color-text-muted);
+    font-size: 0.85rem;
+}
+
+.ml-dashboard-page .job-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin-top: 0.5rem;
+}
+
+.ml-dashboard-page .job-actions .btn,
+.ml-dashboard-page .models-list .btn-group .btn {
+    min-width: 6.25rem;
+    justify-content: center;
+}
+
+.ml-dashboard-page .models-list .btn-group {
+    margin-top: 0.4rem;
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(6.4rem, 1fr));
+    gap: 0.45rem;
+}
+
+.ml-dashboard-page .ml-filter-toolbar {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.ml-dashboard-page .ml-model-actions .btn,
+.ml-dashboard-page #scheduler-controls .btn {
+    min-width: 7.25rem;
+    justify-content: center;
+}
+
+.ml-dashboard-page .ml-jobs-list {
+    min-height: 10rem;
+}
+
+/* =========================================================================
+   Button Group Spacing (scoped)
+   ========================================================================= */
+.ml-dashboard-page .btn-group {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.ml-dashboard-page #filter-models-group,
+.ml-dashboard-page #scheduler-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.ml-dashboard-page #filter-models-group .btn,
+.ml-dashboard-page #scheduler-controls .btn {
+    min-width: 6.25rem;
+    flex: 1 1 6.25rem;
+}
+
+.ml-dashboard-page .card-header-extra > .d-flex {
+    flex-wrap: wrap;
+    row-gap: 0.5rem;
+}
+
+.ml-dashboard-page #models-list-container,
+.ml-dashboard-page #jobs-list-container {
+    overflow-x: hidden;
+}
+
+/* =========================================================================
+   Card Header Enhancement (scoped)
+   ========================================================================= */
+.ml-dashboard-page .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.ml-dashboard-page .card-header h3 {
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 600;
+}
+
+/* =========================================================================
+   Empty State
+   ========================================================================= */
+.ml-dashboard-page .empty-state {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: var(--color-text-muted);
+}
+
+.ml-dashboard-page .empty-state-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+/* =========================================================================
+   Alert Container (scoped)
+   ========================================================================= */
+.ml-dashboard-page #alert-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    max-width: 400px;
+}
+
+.ml-dashboard-page .alert {
+    animation: ml-slideInRight 0.3s ease-out;
+    margin-bottom: 0.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+@keyframes ml-slideInRight {
+    from { opacity: 0; transform: translateX(100%); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+/* =========================================================================
+   Chart Container (ML-specific)
+   ========================================================================= */
+.ml-dashboard-page .chart-container-ml {
+    position: relative;
+    height: 350px;
+    width: 100%;
+}
+
+/* =========================================================================
+   Collapsible Sections — Lazy-loaded panels
+   ========================================================================= */
+.ml-dashboard-page .section-collapse-btn {
+    background: none;
+    border: none;
+    width: 100%;
+    text-align: left;
+    padding: 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: inherit;
+}
+
+.ml-dashboard-page .section-collapse-btn .collapse-icon {
+    transition: transform 0.2s ease;
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+}
+
+.ml-dashboard-page .section-collapse-btn[aria-expanded="true"] .collapse-icon {
+    transform: rotate(180deg);
+}
+
+.ml-dashboard-page .section-body {
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+.ml-dashboard-page .section-body.collapsed {
+    max-height: 0;
+    padding: 0;
+}
+
+/* =========================================================================
+   KPI Row
+   ========================================================================= */
+.ml-dashboard-page .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+/* =========================================================================
+   Insights Feed (Continuous Monitoring)
+   ========================================================================= */
+.ml-dashboard-page .insights-feed {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.ml-dashboard-page .insight-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    transition: background-color 0.15s ease;
+}
+
+.ml-dashboard-page .insight-item:last-child { border-bottom: none; }
+.ml-dashboard-page .insight-item:hover { background-color: rgba(0, 0, 0, 0.02); }
+
+.ml-dashboard-page .insight-icon {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+}
+
+.ml-dashboard-page .insight-icon.critical { background-color: rgba(239, 68, 68, 0.1); color: var(--danger-500); }
+.ml-dashboard-page .insight-icon.warning  { background-color: rgba(245, 158, 11, 0.1); color: var(--warning-500); }
+.ml-dashboard-page .insight-icon.info     { background-color: rgba(59, 130, 246, 0.1); color: var(--ml-blue); }
+
+.ml-dashboard-page .insight-content { flex: 1; min-width: 0; }
+.ml-dashboard-page .insight-title { font-weight: 600; font-size: 0.875rem; color: var(--color-text-strong); }
+.ml-dashboard-page .insight-desc { font-size: 0.8rem; color: var(--color-text-muted); margin-top: 0.125rem; }
+.ml-dashboard-page .insight-time { font-size: 0.7rem; color: var(--color-text-muted); margin-top: 0.25rem; }
+
+/* =========================================================================
+   Data Quality Cards (Training Data)
+   ========================================================================= */
+.ml-dashboard-page .data-quality-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+}
+
+.ml-dashboard-page .data-quality-card {
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    text-align: center;
+    transition: box-shadow 0.2s ease;
+}
+
+.ml-dashboard-page .data-quality-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.ml-dashboard-page .data-quality-card .dq-label {
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--color-text-strong);
+    margin-bottom: 0.5rem;
+}
+
+.ml-dashboard-page .data-quality-card .dq-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+.ml-dashboard-page .data-quality-card .dq-sub {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    margin-top: 0.25rem;
+}
+
+/* =========================================================================
+   Retraining Service Status Badge
+   ========================================================================= */
+.ml-dashboard-page .scheduler-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.25rem 0.625rem;
+    border-radius: 1rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.ml-dashboard-page .scheduler-badge.running {
+    background-color: rgba(16, 185, 129, 0.1);
+    color: var(--success-500);
+}
+
+.ml-dashboard-page .scheduler-badge.stopped {
+    background-color: rgba(107, 114, 128, 0.1);
+    color: var(--color-text-muted);
+}
+
+/* =========================================================================
+   Phase C — ML Readiness
+   ========================================================================= */
+.ml-dashboard-page .readiness-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+}
+
+.ml-dashboard-page .readiness-card {
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    transition: box-shadow 0.2s ease;
+}
+.ml-dashboard-page .readiness-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.ml-dashboard-page .readiness-card .progress {
+    height: 0.5rem;
+    border-radius: 0.25rem;
+}
+
+/* =========================================================================
+   Phase C — A/B Testing
+   ========================================================================= */
+.ml-dashboard-page .ab-test-card {
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    transition: box-shadow 0.2s ease;
+}
+.ml-dashboard-page .ab-test-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.ml-dashboard-page .ab-analysis-card {
+    border-left: 3px solid var(--bs-primary, #0d6efd);
+    background-color: rgba(13, 110, 253, 0.04);
+    border-radius: 0 0.5rem 0.5rem 0;
+    padding: 1rem;
+    margin-top: 0.5rem;
+}
+
+.ml-dashboard-page #drift-model-select {
+    min-width: 200px;
+}
+
+.ml-dashboard-page #training-history-container .table,
+.ml-dashboard-page .ml-training-history-table {
+    width: 100%;
+}
+
+/* =========================================================================
+   Responsive
+   ========================================================================= */
+@media (max-width: 768px) {
+    .ml-dashboard-page .header-right {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .ml-dashboard-page #alert-container {
+        left: 20px;
+        right: 20px;
+        max-width: none;
+    }
+
+    .ml-dashboard-page .kpi-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .ml-dashboard-page .data-quality-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .ml-dashboard-page .readiness-grid {
+        grid-template-columns: 1fr;
+    }
+
+    /* Allow grid columns to shrink on narrow viewports */
+    .ml-dashboard-page .row > [class*="col-"] {
+        min-width: 0;
+    }
+
+    .ml-dashboard-page .card-header {
+        flex-wrap: wrap;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .ml-dashboard-page .card-header-main,
+    .ml-dashboard-page .card-header-extra {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .ml-dashboard-page .card-header-extra {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-start;
+    }
+
+    .ml-dashboard-page .card-header h3 {
+        font-size: 1rem;
+        line-height: 1.25;
+        overflow-wrap: anywhere;
+    }
+
+    .ml-dashboard-page #drift-model-select {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .ml-dashboard-page #scheduler-controls .btn {
+        flex: 1 1 11rem;
+        min-width: 0;
+    }
+
+    .ml-dashboard-page .models-list .btn-group,
+    .ml-dashboard-page .job-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .ml-dashboard-page .model-metrics {
+        grid-template-columns: 1fr;
+    }
+
+    .ml-dashboard-page .chart-container-ml {
+        height: 280px;
+    }
+
+    .ml-dashboard-page #training-history-container .table-responsive {
+        display: block;
+        max-width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .ml-dashboard-page #training-history-container .table th,
+    .ml-dashboard-page .ml-training-history-table th,
+    .ml-dashboard-page #training-history-container .table td,
+    .ml-dashboard-page .ml-training-history-table td {
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
+    .ml-dashboard-page #training-history-container .timestamp,
+    .ml-dashboard-page .ml-training-history-table .timestamp {
+        white-space: nowrap;
+    }
+}
+
+@media (max-width: 576px) {
+    .ml-dashboard-page .kpi-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .ml-dashboard-page .metric-row {
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .ml-dashboard-page #filter-models-group {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        width: 100%;
+    }
+
+    .ml-dashboard-page #filter-models-group .btn {
+        width: 100%;
+    }
+
+    .ml-dashboard-page .models-list .btn-group .btn,
+    .ml-dashboard-page .job-actions .btn {
+        min-width: 0;
+        flex: 1 1 calc(50% - 0.45rem);
+    }
+
+    .ml-dashboard-page .models-list .btn-group,
+    .ml-dashboard-page .job-actions {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+
+    /* Keep the most useful columns visible on phones */
+    .ml-dashboard-page #training-history-container .table th:nth-child(2),
+    .ml-dashboard-page .ml-training-history-table th:nth-child(2),
+    .ml-dashboard-page #training-history-container .table td:nth-child(2),
+    .ml-dashboard-page .ml-training-history-table td:nth-child(2),
+    .ml-dashboard-page #training-history-container .table th:nth-child(4),
+    .ml-dashboard-page .ml-training-history-table th:nth-child(4),
+    .ml-dashboard-page #training-history-container .table td:nth-child(4),
+    .ml-dashboard-page .ml-training-history-table td:nth-child(4),
+    .ml-dashboard-page #training-history-container .table th:nth-child(5),
+    .ml-dashboard-page .ml-training-history-table th:nth-child(5),
+    .ml-dashboard-page #training-history-container .table td:nth-child(5),
+    .ml-dashboard-page .ml-training-history-table td:nth-child(5) {
+        display: none;
+    }
+
+    .ml-dashboard-page #training-history-container .table th,
+    .ml-dashboard-page .ml-training-history-table th,
+    .ml-dashboard-page #training-history-container .table td,
+    .ml-dashboard-page .ml-training-history-table td {
+        padding: 0.5rem;
+        font-size: 0.8125rem;
+    }
+}

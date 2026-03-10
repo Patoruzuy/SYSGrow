@@ -9,29 +9,41 @@ Centralizes duplicate code from pipeline.py and priority_processor.py.
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, Set, Tuple
-
-from app.utils.time import utc_now
+from typing import Any
 
 # ============================================================================
 # Constants
 # ============================================================================
 
 # Metrics that appear on the dashboard
-DASHBOARD_METRICS: Set[str] = {
-    "temperature", "humidity", "soil_moisture", "co2", "air_quality",
-    "ec", "ph", "smoke", "voc", "pressure", "lux", "full_spectrum",
-    "infrared", "visible", "dew_point", "vpd", "heat_index",
+DASHBOARD_METRICS: set[str] = {
+    "temperature",
+    "humidity",
+    "soil_moisture",
+    "co2",
+    "air_quality",
+    "ec",
+    "ph",
+    "smoke",
+    "voc",
+    "pressure",
+    "lux",
+    "full_spectrum",
+    "infrared",
+    "visible",
+    "dew_point",
+    "vpd",
+    "heat_index",
 }
 
 # Keys that are metadata, not sensor readings
-META_KEYS: Set[str] = {"battery", "linkquality", "report_interval", "temperature_unit"}
+META_KEYS: set[str] = {"battery", "linkquality", "report_interval", "temperature_unit"}
 
 # Suffixes that indicate metadata keys
-META_SUFFIXES: Tuple[str, ...] = ("_calibration", "_unit")
+META_SUFFIXES: tuple[str, ...] = ("_calibration", "_unit")
 
 # Unit mapping for sensor readings
-UNIT_MAP: Dict[str, str] = {
+UNIT_MAP: dict[str, str] = {
     "temperature": "°c",
     "humidity": "%",
     "soil_moisture": "%",
@@ -49,18 +61,12 @@ UNIT_MAP: Dict[str, str] = {
 }
 
 # Valid wire status values
-VALID_STATUSES: Set[str] = {"success", "warning", "error", "mock"}
+VALID_STATUSES: set[str] = {"success", "warning", "error", "mock"}
 
 # Keyword sets for sensor type classification (DRY constants)
-SOIL_PLANT_TYPE_KEYWORDS = frozenset({
-    "soil", "moisture", "soil_moisture", "plant_sensor", "plant", "ph", "ec"
-})
-SOIL_PLANT_MODEL_KEYWORDS = frozenset({
-    "soil", "moisture", "capacitive", "ph", "ec"
-})
-ENVIRONMENT_KEYWORDS = frozenset({
-    "environment", "env", "temp_humidity", "temp-humidity", "temperature", "humidity"
-})
+SOIL_PLANT_TYPE_KEYWORDS = frozenset({"soil", "moisture", "soil_moisture", "plant_sensor", "plant", "ph", "ec"})
+SOIL_PLANT_MODEL_KEYWORDS = frozenset({"soil", "moisture", "capacitive", "ph", "ec"})
+ENVIRONMENT_KEYWORDS = frozenset({"environment", "env", "temp_humidity", "temp-humidity", "temperature", "humidity"})
 LIGHT_TYPE_KEYWORDS = frozenset({"light", "lux", "illuminance"})
 LIGHT_MODEL_KEYWORDS = frozenset({"bh1750", "tsl2591"})
 AIR_QUALITY_MODEL_KEYWORDS = frozenset({"ens160", "bme680", "mq135", "mq2"})
@@ -70,6 +76,7 @@ DERIVED_METRICS = frozenset({"dew_point", "vpd", "heat_index"})
 # ============================================================================
 # Helper Functions
 # ============================================================================
+
 
 def matches_any(text: str, keywords: frozenset) -> bool:
     """Check if any keyword is a substring of text."""
@@ -88,9 +95,9 @@ def is_environment_sensor(sensor: Any) -> bool:
     return matches_any(st, ENVIRONMENT_KEYWORDS)
 
 
-def extract_sensor_strings(sensor: Any) -> Tuple[str, str]:
+def extract_sensor_strings(sensor: Any) -> tuple[str, str]:
     """Extract normalized sensor_type and model strings from a sensor entity.
-    
+
     Returns:
         Tuple of (sensor_type, model) as lowercase strings
     """
@@ -106,7 +113,7 @@ def is_meta_key(key: str) -> bool:
     return key in META_KEYS or key.endswith(META_SUFFIXES)
 
 
-def coerce_float(value: Any) -> Optional[float]:
+def coerce_float(value: Any) -> float | None:
     """
     Safely coerce a value to float.
 
@@ -127,7 +134,7 @@ def coerce_float(value: Any) -> Optional[float]:
     return None
 
 
-def coerce_int(value: Any) -> Optional[int]:
+def coerce_int(value: Any) -> int | None:
     """
     Safely coerce a value to int.
 
@@ -174,7 +181,7 @@ def get_meta_val(obj: Any, attr: str, default: Any = "unknown") -> Any:
     return str(raw) if raw else default
 
 
-def coerce_numeric_readings(readings: Dict[str, Any], exclude_meta: bool = True) -> Dict[str, float]:
+def coerce_numeric_readings(readings: dict[str, Any], exclude_meta: bool = True) -> dict[str, float]:
     """
     Filter and coerce raw values to floats for payload.readings.
 
@@ -185,7 +192,7 @@ def coerce_numeric_readings(readings: Dict[str, Any], exclude_meta: bool = True)
     Returns:
         Dict of key -> float for numeric values only
     """
-    out: Dict[str, float] = {}
+    out: dict[str, float] = {}
     for k, v in (readings or {}).items():
         if exclude_meta and is_meta_key(k):
             continue
@@ -200,7 +207,7 @@ def get_unit_for_metric(metric: str) -> str:
     return UNIT_MAP.get(metric, "")
 
 
-def infer_power_source(data: Dict[str, Any]) -> str:
+def infer_power_source(data: dict[str, Any]) -> str:
     """
     Infer power source from sensor data.
 

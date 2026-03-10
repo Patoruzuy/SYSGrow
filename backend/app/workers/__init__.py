@@ -15,7 +15,5 @@ __all__ = [
 ]
 
 # New unified scheduler exports
-from app.workers.unified_scheduler import UnifiedScheduler, get_scheduler
 from app.workers.scheduled_tasks import register_all_tasks, schedule_default_jobs
-
-
+from app.workers.unified_scheduler import UnifiedScheduler, get_scheduler

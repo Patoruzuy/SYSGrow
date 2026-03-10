@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from app.domain.sensors.reading import ReadingStatus, SensorReading
-from app.utils.emitters import EmitterService, SOCKETIO_NAMESPACE_DEVICES
+from app.utils.emitters import SOCKETIO_NAMESPACE_DEVICES, EmitterService
 
 
 class FakeSocketIO:
@@ -49,4 +49,3 @@ def test_emit_sensor_reading_filters_non_numeric_fields():
 
     emitted_events = {e["event"] for e in sio.emits}
     assert "device_sensor_reading" in emitted_events
-

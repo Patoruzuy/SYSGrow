@@ -1,152 +1,3 @@
-<<<<<<< HEAD
-<!-- devices.html -->
-
-{% extends 'base.html' %}
-
-{% block content %}
-<main>
-    <div class="main-content-forms">
-        <h1>Devices</h1>
-        <fieldset class="light-container">
-            <h2>Light</h2>
-            <div class="form-row">
-                <form id="add-light-form">
-                    <label for="light_pin">GPIO pin: </label>
-                    <select id="light_pin" name="light_pin">
-                        {% for pin, name in available_gpio_pins.items() %}
-                        <option value="{{ pin }}">{{ name }}</option>
-                        {% endfor %}
-                    </select>
-                    <label for="light_ip">IP Address: </label>
-                    <input type="text" id="light_ip" name="light_ip">
-                    <button type="submit" class="submitbtn">Add Light</button>
-                </form>
-            </div>
-            
-            <h2>Fan</h2>
-            <div class="form-row">
-                <form id="add-fan-form">
-                    <label for="fan_pin">GPIO pin: </label>
-                    <select id="fan_pin" name="fan_pin">
-                        {% for pin, name in available_gpio_pins.items() %}
-                        <option value="{{ pin }}">{{ name }}</option>
-                        {% endfor %}
-                    </select>
-                    <label for="fan_ip">IP Address: </label>
-                    <input type="text" id="fan_ip" name="fan_ip">
-                    <button type="submit" class="submitbtn">Add fan</button>
-                </form>
-            </div>
-        </fieldset>
-        
-        <h2>Add Actuator</h2>
-        <form id="add-actuator-form">
-            <div class="form-row">
-                <label for="actuator_type">Type: </label>
-                <select id="actuator_type" name="actuator_type">
-                    <option value="Light">Light</option>
-                    <option value="Heater">Heater</option>
-                    <option value="Cooler">Cooler</option>
-                    <option value="Humidifier">Humidifier</option>
-                    <option value="Deshumidifier">Dehumidifier</option>
-                    <option value="Water-Pump">Water Pump</option>
-                    <option value="CO2-Injector">CO2 Injector</option>
-                </select>
-            </div>
-            <div class="form-row">
-                <label for="actuator_pin">GPIO Pin: </label>
-                <select id="actuator_pin" name="actuator_pin">
-                    {% for pin, name in available_gpio_pins.items() %}
-                    <option value="{{ pin }}">{{ name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="form-row">
-                <label for="actuator_ip">IP Address: </label>
-                <input type="text" id="actuator_ip" name="actuator_ip">
-            </div>
-            <div class="form-row">
-                <button type="submit" class="submitbtn">Add Actuator</button>
-            </div>
-        </form>
-        
-        <h2>Add Sensor</h2>
-        <form id="add-sensor-form">
-            <div class="form-row">
-                <label for="sensor_name">Name: <span class="required">*</span></label>
-                <input type="text" id="sensor_name" name="sensor_name" required>
-            </div>
-            <div class="form-row">
-            <label for="sensor_type">Communication: </label>
-            <select id="sensor_type" name="sensor_type" onchange="updateSensorModelOptions()">
-                <option value="environment_sensor">Environment Sensors</option>
-                <option value="plant_sensor">Plant Sensors</option>
-            </select>
-            </div>
-            <div class="form-row">
-                <label for="sensor_model">Model: </label>
-                <select id="sensor_model" name="sensor_model" placeholder="Select sensor model">
-                    <!-- Options will be dynamically populated based on sensor name selection -->
-                </select>
-            </div>
-            <div class="form-row">
-                <div id="adc_channel_div" style="display: none;">
-                    <label for="adc_channel">ADC Channel: </label>
-                    <select id="adc_channel" name="adc_channel">
-                        <option value="P0">ADS.P0</option>
-                        <option value="P1">ADS.P1</option>
-                        <option value="P2">ADS.P2</option>
-                        <option value="P3">ADS.P3</option>
-                    </select>
-                </div>
-            </div>
-            <div class="form-row">
-                <div id="gpio_pin_div">
-                    <label for="sensor_pin">GPIO Pin: </label>
-                    <select id="sensor_pin" name="sensor_pin">
-                        {% for pin, name in available_gpio_pins.items() %}
-                        <option value="{{ pin }}">{{ name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
-            <div class="form-row">
-                <label for="sensor_ip">IP Address: </label>
-                <input type="text" id="sensor_ip" name="sensor_ip">
-            </div>
-            <div class="form-row">
-                <button type="submit" class="submitbtn">Add Sensor</button>
-            </div>
-        </form>
-        <h2>Available Actuators</h2>
-        <ul id="available-actuators">
-            {% for actuator in available_actuators %}
-            <li>{{ actuator }}</li>
-            {% endfor %}
-        </ul>
-        
-        <h2>Active Actuators</h2>
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Name</th>
-                    <th>PIN</th>
-                    <th>IP Address</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for data in db_actuators %}
-                <tr>
-                    <td>{{ data.id }}</td>
-                    <td>{{ data.name }}</td>
-                    <td>{{ data.gpio }}</td>
-                    <td>{{ data.ip_address }}</td>
-                    <td><button onclick="removeActuator('{{ data.name }}')">Remove</button>
-                        <button onclick="controlActuator('{{ data.name }}', 'activate')">On</button>
-                        <button onclick="controlActuator('{{ data.name }}', 'deactivate')">Off</button>
-=======
 {% extends "base.html" %}
 {% import "macros.html" as ui %}
 
@@ -154,7 +5,9 @@
 {% block body_class %}devices-page{% endblock %}
 
 {% block styles %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/devices.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/devices.css', v='20260307b') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/components/alerts.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -181,14 +34,14 @@
     ) }}
 
     <!-- Contextual Help Banner -->
-    <div class="help-banner">
-      <i class="fas fa-lightbulb"></i>
-      <div class="help-banner-content">
-        <p class="help-banner-title">New to device management?</p>
-        <p class="help-banner-text">Learn how to add sensors, calibrate readings, and set up schedules.</p>
-      </div>
-      {{ ui.help_link('sensors', 'sensor-calibration', 'Calibration Guide') }}
-    </div>
+    {{ ui.help_banner(
+      title='New to device management?',
+      text='Learn how to add sensors, calibrate readings, and set up schedules.',
+      icon='lightbulb',
+      link_text='Calibration Guide',
+      category='sensors',
+      article_id='sensor-calibration'
+    ) }}
 
     <input type="hidden" id="selected-unit-id" value="{{ selected_unit_id or '' }}">
 
@@ -251,7 +104,7 @@
                 <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
                 <line x1="12" y1="20" x2="12.01" y2="20"></line>
             </svg>
-            WiFi/MQTT
+            Connectivity
         </button>
         <button class="tab-button" id="esp32-tab" data-tab="esp32" role="tab" aria-selected="false" aria-controls="esp32-panel" tabindex="-1">
             <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -363,7 +216,7 @@
     {% call ui.content_card(title="Active Actuators", icon="bolt") %}
         {% if db_actuators %}
         <div class="table-responsive">
-            <table class="devices-table">
+            <table class="devices-table devices-table--actuators">
                 <thead>
                     <tr>
                         <th scope="col">ID</th>
@@ -434,7 +287,7 @@
     {% call ui.content_card(title="Active Sensors", icon="broadcast-tower") %}
         {% if db_sensors %}
         <div class="table-responsive">
-            <table class="devices-table">
+            <table class="devices-table devices-table--sensors">
                 <thead>
                     <tr>
                         <th scope="col">ID</th>
@@ -486,160 +339,11 @@
                                 data-action="remove-sensor" data-sensor-id="{{ data.sensor_id }}">
                             Remove
                         </button>
->>>>>>> update
                     </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
-<<<<<<< HEAD
-        <h1>Active Sensors</h1>
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Name</th>
-                    <th>Type</th>
-                    <th>Model</th>
-                    <th>PIN</th>
-                    <th>IP Address</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for data in db_sensors %}
-                <tr>
-                    <td>{{ data.sensor_id }}</td>
-                    <td>{{ data.name }}</td>
-                    <td>{{ data.sensor_type }}</td>
-                    <td>{{ data.sensor_model }}</td>
-                    <td>{{ data.gpio }}</td>
-                    <td>{{ data.ip_address }}</td>
-                    <td><button onclick="removeSensor('{{ data.sensor_id }}')">Remove</button></td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</main>
-<script>
-    const sensorModelOptions = {
-        'environment_sensor': [
-            { value: 'MQ', text: 'Smoke Sensor' },
-            { value: 'BME280', text: 'BME280 Sensor' },
-            { value: 'ENS160AHT21', text: 'Environment Sensor' },
-            { value: 'TSL2591', text: 'Light Intensity Sensor' }
-        ],
-        'plant_sensor': [
-            { value: 'Soil-Moisture', text: 'Soil Moisture Sensor' }
-        ]
-    };
-
-    document.addEventListener('DOMContentLoaded', function() {
-        updateSensorModelOptions();  // Initialize sensor types based on default selection
-    });
-
-    function updateSensorModelOptions() {
-        const sensorType = document.getElementById('sensor_type').value;
-        const sensorModelSelect = document.getElementById('sensor_model');
-        sensorModelSelect.innerHTML = '';  // Clear existing options
-
-        // Populate sensor model options based on selected sensor type
-        sensorModelOptions[sensorType].forEach(option => {
-            let opt = document.createElement('option');
-            opt.value = option.value;
-            opt.textContent = option.text;
-            sensorModelSelect.appendChild(opt);
-        });
-
-        toggleAdcChannelVisibility();  // Update visibility of ADC channel selector
-    }
-
-    function toggleAdcChannelVisibility() {
-        const sensorType = document.getElementById('sensor_type').value;  // Correct variable name
-        const adcChannelDiv = document.getElementById('adc_channel_div');
-        const gpioPinDiv = document.getElementById('gpio_pin_div');
-
-        if (sensorType === 'plant_sensor') {  // Correct variable name
-            adcChannelDiv.style.display = 'block';
-            gpioPinDiv.style.display = 'none';
-        } else {
-            adcChannelDiv.style.display = 'none';
-            gpioPinDiv.style.display = 'block';
-        }
-    }
-
-    document.getElementById('sensor_type').addEventListener('change', function() {
-        updateSensorModelOptions();  // Call update function when sensor model changes
-    });
-
-    document.getElementById('add-sensor-form').addEventListener('submit', function(event) {
-        event.preventDefault();
-        const formData = new FormData(event.target);
-        fetch('/add_sensor', {
-            method: 'POST',
-            body: formData
-        }).then(response => response.json())
-        .then(data => {
-            alert(data.status);
-            location.reload();
-        });
-    });
-
-    function removeSensor(sensorId) {
-    fetch('/remove_sensor', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({sensor_id: sensorId})  // Sending sensor_id instead of sensor_type
-    }).then(response => response.json())
-    .then(data => {
-        alert(data.status);
-        location.reload();
-    }).catch(error => {
-        console.error('Error removing sensor:', error);
-    });
-}
-
-    document.getElementById('add-actuator-form').addEventListener('submit', function(event) {
-        event.preventDefault();
-        const formData = new FormData(event.target);
-        fetch('/add_actuator', {
-            method: 'POST',
-            body: formData
-        }).then(response => response.json())
-        .then(data => {
-            alert(data.status);
-            location.reload();
-        });
-    });
-
-    function removeActuator(actuatorType) {
-        fetch('/remove_actuator', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({actuator_type: actuatorType})
-        }).then(response => response.json())
-        .then(data => {
-            alert(data.status);
-            location.reload();
-        });
-    }
-
-    function controlActuator(actuatorType, action) {
-        fetch('/control_actuator', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({actuator_type: actuatorType, action: action})
-        }).then(response => response.json())
-        .then(data => {
-            alert(data.status);
-        });
-    }
-</script>
-
-{% endblock %}
-
-=======
         </div>
         {% else %}
         <div class="empty-state text-center p-4">
@@ -973,236 +677,28 @@
 
     <!-- WiFi/MQTT Tab Panel -->
     <div id="wifi-panel" class="tab-panel" role="tabpanel" aria-labelledby="wifi-tab" style="display: none;">
-        {% call ui.content_card(title="WiFi/MQTT Device Management", icon="wifi") %}
+        {% call ui.content_card(title="Connectivity Guidance", icon="wifi") %}
             <p class="text-muted mb-4">
-                Manage devices that connect directly via WiFi and MQTT protocol (sensors and actuators not using ESP32-C6 or Zigbee2MQTT).
+                SYSGrow does not register arbitrary WiFi/MQTT devices from the browser in the Raspberry Pi release build.
+                The supported connectivity paths are the ones below.
             </p>
 
-            <!-- MQTT Broker Configuration -->
             <div class="settings-section mb-4 p-3 bg-light rounded shadow-sm">
-                <h5 class="mb-3"><i class="fas fa-server me-2"></i>MQTT Broker Configuration</h5>
-                
-                <form id="mqtt-broker-form" class="settings-form">
-                    <div class="row g-3">
-                        <div class="col-md-4">
-                            {{ ui.form_field('mqtt-broker-host', 'Broker Host', name_attr='mqtt_broker_host', placeholder='localhost or 192.168.1.100') }}
-                        </div>
-                        <div class="col-md-4">
-                            {{ ui.form_field('mqtt-broker-port', 'Broker Port', name_attr='mqtt_broker_port', type='number', value='1883', placeholder='1883') }}
-                        </div>
-                        <div class="col-md-4">
-                            {{ ui.form_field('mqtt-topic-prefix', 'Topic Prefix', name_attr='mqtt_topic_prefix', placeholder='growtent') }}
-                        </div>
-                    </div>
-                    
-                    <div class="row g-3 mt-2">
-                        <div class="col-md-6">
-                            {{ ui.form_field('mqtt-broker-username', 'Username (Optional)', name_attr='mqtt_broker_username', placeholder='mqtt_user') }}
-                        </div>
-                        <div class="col-md-6">
-                            {{ ui.form_field('mqtt-broker-password', 'Password (Optional)', name_attr='mqtt_broker_password', type='password', placeholder='••••••••') }}
-                        </div>
-                    </div>
-                    
-                    <div class="form-actions mt-4 pt-3 border-top">
-                        <button type="button" id="test-mqtt-connection" class="btn btn-secondary me-2">
-                            <i class="fas fa-plug me-2"></i>Test Connection
-                        </button>
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save me-2"></i>Save Configuration
-                        </button>
-                    </div>
-                </form>
+                <h5 class="mb-3"><i class="fas fa-route me-2"></i>Supported Device Paths</h5>
+                <ul class="mb-0 text-muted">
+                    <li>Use the <strong>ESP32-C6</strong> tab to provision SYSGrow firmware devices.</li>
+                    <li>Use the <strong>Zigbee2MQTT</strong> tab to discover and register Zigbee sensors or actuators.</li>
+                    <li>Run <strong>Mosquitto</strong> on the Raspberry Pi and point external devices to the Pi IP on port <code>1883</code>.</li>
+                </ul>
             </div>
 
-            <!-- Device Discovery -->
-            <div class="settings-section mb-4 p-3 bg-light rounded shadow-sm">
-                <h5 class="mb-3"><i class="fas fa-search me-2"></i>Device Discovery</h5>
-                
-                <div class="row g-3 align-items-end">
-                    <div class="col-md-4">
-                        <label>Discover MQTT Devices</label>
-                        <button type="button" id="discover-mqtt-devices" class="btn btn-primary">
-                            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-6l-2-2H5a2 2 0 0 0-2 2z"></path>
-                            </svg>
-                            Scan for Devices
-                        </button>
-                        <small class="field-hint">Scans MQTT topics for connected devices</small>
-                    </div>
-                    
-                    <div class="form-field">
-                        <label for="mqtt-discovered-devices">Discovered Devices</label>
-                        <select id="mqtt-discovered-devices" class="form-control" size="6" aria-label="Discovered MQTT devices">
-                            <option value="" disabled selected>No devices found - click scan first</option>
-                        </select>
-                        <small class="field-hint">Select device to view details or add to system</small>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Add MQTT Device -->
-            <div class="settings-section">
-                <h4 class="section-title">
-                    <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="12" y1="5" x2="12" y2="19"></line>
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                    </svg>
-                    Add WiFi/MQTT Device
-                </h4>
-                
-                <form id="mqtt-device-form" class="settings-form">
-                    <div class="form-grid form-grid-2">
-                        {{ ui.form_field(
-                            'mqtt-device-name',
-                            'Device Name',
-                            name_attr='device_name',
-                            placeholder='Living Room Sensor',
-                            required=true,
-                            help_text='Friendly name for the device',
-                            wrapper_class='form-field'
-                        ) }}
-                        
-                        {{ ui.select_field(
-                            'mqtt-device-type',
-                            'Device Type',
-                            [
-                                ('sensor', 'Sensor'),
-                                ('actuator', 'Actuator')
-                            ],
-                            name_attr='device_type',
-                            required=true,
-                            help_text='Select device category',
-                            wrapper_class='form-field'
-                        ) }}
-                    </div>
-
-                    <!-- Sensor-specific fields -->
-                    <div id="mqtt-sensor-fields" class="conditional-field" data-device-type="sensor">
-                        <h5 class="subsection-title">Sensor Configuration</h5>
-                        <div class="form-grid form-grid-3">
-                            {{ ui.select_field(
-                                'mqtt-sensor-type',
-                                'Sensor Type',
-                                [
-                                    ('temperature', 'Temperature'),
-                                    ('humidity', 'Humidity'),
-                                    ('soil_moisture', 'Soil Moisture'),
-                                    ('light', 'Light (Lux)'),
-                                    ('ph', 'pH Level'),
-                                    ('ec', 'EC (Conductivity)'),
-                                    ('co2', 'CO2'),
-                                    ('water_level', 'Water Level'),
-                                    ('pressure', 'Air Pressure')
-                                ],
-                                name_attr='sensor_type',
-                                help_text='Type of sensor',
-                                wrapper_class='form-field'
-                            ) }}
-                            
-                            {{ ui.form_field(
-                                'mqtt-sensor-topic',
-                                'MQTT Topic',
-                                name_attr='mqtt_topic',
-                                placeholder='growtent/sensor/temp1',
-                                help_text='Full MQTT topic path',
-                                wrapper_class='form-field'
-                            ) }}
-                            
-                            {{ ui.select_field(
-                                'mqtt-sensor-unit',
-                                'Growth Unit',
-                                [],
-                                name_attr='unit_id',
-                                help_text='Assign to growth unit',
-                                wrapper_class='form-field'
-                            ) }}
-                        </div>
-                    </div>
-
-                    <!-- Actuator-specific fields -->
-                    <div id="mqtt-actuator-fields" class="conditional-field" data-device-type="actuator">
-                        <h5 class="subsection-title">Actuator Configuration</h5>
-                        <div class="form-grid form-grid-3">
-                            {{ ui.select_field(
-                                'mqtt-actuator-type',
-                                'Actuator Type',
-                                [
-                                    ('Light', 'Light'),
-                                    ('Heater', 'Heater'),
-                                    ('Fan', 'Fan'),
-                                    ('Water-Pump', 'Water Pump'),
-                                    ('Humidifier', 'Humidifier'),
-                                    ('Dehumidifier', 'Dehumidifier'),
-                                    ('CO2-Generator', 'CO2 Generator'),
-                                    ('Ventilation', 'Ventilation')
-                                ],
-                                name_attr='actuator_type',
-                                help_text='Type of actuator',
-                                wrapper_class='form-field'
-                            ) }}
-                            
-                            {{ ui.form_field(
-                                'mqtt-actuator-topic',
-                                'MQTT Topic',
-                                name_attr='mqtt_topic',
-                                placeholder='growtent/actuator/light1',
-                                help_text='Full MQTT topic path',
-                                wrapper_class='form-field'
-                            ) }}
-                            
-                            {{ ui.select_field(
-                                'mqtt-actuator-unit',
-                                'Growth Unit',
-                                [],
-                                name_attr='unit_id',
-                                help_text='Assign to growth unit',
-                                wrapper_class='form-field'
-                            ) }}
-                        </div>
-                        
-                        <div class="form-grid form-grid-3">
-                            {{ ui.checkbox_field(
-                                'mqtt-power-monitoring',
-                                'Power Monitoring',
-                                name_attr='has_power_monitoring',
-                                checked=false,
-                                help_text='Device reports power consumption (Watts, kWh)',
-                                wrapper_class='form-field'
-                            ) }}
-                        </div>
-                    </div>
-
-                    <div class="form-actions">
-                        <button type="reset" class="btn btn-secondary">
-                            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
-                                <path d="M3 3v5h5"></path>
-                            </svg>
-                            Reset
-                        </button>
-                        <button type="submit" class="btn btn-primary">
-                            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <line x1="12" y1="5" x2="12" y2="19"></line>
-                                <line x1="5" y1="12" x2="19" y2="12"></line>
-                            </svg>
-                            Add Device
-                        </button>
-                    </div>
-                </form>
-            </div>
-
-            <!-- Registered MQTT Devices List -->
-            <div class="settings-section mt-4 pt-3 border-top">
-                <h5 class="mb-3"><i class="fas fa-list me-2"></i>Registered WiFi/MQTT Devices</h5>
-                
-                <div id="mqtt-devices-list" class="devices-list">
-                    <div class="empty-state text-center py-4 text-muted">
-                        <i class="fas fa-inbox fa-2x mb-2"></i>
-                        <p>No WiFi/MQTT devices registered yet.</p>
-                        <p class="small">Add devices using the form above or discover them automatically.</p>
-                    </div>
-                </div>
+            <div class="settings-section p-3 bg-light rounded shadow-sm">
+                <h5 class="mb-3"><i class="fas fa-clipboard-check me-2"></i>Raspberry Pi MQTT Checklist</h5>
+                <ul class="mb-0 text-muted">
+                    <li>Verify the broker with <code>sudo systemctl status mosquitto</code>.</li>
+                    <li>Keep the broker local to the Pi unless you have a clear need for an external MQTT server.</li>
+                    <li>Manage hotspot and network-facing setup under <strong>Settings</strong>, not from this page.</li>
+                </ul>
             </div>
         {% endcall %}
     </div>
@@ -1280,7 +776,7 @@
 
                 <div class="row g-3 mt-1">
                     <div class="col-md-6 conditional-field" data-connection="wifi">
-                        {{ ui.form_field('mqtt-username', 'MQTT Username', name_attr='mqtt_username') }}
+                        {{ ui.form_field('mqtt-username', 'MQTT Username', name_attr='mqtt_username', autocomplete='username') }}
                     </div>
                     <div class="col-md-6 conditional-field" data-connection="zigbee">
                         {{ ui.form_field('zigbee-channel', 'Zigbee Channel', name_attr='zigbee_channel', placeholder='zigbee2mqtt/device_id', help_text='Zigbee2MQTT device path') }}
@@ -1303,54 +799,16 @@
                 </div>
 
                 <div class="wifi-setup-controls mt-4 p-3 bg-light rounded shadow-sm">
-                    <h6 class="mb-3"><i class="fas fa-wifi me-2"></i>Quick WiFi Provisioning</h6>
-                    <div class="row g-3">
-                        <div class="col-md-8">
-                            <label class="form-label">WiFi Network</label>
-                            <div class="input-group">
-                                <select id="setup-ssid" name="setup_ssid" class="form-select">
-                                    <option value="">Select or scan for networks...</option>
-                                </select>
-                                <button type="button" id="scan-wifi" class="btn btn-secondary">
-                                    <i class="fas fa-sync-alt me-1"></i> Scan
-                                </button>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            {{ ui.form_field('setup-password', 'Password', type='password', name_attr='setup_password') }}
-                        </div>
-                    </div>
-                </div>
-                                'WiFi Password',
-                                type='password',
-                                name_attr='setup_password',
-                                wrapper_class='form-field',
-                                input_container_class='password-field',
-                                autocomplete='new-password',
-                                suffix_html='\n<button type="button" class="toggle-password" data-target="setup-password" aria-label="Toggle password visibility">\n  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\n    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>\n    <circle cx="12" cy="12" r="3"></circle>\n  </svg>\n</button>'
-                            ) }}
-                        </div>
-
-                        <div class="wifi-actions">
-                            <button type="button" id="send-wifi-config" class="btn btn-primary">
-                                <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M9 11a3 3 0 0 1 6 0"></path>
-                                    <path d="M5 11a7 7 0 0 1 14 0"></path>
-                                    <path d="M1 11a11 11 0 0 1 22 0"></path>
-                                    <circle cx="12" cy="11" r="1"></circle>
-                                </svg>
-                                Send WiFi Config to Selected Device
-                            </button>
-                            <button type="button" id="broadcast-wifi" class="btn btn-secondary">
-                                <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <circle cx="12" cy="12" r="1"></circle>
-                                    <circle cx="19" cy="12" r="1"></circle>
-                                    <circle cx="5" cy="12" r="1"></circle>
-                                </svg>
-                                Broadcast to All Devices
-                            </button>
-                        </div>
-                    </div>
+                    <h6 class="mb-3"><i class="fas fa-wifi me-2"></i>Provisioning Notes</h6>
+                    <p class="text-muted mb-2">
+                        ESP32 WiFi credentials are provisioned through the device workflow itself, typically via BLE,
+                        temporary AP mode, or the firmware onboarding flow.
+                    </p>
+                    <p class="text-muted mb-0">
+                        Use the fields above to define how the device should behave during provisioning, then run the
+                        standard <strong>Provision Device</strong> action. If you need a local network for first boot,
+                        configure the Pi hotspot from the <strong>Settings</strong> page.
+                    </p>
                 </div>
 
                 <h5 class="mb-3 mt-4 border-bottom pb-2">Power Management Settings</h5>
@@ -1497,10 +955,10 @@
                     </div>
                     <div class="row g-3 mt-1">
                         <div class="col-md-6">
-                            {{ ui.form_field('camera-username', 'Username (Optional)', name_attr='username', placeholder='admin') }}
+                            {{ ui.form_field('camera-username', 'Username (Optional)', name_attr='username', placeholder='admin', autocomplete='username') }}
                         </div>
                         <div class="col-md-6">
-                            {{ ui.form_field('camera-password', 'Password (Optional)', type='password', name_attr='password') }}
+                            {{ ui.form_field('camera-password', 'Password (Optional)', type='password', name_attr='password', autocomplete='current-password') }}
                         </div>
                     </div>
                 </div>
@@ -1633,11 +1091,8 @@
 
 <!-- Load utilities first -->
 <script src="{{ url_for('static', filename='js/utils/cache-service.js') }}?v=20251214170523"></script>
-<script src="{{ url_for('static', filename='js/utils/modal.js') }}?v=20251214170523"></script>
+<script src="{{ url_for('static', filename='js/utils/modal.js') }}?v=20260308a"></script>
 <script src="{{ url_for('static', filename='js/utils/base-manager.js') }}?v=20251214170523"></script>
-
-<!-- Load API layer -->
-<script src="{{ url_for('static', filename='js/api.js') }}?v=20251214170600"></script>
 
 <!-- Load Socket.IO manager (used for Zigbee live updates) -->
 <script src="{{ url_for('static', filename='js/socket.js') }}?v=20251214170600"></script>
@@ -1699,4 +1154,3 @@
     }
 </script>
 {% endblock %}
->>>>>>> update

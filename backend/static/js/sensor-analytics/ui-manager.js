@@ -66,6 +66,7 @@
       this.alerts = [];
 
       this.unsubscribeFunctions = [];
+      this._destroyed = false;
 
       // Cache common DOM elements
       this.elements = {
@@ -143,6 +144,7 @@
       this.restoreSavedViews();
       this.restoreAlerts();
       this.restoreState();
+      this.syncSelectedUnit(this.state.selectedUnit);
 
       this.setupSocketListeners();
       this.bindEvents();
@@ -258,7 +260,7 @@
       // Unit selection
       if (this.elements.unitSelect) {
         this.addEventListener(this.elements.unitSelect, 'change', async (e) => {
-          this.state.selectedUnit = e.target.value || null;
+          this.syncSelectedUnit(e.target.value || null);
           await this.loadSensors({ resetSelection: true });
           await this.loadPlants({ resetSelection: true });
           await this.refresh();
@@ -534,6 +536,19 @@
     // UI Population
     // --------------------------------------------------------------------------
 
+    syncSelectedUnit(unitId) {
+      const normalized = unitId !== null && unitId !== undefined && unitId !== ''
+        ? String(unitId)
+        : null;
+
+      this.state.selectedUnit = normalized;
+      this.dataService?.setSelectedUnit?.(normalized);
+
+      if (this.elements.unitSelect && this.elements.unitSelect.value !== (normalized || '')) {
+        this.elements.unitSelect.value = normalized || '';
+      }
+    }
+
     populateUnitSelect() {
       if (!this.elements.unitSelect) return;
 
@@ -547,7 +562,18 @@
         this.elements.unitSelect.appendChild(opt);
       });
 
-      if (currentValue) this.elements.unitSelect.value = currentValue;
+      if (currentValue) {
+        // Restore previously selected value.
+        this.syncSelectedUnit(currentValue);
+      } else if (this.units.length > 0 && !this.state.selectedUnit) {
+        // Auto-select the first available unit so the readings table populates
+        // immediately on page load without requiring manual filter selection.
+        const firstUnit = this.units[0];
+        const firstId = String(firstUnit.unit_id || firstUnit.id);
+        this.syncSelectedUnit(firstId);
+      } else {
+        this.syncSelectedUnit(this.state.selectedUnit);
+      }
     }
 
     populateSensorSelect(resetSelection = false) {
@@ -595,6 +621,16 @@
       });
 
       this.elements.plantSelect.value = currentValue;
+
+      if (this.elements.plantStatus) {
+        if (!this.state.selectedUnit) {
+          this.elements.plantStatus.textContent = 'Select a unit to load plant health overlays.';
+        } else if (!this.plants.length) {
+          this.elements.plantStatus.textContent = 'No plants found in the selected unit.';
+        } else {
+          this.elements.plantStatus.textContent = `${this.plants.length} plant overlay${this.plants.length === 1 ? '' : 's'} available for this unit.`;
+        }
+      }
     }
 
     buildTimeseriesParams() {
@@ -2416,6 +2452,9 @@
     // --------------------------------------------------------------------------
 
     destroy() {
+      if (this._destroyed) return;
+      this._destroyed = true;
+
       // Persist state before cleanup
       this.persistState();
 
@@ -2450,6 +2489,7 @@
         } catch (error) {
           console.warn('[UIManager] Error destroying charts with helper:', error);
         }
+        this.chartHelper = null;
       } else {
         // Fallback to manual chart destruction
         this.charts.forEach(chart => {

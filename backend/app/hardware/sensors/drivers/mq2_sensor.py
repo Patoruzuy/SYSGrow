@@ -4,23 +4,25 @@ This module should only be used by sensor adapters, not directly by application 
 """
 
 import logging
-from typing import Any, Dict
+from typing import Any
+
 from app.utils.time import iso_now
+
 from .base import BaseSensorDriver
 
 logger = logging.getLogger(__name__)
 
 try:
+    import adafruit_ads1x15.ads1115 as ADS
     import board
     import busio
-    import adafruit_ads1x15.ads1115 as ADS
-    from adafruit_ads1x15.analog_in import AnalogIn
     import RPi.GPIO as GPIO
+    from adafruit_ads1x15.analog_in import AnalogIn
+
     IS_PI = True
 except (ImportError, NotImplementedError):
     logger.warning("Raspberry Pi-specific libraries not available. Using mock MQ2 sensor.")
     IS_PI = False
-
 
 
 class MQ2Sensor(BaseSensorDriver):
@@ -61,13 +63,12 @@ class MQ2Sensor(BaseSensorDriver):
                     logger.error("ADC init failed for MQ2 sensor on channel %s: %s", channel, e)
         else:
             self.mock_data = {
-                'smoke': 1 if is_digital else 16384,
-                'mode': 'digital' if is_digital else 'analog',
-                'status': 'MOCK'
+                "smoke": 1 if is_digital else 16384,
+                "mode": "digital" if is_digital else "analog",
+                "status": "MOCK",
             }
 
-
-    def read(self) -> Dict[str, Any]:
+    def read(self) -> dict[str, Any]:
         """
         Read raw data from the MQ2 sensor.
 
@@ -78,26 +79,15 @@ class MQ2Sensor(BaseSensorDriver):
             try:
                 if self.is_digital:
                     value = GPIO.input(self.sensor_pin)
-                    return {
-                        "smoke": value,
-                        "mode": "digital",
-                        "timestamp": iso_now(),
-                        "status": "OK"
-                    }
+                    return {"smoke": value, "mode": "digital", "timestamp": iso_now(), "status": "OK"}
                 else:
-                    if self.adc and hasattr(self, 'analog_in'):
+                    if self.adc and hasattr(self, "analog_in"):
                         value = self.analog_in.value
-                        return {
-                            "smoke": value,
-                            "mode": "analog",
-                            "timestamp": iso_now(),
-                            "status": "OK"
-                        }
+                        return {"smoke": value, "mode": "analog", "timestamp": iso_now(), "status": "OK"}
             except Exception as e:
                 logger.error("MQ2 read error: %s", e)
                 return {"error": str(e), "timestamp": iso_now(), "status": "ERROR"}
         return self._return_mock()
-
 
     def cleanup(self) -> None:
         """

@@ -9,15 +9,16 @@
 <div id="device-health-page" aria-labelledby="device-health-heading">
     
     {# Standardized Page Header #}
+    {% set refresh_actions %}
+        <div class="d-flex align-items-center gap-2">
+            {{ ui.ui_button("Refresh All", id="refresh-all-btn", icon="fas fa-sync-alt", variant="secondary") }}
+        </div>
+    {% endset %}
     {{ ui.page_header(
       title="Device Health Monitoring",
       icon="fas fa-stethoscope",
       subtitle="Monitor all sensors and actuators for connectivity issues, anomalies, and maintenance needs.",
-      actions='
-          <div class="d-flex align-items-center gap-2">
-            ' ~ ui.ui_button("Refresh All", id="refresh-all-btn", icon="fas fa-sync-alt", variant="secondary") ~ '
-          </div>
-      '
+      actions=refresh_actions
     ) }}
 
     <!-- Device Health Statistics -->
@@ -108,7 +109,7 @@
                     <tbody>
                         {% for actuator in devices_summary.actuators %}
                             <tr class="device-row" data-device-id="{{ actuator.actuator_id }}">
-                                <td><div class="fw-bold text-dark">{{ actuator.actuator_name }}</div></td>
+                                <td><div class="fw-bold">{{ actuator.actuator_name }}</div></td>
                                 <td class="text-muted"><small>{{ actuator.actuator_type|replace('_', ' ')|title }}</small></td>
                                 <td>
                                     {% set status = actuator.status if actuator.status else 'unknown' %}
@@ -168,7 +169,7 @@
                     <tbody>
                         {% for sensor in devices_summary.sensors %}
                             <tr class="device-row" data-device-id="{{ sensor.sensor_id }}">
-                                <td><div class="fw-bold text-dark">{{ sensor.sensor_name }}</div></td>
+                                <td><div class="fw-bold">{{ sensor.sensor_name }}</div></td>
                                 <td class="text-muted"><small>{{ sensor.sensor_type|replace('_', ' ')|title }}</small></td>
                                 <td>
                                     {% set status = sensor.status if sensor.status else 'unknown' %}
@@ -222,16 +223,12 @@
             </div>
         </div>
     </div>
-</div>
-</div>
-</div>
 {% endblock %}
 
-{% block extra_js %}
-<script src="{{ url_for('static', filename='js/api.js') }}"></script>
-<script src="{{ url_for('static', filename='js/utils/cache-service.js') }}"></script>
-<script src="{{ url_for('static', filename='js/utils/base-manager.js') }}"></script>
-<script src="{{ url_for('static', filename='js/device-health/data-service.js') }}"></script>
-<script src="{{ url_for('static', filename='js/device-health/ui-manager.js') }}"></script>
-<script src="{{ url_for('static', filename='js/device-health/main.js') }}"></script>
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/utils/cache-service.js', v='20260307d') }}"></script>
+<script src="{{ url_for('static', filename='js/utils/base-manager.js', v='20260307d') }}"></script>
+<script src="{{ url_for('static', filename='js/device-health/data-service.js', v='20260308a') }}"></script>
+<script src="{{ url_for('static', filename='js/device-health/ui-manager.js', v='20260308a') }}"></script>
+<script src="{{ url_for('static', filename='js/device-health/main.js', v='20260308a') }}"></script>
 {% endblock %}

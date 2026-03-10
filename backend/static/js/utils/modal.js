@@ -95,13 +95,13 @@
       if (modal.dataset.handlersSetup === 'true') return;
       modal.dataset.handlersSetup = 'true';
 
-      const closeBtn = modal.querySelector('.modal-close, [data-modal-close]');
-      if (closeBtn) {
+      const closeButtons = modal.querySelectorAll('.modal-close, [data-modal-close]');
+      closeButtons.forEach((closeBtn) => {
         closeBtn.addEventListener('click', (e) => {
           e.preventDefault();
           this.close(modalId);
         });
-      }
+      });
 
       // Backdrop click: click on the modal container (not dialog content)
       modal.addEventListener('click', (e) => {

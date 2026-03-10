@@ -73,7 +73,10 @@
 
       // Cache common DOM elements
       this.elements = {
-        connectionStatus: document.getElementById('connection-status'),
+        connectionStatus:
+          document.getElementById('dashboard-connection-status') ||
+          document.getElementById('connection-status') ||
+          document.getElementById('header-connection-status'),
         lastUpdateTime: document.getElementById('last-update-time'),
         refreshBtn: document.getElementById('refresh-sensors'),
 
@@ -288,13 +291,8 @@
         this._plantGrid = new window.PlantHealthGrid('plants-container', {
           compact: true,
           onClick: (plantId, plantSummary) => {
-            if (this._plantDetailsModal) {
-              const unitId = plantSummary?.unit_id || this.dataService.getSelectedUnitId();
-              this._plantDetailsModal.open({ plantId, unitId, plantSummary });
-              return;
-            }
-
-            window.location.href = `/plants/${plantId}`;
+            // Navigate to full detail page
+            window.location.href = `/plants/${plantId}/my-detail`;
           },
         });
       }
@@ -780,6 +778,8 @@
         this.updatePlantsGrid(summary.plants);
         // Also update AI Health Banner from plants data
         this.updateAIHealthBanner({ plants: summary.plants });
+        // Enhance banner with AI-generated insight text
+        this.loadAIInsight();
         // Update irrigation plant selector
         this.updateIrrigationPlantSelector(summary.plants);
       }
@@ -1618,13 +1618,14 @@
       const imageUrl = this.escapeHTML(
         plant.custom_image || plant.image || plant.image_url || '/static/img/plant-placeholder.svg'
       );
+      const isPlaceholderImage = /plant-placeholder|placeholder\.svg|placeholder\.png/i.test(imageUrl);
       const lastWatered = this.escapeHTML(plant.last_watered || 'N/A');
       const daysInStage = plant.days_in_stage ? `${plant.days_in_stage} days in stage` : '';
       const plantId = plant.plant_id || plant.id || '';
 
       return `
         <article class="plant-card-lg" data-plant-id="${plantId}">
-          <div class="plant-card__image">
+          <div class="plant-card__image ${isPlaceholderImage ? 'is-placeholder' : ''}">
             <img src="${imageUrl}" alt="${name}" loading="lazy" />
           </div>
 
@@ -1861,6 +1862,8 @@
 
         if (plantHealth) {
           this.updateAIHealthBanner(plantHealth);
+          // Enhance banner with AI-generated insight text
+          this.loadAIInsight();
         }
       } catch (error) {
         this.error('Failed to load health data:', error);
@@ -3606,8 +3609,8 @@
           return `
             <div class="day-item ${isWater ? 'water' : ''} ${isFeed ? 'feed' : ''} ${isToday ? 'today' : ''}">
               ${day}
-              ${isWater ? '<i class="fas fa-tint" style="font-size: 0.5rem;"></i>' : ''}
-              ${isFeed ? '<i class="fas fa-leaf" style="font-size: 0.5rem;"></i>' : ''}
+              ${isWater ? '<i class="fas fa-tint day-item__icon day-item__icon--water" aria-hidden="true"></i>' : ''}
+              ${isFeed ? '<i class="fas fa-leaf day-item__icon day-item__icon--feed" aria-hidden="true"></i>' : ''}
             </div>
           `;
         }).join('');
@@ -3792,6 +3795,74 @@
       }
     }
 
+    _normalizeReasoningItems(rawReasoning) {
+      const sourceItems = Array.isArray(rawReasoning)
+        ? rawReasoning
+        : rawReasoning
+          ? [rawReasoning]
+          : [];
+
+      const normalized = [];
+      const pushReasoning = (token) => {
+        if (!token) return;
+        let compact = String(token)
+          .replace(/[\r\n]+/g, '; ')
+          .replace(/[•·]/g, '; ')
+          .replace(/\s+/g, ' ')
+          .trim();
+        compact = compact.replace(/^[-*]+\s*/, '').trim();
+        if (!compact) return;
+
+        const commaDelimitedKeyValues = /,\s*(?=[a-z_][a-z0-9_ ]*\s*=)/i;
+        if (commaDelimitedKeyValues.test(compact)) {
+          compact
+            .split(commaDelimitedKeyValues)
+            .map((part) => part.trim())
+            .filter(Boolean)
+            .forEach(pushReasoning);
+          return;
+        }
+
+        if (compact.includes(' x ')) {
+          compact
+            .split(/\s+x\s+/i)
+            .map((part) => part.trim())
+            .filter(Boolean)
+            .forEach(pushReasoning);
+          return;
+        }
+
+        if (compact.includes(';')) {
+          compact
+            .split(';')
+            .map((part) => part.trim())
+            .filter(Boolean)
+            .forEach(pushReasoning);
+          return;
+        }
+
+        const keyValueMatch = compact.match(/^([a-z_][a-z0-9_ ]*)\s*=\s*(.+)$/i);
+        if (keyValueMatch) {
+          const label = keyValueMatch[1]
+            .replace(/_/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .replace(/\b\w/g, (c) => c.toUpperCase());
+          normalized.push(`${label}: ${keyValueMatch[2].trim()}`);
+          return;
+        }
+
+        normalized.push(compact);
+      };
+
+      sourceItems.forEach((item) => {
+        if (item === null || item === undefined) return;
+        pushReasoning(item);
+      });
+
+      return [...new Set(normalized)].slice(0, 8);
+    }
+
     // --------------------------------------------------------------------------
     // Irrigation Recommendations
     // --------------------------------------------------------------------------
@@ -3944,24 +4015,27 @@
       }
 
       if (this.elements.irrPreviewConfidence) {
-        const confidence = calc.confidence;
-        this.elements.irrPreviewConfidence.textContent = confidence != null ? `${Math.round(confidence * 100)}%` : '--';
+        const confidence = Number(calc.confidence);
+        if (Number.isFinite(confidence)) {
+          const normalizedConfidence = confidence <= 1 ? confidence * 100 : confidence;
+          this.elements.irrPreviewConfidence.textContent = `${Math.max(0, Math.min(100, Math.round(normalizedConfidence)))}%`;
+        } else {
+          this.elements.irrPreviewConfidence.textContent = '--';
+        }
       }
 
       if (this.elements.irrPreviewReasoning) {
         const rawReasoning = calc.reasoning || recommendationPayload.reasoning || data.reasoning;
-        const reasoningList = Array.isArray(rawReasoning)
-          ? rawReasoning
-          : rawReasoning
-            ? [rawReasoning]
-            : [];
+        const reasoningList = this._normalizeReasoningItems(rawReasoning);
 
         if (reasoningList.length > 0) {
-          this.elements.irrPreviewReasoning.innerHTML = reasoningList
-            .map(r => `<span class="reasoning-item">• ${this.escapeHTML(r)}</span>`)
-            .join('');
+          this.elements.irrPreviewReasoning.innerHTML = `
+            <ul class="reasoning-list">
+              ${reasoningList.map(r => `<li class="reasoning-item">${this.escapeHTML(r)}</li>`).join('')}
+            </ul>
+          `;
         } else {
-          this.elements.irrPreviewReasoning.innerHTML = '<span class="reasoning-item">No additional reasoning available</span>';
+          this.elements.irrPreviewReasoning.innerHTML = '<span class="reasoning-item is-muted">No additional reasoning available</span>';
         }
       }
 

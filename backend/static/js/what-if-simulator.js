@@ -649,12 +649,17 @@ class WhatIfSimulator {
         applyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Applying...';
       }
       
-      alert('Scheduling is now handled via the Growth API. Use the Growth > Schedules view to apply changes.');
+      const notify = window.showNotification || window.showToast;
+      if (notify) {
+        notify('Scheduling is now handled via the Growth API. Use the Growth > Schedules view to apply changes.', 'info');
+      }
       return;
       
     } catch (error) {
       console.error('Error applying changes:', error);
-      alert('Error applying changes. Check console for details.');
+      if (window.showNotification) {
+        window.showNotification('Error applying changes. Check console for details.', 'error');
+      }
     } finally {
       const applyBtn = document.getElementById('simulator-apply');
       if (applyBtn) {

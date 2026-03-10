@@ -362,6 +362,38 @@
   color: var(--text-tertiary);
 }
 
+/* Energy chart filter shell */
+.energy-chart-filters {
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--card-border);
+  background: var(--surface-muted-translucent);
+  margin-bottom: 1.25rem;
+}
+
+.energy-predictions-title {
+  color: var(--color-text-strong);
+}
+
+.energy-predictions-copy {
+  max-width: 400px;
+}
+
+.energy-chart-canvas-wrap {
+  height: 360px;
+  position: relative;
+  margin-top: var(--space-2);
+}
+
+.energy-analytics-page .table-light,
+.energy-analytics-page .table-light > tr > th,
+.energy-analytics-page .table-light > tr > td,
+.energy-analytics-page .table > :not(caption) > * > * {
+  background: transparent !important;
+  color: var(--color-text);
+  border-color: var(--card-border);
+}
+
 /* Responsive */
 @media (max-width: 1200px) {
   .energy-trends__summary {
@@ -385,5 +417,14 @@
 
   .energy-projection__grid {
     grid-template-columns: 1fr;
+  }
+
+  .energy-chart-filters {
+    padding: 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  .energy-chart-canvas-wrap {
+    height: 300px;
   }
 }

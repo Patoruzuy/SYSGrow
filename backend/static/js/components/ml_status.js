@@ -34,8 +34,6 @@ const MLStatus = {
      * Initialize ML status checking
      */
     init: async function() {
-        console.log('🤖 Initializing ML Status Manager...');
-        
         // Initial status check
         await this.checkStatus();
         
@@ -43,8 +41,6 @@ const MLStatus = {
         this.checkInterval = setInterval(() => {
             this.checkStatus();
         }, 300000); // 5 minutes
-        
-        console.log('✅ ML Status Manager initialized');
     },
     
     /**
@@ -71,9 +67,6 @@ const MLStatus = {
             // Store in window for global access
             window.ML_AVAILABLE = this.available;
             window.ML_MODELS = this.models;
-            
-            // Log status
-            console.log('📊 ML Status:', this.available);
             
             // Trigger callbacks
             this.triggerCallbacks();
@@ -202,6 +195,7 @@ const MLStatus = {
         
         const available = this.isAvailable(modelType);
         const model = this.getModel(modelType);
+        const esc = window.escapeHtml || function(t) { if (!t) return ''; const d = document.createElement('div'); d.textContent = t; return d.innerHTML; };
         
         const indicator = document.createElement('div');
         indicator.className = `ml-feature-indicator ${available ? 'ml-available' : 'ml-unavailable'}`;
@@ -209,13 +203,13 @@ const MLStatus = {
         if (available && model) {
             indicator.innerHTML = `
                 <i class="fas fa-robot"></i>
-                <span>${featureName}</span>
+                <span>${esc(featureName)}</span>
                 <small>Accuracy: ${(model.accuracy * 100).toFixed(0)}%</small>
             `;
         } else {
             indicator.innerHTML = `
                 <i class="fas fa-chart-line"></i>
-                <span>${featureName} (Statistical)</span>
+                <span>${esc(featureName)} (Statistical)</span>
                 <small>ML model training...</small>
             `;
         }
@@ -244,6 +238,7 @@ const MLStatus = {
             return '';
         }
         
+        const esc = window.escapeHtml || function(t) { if (!t) return ''; const d = document.createElement('div'); d.textContent = t; return d.innerHTML; };
         let html = '<div class="ml-explainability-tooltip">';
         html += '<strong>Why this prediction?</strong>';
         html += '<ul>';
@@ -251,7 +246,7 @@ const MLStatus = {
         if (Array.isArray(prediction.reasoning)) {
             prediction.reasoning.forEach(reason => {
                 const weight = reason.weight ? ` (${(reason.weight * 100).toFixed(0)}%)` : '';
-                html += `<li>${reason.text}${weight}</li>`;
+                html += `<li>${esc(reason.text)}${weight}</li>`;
             });
         }
         

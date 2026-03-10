@@ -372,15 +372,19 @@
 
 /* Dashboard large plant card styles (matches mock) */
 .plant-card-lg {
-  display: block;
-  position: relative;
-  padding: 1rem;
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  grid-template-areas:
+    "image body status"
+    "footer footer footer";
+  gap: 0.75rem;
+  align-items: start;
+  padding: 0.875rem;
   border-radius: var(--radius-lg);
   background: var(--bg-secondary);
   border: 1px solid var(--border-primary);
   overflow: hidden;
   width: 100%;
-  max-width: 280px;
   text-align: left !important;
 }
 
@@ -391,26 +395,29 @@
 }
 
 .plant-card-lg .plant-card__image {
-  position: absolute;
-  left: 12px;
-  top: 12px;
-  width: 56px;
-  height: 56px;
-  border-radius: 12px;
+  grid-area: image;
+  position: static;
+  width: 64px;
+  height: 64px;
+  border-radius: 10px;
   overflow: hidden;
+  border: 1px solid var(--border-primary);
+  background: var(--surface-muted-translucent);
   box-shadow: var(--shadow-sm);
 }
 .plant-card-lg .plant-card__image img { width: 100%; height: 100%; object-fit: cover; }
 
 .plant-card-lg .plant-card__status-pill {
-  position: absolute;
-  right: 12px;
-  top: 12px;
-  padding: 6px 8px;
+  grid-area: status;
+  position: static;
+  align-self: start;
+  padding: 0.3rem 0.55rem;
   border-radius: 999px;
-  font-size: 0.6875rem;
+  font-size: 0.66rem;
   font-weight: 700;
   text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
 }
 .plant-card__status-pill.healthy, .plant-card__status-pill.excellent { background: rgba(34,197,94,0.12); color: var(--health-excellent); border: 1px solid rgba(34,197,94,0.15); }
 .plant-card__status-pill.good { background: rgba(132,204,22,0.08); color: var(--health-good); border: 1px solid rgba(132,204,22,0.12); }
@@ -419,11 +426,26 @@
 .plant-card__status-pill.critical { background: rgba(239,68,68,0.08); color: var(--health-critical); border: 1px solid rgba(239,68,68,0.12); }
 
 .plant-card-lg .plant-card__body {
-  margin-left: 76px;
-  padding-right: 12px;
+  grid-area: body;
+  margin-left: 0;
+  padding-right: 0;
+  min-width: 0;
 }
-.plant-card__title { font-size: 1rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.15rem; }
-.plant-card__subtitle { font-size: 0.8125rem; color: var(--text-secondary); margin-bottom: 0.6rem; }
+.plant-card__title {
+  font-size: 0.97rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.12rem;
+  line-height: 1.2;
+}
+.plant-card__subtitle {
+  font-size: 0.79rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.55rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 .plant-card__metric { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
 .metric-label { font-size:0.75rem; color:var(--text-tertiary); }
@@ -432,9 +454,35 @@
 .plant-card__progress .progress-track { height:8px; background:var(--bg-tertiary); border-radius:6px; overflow:hidden; }
 .plant-card__progress .progress-fill { height:100%; background: linear-gradient(90deg,var(--health-excellent), #9ae6b4); transition: width .4s ease; }
 
-.plant-card__footer { display:flex; justify-content:space-between; gap:8px; align-items:center; padding-top:0.75rem; font-size:0.75rem; color:var(--text-secondary); }
+.plant-card__footer {
+  grid-area: footer;
+  display:flex;
+  justify-content:space-between;
+  gap:8px;
+  align-items:center;
+  padding-top:0.6rem;
+  margin-top: 0.15rem;
+  border-top: 1px solid var(--border-primary);
+  font-size:0.74rem;
+  color:var(--text-secondary);
+}
 .plant-card__footer-left { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .plant-card__footer-right { white-space:nowrap; }
+
+@media (max-width: 640px) {
+  .plant-card-lg {
+    grid-template-columns: 52px minmax(0, 1fr);
+    grid-template-areas:
+      "image status"
+      "body body"
+      "footer footer";
+  }
+
+  .plant-card-lg .plant-card__image {
+    width: 52px;
+    height: 52px;
+  }
+}
 
 /* Ensure actions sit above footer */
 .plant-mini-card__actions { top: 8px; right: 8px; }
@@ -525,4 +573,22 @@
   padding: var(--space-3);
   overflow: auto;
   margin: var(--space-2) 0 0;
+}
+
+/* Plant card link wrapper — clicking card navigates to detail page */
+.plant-card-link {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+
+.plant-card-link:hover .plant-card,
+.plant-card-link:focus .plant-card {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-color: var(--brand-400, #60a5fa);
+}
+
+.plant-card-link .plant-card-actions {
+  position: relative;
+  z-index: 2;
 }

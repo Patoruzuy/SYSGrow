@@ -1,16 +1,16 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Optional, Sequence
+from typing import Any, Sequence
 
 logger = logging.getLogger(__name__)
 
 
 def stage_temperature_min_c(
-    growth_stages: Sequence[Dict[str, Any]],
+    growth_stages: Sequence[dict[str, Any]],
     *,
     stage_name: str,
-) -> Optional[float]:
+) -> float | None:
     """
     Return the configured minimum temperature (°C) for a growth stage, if present.
 
@@ -40,7 +40,7 @@ def stage_temperature_min_c(
 
 
 def infer_gdd_base_temp_c(
-    growth_stages: Sequence[Dict[str, Any]],
+    growth_stages: Sequence[dict[str, Any]],
     *,
     stage_name: str,
     default: float = 10.0,
@@ -60,7 +60,7 @@ def calculate_gdd_degree_days(
     temperature_c,
     *,
     base_temp_c: float,
-    interval_hours: Optional[float] = None,
+    interval_hours: float | None = None,
 ) -> float:
     """
     Calculate Growing Degree Days (GDD) / thermal time in degree-days.
@@ -122,4 +122,3 @@ def calculate_gdd_degree_days(
     except Exception as exc:
         logger.debug("Failed to compute uniform-interval GDD: %s", exc)
         return 0.0
-

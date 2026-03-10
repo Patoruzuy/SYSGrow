@@ -922,3 +922,102 @@
     width: 100%;
     min-height: 150px;
 }
+/* -------------------------------------------------------------------------- */
+/* Mobile responsiveness hardening                                             */
+/* -------------------------------------------------------------------------- */
+.devices-page .table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.devices-page .devices-table {
+  min-width: 760px;
+}
+
+@media (max-width: 768px) {
+  .devices-page .table-responsive {
+    margin-inline: calc(0px - var(--space-2));
+    padding-inline: var(--space-2);
+    border-radius: var(--radius-md);
+  }
+
+  .devices-page .devices-table {
+    min-width: 680px;
+  }
+
+  .devices-page .action-buttons .btn,
+  .devices-page .action-buttons a.btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 576px) {
+  .devices-page .settings-tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2);
+    overflow: visible;
+    border-bottom: 0;
+  }
+
+  .devices-page .tab-button {
+    justify-content: center;
+    border: 1px solid var(--border-200);
+    border-bottom: 1px solid var(--border-200);
+    border-radius: var(--radius-md);
+    padding: var(--space-2);
+    font-size: 0.8rem;
+  }
+
+  .devices-page .tab-button.active {
+    background: color-mix(in srgb, var(--brand-600) 12%, transparent);
+    border-color: var(--brand-600);
+  }
+
+  .devices-page .tab-icon {
+    display: none;
+  }
+
+  .devices-page .devices-table--actuators,
+  .devices-page .devices-table--sensors {
+    min-width: 0;
+  }
+
+  .devices-page .devices-table--actuators th:nth-child(1),
+  .devices-page .devices-table--actuators td:nth-child(1),
+  .devices-page .devices-table--actuators th:nth-child(5),
+  .devices-page .devices-table--actuators td:nth-child(5),
+  .devices-page .devices-table--actuators th:nth-child(6),
+  .devices-page .devices-table--actuators td:nth-child(6),
+  .devices-page .devices-table--sensors th:nth-child(1),
+  .devices-page .devices-table--sensors td:nth-child(1),
+  .devices-page .devices-table--sensors th:nth-child(6),
+  .devices-page .devices-table--sensors td:nth-child(6),
+  .devices-page .devices-table--sensors th:nth-child(7),
+  .devices-page .devices-table--sensors td:nth-child(7),
+  .devices-page .devices-table--sensors th:nth-child(8),
+  .devices-page .devices-table--sensors td:nth-child(8) {
+    display: none;
+  }
+
+  .devices-page .devices-table th,
+  .devices-page .devices-table td {
+    padding: 0.5rem;
+    font-size: 0.78rem;
+  }
+
+  .devices-page .action-buttons {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+@media (max-width: 576px) {
+  .devices-page .devices-table .btn,
+  .devices-page .devices-table a.btn {
+    white-space: normal;
+    word-break: break-word;
+    min-width: 0;
+    line-height: 1.2;
+  }
+}

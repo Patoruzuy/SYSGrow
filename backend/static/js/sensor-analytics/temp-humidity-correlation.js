@@ -250,16 +250,19 @@ class TempHumidityCorrelation {
         humidity: humidities[idx]
       }));
 
-      if (series.length > 0) {
-        this.rawData = this.processData(series);
-        this.filteredData = [...this.rawData];
+      this.rawData = this.processData(series);
+      this.filteredData = [...this.rawData];
+
+      if (this.filteredData.length > 0) {
+        this.clearFeedback();
         this.updateChart();
       } else {
-        console.error('Failed to load correlation data');
-        this.showError('Failed to load data');
+        this.clearChart();
+        this.showInfo('No temperature/humidity correlation data available yet');
       }
     } catch (error) {
-      console.error('Error loading correlation data:', error);
+      console.warn('Error loading correlation data:', error);
+      this.clearChart();
       this.showError('Failed to load correlation data');
     } finally {
       this.setLoading(false);
@@ -504,24 +507,66 @@ class TempHumidityCorrelation {
       container.classList.toggle('loading', loading);
     }
   }
+
+  /**
+   * Clear chart data when no valid points are available
+   */
+  clearChart() {
+    if (!this.chart) return;
+    this.chart.data.datasets = [];
+    this.chart.update('none');
+  }
+
+  /**
+   * Show informational message
+   */
+  showInfo(message) {
+    this.showFeedback(message, 'info');
+  }
   
   /**
    * Show error message
    */
   showError(message) {
+    this.showFeedback(message, 'error');
+  }
+
+  /**
+   * Clear any feedback message
+   */
+  clearFeedback() {
     const container = this.canvas.closest('.chart-container');
     if (container) {
-      let errorDiv = container.querySelector('.chart-error');
-      if (!errorDiv) {
-        errorDiv = document.createElement('div');
-        errorDiv.className = 'chart-error';
-        container.appendChild(errorDiv);
+      const messageDiv = container.querySelector('.chart-error');
+      if (messageDiv) {
+        messageDiv.style.display = 'none';
+        messageDiv.textContent = '';
       }
-      errorDiv.textContent = message;
-      errorDiv.style.display = 'block';
-      
+    }
+  }
+
+  /**
+   * Show feedback message with semantic style
+   */
+  showFeedback(message, type) {
+    const container = this.canvas.closest('.chart-container');
+    if (!container) return;
+
+    let messageDiv = container.querySelector('.chart-error');
+    if (!messageDiv) {
+      messageDiv = document.createElement('div');
+      messageDiv.className = 'chart-error';
+      container.appendChild(messageDiv);
+    }
+
+    messageDiv.textContent = message;
+    messageDiv.style.display = 'block';
+    messageDiv.classList.toggle('chart-info', type === 'info');
+    messageDiv.classList.toggle('chart-error-state', type === 'error');
+
+    if (type === 'error') {
       setTimeout(() => {
-        errorDiv.style.display = 'none';
+        messageDiv.style.display = 'none';
       }, 5000);
     }
   }

@@ -6,7 +6,6 @@
 
 {% block styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/components/alerts.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -37,14 +36,14 @@
     ) }}
 
     <!-- Contextual Help Banner -->
-    {{ ui.help_banner(
-      title='Configure your environment',
-      text='Set temperature, humidity, and lighting thresholds for optimal plant growth.',
-      icon='info-circle',
-      link_text='Settings Guide',
-      category='settings',
-      article_id='environment-settings'
-    ) }}
+    <div class="help-banner">
+      <i class="fas fa-info-circle"></i>
+      <div class="help-banner-content">
+        <p class="help-banner-title">Configure your environment</p>
+        <p class="help-banner-text">Set temperature, humidity, and lighting thresholds for optimal plant growth.</p>
+      </div>
+      {{ ui.help_link('settings', 'environment-settings', 'Settings Guide') }}
+    </div>
 
     <div id="settings-status" class="settings-status" role="status" aria-live="polite"></div>
 
@@ -1423,10 +1422,11 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/api.js') }}"></script>
 <script src="{{ url_for('static', filename='js/utils/cache-service.js') }}"></script>
 <script src="{{ url_for('static', filename='js/utils/base-manager.js') }}"></script>
-<script src="{{ url_for('static', filename='js/settings/data-service.js') }}"></script>
-<script src="{{ url_for('static', filename='js/settings/ui-manager.js') }}"></script>
+<script src="{{ url_for('static', filename='js/settings/data-service.js') }}?v=20260308b"></script>
+<script src="{{ url_for('static', filename='js/settings/ui-manager.js') }}?v=20260308b"></script>
 <script src="{{ url_for('static', filename='js/settings/form-validations.js') }}"></script>
-<script src="{{ url_for('static', filename='js/settings/main.js') }}"></script>
+<script src="{{ url_for('static', filename='js/settings/main.js') }}?v=20260308b"></script>
 {% endblock %}

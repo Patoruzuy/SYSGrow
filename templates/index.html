@@ -1,0 +1,496 @@
+{% extends 'base.html' %}
+{% import "macros.html" as ui %}
+
+{% block title %}Dashboard - SYSGrow{% endblock %}
+{% block body_class %}dashboard-page{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/system-efficiency-score.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/sensor-analytics/intelligent-alert-timeline.css') }}">
+{% endblock %}
+
+{# ----------------------------------------------------------------------------
+  Local macros for sensor cards specific to the main dashboard
+---------------------------------------------------------------------------- #}
+{% macro filter_group(id, label, content) -%}
+  <div class="filter-group">
+    <label class="filter-label" for="{{ id }}">{{ label }}</label>
+    {{ content }}
+  </div>
+{%- endmacro %}
+
+{% macro sensor_card(kind, label, emoji, value_id, status_id, trend_id, pill_id) -%}
+  <article class="sensor-card {{ kind }}" data-sensor="{{ kind }}" aria-label="{{ label }}">
+    <header class="sensor-card-header">
+      <div class="sensor-icon" role="img" aria-label="{{ label }}">{{ emoji }}</div>
+      <div class="value-lg sensor-value" id="{{ value_id }}" aria-describedby="{{ kind }}-label">--</div>
+    </header>
+
+    <div class="sensor-main">
+      <h3 class="sr-only" id="{{ kind }}-label">{{ label }}</h3>
+
+      <span class="chip sensor-status" id="{{ status_id }}">No data</span>
+
+      <div class="sensor-meta-row">
+        <span class="trend-pill neutral" id="{{ pill_id }}">
+          <svg class="trend-sparkline" viewBox="0 0 40 16" preserveAspectRatio="none" aria-hidden="true">
+            <polyline points="0,8 40,8"></polyline>
+          </svg>
+          <span class="sensor-trend" id="{{ trend_id }}">--</span>
+        </span>
+      </div>
+
+      <p class="muted last-update">
+        <span class="last-update-icon" aria-hidden="true"><i class="fas fa-clock"></i></span>
+        <span class="sr-only">Last update:</span>
+        <span class="last-update-value">--:--</span>
+      </p>
+    </div>
+  </article>
+{%- endmacro %}
+
+{% block content %}
+<div class="page-shell dashboard-shell page-shell--fluid"
+      data-selected-unit-id="{% if selected_unit %}{{ selected_unit.unit_id }}{% endif %}">
+
+  <div class="dashboard-container">
+
+    <!-- Header -->
+    <header class="dashboard-header" aria-label="Dashboard header">
+      <div class="header-top">
+
+        <div class="header-title-group">
+          <div class="eyebrow">Dashboard</div>
+          <h1 class="dashboard-title">
+            <span class="icon" aria-hidden="true">🌿</span>
+            Smart Growth Overview
+          </h1>
+          <p class="dashboard-subtitle">Real-time monitoring and control of your smart agriculture system</p>
+        </div>
+
+        <div class="header-status" role="status" aria-live="polite">
+          <div class="status-badge" id="connection-status-badge">
+            <span class="status-dot" aria-hidden="true"></span>
+            <span id="connection-status-text">Checking...</span>
+          </div>
+
+          <div class="header-meta">
+            <span class="header-meta-item">
+              <span class="header-meta-label">Last update:</span>
+              <span id="last-update-time">--:--</span>
+            </span>
+
+            {% if selected_unit %}
+              <span class="header-meta-item">
+                <span class="header-meta-label">Unit:</span>
+                <span class="header-meta-value">{{ selected_unit.name }} ({{ selected_unit.location }})</span>
+              </span>
+            {% else %}
+              <span class="header-meta-item header-meta-warning">No unit selected</span>
+            {% endif %}
+          </div>
+        </div>
+
+      </div>
+    </header>
+
+    <!-- Filters / Actions -->
+    <nav class="filter-bar" aria-label="Dashboard filters and actions">
+
+      <form id="unit-switcher-form"
+            method="post"
+            action="{{ url_for('ui.select_unit') }}"
+            class="filter-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+        <div class="filter-group">
+          <label class="filter-label" for="unit-switcher">Unit</label>
+          <select id="unit-switcher" name="unit_id" class="filter-select" onchange="this.form.requestSubmit()">
+            <option value="">All units</option>
+            {% for u in units %}
+              <option value="{{ u.unit_id }}"
+                      {% if selected_unit and u.unit_id == selected_unit.unit_id %}selected{% endif %}>
+                {{ u.name or ('Unit ' ~ u.unit_id) }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+      </form>
+
+      <div class="filter-group">
+        <label class="filter-label" for="plant-switcher">Plant</label>
+        <select id="plant-switcher" class="filter-select" aria-label="Select plant overlay">
+          <option value="">All plants</option>
+          {% for plant in plants %}
+            <option value="{{ plant.plant_id }}">{{ plant.name }} ({{ plant.plant_type }})</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label class="filter-label" for="range-selector">Range</label>
+        <select id="range-selector" class="filter-select" aria-label="Select time range">
+          <option value="24">Last 24 hours</option>
+          <option value="72">Last 72 hours</option>
+          <option value="168">Last 7 days</option>
+        </select>
+      </div>
+
+      <div class="filter-actions">
+        <div class="view-toggle" role="group" aria-label="Dashboard view toggle">
+          <button type="button" class="view-toggle-btn active" data-view="normal" aria-label="Normal view">
+            <i class="fas fa-th-large" aria-hidden="true"></i>
+          </button>
+          <button type="button" class="view-toggle-btn" data-view="compact" aria-label="Compact view">
+            <i class="fas fa-th" aria-hidden="true"></i>
+          </button>
+        </div>
+
+        <a class="btn btn-outline" href="{{ url_for('ui.sensor_analytics') }}">
+          <i class="fas fa-chart-line" aria-hidden="true"></i>
+          <span class="btn-text">Analytics</span>
+        </a>
+
+        <button type="button" class="btn btn-primary" id="refresh-sensors">
+          <i class="fas fa-sync-alt" aria-hidden="true"></i>
+          <span class="btn-text">Refresh</span>
+        </button>
+      </div>
+    </nav>
+
+    <!-- KPI grid -->
+    <section class="kpi-grid" aria-label="Key indicators">
+      {{ ui.kpi_card('system-health', 'System Health', value_id='health-score-value', icon='fas fa-heartbeat', subtext='Loading...', variant='info') }}
+      {{ ui.kpi_card('active-devices', 'Active Devices', value_id='active-devices-count', icon='fas fa-plug', subtext='Online now', variant='success') }}
+      {{ ui.kpi_card('healthy-plants', 'Healthy Plants', value_id='healthy-plants-count', icon='fas fa-leaf', subtext='In good condition', variant='success') }}
+      {{ ui.kpi_card('alerts', 'Alerts', value_id='critical-alerts-count', icon='fas fa-exclamation-triangle', subtext='Require attention', variant='warning') }}
+
+      <div class="kpi-card info">
+        <div class="kpi-icon" aria-hidden="true"><i class="fas fa-bolt"></i></div>
+        <div class="kpi-content">
+          <div class="kpi-label">Energy Today</div>
+          <div class="kpi-value"><span id="energy-usage-today">0.0</span> kWh</div>
+          <div class="kpi-meta" id="energy-comparison">Calculating...</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Components -->
+    <section class="section" aria-label="System efficiency">
+      <div id="system-efficiency-score-container"></div>
+    </section>
+
+    <section class="section" aria-label="Environmental overview">
+      <div id="environmental-overview-container"></div>
+    </section>
+
+    <section class="section" aria-label="Alert timeline">
+      <div id="intelligent-alert-timeline-container"></div>
+    </section>
+
+    <!-- VPD + Recent alerts -->
+    <section class="two-col-grid" aria-label="VPD and alerts">
+      <div class="card">
+        <h2 class="card-title">
+          <i class="fas fa-tint" aria-hidden="true"></i>
+          VPD Status
+        </h2>
+        <div class="card-content" id="vpd-gauge-container">
+          <p class="muted centered-pad">
+            VPD calculation requires temperature and humidity data
+          </p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 class="card-title">
+          <i class="fas fa-exclamation-triangle" aria-hidden="true"></i>
+          Recent Alerts
+        </h2>
+        <div class="alerts-feed" id="alert-anomaly-summary">
+          <div class="muted centered-pad">Loading alerts...</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Sensors -->
+    <section class="section" aria-label="Live environmental data">
+      <h2 class="section-title">
+        <i class="fas fa-broadcast-tower icon" aria-hidden="true"></i>
+        Live Environmental Data
+      </h2>
+
+      <div class="sensor-grid">
+        {{ sensor_card('temperature', 'Temperature', '🌡️', 'temperature-value', 'temperature-status', 'temperature-trend', 'temperature-trend-pill') }}
+        {{ sensor_card('humidity', 'Humidity', '💧', 'humidity-value', 'humidity-status', 'humidity-trend', 'humidity-trend-pill') }}
+        {{ sensor_card('soil_moisture', 'Soil Moisture', '🌱', 'soil-moisture-value', 'soil-moisture-status', 'soil-moisture-trend', 'soil-moisture-trend-pill') }}
+        {{ sensor_card('light_level', 'Light Level', '☀️', 'light-value', 'light-status', 'light-trend', 'light-trend-pill') }}
+        {{ sensor_card('co2_level', 'CO₂ Level', '🍃', 'co2-value', 'co2-status', 'co2-trend', 'co2-trend-pill') }}
+        {{ sensor_card('energy_usage', 'Energy Usage', '⚡', 'energy-value', 'energy-status', 'energy-trend', 'energy-trend-pill') }}
+      </div>
+    </section>
+
+    <!-- Plants -->
+    <section class="section" aria-label="Plants overview">
+      <h2 class="section-title">
+        <i class="fas fa-seedling icon" aria-hidden="true"></i>
+        Plants
+      </h2>
+
+      {% if selected_unit %}
+        {% if plants %}
+          <div class="plant-grid">
+            {% for plant in plants %}
+              {% set plant_type = (plant.plant_type or '')|lower %}
+              {% set moisture_value = plant.moisture_level if plant.moisture_level is defined and plant.moisture_level is not none else None %}
+              <article class="plant-card" data-plant-id="{{ plant.plant_id }}">
+                <div class="plant-header">
+                  <div class="plant-avatar" aria-hidden="true">
+                    {% if 'tomato' in plant_type %}🍅
+                    {% elif 'lettuce' in plant_type or 'kale' in plant_type or 'spinach' in plant_type %}🥬
+                    {% elif 'pepper' in plant_type %}🫑
+                    {% elif 'strawberry' in plant_type %}🍓
+                    {% elif 'basil' in plant_type or 'mint' in plant_type or 'herb' in plant_type %}🌿
+                    {% elif 'flower' in plant_type %}🌸
+                    {% else %}🪴
+                    {% endif %}
+                  </div>
+                  <div class="plant-info">
+                    <div class="plant-name">{{ plant.name or ('Plant ' ~ plant.plant_id) }}</div>
+                    <div class="plant-type">{{ plant.plant_type or 'Unknown type' }}</div>
+                  </div>
+                </div>
+
+                <div class="plant-stats">
+                  <span class="plant-stat">
+                    {% if moisture_value is not none %}
+                      Moisture: {{ "%.0f"|format(moisture_value) }}%
+                    {% else %}
+                      No data
+                    {% endif %}
+                  </span>
+                  {% if plant.current_stage and plant.days_in_stage is not none %}
+                    <span class="plant-stat">Day {{ plant.days_in_stage|int }} of {{ plant.current_stage }}</span>
+                  {% else %}
+                    {% if plant.current_stage %}<span class="plant-stat">{{ plant.current_stage }}</span>{% endif %}
+                    {% if plant.days_in_stage is not none %}<span class="plant-stat">Day {{ plant.days_in_stage|int }}</span>{% endif %}
+                  {% endif %}
+                </div>
+              </article>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="card">
+            <p class="muted">No plants found for this unit yet.</p>
+            <a class="btn btn-outline" href="{{ url_for('ui.plants_hub') }}">
+              <i class="fas fa-plus" aria-hidden="true"></i>
+              Add Plants
+            </a>
+          </div>
+        {% endif %}
+      {% else %}
+        <div class="card">
+          <p class="muted">Select a growth unit to see its plants.</p>
+        </div>
+      {% endif %}
+    </section>
+
+    <!-- Quick actions -->
+    <section class="section" aria-label="Quick actions">
+      <h2 class="section-title">
+        <i class="fas fa-bolt icon" aria-hidden="true"></i>
+        Quick Actions
+      </h2>
+      <div class="actions-grid" id="quick-actions" data-actuators='{{ actuators|default([])|tojson }}'>
+        <button type="button" class="action-btn" data-device-toggle="lights"><span class="icon" aria-hidden="true">💡</span><span>Lights</span></button>
+        <button type="button" class="action-btn" data-device-toggle="fans"><span class="icon" aria-hidden="true">🌪️</span><span>Fan</span></button>
+        <button type="button" class="action-btn" data-device-toggle="irrigation"><span class="icon" aria-hidden="true">💧</span><span>Irrigation</span></button>
+        <button type="button" class="action-btn" data-device-toggle="heater"><span class="icon" aria-hidden="true">🔥</span><span>Heater</span></button>
+      </div>
+    </section>
+
+    <!-- AI Health banner -->
+    <section class="section" aria-label="AI health score">
+      <div class="ai-health-banner" id="ai-health-banner">
+        <div class="ai-banner-icon" aria-hidden="true"><i class="fas fa-brain"></i></div>
+        <div class="ai-banner-content">
+          <h2 class="ai-banner-title">AI Health Score</h2>
+          <div class="ai-score-display">
+            <span class="ai-score-value" id="ai-overall-score">--</span>
+            <span class="ai-score-label">/100</span>
+          </div>
+          <p class="ai-banner-subtitle" id="ai-health-status">Analyzing conditions...</p>
+        </div>
+        <div class="ai-banner-actions">
+          <button type="button" class="btn btn-sm" id="view-ai-details">
+            <i class="fas fa-chart-line" aria-hidden="true"></i>
+            View Details
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Activity + Connectivity -->
+    <section class="two-col-grid" aria-label="Activity and connectivity">
+      <div class="card">
+        <h2 class="card-title"><i class="fas fa-history" aria-hidden="true"></i> Recent Activity</h2>
+        <div class="activity-feed" id="recent-activity-list">
+          <div class="empty-feed">
+            <div class="empty-feed-icon" aria-hidden="true">📋</div>
+            <div class="empty-feed-text">Loading recent activity...</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 class="card-title"><i class="fas fa-wifi" aria-hidden="true"></i> Connectivity</h2>
+        <div class="connectivity-list" id="connectivity-list">
+          <div class="empty-feed">
+            <div class="empty-feed-icon" aria-hidden="true">🔌</div>
+            <div class="empty-feed-text">Loading connectivity status...</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<!-- Health Detail Modal -->
+<div id="health-modal" class="modal" role="dialog" aria-labelledby="health-modal-title" aria-modal="true" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="health-modal-title"><i class="fas fa-heartbeat" aria-hidden="true"></i> System Health Details</h2>
+        <button type="button" class="modal-close" data-modal-close aria-label="Close modal">
+          <i class="fas fa-times" aria-hidden="true"></i>
+        </button>
+      </div>
+      <div class="modal-body" id="health-modal-content">
+        <div class="loading-spinner">
+          <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
+          <p>Loading health data...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/utils/cache-service.js') }}"></script>
+<script src="{{ url_for('static', filename='js/utils/modal.js') }}"></script>
+<script src="{{ url_for('static', filename='js/utils/base-manager.js') }}"></script>
+
+{# Recommended: load API before modules that might call it #}
+<script src="{{ url_for('static', filename='js/api.js') }}"></script>
+<script src="{{ url_for('static', filename='js/socket.js') }}"></script>
+<script src="{{ url_for('static', filename='js/ai_dashboard.js') }}"></script>
+
+<script src="{{ url_for('static', filename='js/components/system-efficiency-score.js') }}"></script>
+
+<script src="{{ url_for('static', filename='js/sensor-analytics/environmental-overview-chart.js') }}"></script>
+
+<script src="{{ url_for('static', filename='js/sensor-analytics/intelligent-alert-timeline.js') }}"></script>
+
+
+<script src="{{ url_for('static', filename='js/dashboard/data-service.js') }}"></script>
+<script src="{{ url_for('static', filename='js/dashboard/ui-manager.js') }}"></script>
+<script src="{{ url_for('static', filename='js/dashboard/main.js') }}"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // View toggle
+  const viewButtons = document.querySelectorAll('.view-toggle-btn');
+  const container = document.querySelector('.dashboard-container');
+
+  viewButtons.forEach(btn => {
+    btn.addEventListener('click', function() {
+      const view = this.dataset.view;
+
+      viewButtons.forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+
+      container.classList.toggle('compact-view', view === 'compact');
+      localStorage.setItem('dashboard-view', view);
+    });
+  });
+
+  const savedView = localStorage.getItem('dashboard-view');
+  if (savedView === 'compact') {
+    container.classList.add('compact-view');
+    viewButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.view === 'compact'));
+  }
+
+  const pageShell = document.querySelector('.page-shell, .dashboard-shell');
+  const unitId = pageShell?.dataset?.selectedUnitId ? parseInt(pageShell.dataset.selectedUnitId, 10) : null;
+
+  if (typeof SystemEfficiencyScore !== 'undefined') {
+    window.efficiencyScore = new SystemEfficiencyScore('system-efficiency-score-container', {
+      updateInterval: 60000,
+      enableMLSuggestions: true
+    });
+    window.efficiencyScore.init(unitId);
+  }
+
+  if (typeof EnvironmentalOverviewChart !== 'undefined') {
+    window.environmentalChart = new EnvironmentalOverviewChart('environmental-overview-container', {
+      updateInterval: 300000,
+      showForecast: true
+    });
+    window.environmentalChart.init(unitId);
+    
+    // Update when unit changes
+    const unitSwitcher = document.getElementById('unit-switcher');
+    if (unitSwitcher) {
+      unitSwitcher.addEventListener('change', function(e) {
+        const newUnitId = e.target.value ? parseInt(e.target.value) : null;
+        if (window.environmentalChart) {
+          window.environmentalChart.init(newUnitId);
+        }
+      });
+    }
+  }
+  
+  // Load alerts and anomalies summary
+  loadAlertsSummary(unitId);
+});
+
+// Function to load alerts and anomalies
+async function loadAlertsSummary(unitId) {
+  const container = document.getElementById('alert-anomaly-summary');
+  if (!container) return;
+  
+  try {
+    // Load recent alerts
+    const alertsParams = new URLSearchParams({ hours: 24, severity: 'warning,critical' });
+    if (unitId) alertsParams.append('unit_id', unitId);
+    
+    const alertsResponse = await fetch(`/api/alerts?${alertsParams}`);
+    const alertsData = await alertsResponse.json();
+    
+    const alerts = alertsData.ok && alertsData.data ? alertsData.data.alerts || [] : [];
+    
+    // Render alerts
+    if (alerts.length === 0) {
+      container.innerHTML = '<p class="muted text-center">No recent alerts</p>';
+    } else {
+      const html = alerts.slice(0, 5).map(alert => `
+        <div class="activity-item">
+          <span class="badge badge-${alert.severity === 'critical' ? 'danger' : 'warning'}">${alert.severity}</span>
+          <div>
+            <strong>${alert.title || 'Alert'}</strong>
+            <p class="muted small">${alert.message || ''}</p>
+            <span class="muted small">${new Date(alert.created_at).toLocaleString()}</span>
+          </div>
+        </div>
+      `).join('');
+      container.innerHTML = html;
+    }
+  } catch (error) {
+    console.error('Error loading alerts:', error);
+    container.innerHTML = '<p class="muted text-center">Failed to load alerts</p>';
+  }
+}
+</script>
+{% endblock %}

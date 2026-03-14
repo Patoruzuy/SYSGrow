@@ -1,0 +1,97 @@
+{
+  "$schema": "https://codex.schema/v1",
+  "project": {
+    "name": "sysgrow-smart-agriculture",
+    "stack": ["python", "flask", "jinja2", "vanilla-js", "css"],
+    "apps": [
+      {"name": "backend", "root": ".", "kind": "flask"},
+      {"name": "frontend-templates", "root": "templates", "kind": "jinja2"},
+      {"name": "static", "root": "static", "kind": "assets"}
+    ]
+  },
+  "paths": {
+    "templates": ["templates/**/*.html", "templates/**/*.jinja", "templates/**/*.j2"],
+    "styles": ["static/css/**/*.css"],
+    "scripts": ["static/js/**/*.js"],
+    "python": ["**/*.py"]
+  },
+  "style": {
+    "authoritative_files": [
+      "static/css/theme.css",
+      "static/css/base.css"
+    ],
+    "rules": [
+        "Ensure base.html keeps <link> to css/theme.css and css/base.css.",
+        "Add/verify page wrappers: .dashboard-page, .units-page, .status-page, .auth-page.",
+        "Move any inline styles from templates into page css (dashboard.css, units.css, status.css, auth.css).",
+        "Replace raw hex colors with CSS variables from theme.css.",
+        "Normalize buttons/cards/tables/badges using shared classes in components.css.",
+        "Ensure light/dark are driven by :root[data-theme] tokens from theme.css.",
+        "KPI grid: add .kpi-card with optional .kpi-icon and consistent spacing."
+      ]
+    },
+    "checks": {
+        "forbid_inline_style": true,
+        "enforce_wrappers": [".dashboard-page", ".units-page", ".status-page", ".auth-page"],
+        "enforce_theme_vars_prefixes": ["--brand-", "--bg-", "--color-", "--text-", "--success-", "--warning-", "--danger-", "--info-"]
+      }
+    }
+  },
+  "refactors": {
+    "css": {
+      "centralize_tokens": true,
+      "dedupe": true,
+      "token_source": "static/css/theme.css"
+    },
+    "templates": {
+      "enforce_wrappers": [".dashboard-page", ".units-page", ".status-page", ".auth-page"],
+      "no_inline_styles": true,
+      "macro_usage_hint": "macros.html"
+    }
+  },
+  "constraints": {
+    "python": {
+      "typing": "strict",
+      "dataclasses_for_events": true,
+      "enforce_enums": ["EventType"]
+    },
+    "testing": {
+      "require_event_map_test": "tests/test_event_map.py"
+    }
+  },
+  "search": {
+    "prioritize": [
+      "static/css/theme.css",
+      "static/css/base.css",
+      "static/css/*.css",
+      "templates/**/*.html",
+      "events/**/*.py",
+      "services/**/*.py",
+      "tests/**/*.py"
+    ]
+  },
+  "guardrails": {
+    "disallow_new_deps": true,
+    "disallow_global_css_overrides": ["* { all: unset }"]
+  },
+  "workflows": {
+    "ui-refresh": {
+      "goals": [
+        "Migrate templates to light/dark classes; remove inline styles.",
+        "Unify button/header/section cards using theme tokens.",
+        "Ensure pages include the required wrapper class.",
+        "Fix Plant Guide page binding."
+      ],
+      "files": [
+        "static/css/theme.css",
+        "static/css/base.css",
+        "templates/base.html",
+        "templates/index.html",
+        "templates/*.html"
+      ],
+      "tests": [
+        "pytest -q tests/test_event_map.py"
+      ]
+    }
+  }
+}

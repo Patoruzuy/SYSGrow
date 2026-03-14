@@ -15,6 +15,7 @@ class PlantsUIManager extends BaseManager {
         this.currentFilter = 'all';
         this.plants = []; // Store plants for use in selects
         this.plantDetailsModal = null;
+        this.latestHealthData = null;
     }
 
     async init() {
@@ -57,21 +58,6 @@ class PlantsUIManager extends BaseManager {
             this.addEventListener(guideSearchInput, 'input', (e) => this.searchGuide(e.target.value));
         }
 
-        // Import shared profile tokens
-        this.addDelegatedListener(
-            document.body,
-            'click',
-            '[data-action="import-plant-profile"]',
-            () => this.handleImportPlantProfile()
-        );
-
-        this.addDelegatedListener(
-            document.body,
-            'click',
-            '[data-action="clear-plant-profile"]',
-            () => this._resetPlantProfileSelection()
-        );
-
         // Modal trigger buttons
         const addPlantBtn = document.getElementById('add-plant-btn');
         if (addPlantBtn) {
@@ -83,6 +69,11 @@ class PlantsUIManager extends BaseManager {
             this.addEventListener(addObservationBtn, 'click', () => this.openObservationModal());
         }
 
+        const healthDetailsBtn = document.getElementById('health-details-btn');
+        if (healthDetailsBtn) {
+            this.addEventListener(healthDetailsBtn, 'click', () => this.openHealthDetailsModal());
+        }
+
         // Link sensor modal form handlers
         const linkSensorForm = document.getElementById('link-sensor-form');
         if (linkSensorForm) {
@@ -91,15 +82,22 @@ class PlantsUIManager extends BaseManager {
 
         const cancelLink = document.getElementById('cancel-link-sensor');
         if (cancelLink) {
-            this.addEventListener(cancelLink, 'click', () => {
-                const modal = document.getElementById('link-sensor-modal');
-                if (modal) modal.hidden = true;
-            });
+            this.addEventListener(cancelLink, 'click', () => this.closeAllModals());
         }
 
         const addNutrientsBtn = document.getElementById('add-nutrients-btn');
         if (addNutrientsBtn) {
             this.addEventListener(addNutrientsBtn, 'click', () => this.openNutrientsModal());
+        }
+
+        const cancelObservationBtn = document.getElementById('cancel-observation');
+        if (cancelObservationBtn) {
+            this.addEventListener(cancelObservationBtn, 'click', () => this.closeAllModals());
+        }
+
+        const cancelNutrientsBtn = document.getElementById('cancel-nutrients');
+        if (cancelNutrientsBtn) {
+            this.addEventListener(cancelNutrientsBtn, 'click', () => this.closeAllModals());
         }
 
         const recordHarvestBtn = document.getElementById('record-harvest-btn');
@@ -129,37 +127,46 @@ class PlantsUIManager extends BaseManager {
             this.addEventListener(observationForm, 'submit', (e) => this.handleObservationSubmit(e));
         }
 
-        // Plant card action buttons (delegated)
-        this.addDelegatedListener(
+        // Plant card actions are nested in clickable cards, so route all actions
+        // through one delegated handler and suppress parent navigation.
+        this.addEventListener(
             document.body,
             'click',
-            '[data-action="view-details"]',
             (e) => {
-                const trigger = e.target.closest('[data-action="view-details"]');
-                this.openPlantDetails(trigger?.dataset?.plantId, trigger?.dataset?.unitId);
-            }
-        );
+                const trigger = e.target.closest('[data-action]');
+                if (!trigger) return;
 
-        this.addDelegatedListener(
-            document.body,
-            'click',
-            '[data-action="record-observation"]',
-            (e) => this.openPlantDetails(e.target.closest('[data-action="record-observation"]')?.dataset?.plantId)
-        );
+                const action = trigger.dataset?.action;
+                const plantId = trigger.dataset?.plantId;
+                const unitId = trigger.dataset?.unitId;
 
-        // Additional actions: link-sensor, edit-plant, delete-plant
-        this.addDelegatedListener(
-            document.body,
-            'click',
-            '[data-action="link-sensor"]',
-            (e) => this.openLinkSensorModal(e.target.closest('[data-action="link-sensor"]')?.dataset?.plantId)
-        );
+                if (!action || !['view-details', 'record-observation', 'link-sensor', 'delete-plant'].includes(action)) {
+                    return;
+                }
 
-        this.addDelegatedListener(
-            document.body,
-            'click',
-            '[data-action="delete-plant"]',
-            (e) => this.handleDeletePlantClick(e.target.closest('[data-action="delete-plant"]'))
+                e.preventDefault();
+                e.stopPropagation();
+
+                if (action === 'view-details') {
+                    this.openPlantDetails(plantId, unitId);
+                    return;
+                }
+
+                if (action === 'record-observation') {
+                    this.openPlantDetails(plantId);
+                    return;
+                }
+
+                if (action === 'link-sensor') {
+                    this.openLinkSensorModal(plantId);
+                    return;
+                }
+
+                if (action === 'delete-plant') {
+                    this.handleDeletePlantClick(trigger);
+                }
+            },
+            { capture: true }
         );
 
         // Modal close buttons (delegated)
@@ -213,6 +220,7 @@ class PlantsUIManager extends BaseManager {
 
     renderHealthOverview(healthData) {
         if (!healthData) return;
+        this.latestHealthData = healthData;
 
         // Use backend-provided summary if available, otherwise calculate from plants
         const summary = healthData.summary;
@@ -252,22 +260,6 @@ class PlantsUIManager extends BaseManager {
         const scoreEl = document.getElementById('health-score');
         if (scoreEl) {
             scoreEl.textContent = score || 0;
-            // Animate SVG gauge
-            const circle = document.getElementById('health-circle');
-            if (circle) {
-                const max = 339.292;
-                const offset = max * (1 - (score || 0) / 100);
-                circle.style.transition = 'stroke-dashoffset 0.6s ease, stroke 0.4s ease';
-                circle.style.strokeDashoffset = offset;
-                // Color thresholds
-                if (score >= 80) {
-                    circle.style.stroke = 'var(--success-500)';
-                } else if (score >= 50) {
-                    circle.style.stroke = 'var(--warning-500)';
-                } else {
-                    circle.style.stroke = 'var(--danger-500)';
-                }
-            }
             // Update status title and message
             const statusTitle = document.getElementById('status-title');
             const statusMessage = document.getElementById('status-message');
@@ -502,7 +494,6 @@ class PlantsUIManager extends BaseManager {
         }[statusClass] || 'fa-question-circle';
 
         return `
-            <a href="/plants/${plant.plant_id}/my-detail" class="plant-card-link" title="View plant details">
             <div class="plant-card" data-status="${statusClass}" data-name="${plant.name}" data-type="${plant.plant_type}">
                 <div class="plant-card-header">
                     <h4>${plant.name}</h4>
@@ -517,8 +508,8 @@ class PlantsUIManager extends BaseManager {
                     <p><strong>Days in stage:</strong> ${plant.days_in_stage}</p>
                     <p><strong>Unit:</strong> ${plant.unit_name || `Unit ${plant.unit_id}`}</p>
                 </div>
-                <div class="plant-card-actions" onclick="event.preventDefault(); event.stopPropagation();">
-                    <button class="btn btn-sm" data-action="view-details" data-plant-id="${plant.plant_id}" data-unit-id="${plant.unit_id}" title="Quick view">
+                <div class="plant-card-actions">
+                    <button class="btn btn-sm" data-action="view-details" data-plant-id="${plant.plant_id}" data-unit-id="${plant.unit_id}" title="View details">
                         <i class="fas fa-eye"></i>
                     </button>
                     <button class="btn btn-sm" data-action="link-sensor" data-plant-id="${plant.plant_id}" data-unit-id="${plant.unit_id}" title="Link sensor">
@@ -529,7 +520,6 @@ class PlantsUIManager extends BaseManager {
                     </button>
                 </div>
             </div>
-            </a>
         `;
     }
 
@@ -760,16 +750,13 @@ class PlantsUIManager extends BaseManager {
             this.log('Observation saved successfully', result);
             
             // Close modal and refresh
-            const modal = document.getElementById('add-observation-modal');
-            if (modal) modal.hidden = true;
+            this.closeAllModals();
             form.reset();
             await this.refresh();
             
         } catch (error) {
             this.error('Failed to save observation:', error);
-            if (window.showNotification) {
-                window.showNotification(`Failed to save observation: ${error.message}`, 'error');
-            }
+            alert(`Failed to save observation: ${error.message}`);
         }
     }
 
@@ -829,11 +816,6 @@ class PlantsUIManager extends BaseManager {
             this._plantSelectHandler = (e) => this.handleCatalogSelection(e.target.value);
             plantSelect.addEventListener('change', this._plantSelectHandler);
         }
-
-        const customPlantType = document.getElementById('custom-plant-type');
-        if (customPlantType) {
-            customPlantType.addEventListener('input', () => this._loadPlantProfileSelector());
-        }
         
         // Bind form submission
         const form = document.getElementById('add-plant-form');
@@ -843,12 +825,6 @@ class PlantsUIManager extends BaseManager {
             }
             this._formSubmitHandler = (e) => this.handleAddPlant(e);
             form.addEventListener('submit', this._formSubmitHandler);
-        }
-
-        // Bind stage change for profile filtering
-        const stageSelect = document.getElementById('plant-stage');
-        if (stageSelect) {
-            stageSelect.addEventListener('change', () => this._loadPlantProfileSelector());
         }
         
         // Bind cancel button
@@ -860,9 +836,6 @@ class PlantsUIManager extends BaseManager {
         modal.hidden = false;
         modal.classList.add('is-open');
         modal.setAttribute('aria-hidden', 'false');
-        this._initPlantProfileSelector();
-        this._resetPlantProfileSelection();
-        this._loadPlantProfileSelector();
         this.log('Opened add plant modal');
     }
 
@@ -891,7 +864,6 @@ class PlantsUIManager extends BaseManager {
         }
         
         this.log(`Switched to ${mode} mode`);
-        this._loadPlantProfileSelector();
     }
 
     /**
@@ -913,9 +885,6 @@ class PlantsUIManager extends BaseManager {
             strain_variety: formData.get('strain_variety') || null,
             expected_yield_grams: parseFloat(formData.get('expected_yield_grams')) || null,
             light_distance_cm: parseFloat(formData.get('light_distance_cm')) || null,
-            condition_profile_id: formData.get('condition_profile_id') || null,
-            condition_profile_mode: formData.get('condition_profile_mode') || null,
-            condition_profile_name: formData.get('condition_profile_name') || null,
             csrf_token: formData.get('csrf_token')
         };
         
@@ -930,9 +899,7 @@ class PlantsUIManager extends BaseManager {
         
         // Validate required fields
         if (!data.name || !data.unit_id || !data.plant_type) {
-            if (window.showNotification) {
-                window.showNotification('Please fill in all required fields', 'warning');
-            }
+            alert('Please fill in all required fields');
             return;
         }
         
@@ -950,9 +917,7 @@ class PlantsUIManager extends BaseManager {
             await this.refresh();
         } catch (error) {
             this.error('Error adding plant:', error);
-            if (window.showNotification) {
-                window.showNotification(`Error: ${error.message}`, 'error');
-            }
+            alert(`Error: ${error.message}`);
         }
     }
 
@@ -978,6 +943,52 @@ class PlantsUIManager extends BaseManager {
             modal.setAttribute('aria-hidden', 'false');
             this.log('Opened nutrients modal');
         }
+    }
+
+    openHealthDetailsModal() {
+        const modal = document.getElementById('health-details-modal');
+        const content = document.getElementById('health-details-content');
+        if (!modal || !content) return;
+
+        const scoreValue = parseInt(document.getElementById('health-score')?.textContent || '0', 10) || 0;
+        const summary = this.latestHealthData?.summary || {};
+        const healthy = Number(summary.healthy ?? document.getElementById('healthy-count')?.textContent ?? 0) || 0;
+        const stressed = Number(summary.stressed ?? document.getElementById('stressed-count')?.textContent ?? 0) || 0;
+        const diseased = Number(summary.diseased ?? document.getElementById('diseased-count')?.textContent ?? 0) || 0;
+        const total = Number(summary.total ?? document.getElementById('total-plants')?.textContent ?? (healthy + stressed + diseased)) || 0;
+        const status = scoreValue >= 80 ? 'Excellent' : scoreValue >= 50 ? 'Fair' : 'Needs Attention';
+
+        content.innerHTML = `
+            <div class="health-stats-grid">
+                <div class="health-stat">
+                    <span class="health-stat-value">${scoreValue}%</span>
+                    <span class="health-stat-label">Health Score</span>
+                </div>
+                <div class="health-stat">
+                    <span class="health-stat-value">${total}</span>
+                    <span class="health-stat-label">Total Plants</span>
+                </div>
+                <div class="health-stat">
+                    <span class="health-stat-value success">${healthy}</span>
+                    <span class="health-stat-label">Healthy</span>
+                </div>
+                <div class="health-stat">
+                    <span class="health-stat-value warning">${stressed}</span>
+                    <span class="health-stat-label">Stressed</span>
+                </div>
+                <div class="health-stat">
+                    <span class="health-stat-value danger">${diseased}</span>
+                    <span class="health-stat-label">Diseased</span>
+                </div>
+            </div>
+            <div class="empty-state mt-3">
+                <strong>Overall Status: ${status}</strong>
+            </div>
+        `;
+
+        modal.hidden = false;
+        modal.classList.add('is-open');
+        modal.setAttribute('aria-hidden', 'false');
     }
 
     openHarvestModal() {
@@ -1033,41 +1044,17 @@ class PlantsUIManager extends BaseManager {
         // Attempt to infer unit id from stored plants
         const plant = this.plants.find(p => Number(p.plant_id) === Number(plantId));
         const unitId = plant?.unit_id || document.body?.dataset?.activeUnitId || null;
-        
-        console.log('[PlantsUIManager] Opening link sensor modal for plant:', plantId, 'unit:', unitId, 'plant:', plant);
 
         try {
-            // Get already linked sensors for this plant
-            let linkedSensorIds = new Set();
-            try {
-                const linkedResp = await window.API.Plant.getPlantSensors(plantId);
-                console.log('[PlantsUIManager] Linked sensors response:', linkedResp);
-                const linkedSensors = linkedResp?.data?.sensors || linkedResp?.sensors || [];
-                linkedSensorIds = new Set(linkedSensors.map(s => Number(s.sensor_id)));
-            } catch (err) {
-                console.warn('[PlantsUIManager] Could not fetch linked sensors:', err);
-            }
-
-            // Get available sensors
-            const response = await window.API.Plant.getAvailableSensors(unitId);
-            console.log('[PlantsUIManager] Available sensors response:', response);
-            // Handle nested data structure: response.data.sensors
-            const allSensors = response?.data?.sensors || response?.sensors || [];
-            console.log('[PlantsUIManager] All sensors:', allSensors, 'Linked IDs:', Array.from(linkedSensorIds));
-            // Filter out already linked sensors
-            const availableSensors = allSensors.filter(s => !linkedSensorIds.has(Number(s.sensor_id)));
-            console.log('[PlantsUIManager] Available sensors after filtering:', availableSensors);
-            
-            if (!availableSensors || availableSensors.length === 0) {
+            const data = await window.API.Plant.getAvailableSensors(unitId);
+            const sensors = data?.data || data?.sensors || [];
+            if (!sensors || sensors.length === 0) {
                 select.innerHTML = '<option value="">No sensors available</option>';
             } else {
-                select.innerHTML = '<option value="">-- Select sensor --</option>' + 
-                    availableSensors.map(s => 
-                        `<option value="${s.sensor_id}">${window.escapeHtml(s.name || s.sensor_id)} (${window.escapeHtml(s.type || '')})</option>`
-                    ).join('');
+                select.innerHTML = '<option value="">-- Select sensor --</option>' + sensors.map(s => `<option value="${s.sensor_id}">${s.name || s.sensor_id} (${s.type || ''})</option>`).join('');
             }
         } catch (err) {
-            console.error('[PlantsUIManager] Failed to load sensors', err);
+            console.error('Failed to load sensors', err);
             select.innerHTML = '<option value="">Failed to load sensors</option>';
         }
 
@@ -1091,10 +1078,9 @@ class PlantsUIManager extends BaseManager {
         try {
             await window.API.Plant.linkPlantToSensor(Number(plantId), Number(sensorId));
             if (window.showNotification) {
-                window.showNotification('Sensor linked successfully', 'success');
+                window.showNotification('Sensor linked', 'success');
             }
-            const modal = document.getElementById('link-sensor-modal');
-            if (modal) modal.hidden = true;
+            this.closeAllModals();
             // Refresh data
             await this.loadAndRender();
         } catch (err) {
@@ -1118,9 +1104,7 @@ class PlantsUIManager extends BaseManager {
             await this.loadAndRender();
         } catch (err) {
             console.error('Failed to delete plant', err);
-            if (window.showNotification) {
-                window.showNotification('Failed to delete plant', 'error');
-            }
+            alert('Failed to delete plant');
         }
     }
 
@@ -1137,7 +1121,6 @@ class PlantsUIManager extends BaseManager {
             modal.classList.remove('active');
             modal.setAttribute('aria-hidden', 'true');
         });
-        this._resetPlantProfileSelection?.();
         this.log('Closed all modals');
     }
 
@@ -1225,7 +1208,6 @@ class PlantsUIManager extends BaseManager {
             this.log('Selected plant:', plant);
             this.fillPlantFromCatalog(plant);
             this.displayPlantRequirements(plant);
-            this._loadPlantProfileSelector();
         } catch (error) {
             this.error('Failed to load plant details:', error);
         }
@@ -1350,145 +1332,9 @@ class PlantsUIManager extends BaseManager {
         this.log('Cleared plant requirements');
     }
 
-    _getUserId() {
-        const raw = document.body?.dataset?.userId;
-        const parsed = raw ? parseInt(raw, 10) : NaN;
-        return Number.isFinite(parsed) ? parsed : 1;
-    }
-
-    _initPlantProfileSelector() {
-        const container = document.getElementById('plantProfileSelector');
-        if (!container || !window.ProfileSelector) {
-            return;
-        }
-        if (this.plantProfileSelector) {
-            return;
-        }
-        this.plantProfileSelector = new window.ProfileSelector(container, {
-            onSelect: async (profile, sectionType) => {
-                let selectedProfile = profile;
-                if (sectionType === 'public' && profile.shared_token) {
-                    const imported = await API.PersonalizedLearning.importSharedConditionProfile({
-                        user_id: this._getUserId(),
-                        token: profile.shared_token,
-                        name: profile.name || undefined,
-                        mode: 'active',
-                    });
-                    const payload = imported?.data || imported || {};
-                    if (payload.already_imported && window.showToast) {
-                        window.showToast('Profile already in your library. Selected existing profile.', 'info');
-                    }
-                    selectedProfile = payload.profile || imported?.profile || profile;
-                }
-                const mode = sectionType === 'template' ? 'active' : (profile.mode || 'active');
-                this._setPlantProfileSelection(selectedProfile, mode);
-                return selectedProfile;
-            },
-            onLoad: (payload) => this._handlePlantProfileLoad(payload),
-        });
-    }
-
-    _toggleProfileSelectable(container, hasProfiles) {
-        if (!container) return;
-        container.hidden = !hasProfiles;
-    }
-
-    _handlePlantProfileLoad(payload) {
-        const hasProfiles = Boolean(payload?.hasProfiles);
-        if (!hasProfiles) {
-            const hasFilters = Boolean(
-                this._getPlantTypeForProfile() ||
-                document.getElementById('plant-stage')?.value?.trim()
-            );
-            if (hasFilters) {
-                this._toggleProfileSelectable(document.getElementById('plantProfileSelectable'), true);
-                return;
-            }
-        }
-        this._toggleProfileSelectable(document.getElementById('plantProfileSelectable'), hasProfiles);
-    }
-
-    _getPlantTypeForProfile() {
-        if (this.currentPlantMode === 'custom') {
-            return document.getElementById('custom-plant-type')?.value?.trim();
-        }
-        return document.getElementById('plant-type')?.value?.trim();
-    }
-
-    _loadPlantProfileSelector() {
-        if (!this.plantProfileSelector) return;
-        const plantType = this._getPlantTypeForProfile();
-        const growthStage = document.getElementById('plant-stage')?.value?.trim();
-        this.plantProfileSelector.load({
-            user_id: this._getUserId(),
-            plant_type: plantType || undefined,
-            growth_stage: growthStage || undefined,
-            target_type: 'plant',
-        });
-    }
-
-    _setPlantProfileSelection(profile, mode) {
-        const idInput = document.getElementById('plantConditionProfileId');
-        const modeInput = document.getElementById('plantConditionProfileMode');
-        const summary = document.getElementById('plantProfileSelectionSummary');
-        const chip = document.getElementById('plantProfileChip');
-        if (idInput) idInput.value = profile?.profile_id || '';
-        if (modeInput) modeInput.value = mode || 'active';
-        if (summary) {
-            summary.textContent = profile ? `Selected: ${profile.name || profile.profile_id}` : 'No profile selected';
-        }
-        if (chip) {
-            chip.textContent = profile ? (profile.name || 'Profile selected') : 'No profile';
-            chip.classList.toggle('active', Boolean(profile));
-        }
-    }
-
-    _resetPlantProfileSelection() {
-        this._setPlantProfileSelection(null, 'active');
-        if (this.plantProfileSelector) {
-            this.plantProfileSelector.setSelected('');
-        }
-    }
-
-    async handleImportPlantProfile() {
-        const tokenInput = document.getElementById('plantProfileImportToken');
-        if (!tokenInput) return;
-        const token = tokenInput.value.trim();
-        if (!token) {
-            if (window.showNotification) {
-                window.showNotification('Paste a share token first', 'warning');
-            }
-            return;
-        }
-        try {
-            const imported = await API.PersonalizedLearning.importSharedConditionProfile({
-                user_id: this._getUserId(),
-                token,
-                mode: 'active',
-            });
-            const payload = imported?.data || imported || {};
-            if (payload.already_imported && window.showToast) {
-                window.showToast('Profile already in your library. Selected existing profile.', 'info');
-            }
-            const profile = payload.profile || imported?.profile;
-            if (profile) {
-                this._setPlantProfileSelection(profile, 'active');
-                this.plantProfileSelector?.setSelected(profile.profile_id);
-                await this._loadPlantProfileSelector();
-            }
-        } catch (error) {
-            this.error('Failed to import profile:', error);
-            if (window.showNotification) {
-                window.showNotification('Failed to import profile', 'error');
-            }
-        }
-    }
-
     exportJournal() {
         this.log('Export journal functionality');
-        if (window.showNotification) {
-            window.showNotification('Journal export feature coming soon! This will allow you to export your plant observations and nutrient records to CSV or PDF.', 'info');
-        }
+        alert('Journal export feature coming soon!\n\nThis will allow you to export your plant observations and nutrient records to CSV or PDF.');
     }
 
     scrollToGuide() {

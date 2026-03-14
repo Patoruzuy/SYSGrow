@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import sqlite3
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 from infrastructure.database.pagination import validate_pagination
 from infrastructure.utils.structured_fields import (
@@ -21,29 +21,25 @@ class GrowthOperations:
         name: str,
         location: str = "Indoor",
         user_id: int = None,
-        timezone: str | None = None,
-        dimensions: str | None = None,
-        custom_image: str | None = None,
-        active_plant_id: int | None = None,
+        timezone: Optional[str] = None,
+        dimensions: Optional[str] = None,
+        custom_image: Optional[str] = None,
+        active_plant_id: Optional[int] = None,
         temperature_threshold: float = 24.0,
         humidity_threshold: float = 50.0,
         soil_moisture_threshold: float = 40.0,
         co2_threshold: float = 1000.0,
         voc_threshold: float = 1000.0,
         lux_threshold: float = 1000.0,
-        air_quality_threshold: float = 100.0,
+        air_quality_threshold: float = 1000.0,
         camera_enabled: bool = False,
-        aqi_threshold: float | None = None,
-    ) -> int | None:
+    ) -> Optional[int]:
         """
         Insert a new growth unit.
         """
         try:
             db = self.get_db()
             cursor = db.cursor()
-            if aqi_threshold is not None:
-                air_quality_threshold = aqi_threshold
-
             cursor.execute(
                 """
                 INSERT INTO GrowthUnits (
@@ -81,7 +77,7 @@ class GrowthOperations:
                     voc_threshold,
                     lux_threshold,
                     air_quality_threshold,
-                    camera_enabled,
+                    camera_enabled
                 ),
             )
             db.commit()
@@ -102,9 +98,9 @@ class GrowthOperations:
     def get_all_growth_units(
         self,
         *,
-        limit: int | None = None,
-        offset: int | None = None,
-    ) -> list[Any]:
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
+    ) -> List[Any]:
         """Get all growth units with pagination."""
         try:
             validated_limit, validated_offset = validate_pagination(limit, offset)
@@ -152,7 +148,7 @@ class GrowthOperations:
                 return
 
             values.append(unit_id)
-            query = f"UPDATE GrowthUnits SET {', '.join(updates)} WHERE unit_id = ?"  # nosec B608 — allowed_fields allowlist above
+            query = f"UPDATE GrowthUnits SET {', '.join(updates)} WHERE unit_id = ?"
 
             db = self.get_db()
             db.execute(query, values)
@@ -164,56 +160,56 @@ class GrowthOperations:
         """Update threshold settings for a growth unit"""
         try:
             db = self.get_db()
-
+            
             fields = []
             values = []
-
+            
             # Threshold updates
-            if "temperature_threshold" in settings:
-                fields.append("temperature_threshold = ?")
-                values.append(settings["temperature_threshold"])
-            if "humidity_threshold" in settings:
-                fields.append("humidity_threshold = ?")
-                values.append(settings["humidity_threshold"])
-            if "soil_moisture_threshold" in settings:
-                fields.append("soil_moisture_threshold = ?")
-                values.append(settings["soil_moisture_threshold"])
-            if "co2_threshold" in settings:
-                fields.append("co2_threshold = ?")
-                values.append(settings["co2_threshold"])
-            if "voc_threshold" in settings:
-                fields.append("voc_threshold = ?")
-                values.append(settings["voc_threshold"])
-            if "lux_threshold" in settings:
-                fields.append("lux_threshold = ?")
-                values.append(settings["lux_threshold"])
-            if "air_quality_threshold" in settings:
-                fields.append("air_quality_threshold = ?")
-                values.append(settings["air_quality_threshold"])
-            elif "aqi_threshold" in settings:
-                fields.append("air_quality_threshold = ?")
-                values.append(settings["aqi_threshold"])
+            if 'temperature_threshold' in settings:
+                fields.append('temperature_threshold = ?')
+                values.append(settings['temperature_threshold'])
+            if 'humidity_threshold' in settings:
+                fields.append('humidity_threshold = ?')
+                values.append(settings['humidity_threshold'])
+            if 'soil_moisture_threshold' in settings:
+                fields.append('soil_moisture_threshold = ?')
+                values.append(settings['soil_moisture_threshold'])
+            if 'co2_threshold' in settings:
+                fields.append('co2_threshold = ?')
+                values.append(settings['co2_threshold'])
+            if 'voc_threshold' in settings:
+                fields.append('voc_threshold = ?')
+                values.append(settings['voc_threshold'])
+            if 'lux_threshold' in settings:
+                fields.append('lux_threshold = ?')
+                values.append(settings['lux_threshold'])
+            if 'air_quality_threshold' in settings:
+                fields.append('air_quality_threshold = ?')
+                values.append(settings['air_quality_threshold'])
+            elif 'aqi_threshold' in settings:
+                fields.append('air_quality_threshold = ?')
+                values.append(settings['aqi_threshold'])
 
             # Dimensions (JSON string)
-            if "dimensions" in settings:
-                fields.append("dimensions = ?")
-                values.append(settings["dimensions"])
+            if 'dimensions' in settings:
+                fields.append('dimensions = ?')
+                values.append(settings['dimensions'])
 
             # Timezone
-            if "timezone" in settings:
-                fields.append("timezone = ?")
-                values.append(settings["timezone"])
-
+            if 'timezone' in settings:
+                fields.append('timezone = ?')
+                values.append(settings['timezone'])
+            
             # Camera enabled
-            if "camera_enabled" in settings:
-                fields.append("camera_enabled = ?")
-                values.append(settings["camera_enabled"])
-
+            if 'camera_enabled' in settings:
+                fields.append('camera_enabled = ?')
+                values.append(settings['camera_enabled'])
+            
             if not fields:
                 return True
-
+            
             values.append(unit_id)
-            query = f"UPDATE GrowthUnits SET {', '.join(fields)} WHERE unit_id = ?"  # nosec B608 — hardcoded field names above
+            query = f"UPDATE GrowthUnits SET {', '.join(fields)} WHERE unit_id = ?"
             db.execute(query, values)
             db.commit()
             return True
@@ -235,22 +231,22 @@ class GrowthOperations:
         name: str,
         plant_type: str,
         current_stage: str,
-        plant_species: str | None = None,
-        plant_variety: str | None = None,
+        plant_species: Optional[str] = None,
+        plant_variety: Optional[str] = None,
         days_in_stage: int = 0,
         moisture_level: float = 0.0,
-        planted_date: str | None = None,
-        created_at: str | None = None,
-        unit_id: int | None = None,
+        planted_date: Optional[str] = None,
+        created_at: Optional[str] = None,
+        unit_id: Optional[int] = None,
         pot_size_liters: float = 0.0,
         pot_material: str = "plastic",
         growing_medium: str = "soil",
         medium_ph: float = 7.0,
-        strain_variety: str | None = None,
+        strain_variety: Optional[str] = None,
         expected_yield_grams: float = 0.0,
         light_distance_cm: float = 0.0,
-        soil_moisture_threshold_override: float | None = None,
-    ) -> int | None:
+        soil_moisture_threshold_override: Optional[float] = None,
+    ) -> Optional[int]:
         try:
             db = self.get_db()
             cursor = db.cursor()
@@ -266,24 +262,11 @@ class GrowthOperations:
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    unit_id,
-                    name,
-                    plant_type,
-                    current_stage,
-                    plant_species,
-                    plant_variety,
-                    days_in_stage,
-                    moisture_level,
-                    planted_date,
-                    created_at,
-                    pot_size_liters,
-                    pot_material,
-                    growing_medium,
-                    medium_ph,
-                    strain_variety,
-                    expected_yield_grams,
-                    light_distance_cm,
-                    soil_moisture_threshold_override,
+                    unit_id, name, plant_type, current_stage, plant_species, plant_variety,
+                    days_in_stage, moisture_level, planted_date, created_at,
+                    pot_size_liters, pot_material, growing_medium, medium_ph,
+                    strain_variety, expected_yield_grams, light_distance_cm,
+                    soil_moisture_threshold_override
                 ),
             )
             db.commit()
@@ -327,7 +310,7 @@ class GrowthOperations:
                 return
 
             values.append(plant_id)
-            query = f"UPDATE Plants SET {', '.join(updates)} WHERE plant_id = ?"  # nosec B608 — allowed_fields allowlist above
+            query = f"UPDATE Plants SET {', '.join(updates)} WHERE plant_id = ?"
 
             db = self.get_db()
             db.execute(query, values)
@@ -348,7 +331,7 @@ class GrowthOperations:
             db = self.get_db()
             cursor = db.execute(
                 """
-                SELECT
+                SELECT 
                     p.*,
                     COALESCE(gup.unit_id, p.unit_id) AS unit_id,
                     gu.name AS unit_name
@@ -368,9 +351,9 @@ class GrowthOperations:
     def get_all_plants(
         self,
         *,
-        limit: int | None = None,
-        offset: int | None = None,
-    ) -> list[Any]:
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
+    ) -> List[Any]:
         """Get all plants with pagination."""
         try:
             validated_limit, validated_offset = validate_pagination(limit, offset)
@@ -397,9 +380,9 @@ class GrowthOperations:
         self,
         unit_id: int,
         *,
-        limit: int | None = None,
-        offset: int | None = None,
-    ) -> list[Any]:
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
+    ) -> List[Any]:
         """Get plants for a specific unit with pagination."""
         try:
             validated_limit, validated_offset = validate_pagination(limit, offset)
@@ -453,7 +436,7 @@ class GrowthOperations:
         db.commit()
 
     # --- Plant sensors ---------------------------------------------------------
-    def get_plant_sensors(self) -> list[dict[str, Any]]:
+    def get_plant_sensors(self) -> List[Dict[str, Any]]:
         db = self.get_db()
         cursor = db.execute("SELECT * FROM PlantSensors")
         return [dict(row) for row in cursor.fetchall()]
@@ -469,7 +452,7 @@ class GrowthOperations:
         except sqlite3.Error as exc:
             logging.error("Error linking sensor %s to plant %s: %s", sensor_id, plant_id, exc)
 
-    def get_sensors_for_plant(self, plant_id: int) -> list[Any]:
+    def get_sensors_for_plant(self, plant_id: int) -> List[Any]:
         try:
             db = self.get_db()
             query = "SELECT sensor_id FROM PlantSensors WHERE plant_id = ?"
@@ -478,7 +461,7 @@ class GrowthOperations:
             logging.error("Error retrieving sensors for plant %s: %s", plant_id, exc)
             return []
 
-    def get_plants_for_sensor(self, sensor_id: int) -> list[int]:
+    def get_plants_for_sensor(self, sensor_id: int) -> List[int]:
         """Get plant IDs linked to a sensor."""
         try:
             db = self.get_db()
@@ -521,7 +504,7 @@ class GrowthOperations:
         except sqlite3.Error as exc:
             logging.error("Error linking actuator %s to plant %s: %s", actuator_id, plant_id, exc)
 
-    def get_actuators_for_plant(self, plant_id: int) -> list[int]:
+    def get_actuators_for_plant(self, plant_id: int) -> List[int]:
         try:
             db = self.get_db()
             query = "SELECT actuator_id FROM PlantActuators WHERE plant_id = ?"
@@ -555,7 +538,7 @@ class GrowthOperations:
         db.execute("UPDATE Settings SET active_plant_id = ?", (plant_id,))
         db.commit()
 
-    def get_active_plant(self) -> int | None:
+    def get_active_plant(self) -> Optional[int]:
         db = self.get_db()
         active_plant = db.execute("SELECT active_plant_id FROM Settings LIMIT 1").fetchone()
         return active_plant["active_plant_id"] if active_plant else None
@@ -563,9 +546,9 @@ class GrowthOperations:
     def get_all_active_plants(
         self,
         *,
-        limit: int | None = None,
-        offset: int | None = None,
-    ) -> list[dict[str, Any]]:
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
         """Get all active plants across growth units with pagination."""
         try:
             validated_limit, validated_offset = validate_pagination(limit, offset)
@@ -596,7 +579,6 @@ class GrowthOperations:
         except sqlite3.Error as exc:
             logging.error("Error fetching all active plants: %s", exc)
             return []
-
     # --- Plant analytics -------------------------------------------------------
     def update_plant_days(self, plant_name: str, days_in_current_stage: int) -> None:
         try:
@@ -631,20 +613,6 @@ class GrowthOperations:
         except sqlite3.Error as exc:
             logging.error("Error updating plant moisture for %s: %s", plant_id, exc)
 
-    def bulk_update_plant_moisture(self, plant_ids: list[int], moisture_level: float) -> None:
-        """Batch-update moisture_level for multiple plants in a single transaction."""
-        if not plant_ids:
-            return
-        try:
-            db = self.get_db()
-            db.executemany(
-                "UPDATE Plants SET moisture_level = ? WHERE plant_id = ?",
-                [(moisture_level, pid) for pid in plant_ids],
-            )
-            db.commit()
-        except sqlite3.Error as exc:
-            logging.error("Error bulk-updating moisture for %s plants: %s", len(plant_ids), exc)
-
     def update_plant_progress(
         self,
         plant_id: int,
@@ -674,8 +642,8 @@ class GrowthOperations:
         avg_temp: float,
         avg_humidity: float,
         light_hours: float,
-        harvest_weight: float | None,
-        photo_path: str | None,
+        harvest_weight: Optional[float],
+        photo_path: Optional[str],
         date_harvested: str,
     ) -> None:
         try:
@@ -690,15 +658,9 @@ class GrowthOperations:
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    plant_name,
-                    current_stage,
-                    days_in_stage,
-                    avg_temp,
-                    avg_humidity,
-                    light_hours,
-                    harvest_weight,
-                    photo_path,
-                    date_harvested,
+                    plant_name, current_stage, days_in_stage,
+                    avg_temp, avg_humidity, light_hours,
+                    harvest_weight, photo_path, date_harvested,
                 ),
             )
             db.commit()
@@ -755,74 +717,9 @@ class GrowthOperations:
         except sqlite3.Error as exc:
             logging.error("Error computing light hours for plant %s: %s", plant_id, exc)
             return 0.0
-
-    def get_latest_threshold_overrides(
-        self,
-        *,
-        user_id: int,
-        plant_type: str,
-        growth_stage: str,
-        plant_variety: str | None = None,
-        strain_variety: str | None = None,
-        pot_size_liters: float | None = None,
-    ) -> dict[str, Any] | None:
-        """Fetch the latest plant threshold overrides for a matching plant context."""
-        try:
-            db = self.get_db()
-            query = """
-                SELECT
-                    p.temperature_threshold_override,
-                    p.humidity_threshold_override,
-                    p.co2_threshold_override,
-                    p.voc_threshold_override,
-                    p.lux_threshold_override,
-                    p.air_quality_threshold_override,
-                    p.soil_moisture_threshold_override,
-                    p.current_stage,
-                    p.plant_type,
-                    p.plant_variety,
-                    p.strain_variety,
-                    p.pot_size_liters,
-                    p.last_updated,
-                    p.created_at
-                FROM Plants p
-                JOIN GrowthUnits u ON u.unit_id = p.unit_id
-                WHERE u.user_id = ?
-                  AND p.plant_type = ?
-                  AND LOWER(COALESCE(p.current_stage, '')) = LOWER(?)
-            """
-            params: list[Any] = [user_id, plant_type, growth_stage]
-            if plant_variety:
-                query += " AND LOWER(COALESCE(p.plant_variety, '')) = LOWER(?)"
-                params.append(plant_variety)
-            if strain_variety:
-                query += " AND LOWER(COALESCE(p.strain_variety, '')) = LOWER(?)"
-                params.append(strain_variety)
-            if pot_size_liters is not None:
-                query += " AND ABS(COALESCE(p.pot_size_liters, 0) - ?) < 0.01"
-                params.append(float(pot_size_liters))
-
-            query += """
-                  AND (
-                    p.temperature_threshold_override IS NOT NULL
-                    OR p.humidity_threshold_override IS NOT NULL
-                    OR p.co2_threshold_override IS NOT NULL
-                    OR p.voc_threshold_override IS NOT NULL
-                    OR p.lux_threshold_override IS NOT NULL
-                    OR p.air_quality_threshold_override IS NOT NULL
-                    OR p.soil_moisture_threshold_override IS NOT NULL
-                  )
-                ORDER BY COALESCE(p.last_updated, p.created_at) DESC
-                LIMIT 1
-            """
-            row = db.execute(query, params).fetchone()
-            return dict(row) if row else None
-        except sqlite3.Error as exc:
-            logging.error("Error fetching threshold overrides: %s", exc)
-            return None
-
+    
     # --- Multi-user support ---------------------------------------------------
-    def get_user_growth_units(self, user_id: int) -> list[dict[str, Any]]:
+    def get_user_growth_units(self, user_id: int) -> List[Dict[str, Any]]:
         """Get all growth units for a specific user."""
         try:
             db = self.get_db()
@@ -840,26 +737,32 @@ class GrowthOperations:
             units = []
             for row in rows:
                 unit = dict(row)
-                unit["dimensions"] = normalize_dimensions(unit.get("dimensions"))
-                unit["device_schedules"] = normalize_device_schedules(unit.get("device_schedules"))
+                unit['dimensions'] = normalize_dimensions(unit.get('dimensions'))
+                unit['device_schedules'] = normalize_device_schedules(unit.get('device_schedules'))
                 units.append(unit)
-
+            
             return units
         except sqlite3.Error as exc:
             logging.error("Error fetching units for user %s: %s", user_id, exc)
             return []
 
-    def insert_growth_unit_with_user(self, user_id: int, name: str, location: str, data: dict[str, Any]) -> int | None:
+    def insert_growth_unit_with_user(
+        self,
+        user_id: int,
+        name: str,
+        location: str,
+        data: Dict[str, Any]
+    ) -> Optional[int]:
         """Create a new growth unit with user association."""
         try:
             db = self.get_db()
             cursor = db.cursor()
-
-            normalized_dimensions = normalize_dimensions(data.get("dimensions"))
+            
+            normalized_dimensions = normalize_dimensions(data.get('dimensions'))
             dimensions_json = dump_json_field(normalized_dimensions)
-            device_schedules = normalize_device_schedules(data.get("device_schedules"))
+            device_schedules = normalize_device_schedules(data.get('device_schedules'))
             device_schedules_json = dump_json_field(device_schedules)
-
+            
             cursor.execute(
                 """
                 INSERT INTO GrowthUnits (
@@ -887,19 +790,19 @@ class GrowthOperations:
                     user_id,
                     name,
                     location,
-                    data.get("timezone"),
+                    data.get('timezone'),
                     dimensions_json,
-                    data.get("custom_image"),
-                    data.get("active_plant_id"),
-                    data.get("temperature_threshold", 24.0),
-                    data.get("humidity_threshold", 50.0),
-                    data.get("soil_moisture_threshold", 40.0),
-                    data.get("co2_threshold", 1000.0),
-                    data.get("voc_threshold", 1000.0),
-                    data.get("lux_threshold", data.get("lux_threshold", 1000.0)),
-                    data.get("air_quality_threshold", data.get("aqi_threshold", 100.0)),
+                    data.get('custom_image'),
+                    data.get('active_plant_id'),
+                    data.get('temperature_threshold', 24.0),
+                    data.get('humidity_threshold', 50.0),
+                    data.get('soil_moisture_threshold', 40.0),
+                    data.get('co2_threshold', 1000.0),
+                    data.get('voc_threshold', 1000.0),
+                    data.get('lux_threshold', data.get('lux_threshold', 1000.0)),
+                    data.get('air_quality_threshold', data.get('aqi_threshold', 1000.0)),
                     device_schedules_json,
-                    data.get("camera_enabled", False),
+                    data.get('camera_enabled', False),
                 ),
             )
             db.commit()
@@ -908,50 +811,50 @@ class GrowthOperations:
             logging.error("Error inserting unit for user %s: %s", user_id, exc)
             return None
 
-    def update_unit_settings(self, unit_id: int, settings: dict[str, Any]) -> bool:
+    def update_unit_settings(self, unit_id: int, settings: Dict[str, Any]) -> bool:
         """Update unit settings."""
         try:
             db = self.get_db()
             fields = []
             values = []
-
+            
             # Threshold updates
-            if "temperature_threshold" in settings:
-                fields.append("temperature_threshold = ?")
-                values.append(settings["temperature_threshold"])
-            if "humidity_threshold" in settings:
-                fields.append("humidity_threshold = ?")
-                values.append(settings["humidity_threshold"])
-            if "soil_moisture_threshold" in settings:
-                fields.append("soil_moisture_threshold = ?")
-                values.append(settings["soil_moisture_threshold"])
-            if "co2_threshold" in settings:
-                fields.append("co2_threshold = ?")
-                values.append(settings["co2_threshold"])
-
+            if 'temperature_threshold' in settings:
+                fields.append('temperature_threshold = ?')
+                values.append(settings['temperature_threshold'])
+            if 'humidity_threshold' in settings:
+                fields.append('humidity_threshold = ?')
+                values.append(settings['humidity_threshold'])
+            if 'soil_moisture_threshold' in settings:
+                fields.append('soil_moisture_threshold = ?')
+                values.append(settings['soil_moisture_threshold'])
+            if 'co2_threshold' in settings:
+                fields.append('co2_threshold = ?')
+                values.append(settings['co2_threshold'])
+            
             # Device schedules (NEW)
-            if "device_schedules" in settings:
-                fields.append("device_schedules = ?")
-                values.append(settings["device_schedules"])
-
+            if 'device_schedules' in settings:
+                fields.append('device_schedules = ?')
+                values.append(settings['device_schedules'])
+            
             # Dimensions (JSON string)
-            if "dimensions" in settings:
-                fields.append("dimensions = ?")
-                values.append(settings["dimensions"])
+            if 'dimensions' in settings:
+                fields.append('dimensions = ?')
+                values.append(settings['dimensions'])
 
             # Timezone
-            if "timezone" in settings:
-                fields.append("timezone = ?")
-                values.append(settings["timezone"])
-
+            if 'timezone' in settings:
+                fields.append('timezone = ?')
+                values.append(settings['timezone'])
+            
             if fields:
-                fields.append("updated_at = CURRENT_TIMESTAMP")
-
+                fields.append('updated_at = CURRENT_TIMESTAMP')
+            
             if not fields:
                 return True
-
+            
             values.append(unit_id)
-            query = f"UPDATE GrowthUnits SET {', '.join(fields)} WHERE unit_id = ?"  # nosec B608 — hardcoded field names above
+            query = f"UPDATE GrowthUnits SET {', '.join(fields)} WHERE unit_id = ?"
             db.execute(query, values)
             db.commit()
             return True
@@ -987,8 +890,8 @@ class GrowthOperations:
                     (unit_id,),
                 )
                 result = cursor.fetchone()
-                if result and result["count"] is not None:
-                    return int(result["count"])
+                if result and result['count'] is not None:
+                    return int(result['count'])
             except sqlite3.Error:
                 pass
 
@@ -1010,7 +913,7 @@ class GrowthOperations:
                 (unit_id,),
             )
             result = cursor.fetchone()
-            return result["count"] if result else 0
+            return result['count'] if result else 0
         except sqlite3.Error as exc:
             logging.error("Error counting sensors for unit %s: %s", unit_id, exc)
             return 0
@@ -1028,7 +931,7 @@ class GrowthOperations:
                 (unit_id,),
             )
             result = cursor.fetchone()
-            return result["count"] if result else 0
+            return result['count'] if result else 0
         except sqlite3.Error as exc:
             logging.error("Error counting actuators for unit %s: %s", unit_id, exc)
             return 0
@@ -1046,12 +949,12 @@ class GrowthOperations:
                 (unit_id,),
             )
             result = cursor.fetchone()
-            return bool(result["camera_enabled"]) if result and "camera_enabled" in result else False
+            return bool(result['camera_enabled']) if result and 'camera_enabled' in result.keys() else False
         except sqlite3.Error as exc:
             logging.error("Error checking camera status for unit %s: %s", unit_id, exc)
             return False
 
-    def get_unit_last_activity(self, unit_id: int) -> str | None:
+    def get_unit_last_activity(self, unit_id: int) -> Optional[str]:
         """Get last activity timestamp for a unit."""
         try:
             db = self.get_db()
@@ -1066,7 +969,7 @@ class GrowthOperations:
                 (unit_id,),
             )
             result = cursor.fetchone()
-            return result["last_activity"] if result else None
+            return result['last_activity'] if result else None
         except sqlite3.Error as exc:
             logging.error("Error getting last activity for unit %s: %s", unit_id, exc)
             return None
@@ -1077,7 +980,7 @@ class GrowthOperations:
             db = self.get_db()
             cursor = db.execute(
                 """
-                SELECT
+                SELECT 
                     CAST((julianday('now') - julianday(created_at)) * 24 AS INTEGER) as uptime_hours
                 FROM GrowthUnits
                 WHERE unit_id = ?
@@ -1085,12 +988,12 @@ class GrowthOperations:
                 (unit_id,),
             )
             result = cursor.fetchone()
-            return result["uptime_hours"] if result else 0
+            return result['uptime_hours'] if result else 0
         except sqlite3.Error as exc:
             logging.error("Error getting uptime for unit %s: %s", unit_id, exc)
             return 0
 
-    def get_plants_in_unit(self, unit_id: int) -> list[dict[str, Any]]:
+    def get_plants_in_unit(self, unit_id: int) -> List[Dict[str, Any]]:
         """Get detailed plant information for a unit."""
         try:
             plants = self.get_plants_for_unit(unit_id)
@@ -1098,10 +1001,10 @@ class GrowthOperations:
             for plant in plants:
                 plant_dict = dict(plant)
                 # Ensure we have the required fields
-                plant_dict["plant_name"] = plant_dict.get("name", "Unknown Plant")
-                plant_dict["plant_type"] = plant_dict.get("plant_type", "unknown")
-                plant_dict["moisture_level"] = plant_dict.get("moisture_level", 0.0)
-                plant_dict["current_stage"] = plant_dict.get("current_stage", "Unknown")
+                plant_dict['plant_name'] = plant_dict.get('name', 'Unknown Plant')
+                plant_dict['plant_type'] = plant_dict.get('plant_type', 'unknown')
+                plant_dict['moisture_level'] = plant_dict.get('moisture_level', 0.0)
+                plant_dict['current_stage'] = plant_dict.get('current_stage', 'Unknown')
                 result.append(plant_dict)
             return result
         except Exception as exc:

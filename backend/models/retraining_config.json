@@ -1,0 +1,28 @@
+{
+  "climate_weekly": {
+    "job_id": "climate_weekly",
+    "model_name": "climate_predictor",
+    "trigger_type": "scheduled",
+    "schedule_pattern": "weekly",
+    "enabled": true,
+    "last_run": null,
+    "next_run": null,
+    "training_config": {
+      "days": 90,
+      "min_samples": 1000
+    }
+  },
+  "climate_drift": {
+    "job_id": "climate_drift",
+    "model_name": "climate_predictor",
+    "trigger_type": "drift_detected",
+    "schedule_pattern": null,
+    "enabled": true,
+    "last_run": null,
+    "next_run": null,
+    "training_config": {
+      "days": 90,
+      "min_samples": 500
+    }
+  }
+}

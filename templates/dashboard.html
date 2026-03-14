@@ -4,58 +4,48 @@
 {% block title %}Dashboard{% endblock %}
 {% block body_class %}dashboard-page{% endblock %}
 
-{% block styles %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/components/kpi-cards.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/components/timeline.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/components/energy.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/components/alerts.css') }}">
+{% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/system-efficiency-score.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/ai-insights.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/ai_insights.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/sensor-analytics/intelligent-alert-timeline.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/components/kpi-cards.css') }}">
 {% endblock %}
 
 {% block content %}
-<div class="dashboard-page page-shell page-shell--fluid" data-selected-unit-id="{{ selected_unit.unit_id if selected_unit else '' }}" aria-label="Dashboard">
+<div class="dashboard-page page-shell page-shell--fluid" data-selected-unit-id="{{ selected_unit.unit_id if selected_unit else '' }}" aria-labelledby="dashboard-heading">
 
-  {% set dash_actions %}
-  <div class="d-flex align-items-center gap-2">
-    <span class="unit-badge" id="current-unit-name">
-      {{ selected_unit.name if selected_unit else 'All Units' }}
-    </span>
-    <div class="connection-indicator" id="connection-status">
-      <span class="status-dot"></span>
-      <span class="status-text">Connecting...</span>
+  <!-- Dashboard Header -->
+  <header class="dashboard-header">
+    <div class="dashboard-header__left">
+      <h1 id="dashboard-heading" class="dashboard-title">
+        <i class="fas fa-tachometer-alt"></i>
+        Dashboard
+      </h1>
+      <span class="unit-badge" id="current-unit-name">
+        {{ selected_unit.name if selected_unit else 'All Units' }}
+      </span>
     </div>
-    <span class="last-update text-muted small" id="last-update-time">--:--</span>
-    <button class="btn btn-secondary btn-sm" id="refresh-sensors" title="Refresh Dashboard">
-      <i class="fas fa-sync-alt"></i>
-      <span class="d-none d-sm-inline ms-1">Refresh</span>
-    </button>
-  </div>
-  {% endset %}
-
-  {{ ui.page_header(
-    title='Dashboard',
-    icon='fas fa-tachometer-alt',
-    subtitle='Real-time monitoring and control for your growing environment.',
-    actions=dash_actions
-  ) }}
-
-  <!-- Welcome message (populated by JS: first visit vs. returning) -->
-  <div id="welcome-banner" class="welcome-banner" data-username="{{ current_user.username if current_user and current_user.is_authenticated else 'Grower' }}" hidden>
-    <p id="welcome-msg" class="text-muted small mb-0"></p>
-  </div>
+    <div class="dashboard-header__right">
+      <div class="connection-indicator" id="connection-status">
+        <span class="status-dot"></span>
+        <span class="status-text">Connecting...</span>
+      </div>
+      <span class="last-update" id="last-update-time">--:--</span>
+      <button class="refresh-btn" id="refresh-sensors" title="Refresh Dashboard">
+        <i class="fas fa-sync-alt"></i>
+      </button>
+    </div>
+  </header>
 
   <!-- Contextual Help Banner -->
-  {{ ui.help_banner(
-    title='New to SYSGrow?',
-    text='Get started with our quick setup guide and learn how to monitor your plants.',
-    icon='rocket',
-    link_text='Quick Start Guide',
-    category='getting-started',
-    article_id='quick-start'
-  ) }}
+  <div class="help-banner">
+    <i class="fas fa-rocket"></i>
+    <div class="help-banner-content">
+      <p class="help-banner-title">New to SYSGrow?</p>
+      <p class="help-banner-text">Get started with our quick setup guide and learn how to monitor your plants.</p>
+    </div>
+    {{ ui.help_link('getting-started', 'quick-start', 'Quick Start Guide') }}
+  </div>
 
   <!-- Top KPI Row: VPD, Efficiency, Plant Health, Alerts -->
   <section class="dashboard-kpi-row">
@@ -88,7 +78,7 @@
           <option value="48">Last 48 hours</option>
         </select>
       </div>
-      <div class="chart-container chart-container--environmental">
+      <div class="chart-container" style="height: 280px;">
         <canvas id="environmental-chart"></canvas>
       </div>
     {% endcall %}
@@ -414,7 +404,7 @@
   </section>
 
   <!-- Community Insights (optional, hidden by default) -->
-  <section class="section section--hidden" aria-label="Community Insights" id="community-insights-section">
+  <section class="section" aria-label="Community Insights" id="community-insights-section" style="display: none;">
     <div class="card">
       <div class="card-header">
         <h3><i class="fas fa-users"></i> Similar Growers</h3>
@@ -850,7 +840,7 @@
                   <button class="btn btn-sm btn-outline-secondary active" data-days="7">7d</button>
                   <button class="btn btn-sm btn-outline-secondary" data-days="30">30d</button>
                 </div>
-                <button type="button" class="btn btn-sm btn-outline-secondary" id="refresh-irrigation-telemetry" title="Refresh irrigation telemetry">
+                <button class="btn btn-sm btn-outline-secondary" id="refresh-irrigation-telemetry">
                   <i class="fas fa-sync-alt"></i>
                 </button>
               </div>
@@ -984,7 +974,8 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/api.js') }}?v=20251228193000"></script>
 <script src="{{ url_for('static', filename='js/utils/cache-service.js') }}"></script>
 <script src="{{ url_for('static', filename='js/utils/base-manager.js') }}"></script>
 <script src="{{ url_for('static', filename='js/socket.js') }}"></script>
@@ -1015,25 +1006,5 @@
       window.aiInsights = new AIInsightsManager(API, window.socketManager || SocketManager);
     }
   });
-</script>
-<script>
-  // Welcome message — first visit vs. returning
-  (function () {
-    var banner = document.getElementById('welcome-banner');
-    var msg = document.getElementById('welcome-msg');
-    if (!banner || !msg) return;
-
-    var username = banner.dataset.username || 'Grower';
-    var KEY = 'sysgrow_has_visited';
-
-    if (!localStorage.getItem(KEY)) {
-      msg.textContent = 'Welcome, ' + username + '! \uD83C\uDF31 Get started by adding your plants and configuring your growth units.';
-      try { localStorage.setItem(KEY, '1'); } catch (_) {}
-    } else {
-      msg.textContent = 'Welcome back, ' + username + '!';
-    }
-
-    banner.removeAttribute('hidden');
-  })();
 </script>
 {% endblock %}

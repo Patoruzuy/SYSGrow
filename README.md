@@ -1,259 +1,556 @@
+# 🌱 SYSGrow - Smart Agriculture
+
 <div align="center">
 
-# 🌱 SYSGrow
+![SYSGrow Logo](https://img.shields.io/badge/SYSGrow-Smart_Agriculture-green?style=for-the-badge)
+[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg?style=flat-square&logo=python)](https://www.python.org)
+[![Flask](https://img.shields.io/badge/Flask-3.0+-black.svg?style=flat-square&logo=flask)](https://flask.palletsprojects.com)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 
-**Intelligent IoT agriculture platform for monitoring, automating, and optimising plant growth environments.**
+**An intelligent IoT-powered agriculture managementsystem for monitoring and optimizing plant growth environments.**
 
-[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org)
-[![Flask](https://img.shields.io/badge/Flask-3.x-000000?logo=flask)](https://flask.palletsprojects.com)
-[![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-416%20passed-brightgreen)](#testing)
-[![Code style: Ruff](https://img.shields.io/badge/code%20style-ruff-261230.svg)](https://docs.astral.sh/ruff/)
-[![SQLite](https://img.shields.io/badge/database-SQLite%20WAL-003B57?logo=sqlite)](https://sqlite.org)
-[![Socket.IO](https://img.shields.io/badge/realtime-Socket.IO-010101?logo=socketdotio)](https://socket.io)
-[![ESP32](https://img.shields.io/badge/hardware-ESP32--C3%2FC6-E7352C?logo=espressif)](https://www.espressif.com)
+**An intelligent IoT-powered agriculture management system / Un sistema inteligente de gestión agrícola con IoT**
 
-[Quick Start](#quick-start) · [Features](#features) · [Architecture](#architecture) · [Documentation](docs/INDEX.md) · [Contributing](#contributing)
+[English](#english) • [Español](#español) • [Features](#-features) • [Quick Start](#-quick-start)
 
 </div>
 
 ---
 
-## Overview
+## 🌐 Choose Your Language / Elige Tu Idioma
 
-SYSGrow is a modular Flask backend that turns a Raspberry Pi (or any Python host) into a full-featured smart agriculture controller. It connects to ESP32-based sensors and actuators, collects environmental data, runs ML models for predictive insights, and exposes both a web UI and a REST/WebSocket API.
+### 🇺🇸 English
+[Read the English documentation](#english) | [Latest Release Notes](releases/v1.1.0-RELEASE-EN.md)
 
-**Key highlights:**
-
-- **Multi-unit management** — run several independent growing spaces from one instance.
-- **15+ ML models** — irrigation prediction, disease detection, climate optimisation, Bayesian threshold learning.
-- **LLM integration** — natural-language plant advice via ChatGPT, Claude, or local models.
-- **Real-time dashboards** — live sensor data, energy profiling, and device health via Socket.IO.
-- **Automated device scheduling** — time-based relay/pump/light control with midnight-crossing support.
-- **Extensive hardware support** — WiFi, ZigBee, BLE, MQTT, OTA firmware updates.
+### 🇪🇸 Español
+[Lee la documentación en español](#español) | [Notas de la Última Versión](releases/v1.1.0-RELEASE-ES.md)
 
 ---
 
-## Quick Start
+## English
 
-> **Prerequisites:** Python 3.11+, Git, SQLite 3 (bundled with Python).
+<div id="english">
 
+### 📖 What's This All About?
+
+SYSGrow is like that friend who remembers to water your plants when you're on vacation, but with more bells and whistles. We combine IoT gadgets, machine learning magic, and real-time monitoring to make your plants happier. Whether you're managing a small indoor garden or a large-scale greenhouse operation, SYSGrow provides the tools you need.
+
+### 🎯 What It Actually Does
+
+- **Growth Unit Management** - Organize and monitor multiple growing spaces (Keep track of your green babies)
+- **Real-time Environmental Monitoring** - Track temperature, humidity, soil moisture, CO2, and light levels (Because plants can't talk (yet))
+- **Intelligent Device Control** - Automated scheduling for lights, pumps, fans, and more (Schedules so smart they'll make your plants feel pampered)
+- **Plant Health Tracking** - Monitor growth stages and detect issues early (Catch problems before your plants start looking sad)
+- **ESP32 Integration** - Full support for ESP32-C3/C6 IoT devices (Fancy IoT devices that do the heavy lifting)
+- **Machine Learning** - Predictive analytics for optimal growth condition (Fancy algorithms that predict when your plants need a drink)
+- **Energy Monitoring** - Save electricity by tracking power consumption and optimizing efficiency
+- **Camera Integration** - Spy on your plants 24/7 (they love the attention)
+
+---
+
+## ✨ The Good Stuff
+
+### 🌿 Plant Parenting 2.0
+- **Multi-Unit Support** - Because one garden is never enough
+- **Dimensions Tracking** - For when you need to know if that giant pumpkin will fit
+- **Plant Profiles** - 500+ plant species that won't judge your gardening skills
+- **Growth Stage Tracking** - From "tiny seed" to "look at this absolute unit"
+- **Custom Grow Cycles** - Because every plant has its own drama
+
+### 🤖 Tech That Doesn't Suck
+- **Device Scheduling** - Set it and forget it (like a good asado)
+- **Midnight Crossing Support** - For plants that like to party all night
+- **Multi-Protocol Support** - WiFi, ZigBee, BLE - we speak all the languages
+- **OTA Updates** - Update your devices without getting off the couch
+- **Relay Control** - Flipping switches like a professional electrician (but safer)
+- **Irrigation Management** - Water your plants while you relax
+
+### 📊 Data Nerd Heaven
+- **Real-time Dashboards** - Live environmental data visualization (Pretty graphs that make you look smart)
+- **Historical Data** - Remember that one time your temperature sensor went crazy?
+- **Energy Profiling** - Find out which device is sucking all the power
+- **ML-Powered Insights** - RandomForest models for growth predictions (AI that's actually useful)
+- **Health Monitoring** - Disease and pest detection algorithms (Catch plant diseases before they become a telenovela)
+- **Performance Metrics** - System health and device status tracking (Numbers that make you feel productive)
+
+---
+
+## 🚀 Let's Get This Party Started
+
+### What You'll Need
+
+- **Python 3.8+** - The magic sauce
+- **Git** - For copying stuff from the internet
+- **SQLite3** - Comes with Python (like fries with a burger)
+
+### Installation (The Fun Part)
+
+#### 1️⃣ Clone This Thing
 ```bash
-# 1. Clone
-git clone https://github.com/Patoruzuy/SYSGrow.git
+git clone https://github.com/yourusername/SYSGrow.git
 cd SYSGrow
+```
 
-# 2. Virtual environment
-python -m venv .venv
+#### 2️⃣ Create Virtual Environment
+```bash
 # Windows
-.venv\Scripts\activate
-# Linux / macOS
-source .venv/bin/activate
+python -m venv venv
+venv\Scripts\activate
 
-# 3. Install dependencies
+# Linux/macOS
+python3 -m venv venv
+source venv/bin/activate
+```
+
+#### 3️⃣ Install Dependencies
+```bash
+# Essential dependencies (recommended for Windows)
 pip install -r requirements-essential.txt
 
-# 4. Initialise database
-python -c "from infrastructure.database.sqlite_handler import SQLiteDatabaseHandler; \
-           SQLiteDatabaseHandler('sysgrow.db').initialize_database()"
+# Or full installation
+pip install -r requirements.txt
 
-# 5. Run
+# Or development installation
+pip install -e .
+```
+
+#### 4️⃣ Initialize Database
+```bash
+python -c "from infrastructure.database.sqlite_handler import SQLiteDatabaseHandler; SQLiteDatabaseHandler('sysgrow.db').initialize_database()"
+```
+
+#### 5️⃣ Run the Application
+```bash
+# Development server
 python start_dev.py
+
+# Or production server
+python smart_agriculture_app.py
 ```
 
-Open **http://localhost:5000** — the web interface and API docs at `/api/docs` are ready.
+#### 6️⃣ Access the Application
+Open your browser and navigate to:
+- **Web Interface**: http://localhost:5000
+- **API Documentation**: http://localhost:5000/api/docs
 
-For detailed setup (Windows tips, production deployment, Docker, Raspberry Pi) see the **[Installation Guide](docs/setup/INSTALLATION_GUIDE.md)**.
+### 🎬 Quick Start Scripts
+
+**Windows Users:**
+```bash
+# One-click installation
+install_windows.bat
+
+# One-click server start
+start_server.bat
+```
+
+**All Platforms:**
+```bash
+# Development mode with auto-reload
+python start_dev.py
+
+# Debug mode with detailed logging
+python debug_server.py
+```
 
 ---
 
-## Features
+## 📚 Documentation
 
-### 🌿 Growth Management
-Multi-unit support · 500+ plant profiles · growth-stage tracking · custom grow cycles · harvest logging · condition profiles.
+Comprehensive documentation is available in the [`docs/`](docs/) directory.
 
-### 🔌 Device & IoT Control
-ESP32-C3/C6 integration · relay scheduling with midnight crossing · sensor calibration · OTA firmware updates · WiFi / ZigBee / BLE / MQTT protocols.
+### 📖 Essential Reading
 
-### 🧠 AI & Machine Learning
-Irrigation predictor (4 models) · disease detection (RandomForest) · climate optimiser · Bayesian threshold learning · continuous monitoring pipeline · automated retraining & drift detection · A/B testing · personalised learning profiles.
-
-### 💬 LLM Advisor
-ChatGPT, Claude, or local model integration for natural-language plant care advice, diagnosis, and growth recommendations.
-
-### 📊 Analytics & Monitoring
-Real-time dashboards · historical data & trends · energy consumption profiling · anomaly detection with persistence · camera integration (ESP32-CAM, USB).
-
-### 🔒 Security
-CSRF protection · session-based auth · encrypted credentials · login-required routes.
-
-> **Deep dives:** each feature area has dedicated documentation under [`docs/`](docs/INDEX.md).
-
----
-
-## Architecture
-
-```
-                    ┌──────────────────────────────────┐
-                    │         Web / API Layer           │
-                    │  Flask Blueprints · Socket.IO     │
-                    └──────────────┬───────────────────┘
-                                   │
-                    ┌──────────────┴───────────────────┐
-                    │         Service Layer             │
-                    │  GrowthService · PlantService     │
-                    │  DeviceService · MLService        │
-                    │  IrrigationPredictor · LLM …      │
-                    └──────────────┬───────────────────┘
-                                   │
-          ┌────────────────────────┼────────────────────────┐
-          │                        │                        │
-┌─────────┴─────────┐  ┌──────────┴──────────┐  ┌──────────┴──────────┐
-│    Database        │  │    Event Bus        │  │    MQTT / IoT       │
-│  SQLite (WAL)      │  │  In-process pub/sub │  │  ESP32 devices      │
-│  Repositories      │  │  Activity Logger    │  │  ZigBee sensors     │
-└────────────────────┘  └─────────────────────┘  └─────────────────────┘
-```
-
-| Layer | Responsibilities |
-|-------|-----------------|
-| **Blueprints** | HTTP routes, request validation, response formatting |
-| **Services** | Business logic, orchestration, ML inference |
-| **Repositories** | Data access — all SQL lives here, never in controllers |
-| **Infrastructure** | Database migrations, MQTT transport, hardware drivers |
-
-> Full architecture docs: **[docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md)**
-
----
-
-## Technology Stack
-
-| Category | Technologies |
+| Document | Description |
 |----------|-------------|
-| **Runtime** | Python 3.11–3.13, Flask 3.x, Gunicorn |
-| **Database** | SQLite 3 (WAL mode), migration-managed schema |
-| **Real-time** | Flask-SocketIO, WebSockets |
-| **IoT** | MQTT (paho), ESP32-C3/C6, ZigBee, BLE |
-| **ML / AI** | scikit-learn, NumPy, pandas, joblib |
-| **LLM** | OpenAI API, Anthropic API, local model support |
-| **Testing** | pytest (416 tests), coverage |
-| **Deployment** | Docker, systemd, Nginx reverse proxy |
+| **[Quick Start Guide](docs/setup/QUICK_START.md)** | Get running in 5 minutes |
+| **[Installation Guide](docs/setup/INSTALLATION_GUIDE.md)** | Detailed setup instructions |
+| **[API Documentation](docs/api/API_SUMMARY.md)** | Complete API reference |
+| **[Architecture Guide](docs/architecture/ARCHITECTURE.md)** | System design overview |
+| **[Repository Guidelines](AGENTS.md)** | Contributor guide, project layout, and workflow |
+| **[Development Guide](docs/development/SERVICES.md)** | Contributing guidelines |
 
----
-
-## Project Layout
+### 🗂️ Documentation Structure
 
 ```
-backend/
-├── app/
-│   ├── blueprints/       # API & UI route definitions
-│   ├── services/         # Business logic (application, hardware, AI)
-│   ├── domain/           # Domain models & entities
-│   ├── schemas/          # Pydantic request/response schemas
-│   ├── enums/            # Shared enumerations
-│   ├── hardware/         # Device drivers & sensor factories
-│   ├── config.py         # Centralised configuration
-│   └── extensions.py     # Shared singletons (DB, cache, SocketIO)
-├── infrastructure/
-│   └── database/         # SQLite handler, migrations, repositories
-├── docs/                 # Full documentation (setup, API, architecture, AI/ML)
-├── tests/                # pytest test suite
-├── data/                 # Training data, user profiles, plant DB
-├── models/               # Serialised ML models & registry
-└── templates/            # Jinja2 HTML templates
+docs/
+├── setup/              # Installation & configuration guides
+├── api/                # API documentation & examples
+├── architecture/       # System design & architecture
+├── development/        # Development guides & standards
+└── legacy/            # Historical documentation
 ```
 
----
-
-## Documentation
-
-All in-depth documentation lives in **[`docs/`](docs/INDEX.md)**:
-
-| Area | Link |
-|------|------|
-| Installation & setup | [docs/setup/](docs/setup/QUICK_START.md) |
-| System architecture | [docs/architecture/](docs/architecture/ARCHITECTURE.md) |
-| API reference | [docs/api/](docs/api/API_UPDATES_SUMMARY.md) |
-| AI & ML services | [docs/ai_ml/](docs/ai_ml/README.md) |
-| Hardware guides | [docs/hardware/](docs/hardware/sensors.md) |
-| Development & contributing | [docs/development/](docs/development/SERVICES.md) |
-| Persistence strategy | [docs/architecture/PERSISTENCE_STRATEGY.md](docs/architecture/PERSISTENCE_STRATEGY.md) |
+**Full Index**: See [docs/INDEX.md](docs/INDEX.md) for complete documentation catalog.
 
 ---
 
-## Testing
+## 🏗️ Architecture
+
+SYSGrow follows a modern, modular architecture designed for scalability and maintainability.
+
+### System Architecture
+
+```
+┌─────────────────────────────────────────────────────┐
+│                   Web Interface                     │
+│            (Flask + Jinja2 Templates)               │
+└────────────────────┬────────────────────────────────┘
+                     │
+┌────────────────────┴────────────────────────────────┐
+│              Application Layer (Flask)              │
+│  ┌──────────────┐  ┌──────────────┐  ┌───────────┐│
+│  │ API Routes   │  │ UI Routes    │  │ WebSocket ││
+│  │ (REST/JSON)  │  │ (Templates)  │  │ (SocketIO)││
+│  └──────────────┘  └──────────────┘  └───────────┘│
+└────────────────────┬────────────────────────────────┘
+                     │
+┌────────────────────┴────────────────────────────────┐
+│              Service Layer (Business Logic)         │
+│  ┌──────────┐ ┌──────────┐ ┌─────────┐ ┌─────────┐│
+│  │ Growth   │ │ Device   │ │Settings │ │ Climate ││
+│  │ Service  │ │ Service  │ │ Service │ │ Service ││
+│  └──────────┘ └──────────┘ └─────────┘ └─────────┘│
+└────────────────────┬────────────────────────────────┘
+                     │
+┌────────────────────┴────────────────────────────────┐
+│           Infrastructure Layer                      │
+│  ┌──────────────┐  ┌──────────────┐  ┌───────────┐│
+│  │ Database     │  │ MQTT Broker  │  │ EventBus  ││
+│  │ (SQLite)     │  │ (IoT Comms)  │  │ (Cache)   ││
+│  └──────────────┘  └──────────────┘  └───────────┘│
+└────────────────────┬────────────────────────────────┘
+                     │
+┌────────────────────┴────────────────────────────────┐
+│              IoT Device Layer                       │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌────────┐│
+│  │ ESP32-C3 │ │ ESP32-C6 │ │ Sensors  │ │ Relays ││
+│  │ Sensors  │ │ Irrigation│ │ (DHT22)  │ │ (WiFi) ││
+│  └──────────┘ └──────────┘ └──────────┘ └────────┘│
+└─────────────────────────────────────────────────────┘
+```
+
+### Core Components
+
+#### **Application Layer**
+- **Flask Framework** - Web application server
+- **Blueprint Architecture** - Modular route organization
+- **Jinja2 Templates** - Server-side rendering
+- **SocketIO** - Real-time bidirectional communication
+
+#### **Service Layer**
+- **GrowthService** - Growth unit management and orchestration
+- **DeviceService** - IoT device registration and control
+- **PlantService** - Plant profiles and growth tracking
+- **EnergyService** - Power monitoring and optimization
+- **MLService** - Machine learning model training and inference
+
+#### **Infrastructure Layer**
+- **SQLite Database** - Persistent data storage (15+ tables)
+- **MQTT Broker** - IoT device communication
+- **Event Bus** - Asynchronous event handling
+
+#### **Domain Models**
+- **UnitRuntime** - Individual growth unit runtime state
+- **DeviceSchedule** - Time-based device automation
+- **PlantProfile** - Plant-specific growth requirements
+- **SensorReading** - Environmental measurement data
+
+---
+
+## 💾 Database Schema
+
+SYSGrow uses SQLite with a comprehensive schema:
+
+### Core Tables
+- **GrowthUnits** - Growth unit configurations
+- **Plants** - Plant instances and tracking
+- **Users** - User authentication and profiles
+- **Settings** - System configuration
+
+### Device Management
+- **Devices** - IoT device registry
+- **Sensors** - Sensor configurations
+- **Relays** - Relay control configurations
+- **SensorReadings** - Historical sensor data
+
+### Energy Monitoring
+- **ZigBeeEnergyMonitors** - ZigBee device registry
+- **EnergyConsumption** - Power usage tracking
+- **DeviceEnergyProfiles** - Device power characteristics
+
+### Machine Learning
+- **MLTrainingData** - Training dataset
+- **MLModelTraining** - Model training history
+- **PlantHealthLogs** - Disease/pest detection
+
+### Analytics
+- **Analytics** - System-wide analytics data
+- **EnvironmentInfo** - Environmental metadata
+
+---
+
+## 🛠️ Technology Stack
+
+| Layer | Technologies |
+|-------|-------------|
+| **Backend** | Python 3.8+, Flask 3.0, SQLAlchemy |
+| **Database** | SQLite3 |
+| **IoT** | MQTT, ESP32-C3/C6, ZigBee, BLE |
+| **ML/AI** | scikit-learn, RandomForest, pandas |
+| **Frontend** | Jinja2, JavaScript (Vanilla), CSS3 |
+| **Real-time** | SocketIO, WebSockets |
+| **Testing** | pytest, unittest |
+| **Deployment** | Gunicorn, systemd |
+
+---
+
+## 📱 Mobile & Desktop Apps
+
+SYSGrow supports companion applications:
+
+**Features:**
+- Real-time monitoring
+- Push notifications
+- BLE device provisioning
+- mDNS service discovery
+- Camera controls
+
+### ESP32 Firmware
+```bash
+cd ../ESP32-C6-Firmware
+platformio run --target upload
+```
+
+**Modules:**
+- **ESP32-C6-Sensors** - Environmental sensing
+- **ESP32-C6-Relays** - Relay control
+- **ESP32-C3-Analog-Sensors** - Analog input
+
+---
+
+## 🔧 Configuration
+
+### Application Settings
+
+Edit `app/config.py` for advanced configuration:
+- Database connection pooling
+- MQTT reconnection settings
+- Logging levels
+- ML model parameters
+
+---
+
+## 🧪 Testing
+
+### Run Tests
 
 ```bash
 # Run all tests
 pytest
 
-# With coverage
+# Run specific test file
+pytest tests/test_growth_service.py
+
+# Run with coverage
 pytest --cov=app --cov-report=html
 
-# Single file
-pytest tests/test_growth_service.py -v
+# Run integration tests
+pytest tests/integration/
 ```
-
-Current baseline: **416 passed · 3 skipped**.
-
 ---
 
-## Deployment
+## 🚢 Deployment
 
-SYSGrow supports multiple deployment strategies:
+### Production Deployment
 
+#### Using Gunicorn
 ```bash
-# Development (auto-reload)
-python start_dev.py
-
-# Production — Gunicorn
 gunicorn -w 4 -b 0.0.0.0:8000 smart_agriculture_app:app
-
-# Docker
-docker build -t sysgrow .
-docker run -d -p 5000:5000 sysgrow
 ```
 
-For systemd, Nginx, and Raspberry Pi deployment see **[deployment/DEPLOYMENT.md](deployment/DEPLOYMENT.md)**.
+#### Using systemd Service
+```bash
+sudo cp sysgrow.service /etc/systemd/system/
+sudo systemctl enable sysgrow
+sudo systemctl start sysgrow
+```
+
+#### Docker Deployment
+```bash
+docker build -t sysgrow-backend .
+docker run -d -p 5000:5000 --name sysgrow sysgrow-backend
+```
+
+### Nginx Reverse Proxy
+
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com;
+
+    location / {
+        proxy_pass http://localhost:5000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location /socket.io {
+        proxy_pass http://localhost:5000/socket.io;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+```
 
 ---
 
-## Contributing
+## 🤝 Want to Help? You're Awesome!
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/my-feature`)
-3. Write tests and update documentation
-4. Run `pytest` — all tests must pass
-5. Open a Pull Request
+We love contributions! If you can code, design, or just tell good jokes, we want you
 
-### Conventions
+### How to Be a Hero
 
-- **Style:** PEP 8, type hints on all public signatures, docstrings on public methods.
-- **Commits:** `type(scope): subject` — types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`.
-- **Architecture:** business logic in services (`app/services/`), not in blueprints; SQL in repositories, not in controllers.
+1. **Fork the repository**
+2. **Create a feature branch**
+   ```bash
+   git checkout -b feature/my-awesome-idea
+   ```
+3. **Make your changes**
+4. **Run tests**
+   ```bash
+   pytest
+   ```
+5. **Commit your changes**
+   ```bash
+   git commit -m 'Add amazing feature'
+   ```
+6. **Push to the branch**
+   ```bash
+   git push origin feature/my-awesome-idea
+   ```
+7. **Open a Pull Request**
+
+### Coding Standards
+
+- Follow PEP 8 style guide
+- Use type hints for function signatures
+- Write docstrings for all public methods
+- Add unit tests for new features
+- Update documentation for API changes
+
+### Commit Message Convention
+
+```
+type(scope): subject
+
+body (optional)
+
+footer (optional)
+```
+
+**Types:** `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
+
+**Example:**
+```
+feat(growth): add device schedule midnight crossing support
+
+Implement logic to handle schedules that span across midnight
+(e.g., 22:00-06:00) for proper device activation.
+
+Closes #123
+```
 
 ---
 
-## Roadmap
+## 📋 Roadmap
 
-| Version | Highlights |
-|---------|-----------|
-| **v3.0** ✅ | 15+ ML models, LLM integration, energy monitoring, ESP32-C3/C6, anomaly persistence |
-| **v3.1** 🔧 | Weather API integration, cloud backup, multi-user roles, enhanced camera (time-lapse) |
-| **v3.2** 📋 | Voice assistant integration, community plant profiles, LSTM predictions |
+### v1.2.0 (Planned)
+- [ ] Weather API integration
+- [ ] Cloud backup and sync
+- [ ] Multi-user access control
+- [ ] Advanced ML models (LSTM for predictions)
+
+### v1.3.0 (Future)
+- [ ] Voice assistant integration (Alexa, Google)
+- [ ] Marketplace for plant profiles
+- [ ] Community sharing features
+- [ ] Advanced analytics dashboard
+- [ ] Automated pest control integration
+
+### v2.0.0 (Vision)
+- [ ] Mobile application
+- [ ] Full irrigation system with nutrients
+- [ ] GraphQL API
+- [ ] Real-time collaboration
+- [ ] AI-powered growth optimization
 
 ---
 
-## License
+## 🐛 Troubleshooting
 
-Released under the [MIT License](LICENSE).
+### Common Issues
+
+**Issue: Database locked error**
+```bash
+# Solution: Close all connections and restart
+rm sysgrow.db-journal
+python smart_agriculture_app.py
+```
+
+**Issue: MQTT connection failed**
+```bash
+# Check MQTT broker is running
+sudo systemctl status mosquitto
+
+# Test connection
+mosquitto_sub -h localhost -t "test/#"
+```
+
+**Issue: Import errors on Windows**
+```bash
+# Use essential requirements
+pip install -r requirements-essential.txt
+```
+
+**More Help**: See [Windows Success Guide](docs/setup/WINDOWS_SUCCESS.md)
 
 ---
+
+## 📊 Project Status
+
+### Latest Release
+**Version:** 1.1.0  
+**Release Date:** November 9, 2025  
+**Status:**  Ready
+
+### Build Status
+![Tests](https://img.shields.io/badge/tests-passing-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-85%25-green)
+![Build](https://img.shields.io/badge/build-passing-success)
+
+---
+
+## 📄 Legal Stuff (Boring but Important)
+
+This project is licensed under the MIT License - which basically means "do whatever you want, but don't blame us if your plants die." see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 💬 Community & Support
+
+### Need Help? We Got You
+
+- 📖 [Documentation] The manual you'll actually read (docs/)
+- 🐛 [Issue Tracker] For when things go wrong (<https://github.com/yourusername/SYSGrow/issues>)
+- 📧 [Email Support] Come chat about plants and stuff(<mailto:patoruzuy@tutanota.com>)
+
 
 <div align="center">
 
-**Made with 💚 for smart agriculture**
+**Made with 💚, ☕, and the occasional 🍕 for smart agriculture**
 
-[Documentation](docs/INDEX.md) · [Issues](https://github.com/patoruzuy/SYSGrow/issues) · [Contact](mailto:patoruzuy@tutanota.com)
+[⬆ Back to top](#-sysgrow---smart-agriculture-backend)
 
 </div>

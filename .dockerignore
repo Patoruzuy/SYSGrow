@@ -1,42 +1,29 @@
-# ── Python ──
-.venv/
+# Ignore Python cache & compiled files
 __pycache__/
 *.pyc
 *.pyo
-*.egg-info/
-build/
-dist/
+*.pyd
 
-# ── Git & IDE ──
+# Ignore virtual environments
+venv/
+env/
+*.env
+
+# Ignore local dev artifacts
+*.log
+*.sqlite3
+*.db
+*.bak
+
+# Ignore version control
 .git/
-.github/
+.gitignore
+
+# Ignore IDE/editor files
 .vscode/
-*.code-workspace
-
-# ── Tests & reports ──
-tests/
-reports/
-bandit_*.json
-radon_*.json
-radon_*.txt
-*.ipynb
-htmlcov/
-.coverage
-.pytest_cache/
-
-# ── Docs ──
-docs/
-
-# ── Runtime data (mounted as volumes) ──
-database/*.db
-database/*.db-wal
-database/*.db-shm
-logs/
-
-# ── Config templates (not secrets) ──
-ops.env
-ops.env.example
-
-# ── OS junk ──
+.idea/
+*.swp
 .DS_Store
-Thumbs.db
+
+# Ignore test files
+tests/

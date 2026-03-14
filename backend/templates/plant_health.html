@@ -1,0 +1,368 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui %}
+
+{% block title %}Plant Health Monitoring - SYSGrow{% endblock %}
+{% block body_class %}plant-health-page{% endblock %}
+
+{% block content %}
+<div id="plant-health-page" aria-labelledby="plant-health-heading">
+    
+    {# Using standardized page header #}
+    {{ ui.page_header(
+        title="Plant Health Monitoring",
+        icon="fas fa-heartbeat",
+        subtitle="Track the health status of all plants across your growing units. View observations, recommendations, and health trends."
+    ) }}
+
+    <!-- Health Statistics Overview -->
+    <div class="row g-4 mb-4" aria-label="Plant health statistics">
+        <div class="col-md-6 col-lg-3">
+            {{ ui.kpi_card(
+                title="Healthy Plants",
+                value=plants|selectattr('current_health_status', 'equalto', 'healthy')|list|length if plants else 0,
+                icon="fas fa-check-circle",
+                variant="success",
+                value_id="healthy-count"
+            ) }}
+        </div>
+        <div class="col-md-6 col-lg-3">
+            {{ ui.kpi_card(
+                title="Stressed Plants",
+                value=plants|selectattr('current_health_status', 'equalto', 'stressed')|list|length if plants else 0,
+                icon="fas fa-exclamation-triangle",
+                variant="warning",
+                value_id="stressed-count"
+            ) }}
+        </div>
+        <div class="col-md-6 col-lg-3">
+            {{ ui.kpi_card(
+                title="Diseased/Critical",
+                value=plants|selectattr('current_health_status', 'equalto', 'diseased')|list|length if plants else 0,
+                icon="fas fa-heartbeat",
+                variant="danger",
+                value_id="diseased-count"
+            ) }}
+        </div>
+        <div class="col-md-6 col-lg-3">
+            {{ ui.kpi_card(
+                title="Total Plants",
+                value=plants|length if plants else 0,
+                icon="fas fa-seedling",
+                variant="info",
+                value_id="total-plants"
+            ) }}
+        </div>
+    </div>
+
+    <!-- Plants Health List -->
+    {% call ui.content_card(
+        title="All Plants Health Status",
+        icon="fas fa-list",
+        header_extra='
+            <div class="d-flex gap-2">
+                ' + ui.ui_button("Refresh", id="refresh-health-btn", icon="fas fa-sync-alt", variant="outline-secondary", size="sm") + '
+                ' + ui.ui_button("Record Observation", id="record-observation-btn", icon="fas fa-plus", variant="primary", size="sm") + '
+            </div>
+        '
+    ) %}
+        {% if plants and plants|length > 0 %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle" role="table" aria-label="Plant health status table">
+                    <thead class="table-light">
+                        <tr role="row">
+                            <th scope="col" class="ps-3">Plant Name</th>
+                            <th scope="col">Unit</th>
+                            <th scope="col">Health Status</th>
+                            <th scope="col">Last Observation</th>
+                            <th scope="col" class="text-end pe-3">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for plant in plants %}
+                            <tr role="row">
+                                <td data-label="Plant Name" class="ps-3">
+                                    <div class="fw-bold">{{ plant.name }}</div>
+                                    <small class="text-muted">{{ plant.plant_species }}</small>
+                                </td>
+                                <td data-label="Unit">
+                                    <span class="badge bg-light text-dark border">{{ plant.unit_name if plant.unit_name else 'Unassigned' }}</span>
+                                </td>
+                                <td data-label="Health Status">
+                                    {% set status = plant.current_health_status if plant.current_health_status else 'unknown' %}
+                                    <span class="badge rounded-pill d-inline-flex align-items-center gap-1 px-3 py-2 
+                                        {% if status == 'healthy' %}bg-success-subtle text-success border-success-subtle{% elif status == 'stressed' %}bg-warning-subtle text-warning border-warning-subtle{% elif status == 'diseased' %}bg-danger-subtle text-danger border-danger-subtle{% else %}bg-secondary-subtle text-secondary border-secondary-subtle{% endif %} border" 
+                                        role="status" aria-label="Health status: {{ status }}">
+                                        <i class="fas fa-{% if status == 'healthy' %}check-circle{% elif status == 'stressed' %}exclamation-triangle{% elif status == 'diseased' %}heartbeat{% else %}question-circle{% endif %}" aria-hidden="true"></i>
+                                        {{ status|title }}
+                                    </span>
+                                </td>
+                                <td data-label="Last Observation">
+                                    {% if plant.last_observation_date %}
+                                        <time datetime="{{ plant.last_observation_date }}" class="small text-muted">
+                                            <i class="far fa-clock me-1"></i>{{ plant.last_observation_date }}
+                                        </time>
+                                    {% else %}
+                                        <span class="text-muted italic small">No observations yet</span>
+                                    {% endif %}
+                                </td>
+                                <td data-label="Actions" class="text-end pe-3">
+                                    {{ ui.ui_button("Details", icon="fas fa-eye", variant="outline-primary", size="sm", class="view-plant-btn", id="btn-view-" ~ plant.plant_id, attrs='data-plant-id="' ~ plant.plant_id ~ '"') }}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <nav class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top" aria-label="Plant pagination">
+                <div class="text-muted small">
+                    Showing <span class="fw-bold" id="showing-count">{{ plants|length }}</span> plants
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    {{ ui.ui_button("Prev", id="plant-page-prev", icon="fas fa-chevron-left", variant="outline-secondary", size="sm", disabled=True) }}
+                    <span class="badge bg-light text-dark px-3 py-2 border fw-bold" id="plant-page-label">Page 1</span>
+                    {{ ui.ui_button("Next", id="plant-page-next", icon="fas fa-chevron-right", variant="outline-secondary", size="sm", disabled=True, icon_right=True) }}
+                </div>
+            </nav>
+        {% else %}
+            <div class="text-center py-5">
+                <div class="mb-3">
+                    <i class="fas fa-seedling fa-4x text-muted opacity-25"></i>
+                </div>
+                <h3 class="fw-bold text-dark">No Plants Found</h3>
+                <p class="text-muted mx-auto" style="max-width: 400px;">Add plants to your growing units to start monitoring their health status and receiving recommendations.</p>
+                <a href="{{ url_for('ui.add_plant') }}" class="btn btn-primary px-4 py-2 mt-2">
+                    <i class="fas fa-plus me-2"></i>Add First Plant
+                </a>
+            </div>
+        {% endif %}
+    {% endcall %}
+
+    <!-- Plant Health Detail Modal -->
+    <div class="modal fade" id="health-detail-modal" tabindex="-1" aria-labelledby="health-detail-title" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content shadow-lg border-0">
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title fw-bold" id="health-detail-title">Plant Health Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4" id="health-detail-content">
+                    <!-- Content will be loaded dynamically -->
+                </div>
+                <div class="modal-footer border-top-0">
+                    <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Record Observation Modal -->
+    <div class="modal fade" id="observation-modal" tabindex="-1" aria-labelledby="observation-title" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content shadow-lg border-0">
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title fw-bold" id="observation-title">Record Health Observation</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form id="observation-form" enctype="multipart/form-data">
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <label for="observation-plant-select" class="form-label fw-bold">Select Plant <span class="text-danger">*</span></label>
+                                <select id="observation-plant-select" name="plant_id" class="form-select" required>
+                                    <option value="">-- Choose a plant --</option>
+                                    {% if plants %}
+                                        {% for plant in plants %}
+                                            <option value="{{ plant.plant_id }}">{{ plant.name }} ({{ plant.plant_species }})</option>
+                                        {% endfor %}
+                                    {% endif %}
+                                </select>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="observation-status" class="form-label fw-bold">Health Status <span class="text-danger">*</span></label>
+                                <select id="observation-status" name="health_status" class="form-select" required>
+                                    <option value="">-- Select status --</option>
+                                    <option value="healthy">✅ Healthy</option>
+                                    <option value="stressed">⚠️ Stressed</option>
+                                    <option value="diseased">🦠 Diseased</option>
+                                    <option value="pest_infestation">🐛 Pest Infestation</option>
+                                    <option value="nutrient_deficiency">🌿 Nutrient Deficiency</option>
+                                    <option value="recovering">💊 Recovering</option>
+                                    <option value="dying">☠️ Dying</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Symptoms (shown when not healthy) -->
+                        <div class="mb-4 d-none" id="symptoms-group">
+                            <label class="form-label fw-bold mb-2">Visible Symptoms <span class="text-danger">*</span></label>
+                            <div class="card bg-light border-0">
+                                <div class="card-body">
+                                    <div class="row g-2" id="symptoms-checkboxes">
+                                        <!-- Checkboxes will be here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="symptoms" value="yellowing_leaves"> Yellowing Leaves
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="symptoms" value="brown_spots"> Brown Spots
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="symptoms" value="wilting"> Wilting
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="symptoms" value="stunted_growth"> Stunted Growth
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="symptoms" value="leaf_curl"> Leaf Curl
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="symptoms" value="white_powdery_coating"> White Powdery Coating
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="symptoms" value="webbing_on_leaves"> Webbing on Leaves
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="symptoms" value="holes_in_leaves"> Holes in Leaves
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="symptoms" value="drooping_stems"> Drooping Stems
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="symptoms" value="discoloration"> Discoloration
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="symptoms" value="mold_fungus"> Mold/Fungus Growth
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="symptoms" value="pest_visible"> Visible Pests
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Disease Type (optional) -->
+                    <div class="form-group is-hidden-by-default" id="disease-type-group">
+                        <label for="observation-disease-type">
+                            Disease Type (if known)
+                        </label>
+                        <select id="observation-disease-type" name="disease_type">
+                            <option value="">-- Select if known --</option>
+                            <option value="fungal">🍄 Fungal Infection</option>
+                            <option value="bacterial">🦠 Bacterial Infection</option>
+                            <option value="viral">🦠 Viral Infection</option>
+                            <option value="pest">🐛 Pest Damage</option>
+                            <option value="nutrient_deficiency">🌿 Nutrient Deficiency</option>
+                            <option value="environmental_stress">🌡️ Environmental Stress</option>
+                        </select>
+                    </div>
+
+                    <!-- Severity Level -->
+                    <div class="form-group is-hidden-by-default" id="severity-group">
+                        <label for="observation-severity">
+                            Severity Level <span class="required" aria-label="required">*</span>
+                        </label>
+                        <div class="severity-selector">
+                            <input type="range" id="observation-severity" name="severity_level" 
+                                   min="1" max="5" value="3" step="1">
+                            <div class="severity-labels">
+                                <span>1 - Minor</span>
+                                <span>2 - Mild</span>
+                                <span>3 - Moderate</span>
+                                <span>4 - Severe</span>
+                                <span>5 - Critical</span>
+                            </div>
+                            <div class="severity-value" id="severity-display">Level 3 - Moderate</div>
+                        </div>
+                    </div>
+
+                    <!-- Affected Parts -->
+                    <div class="form-group is-hidden-by-default" id="affected-parts-group">
+                        <label for="observation-affected-parts">
+                            Affected Plant Parts <span class="required" aria-label="required">*</span>
+                        </label>
+                        <div class="checkbox-group" id="affected-parts-checkboxes">
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="affected_parts" value="leaves"> Leaves
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="affected_parts" value="stems"> Stems
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="affected_parts" value="roots"> Roots
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="affected_parts" value="flowers"> Flowers
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="affected_parts" value="fruits"> Fruits
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="affected_parts" value="whole_plant"> Whole Plant
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Treatment Applied -->
+                    <div class="form-group is-hidden-by-default" id="treatment-group">
+                        <label for="observation-treatment">
+                            Treatment Applied (if any)
+                        </label>
+                        <input type="text" id="observation-treatment" name="treatment_applied" 
+                               placeholder="e.g., Applied neem oil, Removed affected leaves, Adjusted watering...">
+                    </div>
+
+                    <!-- Image Upload -->
+                    <div class="form-group">
+                        <label for="observation-image">
+                            📸 Upload Photo (Optional)
+                        </label>
+                        <input type="file" id="observation-image" name="image" 
+                               accept="image/*" capture="environment"
+                               aria-describedby="image-help">
+                        <small id="image-help" class="form-text">
+                            Take or upload a photo to help track visual changes over time
+                        </small>
+                        <div id="image-preview" class="image-preview is-hidden-by-default">
+                            <img id="preview-img" class="image-preview-img" src="" alt="Preview">
+                        </div>
+                    </div>
+
+                    <!-- Detailed Notes -->
+                    <div class="form-group">
+                        <label for="observation-notes">
+                            Detailed Observation Notes <span class="required" aria-label="required">*</span>
+                        </label>
+                        <textarea id="observation-notes" name="notes" rows="4" required
+                                  placeholder="Describe what you observe in detail...&#10;- When did you first notice this?&#10;- How quickly has it progressed?&#10;- Any recent changes to environment or care routine?&#10;- Other relevant observations..."
+                                  aria-describedby="notes-help"></textarea>
+                        <small id="notes-help" class="form-text">
+                            The more detail you provide, the better the AI can help diagnose and recommend treatments
+                        </small>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" id="cancel-observation-btn">Cancel</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save" aria-hidden="true"></i>
+                            Save Observation
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/plant_health.css') }}">
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/api.js') }}"></script>
+<script src="{{ url_for('static', filename='js/plant_health.js') }}"></script>
+{% endblock %}

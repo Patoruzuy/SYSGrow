@@ -1,0 +1,1010 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui %}
+
+{% block title %}Dashboard{% endblock %}
+{% block body_class %}dashboard-page{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/system-efficiency-score.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/ai_insights.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/sensor-analytics/intelligent-alert-timeline.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/components/kpi-cards.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-page page-shell page-shell--fluid" data-selected-unit-id="{{ selected_unit.unit_id if selected_unit else '' }}" aria-labelledby="dashboard-heading">
+
+  <!-- Dashboard Header -->
+  <header class="dashboard-header">
+    <div class="dashboard-header__left">
+      <h1 id="dashboard-heading" class="dashboard-title">
+        <i class="fas fa-tachometer-alt"></i>
+        Dashboard
+      </h1>
+      <span class="unit-badge" id="current-unit-name">
+        {{ selected_unit.name if selected_unit else 'All Units' }}
+      </span>
+    </div>
+    <div class="dashboard-header__right">
+      <div class="connection-indicator" id="connection-status">
+        <span class="status-dot"></span>
+        <span class="status-text">Connecting...</span>
+      </div>
+      <span class="last-update" id="last-update-time">--:--</span>
+      <button class="refresh-btn" id="refresh-sensors" title="Refresh Dashboard">
+        <i class="fas fa-sync-alt"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- Contextual Help Banner -->
+  <div class="help-banner">
+    <i class="fas fa-rocket"></i>
+    <div class="help-banner-content">
+      <p class="help-banner-title">New to SYSGrow?</p>
+      <p class="help-banner-text">Get started with our quick setup guide and learn how to monitor your plants.</p>
+    </div>
+    {{ ui.help_link('getting-started', 'quick-start', 'Quick Start Guide') }}
+  </div>
+
+  <!-- Top KPI Row: VPD, Efficiency, Plant Health, Alerts -->
+  <section class="dashboard-kpi-row">
+    {{ ui.kpi_card('vpd', 'VPD', value='-- kPa', variant='vpd', value_id='vpd-value', label_id='vpd-zone') }}
+    {{ ui.kpi_card('health-score', 'System Health', value='--', icon='fas fa-heartbeat', variant='efficiency', value_id='health-score-value', label_id='health-score-text') }}
+    {{ ui.kpi_card('healthy-plants', 'Healthy Plants', value='--', icon='fas fa-seedling', variant='plants', value_id='healthy-plants-count', label_id='healthy-plants-text') }}
+    {{ ui.kpi_card('critical-alerts', 'Active Alerts', value='0', icon='fas fa-bell', variant='alerts', value_id='critical-alerts-count', label_id='critical-alerts-text') }}
+    {{ ui.kpi_card('active-devices', 'Active Devices', value='--', icon='fas fa-plug', variant='devices', value_id='active-devices-count', label_id='active-devices-text') }}
+    {{ ui.kpi_card('energy-usage-today', "Today's Usage", value='-- kWh', icon='fas fa-bolt', variant='energy', value_id='energy-usage-today', label_id='energy-usage-text') }}
+  </section>
+
+    <!-- Sensor KPI Cards Row -->
+  <section class="dashboard-sensors-row">
+    {{ ui.sensor_tile('temperature', 'Temperature', 'fas fa-thermometer-half', '°C') }}
+    {{ ui.sensor_tile('humidity', 'Humidity', 'fas fa-tint', '%') }}
+    {{ ui.sensor_tile('soil_moisture', 'Soil Moisture', 'fas fa-water', '%') }}
+    {{ ui.sensor_tile('co2', 'CO2', 'fas fa-cloud', ' ppm') }}
+    {{ ui.sensor_tile('lux', 'Light', 'fas fa-sun', ' lux') }}
+    {{ ui.sensor_tile('energy_usage', 'Power', 'fas fa-bolt', ' W') }}
+  </section>
+  
+  <!-- Environmental Overview Chart -->
+  <section class="dashboard-chart-section">
+    {% call ui.content_card(title='Environmental Overview', icon='fas fa-chart-area') %}
+      <div class="chart-controls">
+        <select id="chart-timerange" class="form-select form-select-sm" aria-label="Chart time range" title="Chart time range">
+          <option value="6">Last 6 hours</option>
+          <option value="12">Last 12 hours</option>
+          <option value="24" selected>Last 24 hours</option>
+          <option value="48">Last 48 hours</option>
+        </select>
+      </div>
+      <div class="chart-container" style="height: 280px;">
+        <canvas id="environmental-chart"></canvas>
+      </div>
+    {% endcall %}
+  </section>
+
+  <!-- Insights (computed from Environmental Overview) -->
+  <section class="section" aria-label="Insights">
+    <div class="sub-section dashboard-insights-section" aria-label="Environment and plant insights">
+      {% call ui.content_card(title='Insights', icon='fas fa-lightbulb') %}
+        <div class="dashboard-insights-carousel" aria-label="Insights carousel">
+          <button
+            type="button"
+            class="carousel-nav carousel-nav--prev"
+            id="insights-carousel-prev"
+            aria-label="Previous insight"
+            disabled
+          >
+            <i class="fas fa-chevron-left" aria-hidden="true"></i>
+          </button>
+
+          <div class="dashboard-insights-grid insights-carousel-track" id="insights-carousel-track" tabindex="0">
+            <div class="insight-card" id="insight-photoperiod">
+              <div class="insight-card__icon"><i class="fas fa-sun"></i></div>
+              <div class="insight-card__body">
+                <div class="insight-card__value" id="insight-photoperiod-value">--</div>
+                <div class="insight-card__label">Photoperiod</div>
+                <div class="insight-card__meta" id="insight-photoperiod-meta">--</div>
+              </div>
+            </div>
+
+            <div class="insight-card" id="insight-dif">
+              <div class="insight-card__icon"><i class="fas fa-temperature-high"></i></div>
+              <div class="insight-card__body">
+                <div class="insight-card__value" id="insight-dif-value">--</div>
+                <div class="insight-card__label">DIF (Day - Night)</div>
+                <div class="insight-card__meta" id="insight-dif-meta">--</div>
+              </div>
+            </div>
+
+            <div class="insight-card" id="insight-gdd">
+              <div class="insight-card__icon"><i class="fas fa-seedling"></i></div>
+              <div class="insight-card__body">
+                <div class="insight-card__value" id="insight-gdd-value">--</div>
+                <div class="insight-card__label">Thermal Time (GDD)</div>
+                <div class="insight-card__meta" id="insight-gdd-meta">--</div>
+              </div>
+            </div>
+
+            <div class="insight-card" id="insight-targets">
+              <div class="insight-card__icon"><i class="fas fa-bullseye"></i></div>
+              <div class="insight-card__body">
+                <div class="insight-card__value" id="insight-targets-value">--</div>
+                <div class="insight-card__label">Stage Targets</div>
+                <div class="insight-card__meta" id="insight-targets-meta">--</div>
+              </div>
+            </div>
+
+            <div class="insight-card" id="insight-stress">
+              <div class="insight-card__icon"><i class="fas fa-exclamation-triangle"></i></div>
+              <div class="insight-card__body">
+                <div class="insight-card__value" id="insight-stress-value">--</div>
+                <div class="insight-card__label">Stress Hours</div>
+                <div class="insight-card__meta" id="insight-stress-meta">--</div>
+              </div>
+            </div>
+
+            <div class="insight-card" id="insight-quality">
+              <div class="insight-card__icon"><i class="fas fa-signal"></i></div>
+              <div class="insight-card__body">
+                <div class="insight-card__value" id="insight-quality-value">--</div>
+                <div class="insight-card__label">Data Quality</div>
+                <div class="insight-card__meta" id="insight-quality-meta">--</div>
+              </div>
+            </div>
+
+            <div class="insight-card" id="insight-alignment">
+              <div class="insight-card__icon"><i class="fas fa-lightbulb"></i></div>
+              <div class="insight-card__body">
+                <div class="insight-card__value" id="insight-alignment-value">--</div>
+                <div class="insight-card__label">Schedule ↔ Lux</div>
+                <div class="insight-card__meta" id="insight-alignment-meta">--</div>
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            class="carousel-nav carousel-nav--next"
+            id="insights-carousel-next"
+            aria-label="Next insight"
+          >
+            <i class="fas fa-chevron-right" aria-hidden="true"></i>
+          </button>
+        </div>
+      {% endcall %}
+    </div>
+  </section>
+
+
+    <!-- Tent Settings (selected unit) -->
+    <div class="sub-section dashboard-unit-settings-section" aria-label="Tent settings for selected unit">
+      <div class="card">
+        <div class="card-header">
+          <h3><i class="fas fa-sliders-h"></i> Tent Settings</h3>
+          <div class="card-actions">
+            <a class="btn btn-sm btn-outline-primary" href="{{ url_for('ui.settings') }}">Settings</a>
+            <a class="btn btn-sm btn-outline-primary" href="{{ url_for('ui.devices') }}">Devices</a>
+          </div>
+        </div>
+        <div class="card-body">
+          <div id="unit-settings-empty" class="empty-message">Select a unit to see its thresholds, schedules, and devices.</div>
+
+          <div id="unit-settings-content" class="unit-settings-grid" hidden>
+            <div class="unit-settings-block" aria-label="Threshold settings">
+              <h4 class="unit-settings-title">Thresholds</h4>
+              <dl class="unit-settings-kv" id="unit-thresholds-list"></dl>
+            </div>
+
+            <div class="unit-settings-block" aria-label="Device schedules">
+              <h4 class="unit-settings-title">Schedules</h4>
+              <div id="unit-schedules-list" class="unit-settings-schedules"></div>
+            </div>
+
+            <div class="unit-settings-block" aria-label="Sensors configured">
+              <h4 class="unit-settings-title">Sensors</h4>
+              <div class="unit-settings-count" id="unit-sensors-count">--</div>
+              <details class="unit-settings-details">
+                <summary>Show sensors</summary>
+                <ul id="unit-sensors-list" class="unit-settings-list"></ul>
+              </details>
+            </div>
+
+            <div class="unit-settings-block" aria-label="Actuators configured">
+              <h4 class="unit-settings-title">Actuators</h4>
+              <div class="unit-settings-count" id="unit-actuators-count">--</div>
+              <details class="unit-settings-details">
+                <summary>Show actuators</summary>
+                <ul id="unit-actuators-list" class="unit-settings-list"></ul>
+              </details>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+      <!-- AI Health banner with inline insight -->
+  <section class="section" aria-label="AI Insights">
+    <div class="sub-section" aria-label="AI Health Score">
+      <div class="ai-health-banner" id="ai-health-banner">
+        <div class="ai-banner-icon" aria-hidden="true"><i class="fas fa-brain"></i></div>
+        <div class="ai-banner-content">
+          <h2 class="ai-banner-title">AI Health Score</h2>
+          <div class="ai-score-display">
+            <span class="ai-score-value" id="ai-overall-score">--</span>
+            <span class="ai-score-label">/100</span>
+          </div>
+          <p class="ai-banner-subtitle" id="ai-health-status">Analyzing conditions...</p>
+        </div>
+        <div class="ai-banner-insight" id="ai-banner-insight">
+          <div class="ai-insight-content">
+            <span class="ai-insight-icon"><i class="fas fa-lightbulb"></i></span>
+            <span class="ai-insight-text" id="ai-insight-text">Monitoring your grow environment...</span>
+          </div>
+        </div>
+        <div class="ai-banner-actions">
+          <button type="button" class="btn btn-sm" id="view-ai-details">
+            <i class="fas fa-chart-line" aria-hidden="true"></i>
+            View Details
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- AI Prediction Cards Row -->
+  <section class="section" aria-label="AI Predictions">
+    <div class="dashboard-ai-grid">
+      <!-- Disease Risk Card -->
+      <div class="card ai-prediction-card">
+        <div class="card-header">
+          <h3><i class="fas fa-shield-virus"></i> Disease Risk</h3>
+        </div>
+        <div class="card-body">
+          <div class="risk-meter" id="disease-risk-meter">
+            <div class="risk-meter-fill" style="width: 5%"></div>
+          </div>
+          <div class="risk-stats">
+            <span class="risk-level low" id="disease-risk-level">Low</span>
+            <span class="risk-score" id="disease-risk-score">5%</span>
+          </div>
+          <div class="risk-details" id="disease-risk-details">
+            <p class="muted">No significant disease risks detected</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Growth Stage Card -->
+      <div class="card ai-prediction-card">
+        <div class="card-header">
+          <h3><i class="fas fa-seedling"></i> Growth Progress</h3>
+        </div>
+        <div class="card-body">
+          <div class="growth-stage-display">
+            <div class="current-stage" id="current-stage-label">Unknown</div>
+            <div class="stage-progress">
+              <span class="days-in-stage" id="days-in-stage">Day --</span>
+              <span class="next-stage-estimate" id="next-stage-estimate">--</span>
+            </div>
+          </div>
+          <div class="stage-timeline">
+            <div class="stage-timeline-track">
+              <span class="stage-marker"></span>
+              <span class="stage-marker active"></span>
+              <span class="stage-marker"></span>
+            </div>
+            <div class="stage-labels">
+              <span class="stage-label">Previous</span>
+              <span class="stage-label">Current</span>
+              <span class="stage-label">Next</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Harvest Forecast Card -->
+      <div class="card ai-prediction-card">
+        <div class="card-header">
+          <h3><i class="fas fa-calendar-check"></i> Harvest Forecast</h3>
+        </div>
+        <div class="card-body">
+          <div class="harvest-countdown" id="harvest-days-remaining">
+            <span class="countdown-number">--</span>
+            <span class="countdown-label">days remaining</span>
+          </div>
+          <div class="harvest-details">
+            <div class="harvest-date" id="estimated-harvest-date">Calculating...</div>
+            <div class="harvest-confidence" id="harvest-confidence">
+              <i class="fas fa-chart-line"></i> --% confidence
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Optimization Score Card -->
+      <div class="card ai-prediction-card">
+        <div class="card-header">
+          <h3><i class="fas fa-sliders-h"></i> Optimization</h3>
+        </div>
+        <div class="card-body">
+          <div class="optimization-ring">
+            <svg viewBox="0 0 100 100" class="optimization-ring-svg">
+              <circle cx="50" cy="50" r="45" class="ring-bg"/>
+              <circle cx="50" cy="50" r="45" class="ring-progress" id="optimization-ring-progress" 
+                      style="stroke-dasharray: 283; stroke-dashoffset: 283"/>
+            </svg>
+            <div class="optimization-value">
+              <span class="optimization-score-value" id="optimization-score-value">--</span>
+              <span class="optimization-label">%</span>
+            </div>
+          </div>
+          <div class="optimization-status" id="optimization-status">Calculating...</div>
+          <div class="optimization-quick-actions" id="optimization-quick-actions"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Personalized Recommendations & 7-Day Forecast -->
+  <section class="section" aria-label="AI Recommendations">
+    <div class="dashboard-ai-detail-grid">
+      <!-- Personalized Learning -->
+      <div class="card">
+        <div class="card-header">
+          <h3><i class="fas fa-graduation-cap"></i> Personalized Learning</h3>
+        </div>
+        <div class="card-body">
+          <div class="recommendations-grid">
+            <div class="recommendation-section">
+              <h4><i class="fas fa-check-circle text-success"></i> What's Working</h4>
+              <ul class="success-list" id="success-list">
+                <li>Building success profile...</li>
+              </ul>
+            </div>
+            <div class="recommendation-section">
+              <h4><i class="fas fa-exclamation-circle text-warning"></i> Needs Attention</h4>
+              <ul class="attention-list" id="attention-list">
+                <li>No issues detected</li>
+              </ul>
+            </div>
+          </div>
+          <div class="learning-stats-grid" id="learning-stats">
+            <div class="learning-stat">
+              <span class="learning-stat-label">Grow Cycles Analyzed</span>
+              <span class="learning-stat-value">0</span>
+            </div>
+            <div class="learning-stat">
+              <span class="learning-stat-label">Success Rate</span>
+              <span class="learning-stat-value">0%</span>
+            </div>
+            <div class="learning-stat">
+              <span class="learning-stat-label">Environment Profile</span>
+              <span class="learning-stat-value">0%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 7-Day Forecast -->
+      <div class="card">
+        <div class="card-header">
+          <h3><i class="fas fa-cloud-sun"></i> 7-Day Forecast</h3>
+        </div>
+        <div class="card-body">
+          <div class="forecast-timeline" id="forecast-timeline">
+            <div class="forecast-loading">
+              <i class="fas fa-spinner fa-spin"></i>
+              <p>Loading forecast...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Community Insights (optional, hidden by default) -->
+  <section class="section" aria-label="Community Insights" id="community-insights-section" style="display: none;">
+    <div class="card">
+      <div class="card-header">
+        <h3><i class="fas fa-users"></i> Similar Growers</h3>
+      </div>
+      <div class="card-body">
+        <div class="similar-growers-grid" id="similar-growers-grid"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- System Efficiency Score & Alert Timeline -->
+  <section class="section" aria-label="System efficiency and Alert timeline">
+    <div class="sub-section" aria-label="System efficiency score">
+      <div id="system-efficiency-score-container"></div>
+    </div>
+    <div class="sub-section" aria-label="Alert timeline">
+      <div id="intelligent-alert-timeline-container"></div>
+    </div>
+  </section>
+
+  <!-- Quick Stats & Automation Status Row -->
+  <section class="dashboard-stats-automation-row">
+    <!-- Quick Stats Summary -->
+    <div class="card quick-stats-card">
+      <div class="card-header">
+        <h3><i class="fas fa-chart-bar"></i> Quick Stats</h3>
+        <span class="pill pill-info" id="stats-period">Last 24h</span>
+      </div>
+      <div class="card-body">
+        <div class="quick-stats-grid">
+          <div class="quick-stat" data-stat="readings">
+            <div class="quick-stat__value" id="stat-readings-count">--</div>
+            <div class="quick-stat__label">Readings</div>
+            <div class="quick-stat__trend neutral" id="stat-readings-trend">--</div>
+          </div>
+          <div class="quick-stat" data-stat="anomalies">
+            <div class="quick-stat__value" id="stat-anomalies-count">0</div>
+            <div class="quick-stat__label">Anomalies</div>
+            <div class="quick-stat__trend neutral" id="stat-anomalies-trend">--</div>
+          </div>
+          <div class="quick-stat" data-stat="uptime">
+            <div class="quick-stat__value" id="stat-system-uptime">--%</div>
+            <div class="quick-stat__label">Uptime</div>
+          </div>
+          <div class="quick-stat" data-stat="avg-temp">
+            <div class="quick-stat__value" id="stat-avg-temp">--°C</div>
+            <div class="quick-stat__label">Avg Temp</div>
+          </div>
+          <div class="quick-stat" data-stat="avg-humidity">
+            <div class="quick-stat__value" id="stat-avg-humidity">--%</div>
+            <div class="quick-stat__label">Avg Humidity</div>
+          </div>
+          <div class="quick-stat" data-stat="data-quality">
+            <div class="quick-stat__value" id="stat-data-quality">--%</div>
+            <div class="quick-stat__label">Data Quality</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Automation Status Panel -->
+    <div class="card automation-status-card">
+      <div class="card-header">
+        <h3><i class="fas fa-robot"></i> Automation Status</h3>
+        <button class="btn btn-sm btn-outline-secondary" id="refresh-automation" title="Refresh">
+          <i class="fas fa-sync-alt"></i>
+        </button>
+      </div>
+      <div class="card-body">
+        <div class="automation-overview">
+          <div class="automation-status-badge" id="automation-main-status">
+            <i class="fas fa-check-circle"></i>
+            <span>Active</span>
+          </div>
+          <div class="automation-schedules-count" id="automation-schedules-summary">
+            <span class="count">--</span> schedules active
+          </div>
+        </div>
+        <div class="automation-schedules-list" id="active-schedules-list">
+          <div class="empty-message">Loading schedules...</div>
+        </div>
+        <div class="automation-quick-stats">
+          <div class="auto-stat">
+            <i class="fas fa-lightbulb"></i>
+            <span id="auto-stat-lights">--</span>
+          </div>
+          <div class="auto-stat">
+            <i class="fas fa-fan"></i>
+            <span id="auto-stat-fans">--</span>
+          </div>
+          <div class="auto-stat">
+            <i class="fas fa-tint"></i>
+            <span id="auto-stat-irrigation">--</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Environment Quality & Sensor Health Row -->
+  <section class="dashboard-quality-health-row">
+    <!-- Environment Quality Score -->
+    <div class="card environment-quality-card">
+      <div class="card-header">
+        <h3><i class="fas fa-leaf"></i> Environment Quality</h3>
+        <span class="pill" id="env-quality-badge">Calculating...</span>
+      </div>
+      <div class="card-body">
+        <div class="env-quality-display">
+          <div class="env-quality-ring">
+            <svg viewBox="0 0 100 100" class="env-quality-svg">
+              <circle cx="50" cy="50" r="42" class="ring-bg"/>
+              <circle cx="50" cy="50" r="42" class="ring-progress" id="env-quality-ring-progress" 
+                      style="stroke-dasharray: 264; stroke-dashoffset: 264"/>
+            </svg>
+            <div class="env-quality-value">
+              <span class="env-quality-score" id="env-quality-score">--</span>
+              <span class="env-quality-label">/ 100</span>
+            </div>
+          </div>
+          <div class="env-quality-breakdown">
+            <div class="quality-factor">
+              <div class="quality-factor__header">
+                <span class="quality-factor__name">Temperature</span>
+                <span class="quality-factor__score" id="quality-temp-score">--%</span>
+              </div>
+              <div class="quality-factor__bar">
+                <div class="quality-factor__fill" id="quality-temp-bar" style="width: 0%"></div>
+              </div>
+            </div>
+            <div class="quality-factor">
+              <div class="quality-factor__header">
+                <span class="quality-factor__name">Humidity</span>
+                <span class="quality-factor__score" id="quality-humidity-score">--%</span>
+              </div>
+              <div class="quality-factor__bar">
+                <div class="quality-factor__fill" id="quality-humidity-bar" style="width: 0%"></div>
+              </div>
+            </div>
+            <div class="quality-factor">
+              <div class="quality-factor__header">
+                <span class="quality-factor__name">VPD</span>
+                <span class="quality-factor__score" id="quality-vpd-score">--%</span>
+              </div>
+              <div class="quality-factor__bar">
+                <div class="quality-factor__fill" id="quality-vpd-bar" style="width: 0%"></div>
+              </div>
+            </div>
+            <div class="quality-factor">
+              <div class="quality-factor__header">
+                <span class="quality-factor__name">CO₂</span>
+                <span class="quality-factor__score" id="quality-co2-score">--%</span>
+              </div>
+              <div class="quality-factor__bar">
+                <div class="quality-factor__fill" id="quality-co2-bar" style="width: 0%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="env-quality-summary" id="env-quality-summary">
+          Analyzing environment conditions...
+        </div>
+      </div>
+    </div>
+
+    <!-- Sensor Health Matrix -->
+    <div class="card sensor-health-card">
+      <div class="card-header">
+        <h3><i class="fas fa-heartbeat"></i> Sensor Health</h3>
+        <button class="btn btn-sm btn-outline-secondary" id="refresh-sensor-health" title="Refresh">
+          <i class="fas fa-sync-alt"></i>
+        </button>
+      </div>
+      <div class="card-body">
+        <div class="sensor-health-summary">
+          <div class="health-stat healthy">
+            <i class="fas fa-check-circle"></i>
+            <span id="sensors-healthy-count">--</span>
+            <span class="health-stat__label">Healthy</span>
+          </div>
+          <div class="health-stat warning">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span id="sensors-warning-count">0</span>
+            <span class="health-stat__label">Warning</span>
+          </div>
+          <div class="health-stat offline">
+            <i class="fas fa-times-circle"></i>
+            <span id="sensors-offline-count">0</span>
+            <span class="health-stat__label">Offline</span>
+          </div>
+        </div>
+        <div class="sensor-health-matrix" id="sensor-health-matrix">
+          <div class="empty-message">Loading sensor health...</div>
+        </div>
+        <div class="sensor-health-legend">
+          <span class="legend-item"><span class="legend-dot healthy"></span> Online</span>
+          <span class="legend-item"><span class="legend-dot warning"></span> Stale</span>
+          <span class="legend-item"><span class="legend-dot offline"></span> Offline</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Recent Journal/Notes Widget -->
+  <section class="dashboard-journal-section">
+    <div class="card">
+      <div class="card-header">
+        <h3><i class="fas fa-book"></i> Recent Journal</h3>
+        <div class="card-actions">
+          <a class="btn btn-sm btn-outline-primary" href="{{ url_for('ui.plants_hub') }}#journal">View All</a>
+          <button class="btn btn-sm btn-outline-secondary" id="refresh-journal" title="Refresh">
+            <i class="fas fa-sync-alt"></i>
+          </button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="journal-feed" id="recent-journal-list">
+          <div class="empty-message">Loading journal entries...</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Growth & Harvest Row (Phase 1 Features) -->
+  <section class="dashboard-growth-harvest-row">
+    <!-- Growth Stage Tracker -->
+    <div class="card growth-stage-card">
+      <div class="card-header">
+        <h3><i class="fas fa-chart-line"></i> Growth Stage</h3>
+        <span class="pill" id="growth-stage-badge">--</span>
+      </div>
+      <div class="card-body">
+        <div class="growth-stage-tracker">
+          <div class="stage-progress">
+            <div class="stage-progress-bar">
+              <div class="stage-progress-fill" id="growth-stage-progress" style="width: 0%"></div>
+            </div>
+            <div class="stage-markers">
+              <span class="stage-marker" data-stage="seedling" title="Seedling">🌱</span>
+              <span class="stage-marker" data-stage="vegetative" title="Vegetative">🌿</span>
+              <span class="stage-marker" data-stage="flowering" title="Flowering">🌸</span>
+              <span class="stage-marker" data-stage="fruiting" title="Fruiting">🍅</span>
+              <span class="stage-marker" data-stage="harvest" title="Harvest">🌾</span>
+            </div>
+          </div>
+          <div class="growth-stage-info">
+            <div class="stage-current">
+              <span class="stage-label">Current Stage:</span>
+              <span class="stage-name" id="growth-current-stage">--</span>
+            </div>
+            <div class="stage-days">
+              <span class="stage-label">Day</span>
+              <span class="stage-value" id="growth-days-in-stage">--</span>
+              <span class="stage-label">of ~</span>
+              <span class="stage-value" id="growth-days-total">--</span>
+            </div>
+          </div>
+          <div class="growth-stage-tip" id="growth-stage-tip">
+            <i class="fas fa-lightbulb"></i>
+            <span>Select a plant to see growth stage info</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Harvest Timeline -->
+    <div class="card harvest-timeline-card">
+      <div class="card-header">
+        <h3><i class="fas fa-calendar-check"></i> Harvest Timeline</h3>
+        <button class="btn btn-sm btn-outline-secondary" id="refresh-harvest-timeline" title="Refresh">
+          <i class="fas fa-sync-alt"></i>
+        </button>
+      </div>
+      <div class="card-body">
+        <div class="harvest-timeline" id="harvest-timeline">
+          <div class="harvest-timeline-track">
+            <div class="timeline-line"></div>
+            <div class="timeline-items" id="harvest-timeline-items">
+              <div class="empty-message">Loading harvest data...</div>
+            </div>
+          </div>
+        </div>
+        <div class="harvest-recent" id="harvest-recent">
+          <span class="harvest-recent-label">Recent:</span>
+          <span class="harvest-recent-value" id="harvest-recent-value">No recent harvests</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Unified Irrigation Control Center -->
+  <section class="dashboard-irrigation-section">
+    <div class="card irrigation-control-card">
+      <div class="card-header">
+        <h3><i class="fas fa-tint"></i> Irrigation Control</h3>
+        <div class="card-header-controls">
+          <select class="form-select form-select-sm irrigation-plant-selector" id="irrigation-plant-select" title="Select plant for irrigation recommendations" aria-label="Select plant">
+            <option value="">Select a plant...</option>
+          </select>
+          <button class="btn btn-sm btn-outline-secondary" id="refresh-irrigation" title="Refresh">
+            <i class="fas fa-sync-alt"></i>
+          </button>
+        </div>
+      </div>
+      <div class="card-body">
+        <!-- Two-column layout: Left = Status, Right = Recommendations -->
+        <div class="irrigation-control-grid">
+          <!-- Left Column: Schedule & Status -->
+          <div class="irrigation-status-column">
+            <!-- Countdown Timers -->
+            <div class="water-schedule-countdowns">
+              <div class="countdown-item">
+                <div class="countdown-icon"><i class="fas fa-tint"></i></div>
+                <div class="countdown-info">
+                  <span class="countdown-label">Next Water</span>
+                  <span class="countdown-value" id="next-water-countdown">--</span>
+                </div>
+              </div>
+              <div class="countdown-item">
+                <div class="countdown-icon"><i class="fas fa-flask"></i></div>
+                <div class="countdown-info">
+                  <span class="countdown-label">Next Feed</span>
+                  <span class="countdown-value" id="next-feed-countdown">--</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Soil Moisture Display -->
+            <div class="irrigation-soil-status">
+              <div class="soil-moisture-display">
+                <span class="soil-label">Soil Moisture</span>
+                <div class="soil-bar">
+                  <div class="soil-bar-fill" id="irrigation-soil-bar" style="width: 0%"></div>
+                </div>
+                <span class="soil-value" id="irrigation-soil-value">--%</span>
+              </div>
+              <div class="soil-thresholds">
+                <span class="threshold low">Dry</span>
+                <span class="threshold optimal">Optimal</span>
+                <span class="threshold high">Wet</span>
+              </div>
+            </div>
+
+            <!-- Week Schedule -->
+            <div class="water-schedule-week">
+              <div class="week-header">This Week's Schedule</div>
+              <div class="week-days" id="water-schedule-days">
+                <span class="day-item">S</span>
+                <span class="day-item">M</span>
+                <span class="day-item">T</span>
+                <span class="day-item">W</span>
+                <span class="day-item">T</span>
+                <span class="day-item">F</span>
+                <span class="day-item">S</span>
+              </div>
+              <div class="schedule-legend">
+                <span class="legend-item"><span class="legend-dot water"></span> Water</span>
+                <span class="legend-item"><span class="legend-dot feed"></span> Feed</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column: Recommendations & Actions -->
+          <div class="irrigation-recommendation-column">
+            <!-- AI Recommendation Banner -->
+            <div class="irrigation-recommendation-banner" id="irrigation-rec-banner">
+              <div class="rec-icon">
+                <i class="fas fa-info-circle"></i>
+              </div>
+              <div class="rec-content">
+                <span class="rec-action" id="irrigation-rec-action">Select a plant</span>
+                <span class="rec-reason" id="irrigation-rec-reason">Choose a plant to get irrigation recommendations</span>
+              </div>
+              <div class="rec-urgency">
+                <span class="urgency-badge low" id="irrigation-rec-urgency">-</span>
+              </div>
+            </div>
+
+            <!-- Next Irrigation Preview -->
+            <div class="irrigation-calculation-preview">
+              <h6 class="preview-title">Irrigation Stats</h6>
+              <div class="preview-stats">
+                <div class="preview-stat">
+                  <span class="preview-value" id="irrigation-last-run">--</span>
+                  <span class="preview-label">Last Run</span>
+                </div>
+                <div class="preview-stat">
+                  <span class="preview-value" id="irr-preview-volume">--</span>
+                  <span class="preview-label">Volume (ml)</span>
+                </div>
+                <div class="preview-stat">
+                  <span class="preview-value" id="irr-preview-duration">--</span>
+                  <span class="preview-label">Duration (s)</span>
+                </div>
+                <div class="preview-stat">
+                  <span class="preview-value" id="irr-preview-confidence">--</span>
+                  <span class="preview-label">Confidence</span>
+                </div>
+              </div>
+              <div class="preview-reasoning" id="irr-preview-reasoning">
+                <small class="text-muted">Select a plant to see AI-powered calculations</small>
+              </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="irrigation-quick-actions">
+              <button class="btn btn-primary" id="btn-irrigate-now" disabled>
+                <i class="fas fa-play"></i> Irrigate Now
+              </button>
+              <button class="btn btn-outline-primary" id="btn-water-now" title="Mark as Watered">
+                <i class="fas fa-tint"></i> Log Water
+              </button>
+              <button class="btn btn-outline-secondary" id="btn-feed-now" title="Mark as Fed">
+                <i class="fas fa-flask"></i> Log Feed
+              </button>
+            </div>
+            <div class="irrigation-secondary-actions">
+              <button class="btn btn-sm btn-outline-secondary" id="btn-calibrate-pump">
+                <i class="fas fa-sliders-h"></i> Calibrate Pump
+              </button>
+              <a href="{{ url_for('ui.settings') }}#automation" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-cog"></i> Settings
+              </a>
+            </div>
+
+            <!-- Telemetry -->
+            <div class="irrigation-telemetry">
+            <div class="telemetry-header">
+              <h6 class="telemetry-title"><i class="fas fa-chart-line"></i> Telemetry</h6>
+              <div class="telemetry-controls">
+                <div class="telemetry-range" role="group" aria-label="Telemetry range">
+                  <button class="btn btn-sm btn-outline-secondary" data-days="1">24h</button>
+                  <button class="btn btn-sm btn-outline-secondary active" data-days="7">7d</button>
+                  <button class="btn btn-sm btn-outline-secondary" data-days="30">30d</button>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="refresh-irrigation-telemetry" title="Refresh irrigation telemetry">
+                  <i class="fas fa-sync-alt"></i>
+                </button>
+              </div>
+            </div>
+              <div class="telemetry-tabs" id="irrigation-telemetry-tabs">
+                <button class="telemetry-tab active" data-tab="executions">Executions</button>
+                <button class="telemetry-tab" data-tab="eligibility">Eligibility</button>
+                <button class="telemetry-tab" data-tab="manual">Manual</button>
+              </div>
+              <div class="telemetry-list" id="irrigation-telemetry-list">
+                <div class="empty-message">Loading telemetry...</div>
+              </div>
+              <div class="telemetry-footnote" id="irrigation-telemetry-footnote"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Plants Section -->
+  <section class="dashboard-plants-section">
+    <div class="card">
+      <div class="card-header">
+        <h3><i class="fas fa-leaf"></i> Plants in Unit</h3>
+      </div>
+      <div class="card-body">
+        <div class="plants-grid" id="plants-container">
+          <div class="empty-message">Loading plants...</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Bottom Row: Actuators & Activity -->
+  <section class="dashboard-bottom-row">
+    <!-- Actuator Controls -->
+    <div class="card dashboard-actuators">
+      <div class="card-header">
+        <h3><i class="fas fa-toggle-on"></i> Actuator Controls</h3>
+      </div>
+      <div class="card-body">
+        <div class="actuators-grid" id="quick-actions" data-actuators="[]">
+          <div class="empty-message">Loading actuators...</div>
+        </div>
+        <div class="energy-summary" id="energy-summary">
+          <div class="energy-summary__power">
+            <i class="fas fa-bolt"></i>
+            <span>Total: <strong id="total-power">-- W</strong></span>
+          </div>
+          <div class="energy-summary__cost">
+            <span>Est. Daily: <strong id="daily-cost">$--</strong></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Activity -->
+      <div class="card dashboard-activity">
+      <div class="card-header">
+        <h3><i class="fas fa-history"></i> Recent Activity</h3>
+        <a href="{{ url_for('ui.system_health') }}" class="btn btn-sm btn-link">View All</a>
+      </div>
+      <div class="card-body">
+        <div class="activity-feed" id="recent-activity-list">
+          <div class="empty-message">No recent activity</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Connectivity & Device States Row -->
+  <section class="dashboard-connectivity-row">
+    <!-- Device Connectivity -->
+    <div class="card">
+      <div class="card-header">
+        <h3><i class="fas fa-wifi"></i> Device Connectivity</h3>
+        <div class="card-actions">
+          <select id="connectivity-type-filter" class="form-select form-select-sm" title="Filter by type">
+            <option value="">All Types</option>
+            <option value="sensor">Sensors</option>
+            <option value="actuator">Actuators</option>
+            <option value="controller">Controllers</option>
+          </select>
+          <button class="btn btn-sm btn-outline-secondary" id="refresh-connectivity" title="Refresh">
+            <i class="fas fa-sync-alt"></i>
+          </button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="connectivity-status-bar">
+          <span class="pill" id="connectivity-last-status">Checking...</span>
+        </div>
+        <div class="connectivity-list" id="connectivity-list">
+          <div class="empty-message">Loading device status...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Device States -->
+    <div class="card">
+      <div class="card-header">
+        <h3><i class="fas fa-exchange-alt"></i> Device State Changes</h3>
+        <button class="btn btn-sm btn-outline-secondary" id="refresh-state-feed" title="Refresh">
+          <i class="fas fa-sync-alt"></i>
+        </button>
+      </div>
+      <div class="card-body">
+        <div class="state-feed" id="recent-state-list">
+          <div class="empty-message">No recent state changes</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Critical Alerts Section (collapsed by default if no alerts) -->
+  <section class="dashboard-alerts-section" id="alerts-section" style="display: none;">
+    <div class="card card--warning">
+      <div class="card-header">
+        <h3><i class="fas fa-exclamation-triangle"></i> Critical Alerts</h3>
+        <button class="btn btn-sm btn-outline-warning" id="dismiss-alerts">Dismiss All</button>
+      </div>
+      <div class="card-body">
+        <div class="alerts-list" id="critical-alerts-list">
+          <div class="empty-message">No critical alerts</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/api.js') }}?v=20251228193000"></script>
+<script src="{{ url_for('static', filename='js/utils/cache-service.js') }}"></script>
+<script src="{{ url_for('static', filename='js/utils/base-manager.js') }}"></script>
+<script src="{{ url_for('static', filename='js/socket.js') }}"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+<!-- Reusable Components -->
+<script src="{{ url_for('static', filename='js/components/vpd-gauge.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/components/system-efficiency-score.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/components/kpi-card.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/components/actuator-panel.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/components/plant-health-card.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/components/plant-details-modal.js') }}?v=20251228193000"></script>
+  <script src="{{ url_for('static', filename='js/components/alert-timeline.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/components/energy-trends.js') }}"></script>
+<!-- Dashboard -->
+<script src="{{ url_for('static', filename='js/sensor-analytics/environmental-overview-chart.js') }}"></script>
+<script src="{{ url_for('static', filename='js/sensor-analytics/intelligent-alert-timeline.js') }}"></script>
+<!-- AI Dashboard -->
+<script src="{{ url_for('static', filename='js/ai_dashboard.js') }}"></script>
+<!-- Dashboard -->
+<script src="{{ url_for('static', filename='js/dashboard/data-service.js') }}"></script>
+<script src="{{ url_for('static', filename='js/dashboard/ui-manager.js') }}"></script>
+<script src="{{ url_for('static', filename='js/dashboard/main.js') }}"></script>
+<script>
+  // Initialize AI Insights Manager
+  document.addEventListener('DOMContentLoaded', function() {
+    if (typeof AIInsightsManager !== 'undefined' && typeof API !== 'undefined' && typeof SocketManager !== 'undefined') {
+      window.aiInsights = new AIInsightsManager(API, window.socketManager || SocketManager);
+    }
+  });
+</script>
+{% endblock %}

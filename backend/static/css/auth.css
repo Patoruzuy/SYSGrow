@@ -1,0 +1,198 @@
+/* Auth pages */
+body:has(.login-container) .header-actions,
+body:has(.login-container) .user-section,
+body:has(.login-container) .mobile-menu-toggle,
+body:has(.login-container) .sidebar { display: none !important; }
+body:has(.login-container) .modern-header { margin-bottom: 0; }
+body:has(.login-container) .header-container { justify-content: center; }
+body:has(.login-container) { padding-top: 0 !important; }
+
+.login-container { display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; min-height: 100vh; padding: var(--space-6) var(--space-3); background: var(--color-bg); }
+.login-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 480px;
+  width: 100%;
+  background: var(--card-bg);
+  padding: var(--space-6);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--card-border);
+}
+.logo-image { width: 120px; height: 120px; border-radius: var(--radius-lg); box-shadow: var(--shadow-md); margin-bottom: var(--space-4); object-fit: cover; }
+.auth-title { margin: 0 0 var(--space-3); font-size: 1.85rem; font-weight: 700; color: var(--color-text-strong); letter-spacing: 0.02em; }
+.auth-subtitle { margin: 0 0 var(--space-4); font-size: 0.95rem; color: var(--color-text-muted); text-align: center; line-height: 1.5; }
+.auth-subtitle strong { color: var(--color-text-strong); }
+
+.login-wrapper form { width: 100%; display: grid; gap: var(--space-2); }
+.login-wrapper form label { display: block; font-weight: 600; color: var(--color-text-strong); font-size: 0.95rem; }
+
+.login-wrapper form input[type="text"],
+.login-wrapper form input[type="password"],
+.login-wrapper form input[type="email"] {
+  width: 100%;
+  padding: var(--space-3);
+  border: 1px solid var(--border-200);
+  border-radius: var(--radius-md);
+  font-size: 1rem;
+  color: var(--color-text);
+  background: var(--card-bg-muted);
+  transition: border-color var(--motion-normal), box-shadow var(--motion-normal), background var(--motion-normal);
+}
+.login-wrapper form input:focus {
+  outline: none;
+  border-color: var(--brand-500);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-500) 25%, transparent);
+  background: var(--card-bg);
+}
+
+.login-wrapper form .auth-submit {
+  width: 100%;
+  padding: 0.95rem 1.5rem;
+  margin-top: 1rem;
+  background: linear-gradient(135deg, var(--brand-600), var(--brand-700));
+  color: var(--color-on-brand);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 1.05rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform var(--motion-normal), box-shadow var(--motion-normal);
+}
+.login-wrapper form .auth-submit:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+
+/* Checkbox styling for auth pages */
+.login-wrapper .checkbox-wrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.login-wrapper .checkbox-wrapper .form-checkbox {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--brand-600);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.login-wrapper .checkbox-wrapper .form-label {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.login-wrapper .checkbox-field {
+  margin-top: var(--space-2);
+}
+
+.login-wrapper .checkbox-field .field-hint {
+  margin-left: calc(18px + var(--space-2));
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.forgot-password-link { text-align: right; margin-top: var(--space-1); }
+.forgot-password-link a { font-size: 0.9rem; color: var(--brand-600); text-decoration: none; transition: color var(--motion-normal); }
+.forgot-password-link a:hover { color: var(--brand-700); text-decoration: underline; }
+
+.auth-footer { width: 100%; margin-top: var(--space-4); padding-top: var(--space-3); border-top: 2px solid var(--card-border); text-align: center; }
+.auth-footer p { margin: 0 0 var(--space-3); color: var(--color-text-muted); }
+
+.btn-register-link {
+  display: inline-block;
+  width: 100%;
+  padding: 0.85rem 1.5rem;
+  border-radius: var(--radius-md);
+  font-size: 1rem;
+  font-weight: 700;
+  background: var(--card-bg);
+  color: var(--brand-700);
+  border: 2px solid var(--brand-700);
+  text-decoration: none;
+  transition: transform var(--motion-normal), box-shadow var(--motion-normal), background var(--motion-normal), color var(--motion-normal);
+}
+.btn-register-link:hover { background: var(--brand-700); color: var(--color-on-brand); transform: translateY(-1px); box-shadow: var(--shadow-md); }
+
+.logout-confirmation { text-align: center; padding: var(--space-5); background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-lg); box-shadow: var(--card-shadow); max-width: 480px; margin: var(--space-6) auto; display: flex; flex-direction: column; gap: var(--space-3); }
+
+/* Recovery Options (Forgot Password page) */
+.recovery-option {
+  width: 100%;
+  padding: var(--space-4);
+  background: var(--card-bg-muted);
+  border: 1px solid var(--border-200);
+  border-radius: var(--radius-md);
+}
+
+.recovery-option-title {
+  margin: 0 0 var(--space-2);
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-text-strong);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.recovery-option-title i {
+  color: var(--brand-600);
+}
+
+.recovery-option-desc {
+  margin: 0 0 var(--space-3);
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+}
+
+.recovery-option form {
+  margin-top: var(--space-2);
+}
+
+.recovery-divider {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: var(--space-4) 0;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.recovery-divider::before,
+.recovery-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-200);
+}
+
+/* Secondary auth button (for recovery code link) */
+.auth-submit--secondary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 0.85rem 1.5rem;
+  background: var(--card-bg);
+  color: var(--brand-700);
+  border: 2px solid var(--brand-600);
+  border-radius: var(--radius-md);
+  font-size: 1rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: transform var(--motion-normal), box-shadow var(--motion-normal), background var(--motion-normal), color var(--motion-normal);
+}
+
+.auth-submit--secondary:hover {
+  background: var(--brand-600);
+  color: var(--color-on-brand);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}

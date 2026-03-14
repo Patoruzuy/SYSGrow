@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% import "macros.html" as ui %}
+
+{% block body_class %}auth-page{% endblock %}
+
+{% block content %}
+<div class="main-content login-container">
+  <div class="login-wrapper">
+    <img src="{{ url_for('static', filename='images/logo.jpg') }}" class="logo-image" alt="SYSGrow logo">
+    <h2 class="auth-title">Recover Account</h2>
+    <p class="auth-subtitle">Enter your username and one of your recovery codes to reset your password.</p>
+    <form method="POST" action="{{ url_for('auth.recover') }}" novalidate>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      {{ ui.form_field('username', 'Username', required=True, placeholder='Enter your username') }}
+      {{ ui.form_field('recovery_code', 'Recovery Code', required=True, placeholder='XXXX-XXXX') }}
+      {{ ui.form_field('new_password', 'New Password', type='password', required=True, placeholder='Enter new password (min 8 characters)') }}
+      {{ ui.form_field('confirm_password', 'Confirm Password', type='password', required=True, placeholder='Confirm your new password') }}
+      <button type="submit" class="auth-submit">Reset Password</button>
+    </form>
+    <div class="auth-footer">
+      <p>Remember your password?</p>
+      <a href="{{ url_for('auth.login') }}" class="btn-register-link">
+        <i class="fas fa-sign-in-alt"></i> Back to Login
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}

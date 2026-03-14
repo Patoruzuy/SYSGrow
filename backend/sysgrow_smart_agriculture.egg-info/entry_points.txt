@@ -1,0 +1,4 @@
+[console_scripts]
+sysgrow-backend = smart_agriculture_app:main
+sysgrow-ml-trainer = ai.enhanced_ml_trainer:main
+sysgrow-scheduler = app.workers.scheduler_cli:main

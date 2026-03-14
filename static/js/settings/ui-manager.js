@@ -2620,6 +2620,11 @@ class SettingsUIManager extends BaseManager {
       this.addEventListener(closeScheduleModalBtn, 'click', () => this.closeScheduleModal());
     }
 
+    const cancelScheduleBtn = document.getElementById('cancel-schedule-btn');
+    if (cancelScheduleBtn) {
+      this.addEventListener(cancelScheduleBtn, 'click', () => this.closeScheduleModal());
+    }
+
     // Modal close buttons (generic)
     document.querySelectorAll('[data-action="close-modal"]').forEach(btn => {
       this.addEventListener(btn, 'click', () => {

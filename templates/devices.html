@@ -6,8 +6,6 @@
 
 {% block styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/devices.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/components/alerts.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -34,14 +32,14 @@
     ) }}
 
     <!-- Contextual Help Banner -->
-    {{ ui.help_banner(
-      title='New to device management?',
-      text='Learn how to add sensors, calibrate readings, and set up schedules.',
-      icon='lightbulb',
-      link_text='Calibration Guide',
-      category='sensors',
-      article_id='sensor-calibration'
-    ) }}
+    <div class="help-banner">
+      <i class="fas fa-lightbulb"></i>
+      <div class="help-banner-content">
+        <p class="help-banner-title">New to device management?</p>
+        <p class="help-banner-text">Learn how to add sensors, calibrate readings, and set up schedules.</p>
+      </div>
+      {{ ui.help_link('sensors', 'sensor-calibration', 'Calibration Guide') }}
+    </div>
 
     <input type="hidden" id="selected-unit-id" value="{{ selected_unit_id or '' }}">
 
@@ -1337,8 +1335,11 @@
 
 <!-- Load utilities first -->
 <script src="{{ url_for('static', filename='js/utils/cache-service.js') }}?v=20251214170523"></script>
-<script src="{{ url_for('static', filename='js/utils/modal.js') }}?v=20251214170523"></script>
+<script src="{{ url_for('static', filename='js/utils/modal.js') }}?v=20260308a"></script>
 <script src="{{ url_for('static', filename='js/utils/base-manager.js') }}?v=20251214170523"></script>
+
+<!-- Load API layer -->
+<script src="{{ url_for('static', filename='js/api.js') }}?v=20251214170600"></script>
 
 <!-- Load Socket.IO manager (used for Zigbee live updates) -->
 <script src="{{ url_for('static', filename='js/socket.js') }}?v=20251214170600"></script>

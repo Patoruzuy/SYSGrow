@@ -5,10 +5,9 @@ Application-level service for managing plants and their sensor relationships.
 
 This service provides plant-specific operations including:
 - Plant CRUD operations (direct access to unit runtimes)
-- Plant-sensor linking with validation (via PlantDeviceLinker)
+- Plant-sensor linking with validation
 - Available sensors discovery with friendly names
 - Plant status and monitoring
-- Growth-stage transitions and threshold proposals (via PlantStageManager)
 
 Responsibilities:
 - Own plant/sensor linking and in-memory plant state (single source of truth)
@@ -17,47 +16,39 @@ Responsibilities:
 - Coordinate with SensorManagementService for sensor information
 - Generate friendly sensor names for UI
 - Validate plant-sensor compatibility
-
-Architecture (audit item #8):
-- PlantDeviceLinker: sensor/actuator linking operations
-- PlantStageManager: stage transitions, threshold proposals, condition profiles
-- PlantViewService: CRUD, cache, metadata delegation, and thin façade
 """
-
 from __future__ import annotations
 
-import logging
 import threading
-from typing import TYPE_CHECKING, Any
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
+import logging
 
 from app.domain.plant_profile import PlantProfile
-from app.enums.device import ActuatorType
-from app.services.application.activity_logger import ActivityLogger, log_if_available
-from app.services.application.plant_device_linker import PlantDeviceLinker
-from app.services.application.plant_stage_manager import PlantStageManager
 
 if TYPE_CHECKING:
     from app.services.application.growth_service import GrowthService
-    from app.services.application.notifications_service import NotificationsService
+    from app.services.application.activity_logger import ActivityLogger
     from app.services.application.threshold_service import ThresholdService
+    from app.services.application.notifications_service import NotificationsService
     from app.services.hardware import SensorManagementService
     from app.utils.plant_json_handler import PlantJsonHandler
 
-from app.enums.common import ConditionProfileMode, ConditionProfileTarget
-from app.enums.events import PlantEvent, SensorEvent
-from app.schemas.events import PlantLifecyclePayload
 from app.utils.event_bus import EventBus
+from app.enums.events import PlantEvent, SensorEvent
+from app.domain.actuators import ActuatorType
+from app.hardware.compat.enums import app_to_infra_actuator_type
+from app.schemas.events import PlantStageUpdatePayload, PlantLifecyclePayload
 
 logger = logging.getLogger(__name__)
 
 
-def _row_to_dict(row) -> dict[str, Any]:
+def _row_to_dict(row) -> Dict[str, Any]:
     """Convert database row to dictionary."""
     if row is None:
         return {}
     if isinstance(row, dict):
         return row
-    return dict(row)
+    return {k: row[k] for k in row.keys()}
 
 
 class PlantViewService:
@@ -71,28 +62,23 @@ class PlantViewService:
     - Views: list_plants, get_plant, get_plant_sensors
     - Updates: update_plant, update_plant_stage, link/unlink sensors
     - Lifecycle (create/remove) via GrowthService delegation
-
-    Architecture (audit item #8 — god-class split):
-    - Device linking delegated to ``PlantDeviceLinker``
-    - Stage transitions / threshold proposals delegated to ``PlantStageManager``
-    - CRUD, cache, metadata delegation stay here
     """
-
+    
     def __init__(
         self,
-        growth_service: "GrowthService",
-        sensor_service: "SensorManagementService",
-        plant_repo: Any | None = None,
-        unit_repo: Any | None = None,
-        event_bus: EventBus | None = None,
-        activity_logger: "ActivityLogger" | None = None,
-        plant_json_handler: "PlantJsonHandler" | None = None,
-        threshold_service: "ThresholdService" | None = None,
-        notifications_service: "NotificationsService" | None = None,
+        growth_service: 'GrowthService',
+        sensor_service: 'SensorManagementService',
+        plant_repo: Optional[Any] = None,
+        unit_repo: Optional[Any] = None,
+        event_bus: Optional[EventBus] = None,
+        activity_logger: Optional['ActivityLogger'] = None,
+        plant_json_handler: Optional['PlantJsonHandler'] = None,
+        threshold_service: Optional['ThresholdService'] = None,
+        notifications_service: Optional['NotificationsService'] = None,
     ):
         """
         Initialize plant service.
-
+        
         Args:
             growth_service: Service for accessing unit runtimes
             sensor_service: Service for sensor operations
@@ -110,74 +96,57 @@ class PlantViewService:
         self.activity_logger = activity_logger
         self.threshold_service = threshold_service
         self.notifications_service = notifications_service
-
+        
         # Plant JSON handler for growth stages (lazy init if not provided)
         self._plant_json_handler = plant_json_handler
-
+        
         # Direct access to repositories for plant operations
         # PlantRepository must be provided (no fallback)
         if plant_repo is None:
             raise ValueError("plant_repo is required - PlantRepository must be provided")
         if unit_repo is None:
             raise ValueError("unit_repo is required - UnitRepository must be provided")
-
+        
         self.plant_repo = plant_repo
         self.unit_repo = unit_repo
         self.analytics_repo = growth_service.analytics_repo
         self.audit_logger = growth_service.audit_logger
         self.devices_repo = growth_service.devices_repo
-
-        # ==================== Extracted Helpers (audit item #8) ====================
-        self._device_linker = PlantDeviceLinker(
-            plant_repo=plant_repo,
-            sensor_service=sensor_service,
-            devices_repo=self.devices_repo,
-            audit_logger=self.audit_logger,
-        )
-        self._stage_manager = PlantStageManager(
-            plant_repo=plant_repo,
-            event_bus=self.event_bus,
-            threshold_service=threshold_service,
-            notifications_service=notifications_service,
-            activity_logger=activity_logger,
-        )
-        self._stage_manager.set_unit_repo(unit_repo)
-
+        
         # ==================== In-Memory Plant Storage ====================
         # Primary plant storage: unit_id -> {plant_id: PlantProfile}
         # This is the single source of truth for plant state
-        self._plants: dict[int, dict[int, PlantProfile]] = {}
+        self._plants: Dict[int, Dict[int, PlantProfile]] = {}
         self._plants_lock = threading.Lock()
-
+        
         # Track active plant per unit: unit_id -> plant_id
-        self._active_plants: dict[int, int] = {}
-
+        self._active_plants: Dict[int, int] = {}
+        
         self.event_bus.subscribe(SensorEvent.SOIL_MOISTURE_UPDATE, self._handle_soil_moisture_update)
 
         logger.info("PlantViewService initialized with in-memory plant storage")
 
     # ==================== Plant JSON Handler ====================
-
+    
     @property
-    def plant_json_handler(self) -> "PlantJsonHandler":
+    def plant_json_handler(self) -> 'PlantJsonHandler':
         """Lazy-load PlantJsonHandler if not provided at init."""
         if self._plant_json_handler is None:
             from app.utils.plant_json_handler import PlantJsonHandler
-
             self._plant_json_handler = PlantJsonHandler()
         return self._plant_json_handler
 
     # ==================== In-Memory Plant Management ====================
-
-    def _get_unit_plants(self, unit_id: int) -> dict[int, PlantProfile]:
+    
+    def _get_unit_plants(self, unit_id: int) -> Dict[int, PlantProfile]:
         """
         Get or initialize plant collection for a unit.
-
+        
         Thread-safe access to the unit's plant dictionary.
-
+        
         Args:
             unit_id: Unit identifier
-
+            
         Returns:
             Dictionary of plant_id -> PlantProfile for the unit
         """
@@ -185,14 +154,14 @@ class PlantViewService:
             if unit_id not in self._plants:
                 self._plants[unit_id] = {}
             return self._plants[unit_id]
-
-    def get_active_plant(self, unit_id: int) -> PlantProfile | None:
+    
+    def get_active_plant(self, unit_id: int) -> Optional[PlantProfile]:
         """
         Get the active plant for a unit.
-
+        
         Args:
             unit_id: Unit identifier
-
+            
         Returns:
             Active PlantProfile or None
         """
@@ -202,13 +171,13 @@ class PlantViewService:
                 return None
             unit_plants = self._plants.get(unit_id, {})
             return unit_plants.get(active_plant_id)
-
+    
     def clear_unit_plants(self, unit_id: int) -> None:
         """
         Clear all plants for a unit from memory.
-
+        
         Called when a unit is stopped or deleted.
-
+        
         Args:
             unit_id: Unit identifier
         """
@@ -217,14 +186,14 @@ class PlantViewService:
             self._active_plants.pop(unit_id, None)
             if removed_count > 0:
                 logger.debug("Cleared %d plants from memory for unit %s", removed_count, unit_id)
-
+    
     def is_unit_loaded(self, unit_id: int) -> bool:
         """
         Check if plants for a unit are loaded in memory.
-
+        
         Args:
             unit_id: Unit identifier
-
+            
         Returns:
             True if unit has been loaded (even if empty)
         """
@@ -232,38 +201,36 @@ class PlantViewService:
             return unit_id in self._plants
 
     # ==================== PlantProfile Creation ====================
-
+    
     def _create_plant_profile(
         self,
         plant_id: int,
         plant_name: str,
         plant_type: str,
         current_stage: str,
-        plant_species: str | None = None,
-        plant_variety: str | None = None,
+        plant_species: Optional[str] = None,
+        plant_variety: Optional[str] = None,
         days_in_stage: int = 0,
         moisture_level: float = 0.0,
-        growth_stages: Any | None = None,
-        lighting_schedule: dict[str, dict[str, Any]] | None = None,
+        growth_stages: Optional[Any] = None,
+        lighting_schedule: Optional[Dict[str, Dict[str, Any]]] = None,
         pot_size_liters: float = 0.0,
         pot_material: str = "plastic",
         growing_medium: str = "soil",
         medium_ph: float = 7.0,
-        strain_variety: str | None = None,
+        strain_variety: Optional[str] = None,
         expected_yield_grams: float = 0.0,
         light_distance_cm: float = 0.0,
-        gdd_base_temp_c: float | None = None,
-        soil_moisture_threshold_override: float | None = None,
-        condition_profile_id: str | None = None,
-        condition_profile_mode: ConditionProfileMode | None = None,
+        gdd_base_temp_c: Optional[float] = None,
+        soil_moisture_threshold_override: Optional[float] = None,
         **kwargs: Any,  # Added to prevent TypeError if legacy keys like aqi_threshold_override are passed
     ) -> PlantProfile:
         """
         Create a PlantProfile domain object.
-
+        
         This is the ONLY method that creates PlantProfile instances.
         Centralizes growth stage resolution, lighting schedule, and plant metadata.
-
+        
         Args:
             plant_id: Database ID of the plant
             plant_name: Name of the plant
@@ -284,7 +251,7 @@ class PlantViewService:
             light_distance_cm: Light distance
             gdd_base_temp_c: GDD base temperature
             soil_moisture_threshold_override: Soil moisture threshold override
-
+            
         Returns:
             PlantProfile instance
         """
@@ -292,37 +259,37 @@ class PlantViewService:
         if growth_stages is None:
             try:
                 growth_stages = self.plant_json_handler.get_growth_stages(plant_type)
-            except (KeyError, TypeError, ValueError, OSError) as e:
+            except Exception as e:
                 logger.warning(
                     "Could not load growth stages for %s: %s",
                     plant_type,
                     e,
                 )
                 growth_stages = []
-
+        
         # Load lighting schedule if not provided
         if lighting_schedule is None:
             try:
                 lighting_schedule = self.plant_json_handler.get_lighting_schedule(plant_type)
-            except (KeyError, TypeError, ValueError, OSError) as e:
+            except Exception as e:
                 logger.debug(
                     "Could not load lighting schedule for %s: %s",
                     plant_type,
                     e,
                 )
                 lighting_schedule = {}
-
+        
         # Load GDD base temperature if not provided
         if gdd_base_temp_c is None:
             try:
                 gdd_base_temp_c = self.plant_json_handler.get_gdd_base_temp_c(plant_type)
-            except (KeyError, TypeError, ValueError, OSError) as e:
+            except Exception as e:
                 logger.debug(
                     "Could not load gdd_base_temp_c for %s: %s",
                     plant_type,
                     e,
                 )
-
+        
         return PlantProfile(
             plant_id=plant_id,
             plant_name=plant_name,
@@ -343,20 +310,18 @@ class PlantViewService:
             expected_yield_grams=expected_yield_grams,
             light_distance_cm=light_distance_cm,
             soil_moisture_threshold_override=soil_moisture_threshold_override,
-            condition_profile_id=condition_profile_id,
-            condition_profile_mode=condition_profile_mode,
         )
 
     def create_plant_profile(self, **kwargs: Any) -> PlantProfile:
         """
         Public factory method for creating PlantProfile instances.
-
+        
         This is the ONLY public entry point for creating PlantProfile objects.
         Used by UnitRuntimeFactory and other services that need to create plants.
-
+        
         Automatically loads growth stages, lighting schedule, and GDD base temperature
         from PlantJsonHandler if not provided.
-
+        
         Args:
             **kwargs: All PlantProfile constructor arguments. Required:
                 - plant_id: int
@@ -367,33 +332,33 @@ class PlantViewService:
                 - growth_stages: List[Dict]
                 - lighting_schedule: Dict[str, Dict[str, Any]]
                 - gdd_base_temp_c: float
-
+            
         Returns:
             PlantProfile instance with all metadata populated
         """
         return self._create_plant_profile(**kwargs)
-
-    def load_plants_for_unit(self, unit_id: int, active_plant_id: int | None = None) -> int:
+    
+    def load_plants_for_unit(self, unit_id: int, active_plant_id: Optional[int] = None) -> int:
         """
         Load all plants for a unit from database into memory.
-
+        
         Called by GrowthService when starting a unit runtime.
         Uses memory-first pattern: clears existing and reloads from DB.
-
+        
         Args:
             unit_id: Unit identifier
             active_plant_id: Optional plant ID to set as active
-
+            
         Returns:
             Number of plants loaded
         """
         try:
             # Clear existing plants for this unit
             self.clear_unit_plants(unit_id)
-
+            
             # Load from database
             plant_data_list = self.plant_repo.get_plants_in_unit(unit_id)
-
+            
             loaded_count = 0
             for plant_data in plant_data_list:
                 plant_id = plant_data.get("plant_id")
@@ -404,7 +369,7 @@ class PlantViewService:
                         plant_data,
                     )
                     continue
-
+                
                 # Create PlantProfile using our factory method
                 plant = self._create_plant_profile(
                     plant_id=plant_id,
@@ -424,7 +389,7 @@ class PlantViewService:
                     light_distance_cm=plant_data.get("light_distance_cm", 0.0),
                     soil_moisture_threshold_override=plant_data.get("soil_moisture_threshold_override"),
                 )
-
+                
                 # Add to memory
                 with self._plants_lock:
                     if unit_id not in self._plants:
@@ -437,7 +402,7 @@ class PlantViewService:
                         unit_id,
                     )
                 loaded_count += 1
-
+            
             # Set active plant if specified
             if active_plant_id is not None:
                 with self._plants_lock:
@@ -451,23 +416,24 @@ class PlantViewService:
                             active_plant_id,
                             unit_id,
                         )
-
+            
             logger.info("Loaded %d plants for unit %s", loaded_count, unit_id)
             return loaded_count
-
-        except (KeyError, TypeError, ValueError, OSError) as e:
+            
+        except Exception as e:
             logger.error("Error loading plants for unit %s: %s", unit_id, e, exc_info=True)
             return 0
 
-    # ==================== Plant CRUD Operations ====================
 
-    def list_plants(self, unit_id: int) -> list[PlantProfile]:
+    # ==================== Plant CRUD Operations ====================
+    
+    def list_plants(self, unit_id: int) -> List[PlantProfile]:
         """
         List all plants in a unit using memory-first pattern.
-
+        
         Args:
             unit_id: Unit identifier
-
+            
         Returns:
             List of PlantProfile objects
         """
@@ -477,60 +443,60 @@ class PlantViewService:
                 with self._plants_lock:
                     unit_plants = self._plants.get(unit_id, {})
                     return list(unit_plants.values())
-
+            
             # Fallback: load from database
             logger.debug("Plants for unit %s not in memory, loading from database", unit_id)
             self.load_plants_for_unit(unit_id)
             with self._plants_lock:
                 unit_plants = self._plants.get(unit_id, {})
                 return list(unit_plants.values())
-
-        except (KeyError, TypeError, ValueError, OSError) as e:
-            logger.error("Error listing plants for unit %s: %s", unit_id, e, exc_info=True)
+            
+        except Exception as e:
+            logger.error(f"Error listing plants for unit {unit_id}: {e}", exc_info=True)
             return []
 
-    def list_plants_as_dicts(self, unit_id: int) -> list[dict[str, Any]]:
+    def list_plants_as_dicts(self, unit_id: int) -> List[Dict[str, Any]]:
         """
         List all plants in a unit as dictionaries with metadata.
-
+        
         Compatibility method for API endpoints that expect dicts.
-
+        
         Args:
             unit_id: Unit identifier
-
+            
         Returns:
             List of plant dictionaries with linked sensor information
         """
         try:
             plants = self.list_plants(unit_id)
-            result: list[dict[str, Any]] = []
-
+            result: List[Dict[str, Any]] = []
+            
             runtime = self.growth_service.get_unit_runtime(unit_id)
             unit_name = getattr(runtime, "unit_name", None) if runtime else None
-
+            
             for plant_obj in plants:
                 plant = plant_obj.to_dict()
                 plant["unit_id"] = unit_id
                 if unit_name:
                     plant["unit_name"] = unit_name
-
+                
                 # Normalize legacy field names
                 if plant.get("name") in (None, "") and plant.get("plant_name") not in (None, ""):
                     plant["name"] = plant.get("plant_name")
                 if plant.get("plant_name") in (None, "") and plant.get("name"):
                     plant["plant_name"] = plant.get("name")
-
+                
                 # Add linked sensor IDs
                 sensor_ids = self.get_plant_sensor_ids(plant_obj.plant_id)
                 plant["linked_sensor_ids"] = sensor_ids
                 plant["sensor_count"] = len(sensor_ids)
-
+                
                 result.append(plant)
-
+            
             return result
-
-        except (KeyError, TypeError, ValueError, AttributeError) as e:
-            logger.error("Error listing plants as dicts for unit %s: %s", unit_id, e, exc_info=True)
+            
+        except Exception as e:
+            logger.error(f"Error listing plants as dicts for unit {unit_id}: {e}", exc_info=True)
             return []
 
     def _resolve_initial_soil_moisture_threshold(
@@ -538,14 +504,14 @@ class PlantViewService:
         *,
         plant_type: str,
         plant_name: str,
-    ) -> float | None:
+    ) -> Optional[float]:
         """Resolve a starting soil moisture trigger for a new plant."""
         for name in (plant_type, plant_name):
             if not name:
                 continue
             try:
                 value = self.plant_json_handler.get_soil_moisture_trigger(name)
-            except (KeyError, TypeError, ValueError, OSError) as exc:
+            except Exception as exc:
                 logger.debug("Failed to resolve soil moisture trigger for %s: %s", name, exc, exc_info=True)
                 continue
             if value is None:
@@ -558,57 +524,34 @@ class PlantViewService:
             if 0 <= value <= 100:
                 return value
         return None
-
-    def _resolve_historical_threshold_overrides(
-        self,
-        *,
-        unit_id: int,
-        plant_type: str,
-        growth_stage: str,
-        plant_variety: str | None,
-        strain_variety: str | None,
-        pot_size_liters: float | None,
-    ) -> dict[str, float]:
-        """Fetch the latest stored overrides for a matching plant context.  Delegates to PlantStageManager."""
-        return self._stage_manager.resolve_historical_threshold_overrides(
-            unit_id=unit_id,
-            plant_type=plant_type,
-            growth_stage=growth_stage,
-            plant_variety=plant_variety,
-            strain_variety=strain_variety,
-            pot_size_liters=pot_size_liters,
-        )
-
+    
     def create_plant(
         self,
         unit_id: int,
         plant_name: str,
         plant_type: str,
         current_stage: str,
-        plant_species: str | None = None,
-        plant_variety: str | None = None,
+        plant_species: Optional[str] = None,
+        plant_variety: Optional[str] = None,
         days_in_stage: int = 0,
         moisture_level: float = 0.0,
-        sensor_ids: list[int] | None = None,
-        soil_moisture_threshold_override: float | None = None,
-        condition_profile_id: str | None = None,
-        condition_profile_mode: ConditionProfileMode | None = None,
-        condition_profile_name: str | None = None,
+        sensor_ids: Optional[List[int]] = None,
+        soil_moisture_threshold_override: Optional[float] = None,
         # Creation-time fields
         pot_size_liters: float = 0.0,
         pot_material: str = "plastic",
         growing_medium: str = "soil",
         medium_ph: float = 7.0,
-        strain_variety: str | None = None,
+        strain_variety: Optional[str] = None,
         expected_yield_grams: float = 0.0,
         light_distance_cm: float = 0.0,
-    ) -> dict[str, Any] | None:
+    ) -> Optional[Dict[str, Any]]:
         """
         Create a new plant and optionally link sensors.
-
+        
         Owns the complete plant lifecycle: DB persistence, in-memory state, events.
         GrowthService.add_plant_to_unit() is now a thin wrapper that calls this method.
-
+        
         Args:
             unit_id: Unit identifier
             plant_name: Plant name
@@ -619,9 +562,6 @@ class PlantViewService:
             days_in_stage: Days in current stage
             sensor_ids: Optional list of sensor IDs to link
             soil_moisture_threshold_override: Optional per-plant soil moisture trigger
-            condition_profile_id: Optional condition profile id to seed thresholds
-            condition_profile_mode: Optional profile mode (active/template)
-            condition_profile_name: Optional name for cloned profile
             pot_size_liters: Container size in liters
             pot_material: Container material (plastic, ceramic, fabric, etc.)
             growing_medium: Growing medium (soil, coco_coir, hydroponics, etc.)
@@ -629,7 +569,7 @@ class PlantViewService:
             strain_variety: Specific cultivar/strain name
             expected_yield_grams: Target harvest amount
             light_distance_cm: Initial light distance
-
+            
         Returns:
             Plant dictionary with linked sensors or None
 
@@ -647,102 +587,14 @@ class PlantViewService:
             if light_distance_cm < 0:
                 raise ValueError(f"Light distance {light_distance_cm} must be >= 0")
 
-            if condition_profile_mode and not isinstance(condition_profile_mode, ConditionProfileMode):
-                try:
-                    condition_profile_mode = ConditionProfileMode(str(condition_profile_mode))
-                except ValueError as e:
-                    raise ValueError("Invalid condition profile mode") from e
-
-            historical_overrides = self._resolve_historical_threshold_overrides(
-                unit_id=unit_id,
-                plant_type=plant_type,
-                growth_stage=current_stage,
-                plant_variety=plant_variety,
-                strain_variety=strain_variety,
-                pot_size_liters=pot_size_liters if pot_size_liters > 0 else None,
-            )
-            profile_override = None
-            profile_present = False
-            selected_profile_id = None
-            selected_profile_mode = None
-            profile_service = None
-            user_id = self._get_unit_owner(unit_id)
-            if self.threshold_service and user_id:
-                profile_service = getattr(self.threshold_service, "personalized_learning", None)
-                if condition_profile_id and not profile_service:
-                    raise ValueError("Condition profile service not available")
-                if condition_profile_id and profile_service:
-                    profile = profile_service.get_condition_profile_by_id(
-                        user_id=user_id,
-                        profile_id=condition_profile_id,
-                    )
-                    if not profile:
-                        raise ValueError("Condition profile not found")
-                    desired_mode = condition_profile_mode or profile.mode
-                    if profile.mode == ConditionProfileMode.TEMPLATE and desired_mode == ConditionProfileMode.ACTIVE:
-                        cloned = profile_service.clone_condition_profile(
-                            user_id=user_id,
-                            source_profile_id=profile.profile_id,
-                            name=condition_profile_name,
-                            mode=ConditionProfileMode.ACTIVE,
-                        )
-                        if cloned:
-                            profile = cloned
-                            desired_mode = ConditionProfileMode.ACTIVE
-                    profile_present = True
-                    profile_override = profile.soil_moisture_threshold
-                    selected_profile_id = profile.profile_id
-                    selected_profile_mode = desired_mode
-                else:
-                    if profile_service:
-                        link = profile_service.get_condition_profile_link(
-                            user_id=user_id,
-                            target_type=ConditionProfileTarget.UNIT,
-                            target_id=int(unit_id),
-                        )
-                        if link:
-                            unit_profile = profile_service.get_condition_profile_by_id(
-                                user_id=user_id,
-                                profile_id=link.profile_id,
-                            )
-                            if unit_profile and (
-                                str(unit_profile.plant_type or "").strip().lower()
-                                == str(plant_type or "").strip().lower()
-                                and str(unit_profile.growth_stage or "").strip().lower()
-                                == str(current_stage or "").strip().lower()
-                            ):
-                                profile_present = True
-                                profile_override = unit_profile.soil_moisture_threshold
-                                selected_profile_id = unit_profile.profile_id
-                                selected_profile_mode = link.mode
-
-                    if not profile_present:
-                        profile = self.threshold_service.get_condition_profile(
-                            user_id=user_id,
-                            plant_type=plant_type,
-                            growth_stage=current_stage,
-                            plant_variety=plant_variety,
-                            strain_variety=strain_variety,
-                            pot_size_liters=pot_size_liters if pot_size_liters > 0 else None,
-                        )
-                        if profile:
-                            profile_present = True
-                            profile_override = profile.get("soil_moisture_threshold")
-
             if soil_moisture_threshold_override is None:
-                if profile_override is not None:
-                    soil_moisture_threshold_override = profile_override
-                else:
-                    soil_moisture_threshold_override = historical_overrides.get("soil_moisture_threshold")
-                if soil_moisture_threshold_override is None:
-                    soil_moisture_threshold_override = self._resolve_initial_soil_moisture_threshold(
-                        plant_type=plant_type,
-                        plant_name=plant_name,
-                    )
+                soil_moisture_threshold_override = self._resolve_initial_soil_moisture_threshold(
+                    plant_type=plant_type,
+                    plant_name=plant_name,
+                )
 
             # Create plant in DB
             from datetime import datetime, timedelta
-
             now = datetime.now()
             plant_id = self.plant_repo.create_plant(
                 plant_name=plant_name,
@@ -764,25 +616,16 @@ class PlantViewService:
                 light_distance_cm=light_distance_cm,
                 soil_moisture_threshold_override=soil_moisture_threshold_override,
             )
-
+            
             if not plant_id:
-                logger.error("Failed to create plant '%s' in DB", plant_name)
+                logger.error(f"Failed to create plant '{plant_name}' in DB")
                 return None
-
-            if selected_profile_id and user_id and profile_service:
-                profile_service.link_condition_profile(
-                    user_id=user_id,
-                    target_type=ConditionProfileTarget.PLANT,
-                    target_id=int(plant_id),
-                    profile_id=selected_profile_id,
-                    mode=selected_profile_mode or ConditionProfileMode.ACTIVE,
-                )
 
             # Assign plant to unit
             try:
                 self.plant_repo.assign_plant_to_unit(unit_id, plant_id)
-            except (KeyError, TypeError, ValueError, OSError) as exc:
-                logger.debug("Failed to assign plant %s to unit %s: %s", plant_id, unit_id, exc, exc_info=True)
+            except Exception as exc:
+                logger.debug(f"Failed to assign plant {plant_id} to unit {unit_id}: {exc}", exc_info=True)
 
             # Create PlantProfile in memory
             plant_profile = self.create_plant_profile(
@@ -802,10 +645,8 @@ class PlantViewService:
                 expected_yield_grams=expected_yield_grams,
                 light_distance_cm=light_distance_cm,
                 soil_moisture_threshold_override=soil_moisture_threshold_override,
-                condition_profile_id=selected_profile_id,
-                condition_profile_mode=selected_profile_mode,
             )
-
+            
             # Add to in-memory collection
             with self._plants_lock:
                 if unit_id not in self._plants:
@@ -817,21 +658,13 @@ class PlantViewService:
                     plant_profile.plant_name,
                     unit_id,
                 )
-
+            
             # Emit event (GrowthService may subscribe for cache invalidation)
             self.event_bus.publish(
                 PlantEvent.PLANT_ADDED,
                 PlantLifecyclePayload(unit_id=unit_id, plant_id=plant_id),
             )
-
-            if historical_overrides or profile_present:
-                self._propose_stage_thresholds(
-                    plant=plant_profile,
-                    old_stage="initial",
-                    new_stage=current_stage,
-                    seed_overrides=historical_overrides,
-                )
-
+            
             # Audit logging
             self.audit_logger.log_event(
                 actor="system",
@@ -843,28 +676,32 @@ class PlantViewService:
                 stage=current_stage,
             )
 
-            logger.info("Created plant %s: '%s' in unit %s", plant_id, plant_name, unit_id)
+            logger.info(f"Created plant {plant_id}: '{plant_name}' in unit {unit_id}")
 
             # Activity logging
-            log_if_available(
-                self.activity_logger,
-                ActivityLogger.PLANT_ADDED,
-                f"Created plant {plant_id} ('{plant_name}') in unit {unit_id}",
-                severity=ActivityLogger.INFO,
-                entity_type="plant",
-                entity_id=plant_id,
-                metadata={"plant_type": plant_type, "current_stage": current_stage},
-            )
+            if self.activity_logger:
+                from app.services.application.activity_logger import ActivityLogger
+                self.activity_logger.log_activity(
+                    activity_type=ActivityLogger.PLANT_ADDED,
+                    description=f"Created plant {plant_id} ('{plant_name}') in unit {unit_id}",
+                    severity=ActivityLogger.INFO,
+                    entity_type="plant",
+                    entity_id=plant_id,
+                    metadata={
+                        "plant_type": plant_type,
+                        "current_stage": current_stage,
+                    }
+                )
             # Link sensors if provided
             linked_sensors = []
             if sensor_ids:
                 for sensor_id in sensor_ids:
                     if self.link_plant_sensor(plant_id, sensor_id):
                         linked_sensors.append(sensor_id)
-                        logger.info("Linked sensor %s to plant %s", sensor_id, plant_id)
+                        logger.info(f"Linked sensor {sensor_id} to plant {plant_id}")
                     else:
-                        logger.warning("  x Failed to link sensor %s to plant %s", sensor_id, plant_id)
-
+                        logger.warning(f"  x Failed to link sensor {sensor_id} to plant {plant_id}")
+            
             # Return the newly created plant as dict with additional data
             plant_dict = self.get_plant_as_dict(plant_id, unit_id=unit_id)
             if plant_dict:
@@ -877,24 +714,24 @@ class PlantViewService:
                 return plant_dict
 
             return None
-
-        except Exception as e:  # TODO(narrow): large method with DB + service + profile + event ops
-            logger.error("Error creating plant '%s': %s", plant_name, e, exc_info=True)
+            
+        except Exception as e:
+            logger.error(f"Error creating plant '{plant_name}': {e}", exc_info=True)
             return None
 
     def update_plant(
         self,
         plant_id: int,
-        plant_name: str | None = None,
-        plant_type: str | None = None,
-        plant_species: str | None = None,
-        plant_variety: str | None = None,
-        pot_size_liters: float | None = None,
-        medium_ph: float | None = None,
-        strain_variety: str | None = None,
-        expected_yield_grams: float | None = None,
-        light_distance_cm: float | None = None,
-    ) -> dict[str, Any] | None:
+        plant_name: Optional[str] = None,
+        plant_type: Optional[str] = None,
+        plant_species: Optional[str] = None,
+        plant_variety: Optional[str] = None,
+        pot_size_liters: Optional[float] = None,
+        medium_ph: Optional[float] = None,
+        strain_variety: Optional[str] = None,
+        expected_yield_grams: Optional[float] = None,
+        light_distance_cm: Optional[float] = None,
+    ) -> Optional[Dict[str, Any]]:
         """
         Update plant fields (partial update supported).
 
@@ -920,7 +757,7 @@ class PlantViewService:
             # 1. Validate plant exists
             plant = self.get_plant(plant_id)
             if not plant:
-                logger.error("Plant %s not found", plant_id)
+                logger.error(f"Plant {plant_id} not found")
                 return None
 
             # 2. Validate inputs
@@ -967,7 +804,7 @@ class PlantViewService:
                     try:
                         plant.growth_stages = self.plant_json_handler.get_growth_stages(plant_type)
                         plant.refresh_growth_metadata()
-                    except (KeyError, TypeError, ValueError, OSError) as exc:
+                    except Exception as exc:
                         logger.warning(
                             "Failed to refresh growth stages for plant %s (%s): %s",
                             plant_id,
@@ -986,17 +823,18 @@ class PlantViewService:
                     plant.light_distance_cm = light_distance_cm
 
                 # 6. Log activity
-                log_if_available(
-                    self.activity_logger,
-                    ActivityLogger.PLANT_UPDATED,
-                    f"Updated plant {plant_id}",
-                    severity=ActivityLogger.INFO,
-                    entity_type="plant",
-                    entity_id=plant_id,
-                    metadata=update_fields,
-                )
+                if self.activity_logger:
+                    from app.services.application.activity_logger import ActivityLogger
+                    self.activity_logger.log_activity(
+                        activity_type=ActivityLogger.PLANT_UPDATED,
+                        description=f"Updated plant {plant_id}",
+                        severity=ActivityLogger.INFO,
+                        entity_type="plant",
+                        entity_id=plant_id,
+                        metadata=update_fields
+                    )
 
-                logger.info("Updated plant %s: %s", plant_id, update_fields)
+                logger.info(f"Updated plant {plant_id}: {update_fields}")
 
             # 7. Return updated plant as dict (for API compatibility)
             # Find unit_id for the plant
@@ -1006,25 +844,24 @@ class PlantViewService:
                     if plant_id in unit_plants:
                         resolved_unit_id = uid
                         break
-
+            
             return self.get_plant_as_dict(plant_id, unit_id=resolved_unit_id)
 
         except ValueError:
             # Re-raise validation errors
             raise
-        except Exception as e:  # TODO(narrow): DB + memory sync + activity logging
-            logger.error("Error updating plant %s: %s", plant_id, e, exc_info=True)
+        except Exception as e:
+            logger.error(f"Error updating plant {plant_id}: {e}", exc_info=True)
             return None
 
     def update_soil_moisture_threshold(
         self,
         plant_id: int,
         threshold: float,
-        unit_id: int | None = None,
+        unit_id: Optional[int] = None,
     ) -> bool:
         """
         Update the per-plant soil moisture threshold override.
-        Delegates to PlantStageManager.
 
         Args:
             plant_id: Plant identifier
@@ -1034,31 +871,44 @@ class PlantViewService:
         Returns:
             True if updated, False otherwise
         """
+        try:
+            value = float(threshold)
+        except (TypeError, ValueError):
+            logger.error("Invalid soil moisture threshold for plant %s: %s", plant_id, threshold)
+            return False
+
+        value = max(0.0, min(100.0, value))
+
+        try:
+            self.plant_repo.update_plant(plant_id, soil_moisture_threshold_override=value)
+        except Exception as exc:
+            logger.error(
+                "Failed to persist soil moisture threshold override for plant %s: %s",
+                plant_id,
+                exc,
+                exc_info=True,
+            )
+            return False
+
         plant = self.get_plant(plant_id, unit_id=unit_id)
+        if plant:
+            plant.soil_moisture_threshold_override = value
 
-        resolved_unit_id = unit_id
-        if resolved_unit_id is None:
-            with self._plants_lock:
-                for uid, unit_plants in self._plants.items():
-                    if plant_id in unit_plants:
-                        resolved_unit_id = uid
-                        break
-
-        return self._stage_manager.update_soil_moisture_threshold(
-            plant_id=plant_id,
-            threshold=threshold,
-            plant=plant,
-            unit_id=resolved_unit_id,
+        logger.info(
+            "Updated soil moisture threshold override for plant %s to %.1f",
+            plant_id,
+            value,
         )
+        return True
 
-    def get_plant(self, plant_id: int, unit_id: int | None = None) -> PlantProfile | None:
+    def get_plant(self, plant_id: int, unit_id: Optional[int] = None) -> Optional[PlantProfile]:
         """
         Get plant as PlantProfile object using memory-first pattern.
-
+        
         Args:
             plant_id: Plant identifier
             unit_id: Optional unit identifier (speeds up lookup)
-
+             
         Returns:
             PlantProfile object or None
         """
@@ -1070,34 +920,19 @@ class PlantViewService:
                         return unit_plants.get(plant_id)
                 else:
                     # Search all units for the plant
-                    for _uid, unit_plants in self._plants.items():
+                    for uid, unit_plants in self._plants.items():
                         if plant_id in unit_plants:
                             return unit_plants.get(plant_id)
-
+            
             # Fallback: load from database and hydrate into memory
             plant_data = self.plant_repo.get_plant(plant_id)
             if not plant_data:
                 return None
-
+            
             plant_dict = _row_to_dict(plant_data)
             resolved_unit_id = plant_dict.get("unit_id") or unit_id
-
+            
             # Create PlantProfile from database data
-            condition_profile_id = None
-            condition_profile_mode = None
-            if resolved_unit_id is not None and self.threshold_service:
-                profile_service = getattr(self.threshold_service, "personalized_learning", None)
-                user_id = self._get_unit_owner(resolved_unit_id)
-                if profile_service and user_id:
-                    link = profile_service.get_condition_profile_link(
-                        user_id=user_id,
-                        target_type=ConditionProfileTarget.PLANT,
-                        target_id=int(plant_id),
-                    )
-                    if link:
-                        condition_profile_id = link.profile_id
-                        condition_profile_mode = link.mode
-
             plant = self._create_plant_profile(
                 plant_id=plant_id,
                 plant_name=plant_dict.get("plant_name") or plant_dict.get("name") or "Unknown Plant",
@@ -1115,14 +950,12 @@ class PlantViewService:
                 expected_yield_grams=plant_dict.get("expected_yield_grams", 0.0),
                 light_distance_cm=plant_dict.get("light_distance_cm", 0.0),
                 soil_moisture_threshold_override=plant_dict.get("soil_moisture_threshold_override"),
-                condition_profile_id=condition_profile_id,
-                condition_profile_mode=condition_profile_mode,
             )
-
+            
             if resolved_unit_id is None:
                 logger.warning("Plant %s has no unit_id, returning transient profile", plant_id)
                 return plant
-
+            
             # Store in memory for future fast lookups
             with self._plants_lock:
                 if resolved_unit_id not in self._plants:
@@ -1133,70 +966,23 @@ class PlantViewService:
                     plant.plant_id,
                     resolved_unit_id,
                 )
-
+            
             return plant
-
-        except (KeyError, TypeError, ValueError, OSError) as e:
-            logger.error("Error getting plant %s: %s", plant_id, e, exc_info=True)
+            
+        except Exception as e:
+            logger.error(f"Error getting plant {plant_id}: {e}", exc_info=True)
             return None
 
-    def apply_condition_profile_to_plant(
-        self,
-        *,
-        plant_id: int,
-        profile_id: str,
-        mode: ConditionProfileMode | None = None,
-        name: str | None = None,
-        user_id: int | None = None,
-    ) -> dict[str, Any] | None:
-        """
-        Apply a condition profile to an existing plant.
-        Delegates to PlantStageManager.
-        """
-        plant = self.get_plant(plant_id)
-        if not plant:
-            return None
-
-        resolved_unit_id = self._resolve_unit_id_for_plant(plant_id)
-
-        return self._stage_manager.apply_condition_profile_to_plant(
-            plant_id=plant_id,
-            profile_id=profile_id,
-            plant=plant,
-            unit_id=resolved_unit_id,
-            mode=mode,
-            name=name,
-            user_id=user_id,
-        )
-
-    def _resolve_unit_id_for_plant(self, plant_id: int) -> int | None:
-        with self._plants_lock:
-            for unit_id, unit_plants in self._plants.items():
-                if plant_id in unit_plants:
-                    return unit_id
-        try:
-            row = self.plant_repo.get_plant(plant_id)
-        except (KeyError, TypeError, ValueError, OSError):
-            return None
-        if not row:
-            return None
-        if isinstance(row, dict):
-            return row.get("unit_id")
-        try:
-            return row["unit_id"]
-        except (KeyError, TypeError):
-            return None
-
-    def get_plant_as_dict(self, plant_id: int, unit_id: int | None = None) -> dict[str, Any] | None:
+    def get_plant_as_dict(self, plant_id: int, unit_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
         """
         Get plant details as dictionary with linked sensor information.
-
+        
         Compatibility method for API endpoints that expect a dict.
-
+        
         Args:
             plant_id: Plant identifier
             unit_id: Optional unit identifier (enables runtime lookup)
-
+             
         Returns:
             Plant dictionary or None
         """
@@ -1204,10 +990,10 @@ class PlantViewService:
             plant = self.get_plant(plant_id, unit_id=unit_id)
             if not plant:
                 return None
-
+            
             # Convert to dict and add metadata
             plant_dict = plant.to_dict()
-
+            
             # Add unit context
             if unit_id is not None:
                 plant_dict["unit_id"] = unit_id
@@ -1224,22 +1010,22 @@ class PlantViewService:
                             if runtime:
                                 plant_dict["unit_name"] = getattr(runtime, "unit_name", None)
                             break
-
+            
             # Normalize legacy field names
             if plant_dict.get("name") in (None, "") and plant_dict.get("plant_name") not in (None, ""):
                 plant_dict["name"] = plant_dict.get("plant_name")
             if plant_dict.get("plant_name") in (None, "") and plant_dict.get("name"):
                 plant_dict["plant_name"] = plant_dict.get("name")
-
+            
             # Add linked sensor IDs
             plant_dict["linked_sensor_ids"] = self.get_plant_sensor_ids(plant_id)
-
+            
             return plant_dict
-
-        except (KeyError, TypeError, ValueError, AttributeError) as e:
-            logger.error("Error getting plant %s as dict: %s", plant_id, e, exc_info=True)
+            
+        except Exception as e:
+            logger.error(f"Error getting plant {plant_id} as dict: {e}", exc_info=True)
             return None
-
+    
     def remove_plant(self, unit_id: int, plant_id: int) -> bool:
         """
         Remove a plant from a unit.
@@ -1257,9 +1043,9 @@ class PlantViewService:
         try:
             # Get plant info before removal
             plant = self.get_plant(unit_id, plant_id)
-            plant_name: str | None = None
-            plant_type: str | None = None
-
+            plant_name: Optional[str] = None
+            plant_type: Optional[str] = None
+            
             if plant:
                 plant_name = plant.plant_name
                 plant_type = plant.plant_type
@@ -1269,12 +1055,12 @@ class PlantViewService:
             with self._plants_lock:
                 unit_plants = self._plants.get(unit_id, {})
                 removed_plant = unit_plants.pop(plant_id, None)
-
+                
                 # Clear active plant if removing it
                 if self._active_plants.get(unit_id) == plant_id:
                     del self._active_plants[unit_id]
                     logger.debug("Cleared active plant for unit %s (removed plant %s)", unit_id, plant_id)
-
+                
                 if removed_plant:
                     logger.debug("Removed plant %s from memory for unit %s", plant_id, unit_id)
                     removed_from_memory = True
@@ -1286,127 +1072,367 @@ class PlantViewService:
                     self.plant_repo.remove_plant_from_unit(unit_id, plant_id)
                 self.plant_repo.remove_plant(plant_id)
                 db_removed = True
-            except (KeyError, TypeError, ValueError, OSError) as exc:
-                logger.debug("Failed to remove plant %s from DB: %s", plant_id, exc, exc_info=True)
+            except Exception as exc:
+                logger.debug(f"Failed to remove plant {plant_id} from DB: {exc}", exc_info=True)
 
             success = removed_from_memory or db_removed
-
+            
             if success:
-                try:
-                    user_id = self._get_unit_owner(unit_id)
-                    profile_service = (
-                        getattr(self.threshold_service, "personalized_learning", None)
-                        if self.threshold_service
-                        else None
-                    )
-                    if user_id and profile_service:
-                        profile_service.unlink_condition_profile(
-                            user_id=user_id,
-                            target_type=ConditionProfileTarget.PLANT,
-                            target_id=int(plant_id),
-                        )
-                except (KeyError, TypeError, ValueError, AttributeError):
-                    logger.debug("Failed to unlink condition profile for plant %s", plant_id, exc_info=True)
                 # Emit event (GrowthService may subscribe for cache invalidation)
                 self.event_bus.publish(
                     PlantEvent.PLANT_REMOVED,
                     PlantLifecyclePayload(unit_id=unit_id, plant_id=plant_id),
                 )
-
+                
                 # Activity logging
-                resolved_name = plant_name or f"plant #{plant_id}"
-                resolved_type = plant_type or "Unknown"
-                log_if_available(
-                    self.activity_logger,
-                    ActivityLogger.PLANT_REMOVED,
-                    f"Removed {resolved_type} '{resolved_name}' from unit {unit_id}",
-                    severity=ActivityLogger.INFO,
-                    entity_type="plant",
-                    entity_id=plant_id,
-                    metadata={"plant_type": resolved_type, "unit_id": unit_id},
-                )
-
+                if self.activity_logger:
+                    from app.services.application.activity_logger import ActivityLogger
+                    resolved_name = plant_name or f"plant #{plant_id}"
+                    resolved_type = plant_type or "Unknown"
+                    self.activity_logger.log_activity(
+                        activity_type=ActivityLogger.PLANT_REMOVED,
+                        description=f"Removed {resolved_type} '{resolved_name}' from unit {unit_id}",
+                        severity=ActivityLogger.INFO,
+                        entity_type="plant",
+                        entity_id=plant_id,
+                        metadata={"plant_type": resolved_type, "unit_id": unit_id},
+                    )
+            
             return success
-
-        except Exception as exc:  # TODO(narrow): large method with memory + DB + event + logging ops
+            
+        except Exception as exc:
             logger.error(
                 f"Failed to remove plant {plant_id} from unit {unit_id}: {exc}",
                 exc_info=True,
             )
             return False
 
+
     def link_plant_sensor(self, plant_id: int, sensor_id: int) -> bool:
-        """Link a sensor to a plant with validation.  Delegates to PlantDeviceLinker."""
-        plant = self.get_plant(plant_id)
-        return self._device_linker.link_plant_sensor(plant_id, sensor_id, plant_profile=plant)
-
+        """
+        Link a sensor to a plant with validation.
+        
+        Args:
+            plant_id: Plant identifier
+            sensor_id: Sensor identifier
+            
+        Returns:
+            True if successful
+        """
+        try:
+            # Validate sensor exists and get details
+            sensor = self.sensor_service.get_sensor(sensor_id)
+            if not sensor:
+                logger.error(f"Sensor {sensor_id} not found")
+                return False
+            
+            # Validate sensor type (only soil moisture and plant sensors can be linked to plants)
+            sensor_type = str(sensor.get('sensor_type') or '').strip().lower()
+            allowed_types = {'soil_moisture', 'plant_sensor'}
+            if sensor_type not in allowed_types:
+                logger.error(f"Sensor type '{sensor_type}' cannot be linked to plants. Allowed: {sorted(allowed_types)}")
+                return False
+            
+            # Link in database
+            self.plant_repo.link_sensor_to_plant(plant_id, sensor_id)
+            
+            # Update PlantProfile in memory if available
+            plant = self.get_plant(plant_id)
+            if plant:
+                plant.link_sensor(sensor_id)
+                logger.info(f"Linked sensor {sensor_id} to plant {plant_id} in memory")
+            
+            self.audit_logger.log_event(
+                actor="system",
+                action="link",
+                resource=f"plant:{plant_id}",
+                outcome="success",
+                sensor_id=sensor_id,
+            )
+            
+            logger.info(f"Linked sensor {sensor_id} ({sensor_type}) to plant {plant_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error linking sensor {sensor_id} to plant {plant_id}: {e}", exc_info=True)
+            return False
+    
     def unlink_plant_sensor(self, plant_id: int, sensor_id: int) -> bool:
-        """Unlink a sensor from a plant.  Delegates to PlantDeviceLinker."""
-        plant = self.get_plant(plant_id)
-        return self._device_linker.unlink_plant_sensor(plant_id, sensor_id, plant_profile=plant)
-
+        """
+        Unlink a sensor from a plant.
+        
+        Args:
+            plant_id: Plant identifier
+            sensor_id: Sensor identifier
+            
+        Returns:
+            True if successful
+        """
+        try:
+            # Unlink in database
+            self.plant_repo.unlink_sensor_from_plant(plant_id, sensor_id)
+            
+            # Update PlantProfile in memory if available
+            plant = self.get_plant(plant_id)
+            if plant:
+                # Update in-memory PlantProfile
+                plant = self.get_plant(plant_id)
+                if plant and plant.get_sensor_id() == sensor_id:
+                    plant.link_sensor(None)  # Clear sensor
+                    logger.info(f"Unlinked sensor {sensor_id} from plant {plant_id} in memory")
+            
+            self.audit_logger.log_event(
+                actor="system",
+                action="unlink",
+                resource=f"plant:{plant_id}",
+                outcome="success",
+                sensor_id=sensor_id,
+            )
+            
+            logger.info(f"Unlinked sensor {sensor_id} from plant {plant_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error unlinking sensor {sensor_id} from plant {plant_id}: {e}", exc_info=True)
+            return False
+    
     def unlink_all_sensors_from_plant(self, plant_id: int) -> bool:
-        """Unlink all sensors from a plant.  Delegates to PlantDeviceLinker."""
-        return self._device_linker.unlink_all_sensors_from_plant(plant_id)
-
-    def get_plant_sensor_ids(self, plant_id: int) -> list[int]:
-        """Get sensor IDs linked to a plant.  Delegates to PlantDeviceLinker."""
-        return self._device_linker.get_plant_sensor_ids(plant_id)
-
-    def get_plant_sensors(self, plant_id: int) -> list[dict[str, Any]]:
-        """Get full sensor details for all sensors linked to a plant.  Delegates to PlantDeviceLinker."""
-        return self._device_linker.get_plant_sensors(plant_id)
-
-    # ==================== Plant Actuator Linking (delegates to PlantDeviceLinker) ====================
+        """
+        Unlink all sensors from a plant.
+        Best-effort cleanup operation, typically called before plant deletion.
+        
+        Args:
+            plant_id: Plant identifier
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            self.plant_repo.unlink_all_sensors_from_plant(plant_id)
+            logger.info(f"Unlinked all sensors from plant {plant_id}")
+            return True
+        except Exception as e:
+            logger.debug(f"Failed to unlink all sensors from plant {plant_id}: {e}", exc_info=True)
+            return False
+    
+    def get_plant_sensor_ids(self, plant_id: int) -> List[int]:
+        """
+        Get sensor IDs linked to a plant.
+        
+        Args:
+            plant_id: Plant identifier
+            
+        Returns:
+            List of sensor IDs
+        """
+        try:
+            return self.plant_repo.get_sensors_for_plant(plant_id)
+        except Exception as e:
+            logger.error(f"Error getting sensors for plant {plant_id}: {e}", exc_info=True)
+            return []
+    
+    def get_plant_sensors(self, plant_id: int) -> List[Dict[str, Any]]:
+        """
+        Get full sensor details for all sensors linked to a plant.
+        
+        Args:
+            plant_id: Plant identifier
+            sensor_type: Optional sensor type filter (e.g., 'soil_moisture')
+            
+        Returns:
+            List of sensor dictionaries with friendly names
+        """
+        try:
+            sensor_ids = self.get_plant_sensor_ids(plant_id)
+            sensors = []
+            for sensor_id in sensor_ids:
+                sensor = self.sensor_service.get_sensor(sensor_id)
+                if sensor:
+                    # Add friendly name
+                    sensor['friendly_name'] = self._generate_friendly_name(sensor)
+                    sensors.append(sensor)
+            
+            return sensors
+            
+        except Exception as e:
+            logger.error(f"Error getting sensor details for plant {plant_id}: {e}", exc_info=True)
+            return []
+        
+    # ==================== Plant Actuator Linking ====================
 
     @staticmethod
-    def _normalize_actuator_type(value: Any) -> "ActuatorType":
-        """Normalize actuator type values to infrastructure ActuatorType.  Delegates to PlantDeviceLinker."""
-        return PlantDeviceLinker._normalize_actuator_type(value)
+    def _normalize_actuator_type(value: Any) -> ActuatorType:
+        """Normalize actuator type values to infrastructure ActuatorType."""
+        actuator_type = app_to_infra_actuator_type(value)
+        if actuator_type != ActuatorType.UNKNOWN:
+            return actuator_type
+        text = str(value or "").strip().lower().replace("-", "_")
+        if text in {"water_pump", "waterpump"}:
+            return ActuatorType.PUMP
+        return ActuatorType.UNKNOWN
 
     def link_plant_actuator(self, plant_id: int, actuator_id: int) -> bool:
-        """Link an actuator to a plant.  Delegates to PlantDeviceLinker."""
-        return self._device_linker.link_plant_actuator(plant_id, actuator_id, get_plant_fn=self.get_plant)
+        """
+        Link an actuator to a plant (e.g., dedicated irrigation pump).
+        """
+        try:
+            plant = self.get_plant(plant_id)
+            if not plant:
+                logger.error("Plant %s not found", plant_id)
+                return False
+
+            actuator = None
+            if self.devices_repo:
+                actuator = self.devices_repo.get_actuator_config_by_id(actuator_id)
+
+            if not actuator:
+                logger.error("Actuator %s not found", actuator_id)
+                return False
+
+            plant_unit_id = plant.unit_id
+            actuator_unit_id = actuator.get("unit_id")
+            if plant_unit_id and actuator_unit_id and int(plant_unit_id) != int(actuator_unit_id):
+                logger.error("Actuator %s does not belong to unit %s", actuator_id, plant_unit_id)
+                return False
+
+            actuator_type = self._normalize_actuator_type(actuator.get("actuator_type"))
+            if actuator_type not in {ActuatorType.PUMP, ActuatorType.VALVE}:
+                logger.error(
+                    "Actuator %s is not a pump or valve (type=%s)",
+                    actuator_id,
+                    actuator.get("actuator_type") or "unknown",
+                )
+                return False
+
+            self.plant_repo.link_actuator_to_plant(plant_id, actuator_id)
+            logger.info("Linked actuator %s to plant %s", actuator_id, plant_id)
+            return True
+        except Exception as e:
+            logger.error("Error linking actuator %s to plant %s: %s", actuator_id, plant_id, e, exc_info=True)
+            return False
 
     def unlink_plant_actuator(self, plant_id: int, actuator_id: int) -> bool:
-        """Unlink an actuator from a plant.  Delegates to PlantDeviceLinker."""
-        return self._device_linker.unlink_plant_actuator(plant_id, actuator_id)
+        """Unlink an actuator from a plant."""
+        try:
+            self.plant_repo.unlink_actuator_from_plant(plant_id, actuator_id)
+            logger.info("Unlinked actuator %s from plant %s", actuator_id, plant_id)
+            return True
+        except Exception as e:
+            logger.error("Error unlinking actuator %s from plant %s: %s", actuator_id, plant_id, e, exc_info=True)
+            return False
 
-    def get_plant_actuator_ids(self, plant_id: int) -> list[int]:
-        """Get actuator IDs linked to a plant.  Delegates to PlantDeviceLinker."""
-        return self._device_linker.get_plant_actuator_ids(plant_id)
+    def get_plant_actuator_ids(self, plant_id: int) -> List[int]:
+        """Get actuator IDs linked to a plant."""
+        try:
+            return self.plant_repo.get_actuators_for_plant(plant_id)
+        except Exception as e:
+            logger.error("Error getting actuators for plant %s: %s", plant_id, e, exc_info=True)
+            return []
 
-    def get_plant_actuators(self, plant_id: int) -> list[dict[str, Any]]:
-        """Get actuator details linked to a plant.  Delegates to PlantDeviceLinker."""
-        return self._device_linker.get_plant_actuators(plant_id)
+    def get_plant_actuators(self, plant_id: int) -> List[Dict[str, Any]]:
+        """Get actuator details linked to a plant."""
+        try:
+            actuator_ids = self.get_plant_actuator_ids(plant_id)
+            actuators: List[Dict[str, Any]] = []
+            if not self.devices_repo:
+                return actuators
+            for actuator_id in actuator_ids:
+                actuator = self.devices_repo.get_actuator_config_by_id(actuator_id)
+                if actuator:
+                    actuators.append(actuator)
+            return actuators
+        except Exception as e:
+            logger.error("Error getting actuator details for plant %s: %s", plant_id, e, exc_info=True)
+            return []
 
     def get_available_actuators_for_plant(
         self,
         unit_id: int,
         actuator_type: str = "pump",
-    ) -> list[dict[str, Any]]:
-        """List available actuators for linking to plants.  Delegates to PlantDeviceLinker."""
-        return self._device_linker.get_available_actuators_for_plant(unit_id, actuator_type)
+    ) -> List[Dict[str, Any]]:
+        """List available actuators for linking to plants."""
+        try:
+            if not self.devices_repo:
+                return []
+            actuators = self.devices_repo.list_actuator_configs(unit_id=unit_id)
+            normalized_type = self._normalize_actuator_type(actuator_type)
+            if normalized_type == ActuatorType.UNKNOWN:
+                return actuators
 
-    # ==================== Available Sensors Discovery (delegates to PlantDeviceLinker) ====================
-
-    def get_available_sensors_for_plant(self, unit_id: int, sensor_type: str = "soil_moisture") -> list[dict[str, Any]]:
-        """Get all sensors available for plant linking.  Delegates to PlantDeviceLinker."""
-        return self._device_linker.get_available_sensors_for_plant(unit_id, sensor_type)
-
+            filtered: List[Dict[str, Any]] = []
+            for actuator in actuators:
+                candidate_type = self._normalize_actuator_type(actuator.get("actuator_type"))
+                if candidate_type == normalized_type:
+                    filtered.append(actuator)
+            return filtered
+        except Exception as e:
+            logger.error("Error getting available actuators for unit %s: %s", unit_id, e, exc_info=True)
+            return []
+    
+    # ==================== Available Sensors Discovery ====================
+    
+    def get_available_sensors_for_plant(
+        self,
+        unit_id: int,
+        sensor_type: str = 'soil_moisture'
+    ) -> List[Dict[str, Any]]:
+        """
+        Get all sensors available for plant linking with friendly names.
+        
+        This provides a unified list of sensors regardless of protocol (GPIO, MQTT, ESP32-C6)
+        with user-friendly names for the UI.
+        
+        Args:
+            unit_id: Unit identifier
+            sensor_type: Type of sensor to filter (default: SOIL_MOISTURE)
+            
+        Returns:
+            List of sensors with friendly names and availability status
+        """
+        try:
+            # Get all sensors for the unit
+            sensors = self.sensor_service.list_sensors(unit_id=unit_id)
+            
+            # Filter and format for plant linking
+            available = []
+            for sensor in sensors:
+                if str(sensor.get('sensor_type') or '').strip().lower() == str(sensor_type).strip().lower():
+                    # Generate friendly name
+                    friendly_name = self._generate_friendly_name(sensor)
+                    
+                    # Check if already linked to a plant
+                    is_linked = self._is_sensor_linked(sensor.get('sensor_id'))
+                    
+                    available.append({
+                        'sensor_id': sensor['sensor_id'],
+                        'name': friendly_name,
+                        'sensor_type': sensor.get('sensor_type'),
+                        'protocol': sensor.get('protocol', 'GPIO'),
+                        'model': sensor.get('model', 'Unknown'),
+                        'is_linked': is_linked,
+                        'enabled': sensor.get('is_active', True)
+                    })
+            
+            logger.debug(f"Found {len(available)} available {sensor_type} sensors for unit {unit_id}")
+            return available
+            
+        except Exception as e:
+            logger.error(f"Error getting available sensors for unit {unit_id}: {e}", exc_info=True)
+            return []
+    
     # ==================== Plant Status & Monitoring ====================
-
+    
     def set_active_plant(self, unit_id: int, plant_id: int) -> bool:
         """
         Set a plant as the active plant for the unit's climate control.
-
+        
         Owns the complete operation: DB persistence, in-memory state, runtime updates, events.
         GrowthService.set_active_plant() is now a thin wrapper that calls this method.
-
+        
         Args:
             unit_id: Unit identifier
             plant_id: Plant identifier
-
+            
         Returns:
             True if successful
         """
@@ -1414,14 +1440,14 @@ class PlantViewService:
             # Verify plant exists and belongs to unit
             plant = self.get_plant(plant_id, unit_id=unit_id)
             if not plant:
-                logger.error("Plant %s not found", plant_id)
+                logger.error(f"Plant {plant_id} not found")
                 return False
-
+            
             # Update in-memory active plant tracking
             with self._plants_lock:
                 unit_plants = self._plants.get(unit_id, {})
                 if plant_id not in unit_plants:
-                    logger.error("Plant %s does not belong to unit %s", plant_id, unit_id)
+                    logger.error(f"Plant {plant_id} does not belong to unit {unit_id}")
                     return False
                 self._active_plants[unit_id] = plant_id
                 logger.debug("Set active plant to %s for unit %s", plant_id, unit_id)
@@ -1430,8 +1456,8 @@ class PlantViewService:
             try:
                 if hasattr(self.plant_repo, "set_active_plant"):
                     self.plant_repo.set_active_plant(plant_id)
-            except (KeyError, TypeError, ValueError, OSError) as exc:
-                logger.debug("Failed to persist active plant %s: %s", plant_id, exc, exc_info=True)
+            except Exception as exc:
+                logger.debug(f"Failed to persist active plant {plant_id}: {exc}", exc_info=True)
 
             # Notify GrowthService to apply plant overrides to runtime and trigger AI conditions
             # GrowthService subscribes to this event
@@ -1439,113 +1465,265 @@ class PlantViewService:
                 PlantEvent.ACTIVE_PLANT_CHANGED,
                 PlantLifecyclePayload(unit_id=unit_id, plant_id=plant_id),
             )
-
+            
             # Activity logging
-            log_if_available(
-                self.activity_logger,
-                ActivityLogger.PLANT_UPDATED,
-                f"Set active plant to '{getattr(plant, 'plant_name', 'Unknown')}' in unit {unit_id}",
-                severity=ActivityLogger.INFO,
-                entity_type="plant",
-                entity_id=plant_id,
-                metadata={"plant_type": getattr(plant, "plant_type", "Unknown") or "Unknown", "unit_id": unit_id},
-            )
-
-            logger.info("Set plant %s as active in unit %s", plant_id, unit_id)
+            if self.activity_logger:
+                from app.services.application.activity_logger import ActivityLogger
+                self.activity_logger.log_activity(
+                    activity_type=ActivityLogger.PLANT_UPDATED,
+                    description=f"Set active plant to '{getattr(plant, 'plant_name', 'Unknown')}' in unit {unit_id}",
+                    severity=ActivityLogger.INFO,
+                    entity_type="plant",
+                    entity_id=plant_id,
+                    metadata={"plant_type": getattr(plant, 'plant_type', 'Unknown') or 'Unknown', "unit_id": unit_id},
+                )
+            
+            logger.info(f"Set plant {plant_id} as active in unit {unit_id}")
             return True
-
-        except Exception as e:  # TODO(narrow): memory + DB + event publish + activity logging
-            logger.error("Error setting active plant %s in unit %s: %s", plant_id, unit_id, e, exc_info=True)
+            
+        except Exception as e:
+            logger.error(f"Error setting active plant {plant_id} in unit {unit_id}: {e}", exc_info=True)
             return False
-
+    
     def update_plant_stage(
         self,
         plant_id: int,
         new_stage: str,
-        days_in_stage: int = 0,
-        *,
-        skip_threshold_proposal: bool = False,
+        days_in_stage: int = 0
     ) -> bool:
         """
-        Update plant growth stage.  Delegates to PlantStageManager.
+        Update plant growth stage.
+        
+        When stage changes, proposes new thresholds based on stage-specific
+        requirements and sends notification for user confirmation.
+        
+        Args:
+            plant_id: Plant identifier
+            new_stage: New growth stage
+            days_in_stage: Days in new stage
+            
+        Returns:
+            True if successful
         """
-        plant = self.get_plant(plant_id)
-        if not plant:
-            logger.error("Plant %s not found", plant_id)
-            return False
+        try:
+            plant = self.get_plant(plant_id)
+            if not plant:
+                logger.error(f"Plant {plant_id} not found")
+                return False
 
-        return self._stage_manager.update_plant_stage(
-            plant=plant,
-            new_stage=new_stage,
-            days_in_stage=days_in_stage,
-            skip_threshold_proposal=skip_threshold_proposal,
-        )
+            unit_id = plant.unit_id
+            if not unit_id:
+                logger.error(f"Plant {plant_id} has no unit_id")
+                return False
+
+            old_stage = plant.current_stage
+            
+            # Update the in-memory PlantProfile directly
+            plant.set_stage(new_stage, days_in_stage)
+            moisture_level = plant.moisture_level
+
+            self.plant_repo.update_plant_progress(
+                plant_id=plant_id,
+                current_stage=new_stage,
+                moisture_level=moisture_level,
+                days_in_stage=days_in_stage,
+            )
+
+            plant_name = plant.plant_name or "Unknown"
+            plant_type = plant.plant_type or "Unknown"
+            # Log activity
+            if self.activity_logger:
+                from app.services.application.activity_logger import ActivityLogger
+                self.activity_logger.log_activity(
+                    activity_type=ActivityLogger.PLANT_UPDATED,
+                    description=f"Updated {plant_type} plant '{plant_name}' to unit {unit_id}",
+                    severity=ActivityLogger.INFO,
+                    entity_type="plant",
+                    entity_id=plant_id,
+                    metadata={"plant_type": plant_type, "unit_id": unit_id, "stage": new_stage}
+                )
+
+            try:
+                payload = PlantStageUpdatePayload(plant_id=plant_id, new_stage=new_stage, days_in_stage=days_in_stage)
+                self.event_bus.publish(PlantEvent.PLANT_STAGE_UPDATE, payload)
+            except Exception:
+                logger.debug("Event bus publish failed for plant %s stage update", plant_id, exc_info=True)
+
+            # Propose threshold update if stage changed
+            if old_stage and old_stage.lower() != new_stage.lower():
+                self._propose_stage_thresholds(plant, old_stage, new_stage)
+
+            logger.info(f"Updated plant {plant_id} to stage '{new_stage}'")
+            return True
+
+        except Exception as e:
+            logger.error(f"Error updating plant {plant_id} stage: {e}", exc_info=True)
+            return False
 
     def _propose_stage_thresholds(
         self,
         plant: PlantProfile,
         old_stage: str,
         new_stage: str,
-        *,
-        seed_overrides: dict[str, float] | None = None,
-        force: bool = False,
     ) -> None:
-        """Propose new thresholds when plant enters a new stage.  Delegates to PlantStageManager."""
-        self._stage_manager._propose_stage_thresholds(
-            plant,
-            old_stage,
-            new_stage,
-            seed_overrides=seed_overrides,
-            force=force,
-        )
+        """
+        Propose new thresholds when plant enters a new growth stage.
+        
+        Sends notification with Apply/Keep Current/Customize options.
+        
+        Args:
+            plant: The plant profile
+            old_stage: Previous growth stage
+            new_stage: New growth stage
+        """
+        if not self.threshold_service or not self.notifications_service:
+            logger.debug(
+                "Threshold proposal skipped - threshold_service or notifications_service not available"
+            )
+            return
+
+        try:
+            plant_type = plant.plant_type or "default"
+            
+            # Get optimal thresholds for new stage via ThresholdService
+            new_thresholds = self.threshold_service.get_thresholds(plant_type, new_stage)
+            current_thresholds = self.threshold_service.get_unit_thresholds(plant.unit_id)
+            
+            if not current_thresholds:
+                logger.debug("No current thresholds for unit %s, using generic", plant.unit_id)
+                current_thresholds = self.threshold_service.generic_thresholds
+            
+            # Build comparison data for soil moisture only
+            threshold_comparison = {
+                "soil_moisture": {
+                    "current": current_thresholds.soil_moisture,
+                    "proposed": new_thresholds.soil_moisture,
+                },
+            }
+            
+            # Check if soil moisture threshold change is significant (more than 2% difference)
+            soil_diff = abs(
+                threshold_comparison["soil_moisture"]["current"] 
+                - threshold_comparison["soil_moisture"]["proposed"]
+            )
+            has_significant_change = soil_diff > 2.0
+            
+            if not has_significant_change:
+                logger.debug(
+                    "No significant threshold changes for stage %s -> %s",
+                    old_stage, new_stage
+                )
+                return
+            
+            # Send notification
+            self._send_threshold_proposal_notification(
+                plant=plant,
+                old_stage=old_stage,
+                new_stage=new_stage,
+                comparison=threshold_comparison,
+                proposed_thresholds=new_thresholds,
+            )
+            
+            logger.info(
+                "Sent threshold proposal notification for plant %s stage %s -> %s",
+                plant.plant_id, old_stage, new_stage
+            )
+            
+        except Exception as e:
+            logger.error(
+                "Error proposing stage thresholds for plant %s: %s",
+                plant.plant_id, e, exc_info=True
+            )
 
     def _send_threshold_proposal_notification(
         self,
         plant: PlantProfile,
         old_stage: str,
         new_stage: str,
-        comparison: dict[str, dict[str, float]],
+        comparison: Dict[str, Dict[str, float]],
         proposed_thresholds: Any,
     ) -> None:
-        """Send notification for threshold proposal.  Delegates to PlantStageManager."""
-        self._stage_manager._send_threshold_proposal_notification(
-            plant=plant,
-            old_stage=old_stage,
-            new_stage=new_stage,
-            comparison=comparison,
-            proposed_thresholds=proposed_thresholds,
+        """
+        Send notification for threshold proposal with action buttons.
+        
+        Args:
+            plant: The plant profile
+            old_stage: Previous growth stage
+            new_stage: New growth stage
+            comparison: Dict of parameter -> {current, proposed} values
+            proposed_thresholds: EnvironmentalThresholds object for the new stage
+        """
+        from app.enums import NotificationType, NotificationSeverity
+        
+        # Get user_id from unit
+        user_id = self._get_unit_owner(plant.unit_id)
+        if not user_id:
+            logger.warning("Cannot send threshold proposal - no owner for unit %s", plant.unit_id)
+            return
+        
+        # Format comparison for message
+        changes = []
+        for param, values in comparison.items():
+            diff = values["proposed"] - values["current"]
+            if abs(diff) > 0.5:  # Only show meaningful changes
+                direction = "↑" if diff > 0 else "↓"
+                param_name = param.replace('_', ' ').title()
+                changes.append(
+                    f"{param_name}: {values['current']:.1f}% → {values['proposed']:.1f}% {direction}"
+                )
+        
+        if not changes:
+            return
+        
+        plant_name = plant.plant_name or "Unknown"
+        message = (
+            f"Plant '{plant_name}' moved from {old_stage} to {new_stage}. "
+            f"Recommended threshold changes:\n" + "\n".join(changes)
+        )
+        
+        self.notifications_service.send_notification(
+            user_id=user_id,
+            notification_type=NotificationType.THRESHOLD_PROPOSAL,
+            title=f"🌱 Threshold Update for {plant_name}",
+            message=message,
+            severity=NotificationSeverity.INFO,
+            unit_id=plant.unit_id,
+            requires_action=True,
+            action_type="threshold_proposal",
+            action_data={
+                "plant_id": plant.plant_id,
+                "unit_id": plant.unit_id,
+                "old_stage": old_stage,
+                "new_stage": new_stage,
+                "proposed_thresholds": comparison,
+                "actions": ["apply", "keep_current", "customize"],
+            },
         )
 
-    def _get_unit_owner(self, unit_id: int) -> int | None:
+    def _get_unit_owner(self, unit_id: int) -> Optional[int]:
         """
         Get the owner user_id for a unit.
-
+        
         Args:
             unit_id: Unit identifier
-
+            
         Returns:
             User ID or None
         """
         try:
             unit = self.unit_repo.get_unit(unit_id)
-            if not unit:
-                return None
-            if isinstance(unit, dict):
+            if unit:
                 return unit.get("user_id")
-            try:
-                return unit["user_id"]
-            except (TypeError, KeyError):
-                return getattr(unit, "user_id", None)
-        except (KeyError, TypeError, ValueError, OSError) as e:
+        except Exception as e:
             logger.error("Error getting unit owner for %s: %s", unit_id, e)
         return None
-
+    
     # ==================== Private Helper Methods ====================
-
-    def _handle_soil_moisture_update(self, payload: dict[str, Any]) -> None:
+    
+    def _handle_soil_moisture_update(self, payload: Dict[str, Any]) -> None:
         """
         Handle soil moisture sensor data updates.
-
+        
         Args:
             payload: Sensor event payload with unit_id, sensor_id, soil_moisture
         """
@@ -1561,19 +1739,16 @@ class PlantViewService:
             if sensor_id is None or moisture_level is None:
                 logger.warning("Soil moisture update missing sensor_id or moisture_level")
                 return
-
+            
             # Check if unit is loaded in memory
             if not self.is_unit_loaded(unit_id):
-                logger.warning("Unit %s not loaded in memory; cannot update soil moisture", unit_id)
+                logger.warning(f"Unit {unit_id} not loaded in memory; cannot update soil moisture")
                 return
-
+            
             plant_ids = self.plant_repo.get_plants_for_sensor(sensor_id)
-
-            # Batch DB write — single transaction instead of N individual writes
-            if plant_ids:
-                self.plant_repo.bulk_update_plant_moisture(plant_ids, moisture_level)
-
             for plant_id in plant_ids:
+                self.plant_repo.update_plant_moisture_by_id(plant_id, moisture_level)
+
                 # Update in-memory PlantProfile directly
                 plant = self.get_plant(plant_id, unit_id)
                 if plant:
@@ -1583,36 +1758,115 @@ class PlantViewService:
                         plant_id,
                         moisture_level,
                     )
+                logger.debug(
+                    "Updated moisture level for plant %s to %.2f%% in database",
+                    plant_id,
+                    moisture_level,
+                )
+                
+        except Exception as e:
+            logger.error(f"Error handling soil moisture update: {e}", exc_info=True)
 
-        except (KeyError, TypeError, ValueError, OSError) as e:
-            logger.error("Error handling soil moisture update: %s", e, exc_info=True)
-
-    def _generate_friendly_name(self, sensor: dict[str, Any]) -> str:
-        """Generate a user-friendly sensor name.  Delegates to PlantDeviceLinker."""
-        return PlantDeviceLinker._generate_friendly_name(sensor)
-
+    def _generate_friendly_name(self, sensor: Dict[str, Any]) -> str:
+        """
+        Generate a user-friendly sensor name.
+        
+        Examples:
+        - "Soil Moisture (GPIO Pin 17)"
+        - "Soil Moisture (MQTT: growtent/sensor/soil_0)"
+        - "Soil Moisture (ESP32-C6: grow-sensor-01)"
+        
+        Args:
+            sensor: Sensor dictionary
+            
+        Returns:
+            Friendly name string
+        """
+        try:
+            # Base name from sensor type
+            sensor_type = sensor.get('sensor_type', 'UNKNOWN')
+            base_name = sensor_type.replace('_', ' ').title()
+            
+            # Get protocol and config
+            protocol = str(sensor.get('protocol', 'GPIO') or 'GPIO')
+            config_data = sensor.get('config', {}) or {}
+            
+            # Generate suffix based on protocol
+            if protocol.upper() == 'GPIO':
+                gpio = config_data.get('gpio_pin')
+                if gpio is None:
+                    gpio = config_data.get('gpio')
+                if gpio is not None:
+                    return f"{base_name} (GPIO Pin {gpio})"
+                else:
+                    return f"{base_name} (GPIO)"
+                    
+            elif protocol.lower() in ('mqtt', 'zigbee2mqtt', 'zigbee'):
+                mqtt_topic = config_data.get('mqtt_topic', 'unknown')
+                device_id = config_data.get('esp32_device_id') or config_data.get('device_id')
+                
+                if device_id:
+                    # ESP32-C6 virtual sensor
+                    return f"{base_name} (ESP32-C6: {device_id})"
+                else:
+                    # Regular MQTT sensor
+                    # Shorten topic for readability
+                    topic_parts = mqtt_topic.split('/')
+                    short_topic = '/'.join(topic_parts[-2:]) if len(topic_parts) > 2 else mqtt_topic
+                    return f"{base_name} (MQTT: {short_topic})"
+                    
+            elif protocol == 'WIRELESS':
+                address = config_data.get('address', 'unknown')
+                return f"{base_name} (Wireless: {address})"
+                
+            else:
+                # Fallback
+                sensor_id = sensor.get('sensor_id')
+                return f"{base_name} (ID: {sensor_id})"
+                
+        except Exception as e:
+            logger.warning(f"Error generating friendly name: {e}")
+            return f"Sensor #{sensor.get('sensor_id', 'unknown')}"
+    
     def _is_sensor_linked(self, sensor_id: int) -> bool:
-        """Check if a sensor is already linked to any plant.  Delegates to PlantDeviceLinker."""
-        return PlantDeviceLinker._is_sensor_linked(sensor_id)
-
+        """
+        Check if a sensor is already linked to any plant.
+        
+        Note: Currently returns False (allows sensor sharing).
+        TODO: Implement actual database check if exclusive linking is needed.
+        
+        Args:
+            sensor_id: Sensor identifier
+            
+        Returns:
+            True if sensor is linked to a plant
+        """
+        try:
+            # Allow sensor sharing for now
+            return False
+            
+        except Exception as e:
+            logger.warning(f"Error checking if sensor {sensor_id} is linked: {e}")
+            return False
+    
     # ==================== Plant Context Resolution ====================
-
+    
     def get_plant_context_for_sensor(
         self,
         *,
         unit_id: int,
         sensor_id: int,
-    ) -> dict[str, Any]:
+    ) -> Dict[str, Any]:
         """
         Resolve plant-specific context for a sensor (typically soil moisture).
-
+        
         Returns plant metadata, target thresholds, and actuator assignments for
         the plant linked to the specified sensor.
-
+        
         Args:
             unit_id: Unit identifier
             sensor_id: Sensor identifier
-
+            
         Returns:
             Dictionary with plant context:
             - plant_id: Plant database ID
@@ -1634,29 +1888,29 @@ class PlantViewService:
                     plant_name = plant.plant_name
                     plant_type = plant.plant_type
                     growth_stage = plant.current_stage
-
+                    
                     # Resolve target moisture threshold
                     target_moisture = self._resolve_target_moisture(
                         plant_id=plant_id,
                         plant_profile=plant,
-                        plant_data={},  # can be removed
+                        plant_data={}, #can be removed
                         plant_type=plant_type,
                         growth_stage=growth_stage,
                         unit_id=unit_id,
                     )
-
+                    
                     # Resolve actuator assignment
                     actuator_id, plant_pump_assigned = self._resolve_plant_actuator(plant_id)
                     if actuator_id is None:
                         actuator_id = self._resolve_unit_pump_actuator(unit_id)
-
+                    
                     # Get user_id from unit runtime or DB
                     user_id = None
                     runtime = self.growth_service.get_unit_runtime(unit_id)
                     if runtime:
                         user_id = runtime.user_id
 
-                    context: dict[str, Any] = {
+                    context: Dict[str, Any] = {
                         "plant_id": plant_id,
                         "plant_name": plant_name,
                         "plant_type": plant_type,
@@ -1665,30 +1919,30 @@ class PlantViewService:
                         "user_id": user_id,
                         "plant_pump_assigned": plant_pump_assigned,
                     }
-
+                    
                     if target_moisture is not None:
                         context["target_moisture"] = target_moisture
                     if actuator_id is not None:
                         context["actuator_id"] = actuator_id
-
+                    
                     return context
-        except Exception as exc:  # TODO(narrow): plant iteration + moisture/actuator resolution + runtime access
-            logger.debug("Failed to resolve plant ids for sensor %s: %s", sensor_id, exc, exc_info=True)
+        except Exception as exc:
+            logger.debug(f"Failed to resolve plant ids for sensor {sensor_id}: {exc}", exc_info=True)
             return {}
-
+    
     def _resolve_target_moisture(
         self,
         *,
         plant_id: int,
-        plant_profile: PlantProfile | None,
-        plant_data: dict[str, Any],
-        plant_type: str | None,
-        growth_stage: str | None,
+        plant_profile: Optional[PlantProfile],
+        plant_data: Dict[str, Any],
+        plant_type: Optional[str],
+        growth_stage: Optional[str],
         unit_id: int,
-    ) -> float | None:
+    ) -> Optional[float]:
         """
         Resolve target moisture threshold with fallback hierarchy.
-
+        
         Priority:
         1. Plant-specific override (PlantProfile or DB)
         2. Plant catalog default (PlantJsonHandler)
@@ -1722,130 +1976,189 @@ class PlantViewService:
                 return value
 
         return None
+    
+    def _resolve_plant_actuator(self, plant_id: int) -> tuple[Optional[int], bool]:
+        """
+        Resolve actuator (pump) assignment for a plant.
+        
+        Returns:
+            Tuple of (actuator_id, plant_pump_assigned)
+        """
+        try:
+            actuator_ids = self.plant_repo.get_actuators_for_plant(plant_id)
+        except Exception as exc:
+            logger.debug(f"Failed to resolve actuators for plant {plant_id}: {exc}", exc_info=True)
+            return None, False
 
-    def _resolve_plant_actuator(self, plant_id: int) -> tuple:
-        """Resolve actuator (pump) assignment for a plant.  Delegates to PlantDeviceLinker."""
-        return self._device_linker.resolve_plant_actuator(plant_id)
+        if not actuator_ids:
+            return None, False
 
-    def _resolve_unit_pump_actuator(self, unit_id: int) -> int | None:
-        """Resolve a unit-level pump actuator.  Delegates to PlantDeviceLinker."""
-        return self._device_linker.resolve_unit_pump_actuator(unit_id)
+        # Find water pump actuator
+        actuator_id = None
+        if self.devices_repo:
+            for candidate in actuator_ids:
+                actuator = self.devices_repo.get_actuator_config_by_id(candidate)
+                if not actuator:
+                    continue
+                actuator_type = self._normalize_actuator_type(actuator.get("actuator_type"))
+                if actuator_type == ActuatorType.PUMP:
+                    actuator_id = candidate
+                    break
+        
+        if actuator_id is None:
+            return None, False
 
-    def get_plant_valve_actuator_id(self, plant_id: int) -> int | None:
-        """Resolve a valve actuator linked to a plant.  Delegates to PlantDeviceLinker."""
-        return self._device_linker.get_plant_valve_actuator_id(plant_id)
+        return actuator_id, True
 
+    def _resolve_unit_pump_actuator(self, unit_id: int) -> Optional[int]:
+        """Resolve a unit-level pump actuator if no plant-specific pump is set."""
+        if not self.devices_repo:
+            return None
+        try:
+            actuators = self.devices_repo.list_actuator_configs(unit_id=unit_id)
+        except Exception as exc:
+            logger.debug("Failed to list actuators for unit %s: %s", unit_id, exc, exc_info=True)
+            return None
+
+        for actuator in actuators or []:
+            actuator_type = self._normalize_actuator_type(actuator.get("actuator_type"))
+            if actuator_type == ActuatorType.PUMP:
+                actuator_id = actuator.get("actuator_id")
+                if actuator_id is not None:
+                    return int(actuator_id)
+        return None
+
+    def get_plant_valve_actuator_id(self, plant_id: int) -> Optional[int]:
+        """Resolve a valve actuator linked to a plant, if any."""
+        try:
+            actuator_ids = self.plant_repo.get_actuators_for_plant(plant_id)
+        except Exception as exc:
+            logger.debug(f"Failed to resolve actuators for plant {plant_id}: {exc}", exc_info=True)
+            return None
+
+        if not actuator_ids or not self.devices_repo:
+            return None
+
+        for candidate in actuator_ids:
+            actuator = self.devices_repo.get_actuator_config_by_id(candidate)
+            if not actuator:
+                continue
+            actuator_type = self._normalize_actuator_type(actuator.get("actuator_type"))
+            if actuator_type == ActuatorType.VALVE:
+                return candidate
+        return None
+    
     # ==================== Plant Species Metadata (delegates to PlantJsonHandler) ====================
-    # PlantJsonHandler is the single source of truth for plant species data and caches all
-    # reads in self.data at init time. The delegation layer here exists to allow optional
-    # additional logic (validation, unit-specific overrides) without coupling callers directly.
-    def get_plant_growth_stages(self, plant_type: str) -> list[dict[str, Any]]:
+    
+    def get_plant_growth_stages(self, plant_type: str) -> List[Dict[str, Any]]:
         """
         Get growth stages for a plant type.
-
+        
         Delegates to PlantJsonHandler (single source of truth for plant species data).
-
+        
         Args:
             plant_type: Plant species/type name
-
+            
         Returns:
             List of growth stage dictionaries
         """
         return self.plant_json_handler.get_growth_stages(plant_type)
-
-    def get_plant_lighting_schedule(self, plant_type: str) -> dict[str, dict[str, Any]]:
+    
+    def get_plant_lighting_schedule(self, plant_type: str) -> Dict[str, Dict[str, Any]]:
         """
         Get lighting schedule for a plant type.
-
+        
         Delegates to PlantJsonHandler (single source of truth for plant species data).
-
+        
         Args:
             plant_type: Plant species/type name
-
+            
         Returns:
             Dictionary mapping stage names to lighting settings
         """
         return self.plant_json_handler.get_lighting_schedule(plant_type)
-
-    def get_plant_lighting_for_stage(self, plant_type: str, stage: str) -> dict[str, Any] | None:
+    
+    def get_plant_lighting_for_stage(
+        self, plant_type: str, stage: str
+    ) -> Optional[Dict[str, Any]]:
         """
         Get lighting settings for a specific growth stage.
-
+        
         Delegates to PlantJsonHandler (single source of truth for plant species data).
-
+        
         Args:
             plant_type: Plant species/type name
             stage: Growth stage name
-
+            
         Returns:
             Lighting settings dictionary or None if not found
         """
         return self.plant_json_handler.get_lighting_for_stage(plant_type, stage)
-
-    def get_plant_automation_settings(self, plant_type: str) -> dict[str, Any]:
+    
+    def get_plant_automation_settings(self, plant_type: str) -> Dict[str, Any]:
         """
         Get automation settings for a plant type.
-
+        
         Delegates to PlantJsonHandler (single source of truth for plant species data).
-
+        
         Args:
             plant_type: Plant species/type name
-
+            
         Returns:
             Automation settings dictionary
         """
         return self.plant_json_handler.get_automation_settings(plant_type)
-
-    def get_plant_watering_schedule(self, plant_type: str) -> dict[str, Any]:
+    
+    def get_plant_watering_schedule(self, plant_type: str) -> Dict[str, Any]:
         """
         Get watering schedule for a plant type.
-
+        
         Delegates to PlantJsonHandler (single source of truth for plant species data).
-
+        
         Args:
             plant_type: Plant species/type name
-
+            
         Returns:
             Watering schedule dictionary
         """
         return self.plant_json_handler.get_watering_schedule(plant_type)
-
-    def get_plant_gdd_base_temp(self, plant_type: str) -> float | None:
+    
+    def get_plant_gdd_base_temp(self, plant_type: str) -> Optional[float]:
         """
         Get GDD base temperature for a plant type.
-
+        
         Delegates to PlantJsonHandler (single source of truth for plant species data).
-
+        
         Args:
             plant_type: Plant species/type name
-
+            
         Returns:
             Base temperature in Celsius or None if not available
         """
         return self.plant_json_handler.get_gdd_base_temp_c(plant_type)
-
-    def get_plant_info(self, plant_type: str) -> dict[str, Any] | None:
+    
+    def get_plant_info(self, plant_type: str) -> Optional[Dict[str, Any]]:
         """
         Get complete plant information for a plant type.
-
+        
         Delegates to PlantJsonHandler (single source of truth for plant species data).
         Returns all metadata: growth stages, lighting, thresholds, companion plants, etc.
-
+        
         Args:
             plant_type: Plant species/type name
-
+            
         Returns:
             Complete plant info dictionary or None if not found
         """
         entry = self.plant_json_handler._find_plant_entry(plant_type)
         return entry
-
-    def list_available_plant_types(self) -> list[str]:
+    
+    def list_available_plant_types(self) -> List[str]:
         """
         List all available plant types in the catalog.
-
+        
         Delegates to PlantJsonHandler (single source of truth for plant species data).
-
+        
         Returns:
             List of plant type names
         """
@@ -1858,5 +2171,4 @@ class PlantViewService:
 
 class PlantService(PlantViewService):
     """Backward-compatible alias for PlantViewService."""
-
     pass

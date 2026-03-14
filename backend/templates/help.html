@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+
+{% block title %}Help & Documentation - SYSGrow{% endblock %}
+
+{% block body_class %}help-page{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/help.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="page-shell">
+    <header class="help-header">
+        <div class="help-header-content">
+            <h1><i class="fas fa-book-open"></i> Help & Documentation</h1>
+            <p>Find answers to common questions and learn how to get the most out of SYSGrow</p>
+        </div>
+        <div class="help-search-container">
+            <div class="search-box search-box-lg">
+                <i class="fas fa-search" aria-hidden="true"></i>
+                <input type="text"
+                       id="help-search"
+                       placeholder="Search for help..."
+                       aria-label="Search help articles"
+                       autocomplete="off">
+                <button type="button" class="search-clear hidden" id="search-clear" aria-label="Clear search">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="search-results-dropdown hidden" id="search-results-dropdown">
+                <div class="search-results-list" id="search-results-list"></div>
+            </div>
+        </div>
+    </header>
+
+    <div class="help-layout">
+        <!-- Categories Sidebar -->
+        <aside class="help-sidebar" id="help-sidebar">
+            <nav class="help-nav" aria-label="Help categories">
+                <h2 class="help-nav-title">Categories</h2>
+                <ul class="help-nav-list" id="categories-list">
+                    <li class="help-nav-item loading">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <span>Loading...</span>
+                    </li>
+                </ul>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="help-content">
+            <!-- Category View (default) -->
+            <section class="help-category-view" id="category-view">
+                <div class="help-section-header">
+                    <h2 id="category-title">All Topics</h2>
+                    <span class="article-count" id="article-count">Loading...</span>
+                </div>
+                <div class="articles-grid" id="articles-grid">
+                    <div class="loading-state">
+                        <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
+                        <p>Loading articles...</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Search Results View (hidden by default) -->
+            <section class="help-search-results hidden" id="search-view">
+                <div class="help-section-header">
+                    <h2>Search Results</h2>
+                    <span class="article-count" id="search-count"></span>
+                </div>
+                <div class="articles-list" id="search-articles-list"></div>
+            </section>
+        </main>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+    // Pass category from URL if present
+    window.HELP_INITIAL_CATEGORY = {{ (category | tojson) if category is defined else 'null' }};
+</script>
+<script type="module">
+    import { initHelpPage } from "{{ url_for('static', filename='js/help.js') }}";
+    initHelpPage();
+</script>
+{% endblock %}

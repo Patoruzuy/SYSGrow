@@ -1,0 +1,2 @@
+"""Legacy status blueprint package."""
+

@@ -490,6 +490,8 @@
         `;
 
         this.elements.deviceModal.removeAttribute('hidden');
+        this.elements.deviceModal.classList.add('is-open', 'active');
+        this.elements.deviceModal.setAttribute('aria-hidden', 'false');
 
         // Get device from data service
         const deviceDetails = this.dataService.getDevice(deviceId, deviceType);
@@ -640,7 +642,10 @@
      * Close device detail modal
      */
     closeModal() {
-      this.elements.deviceModal?.setAttribute('hidden', '');
+      if (!this.elements.deviceModal) return;
+      this.elements.deviceModal.setAttribute('hidden', '');
+      this.elements.deviceModal.classList.remove('is-open', 'active');
+      this.elements.deviceModal.setAttribute('aria-hidden', 'true');
     }
 
     // --------------------------------------------------------------------------

@@ -6,27 +6,38 @@
   <meta name="csrf-token" content="{{ csrf_token if csrf_token is defined else '' }}">
   <title>{% block title %}SYSGrow - Smart Agriculture Platform{% endblock %}</title>
 
-  <!-- Typography: Outfit (headings) + Source Sans 3 (body) -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&display=swap">
-
   <!-- Core design tokens + base components -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/tokens.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css', v='20260308c') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css', v='20260308c') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
 
   <!-- Shared layout/components -->
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}?v=20260308b">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/navigation.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/forms.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/tables.css') }}">
 
-  <!-- Page-level body class scoping (used by many templates) -->
+  <!-- Feature / page styles -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/sensors.css') }}">
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/unit-selector.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/units.css') }}?v=20260308c">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/analytics.css') }}">
 
-  <!-- Global notification dropdown in header -->
+  <!-- Reusable component styles -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/components/kpi-cards.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/components/actuators.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/components/plants.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/components/timeline.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/components/alerts.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/components/energy.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/components/vpd-zones.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/components/correlation-matrix.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/components/anomaly-panel.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/components/notifications.css') }}">
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
@@ -35,6 +46,7 @@
 
   {# Page-specific styles injected by child templates #}
   {% block styles %}{% endblock %}
+  {% block extra_css %}{% endblock %}
 </head>
 
 {# Resolve an authoritative "active unit id" for base layout rendering #}
@@ -54,7 +66,6 @@
 <body
   class="{% block body_class %}{% endblock %}"
   {% if _active_unit_id %}data-active-unit-id="{{ _active_unit_id }}"{% endif %}
-  data-user-id="{{ session.get('user_id', 1) }}"
 >
   <a href="#main-content" class="skip-link">Skip to main content</a>
 
@@ -215,10 +226,10 @@
 
       <!-- Dashboard Section -->
       <div class="nav-section">
-        <h4 class="nav-section-title">
+        <h3 class="nav-section-title">
           <i class="fas fa-tachometer-alt" aria-hidden="true"></i>
           Dashboard
-        </h4>
+        </h3>
         <ul class="nav-list">
           <li class="nav-item">
             <a href="{{ url_for('ui.index') }}"
@@ -401,7 +412,7 @@
   <footer class="modern-footer {% if session.get('user') %}with-sidebar{% endif %}">
     <div class="footer-container">
       <div class="footer-content">
-        <p>&copy; 2026 SYSGrow. Smart Agriculture Platform. All rights reserved.</p>
+        <p>&copy; 2025 SYSGrow. Smart Agriculture Platform. All rights reserved.</p>
         <div class="footer-links">
           <a href="{{ url_for('ui.help_page') }}" class="footer-link">
             <i class="fas fa-question-circle" aria-hidden="true"></i> Help
@@ -421,14 +432,12 @@
   <script src="{{ url_for('static', filename='js/base.js') }}"></script>
 
   <!-- Shared Utilities (load before components) -->
-  <script src="{{ url_for('static', filename='js/api.js') }}"></script>
   <script src="{{ url_for('static', filename='js/utils/html-utils.js') }}"></script>
   <script src="{{ url_for('static', filename='js/utils/date-utils.js') }}"></script>
   <script src="{{ url_for('static', filename='js/utils/sensor-fields.js') }}"></script>
   <script src="{{ url_for('static', filename='js/utils/notification-utils.js') }}"></script>
   <script src="{{ url_for('static', filename='js/utils/form-validator.js') }}"></script>
   <script src="{{ url_for('static', filename='js/utils/chart-service.js') }}"></script>
-  <script src="{{ url_for('static', filename='js/utils/help-banner.js') }}"></script>
   <script src="{{ url_for('static', filename='js/constants/vpd-zones.js') }}"></script>
 
   <!-- ML Status Manager (Global) -->
@@ -487,5 +496,6 @@
   </script>
 
   {% block scripts %}{% endblock %}
+  {% block extra_js %}{% endblock %}
 </body>
 </html>

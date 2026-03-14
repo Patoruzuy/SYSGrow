@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SYSGrow – Fullscreen Camera</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/fullscreen.css') }}">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+</head>
+<body data-unit-id="{{ selected_unit.unit_id if selected_unit is defined and selected_unit else '' }}">
+  <!-- Top sensor/status bar -->
+  <div class="topbar" role="region" aria-label="Live sensor readings">
+    <div class="brand">
+      <span class="pulse" id="conn-dot" aria-hidden="true"></span>
+      <span>SYSGrow</span>
+    </div>
+
+    <div class="chips" id="sensor-chips">
+      <span class="chip" id="chip-temp">🌡️ <strong id="val-temp">—</strong> <small>°C</small></span>
+      <span class="chip" id="chip-hum">💧 <strong id="val-hum">—</strong> <small>%</small></span>
+      <span class="chip" id="chip-co2">🍃 <strong id="val-co2">—</strong> <small>ppm</small></span>
+      <span class="chip" id="chip-light">☀️ <strong id="val-light">—</strong> <small>lux</small></span>
+      <span class="chip" id="chip-soil">🌱 <strong id="val-soil">—</strong> <small>%</small></span>
+      <span class="chip" id="chip-energy">⚡ <strong id="val-energy">—</strong> <small>W</small></span>
+    </div>
+
+    <div class="updated" id="last-updated">—</div>
+  </div>
+
+  <!-- Camera stage -->
+  <div class="stage">
+    {% if selected_unit %}
+    <img src="/api/growth/units/{{ selected_unit.unit_id }}/camera/feed" alt="Live camera feed for Unit {{ selected_unit.unit_id }}" id="video" onerror="this.style.display='none'; document.getElementById('camera-error').style.display='flex';">
+    <div id="camera-error" style="display:none; flex-direction:column; align-items:center; gap:1rem; color:var(--color-text-muted);">
+      <i class="fas fa-camera-slash" style="font-size:3rem;"></i>
+      <p>Camera not available. Please start the camera first.</p>
+    </div>
+    {% else %}
+    <div style="display:flex; flex-direction:column; align-items:center; gap:1rem; color:var(--color-text-muted);">
+      <i class="fas fa-exclamation-triangle" style="font-size:3rem;"></i>
+      <p>No unit selected. Please select a unit first.</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Capture button -->
+  <button class="fab" id="captureBtn" title="Take photo" aria-label="Take photo">
+    <i>📸</i>
+  </button>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  
+<script src="{{ url_for('static', filename='js/fullscreen.js') }}"></script>
+</body>
+</html>

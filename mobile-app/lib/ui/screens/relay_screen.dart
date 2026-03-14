@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../../services/mqtt_service.dart';
 import '../../services/ble_service.dart';
-import '../../providers/relay_provider.dart';
-import '../../providers/connection_provider.dart';
 
 class RelayScreen extends StatefulWidget {
   @override
@@ -15,6 +12,7 @@ class _RelayScreenState extends State<RelayScreen> {
   final bleService = BLEService();
   bool isUsingWiFi = true;
   List<int> relayPins = [2, 4, 5, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21];
+  final Set<int> _activeRelays = <int>{};
 
   @override
   void initState() {
@@ -28,6 +26,13 @@ class _RelayScreenState extends State<RelayScreen> {
     } else {
       bleService.sendRelayCommand(pin, state);
     }
+    setState(() {
+      if (state) {
+        _activeRelays.add(pin);
+      } else {
+        _activeRelays.remove(pin);
+      }
+    });
   }
 
   void switchMode() {
@@ -39,7 +44,15 @@ class _RelayScreenState extends State<RelayScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Relay Control")),
+      appBar: AppBar(
+        title: Text("Relay Control"),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.settings),
+            onPressed: () => Navigator.pushNamed(context, '/settings'),
+          ),
+        ],
+      ),
       body: Column(
         children: [
           SwitchListTile(
@@ -55,11 +68,8 @@ class _RelayScreenState extends State<RelayScreen> {
                 return ListTile(
                   title: Text("Relay GPIO $pin"),
                   trailing: Switch(
-                    value: Provider.of<RelayProvider>(context).getRelayState(pin),
-                    onChanged: (state) {
-                      toggleRelay(pin, state);
-                      Provider.of<RelayProvider>(context, listen: false).setRelayState(pin, state);
-                    },
+                    value: _activeRelays.contains(pin),
+                    onChanged: (state) => toggleRelay(pin, state),
                   ),
                 );
               },

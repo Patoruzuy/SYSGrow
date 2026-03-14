@@ -5,9 +5,12 @@
 #include "power_management.h"
 #include "web_server.h"
 #include "eeprom_utils.h"
+#include "provision_service.h"
 
 void setup() {
     Serial.begin(115200);
+    checkProvisioning();  // Start BLE provisioning if needed
+
     loadConnectionMode();
     loadWiFiConfig();
 
@@ -24,6 +27,18 @@ void setup() {
     if (WiFi.status() == WL_CONNECTED) {
         Serial.println("\nConnected to Wi-Fi");
         startMQTT();
+
+        // Publish this module as registered
+        String registrationTopic = "unit/" + String(unit_id) + "/register_module";
+        DynamicJsonDocument doc(256);
+        doc["unit_id"] = unit_id;
+        doc["device_id"] = device_id;
+        doc["module_type"] = "Relay";  // Or change based on device
+        doc["friendly_name"] = "ESP32-C6-Relays";  // Custom name
+
+        String payload;
+        serializeJson(doc, payload);
+        client.publish(registrationTopic.c_str(), payload.c_str());
     } else {
         Serial.println("\nWi-Fi Failed. Starting BLE Mode...");
         setupBLE();

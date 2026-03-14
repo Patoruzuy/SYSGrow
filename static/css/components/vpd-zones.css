@@ -1,0 +1,126 @@
+/**
+ * VPD Zones Chart Styles
+ * ============================================================================
+ */
+
+.vpd-zones-chart {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md, 1rem);
+  padding: var(--spacing-sm, 0.5rem);
+}
+
+.vpd-zones-chart__chart {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+}
+
+.vpd-zones-chart__chart canvas {
+  max-width: 100%;
+  height: auto !important;
+}
+
+.vpd-zones-chart__center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  pointer-events: none;
+}
+
+.vpd-center-icon {
+  font-size: 1.5rem;
+  margin-bottom: var(--spacing-xs, 0.25rem);
+}
+
+.vpd-center-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-primary, #1f2937);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.vpd-center-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary, #1f2937);
+}
+
+/* Legend */
+.vpd-zones-chart__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm, 0.5rem);
+  justify-content: center;
+}
+
+.vpd-zone-legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs, 0.25rem);
+  padding: var(--spacing-xs, 0.25rem) var(--spacing-sm, 0.5rem);
+  border-radius: var(--radius-sm, 0.25rem);
+  background: var(--bg-secondary, #f9fafb);
+  font-size: 0.75rem;
+  transition: opacity 0.2s ease;
+}
+
+.vpd-zone-legend-item.inactive {
+  opacity: 0.5;
+}
+
+.vpd-zone-legend-item.active {
+  background: var(--bg-tertiary, #f3f4f6);
+}
+
+.vpd-zone-legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: var(--radius-full, 50%);
+  flex-shrink: 0;
+}
+
+.vpd-zone-legend-label {
+  color: var(--text-secondary, #6b7280);
+}
+
+.vpd-zone-legend-value {
+  font-weight: 600;
+  color: var(--text-primary, #1f2937);
+  margin-left: var(--spacing-xs, 0.25rem);
+}
+
+/* Dark theme */
+:root[data-theme="dark"] .vpd-center-label,
+:root[data-theme="dark"] .vpd-center-value {
+  color: var(--text-primary, #f9fafb);
+}
+
+:root[data-theme="dark"] .vpd-zone-legend-item {
+  background: var(--bg-tertiary, #374151);
+}
+
+:root[data-theme="dark"] .vpd-zone-legend-label {
+  color: var(--text-secondary, #9ca3af);
+}
+
+:root[data-theme="dark"] .vpd-zone-legend-value {
+  color: var(--text-primary, #f9fafb);
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .vpd-zones-chart__legend {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .vpd-zone-legend-item {
+    justify-content: space-between;
+  }
+}

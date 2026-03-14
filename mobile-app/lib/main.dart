@@ -1,40 +1,29 @@
 import 'package:flutter/material.dart';
-import 'wifi_screen.dart';
-import 'discover_devices.dart';
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'providers/relay_provider.dart';
-import 'providers/connection_provider.dart';
 import 'ui/screens/relay_screen.dart';
+import 'ui/screens/settings_screen.dart';
+import 'services/discover_devices.dart';
+import 'services/wifi_screen.dart';
 
 void main() {
-  runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => RelayProvider()),
-        ChangeNotifierProvider(create: (_) => ConnectionProvider()),
-      ],
-      child: MyApp(),
-    ),
-  );
-    runApp(MaterialApp(
-    home: WiFiScreen(),
-    routes: {
-      "/discover": (context) => DiscoverDevicesScreen(),
-    },
-  ));
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'ESP32 Relay Control',
+      title: 'SYSGrow Control',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: RelayScreen(),
+      theme: ThemeData(primarySwatch: Colors.blue),
+      initialRoute: '/relays',
+      routes: {
+        '/relays': (context) => RelayScreen(),
+        '/settings': (context) => SettingsScreen(),
+        '/wifi': (context) => WiFiScreen(),
+        '/discover': (context) => DiscoverDevicesScreen(),
+      },
     );
   }
 }

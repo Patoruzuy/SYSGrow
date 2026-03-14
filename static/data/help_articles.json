@@ -1,0 +1,179 @@
+{
+  "categories": [
+    {
+      "id": "getting-started",
+      "title": "Getting Started",
+      "icon": "fa-flag-checkered",
+      "description": "Learn the basics of SYSGrow",
+      "articles": [
+        {
+          "id": "quick-start",
+          "title": "Quick Start Guide",
+          "summary": "Get up and running with SYSGrow in just a few minutes",
+          "keywords": ["setup", "start", "begin", "first", "install"],
+          "content": "# Quick Start Guide\n\nWelcome to SYSGrow! This guide will help you get started with your smart agriculture platform.\n\n## Step 1: Create Your First Growth Unit\n\nA Growth Unit represents a physical growing area - like a greenhouse, grow tent, or garden bed.\n\n1. Click on **Growth Units** in the sidebar\n2. Click the **+ New Unit** button\n3. Enter a name for your unit (e.g., \"Main Greenhouse\")\n4. Select the location type (Indoor/Outdoor)\n5. Click **Create**\n\n## Step 2: Add Sensors\n\nSensors monitor your growing environment.\n\n1. Go to **Devices** in the sidebar\n2. Click **Add Sensor**\n3. Select your sensor type (Temperature, Humidity, Soil Moisture, etc.)\n4. Choose the connection method (GPIO, MQTT, or ZigBee)\n5. Configure the sensor settings and click **Save**\n\n## Step 3: Add Your Plants\n\n1. Navigate to **Plants** in the sidebar\n2. Click **Add Plant**\n3. Search for your plant type in the growing guide\n4. Set the current growth stage\n5. Click **Add Plant**\n\n## Step 4: Set Up Automation (Optional)\n\nOnce you have sensors and actuators connected, you can set up automated schedules for:\n- Irrigation based on soil moisture\n- Lighting schedules for photoperiod control\n- Fan and ventilation control based on temperature\n\n## Next Steps\n\n- Explore the **Dashboard** to see real-time sensor readings\n- Check out the **Plants Growing Guide** for detailed plant care information\n- Set up **Notifications** to get alerts when conditions change"
+        },
+        {
+          "id": "dashboard-overview",
+          "title": "Understanding Your Dashboard",
+          "summary": "Learn what each section of the dashboard shows you",
+          "keywords": ["dashboard", "home", "overview", "readings", "status"],
+          "content": "# Understanding Your Dashboard\n\nThe Dashboard is your command center for monitoring all aspects of your growing environment.\n\n## Sensor Cards\n\nAt the top of the dashboard, you'll see cards showing real-time sensor readings:\n\n- **Temperature** - Current air temperature in your growing area\n- **Humidity** - Relative humidity percentage\n- **Soil Moisture** - How wet or dry your soil is\n- **Light** - Light intensity (if you have a light sensor)\n- **VPD** - Vapor Pressure Deficit (calculated from temp and humidity)\n\n### Status Indicators\n\nEach sensor card shows a status:\n- **Green (Optimal)** - Values are within ideal range for your plants\n- **Yellow (Warning)** - Values are approaching limits\n- **Red (Critical)** - Immediate attention needed\n\n### Trend Arrows\n\nSmall arrows show if values are:\n- **↑ Rising** - Value is increasing\n- **↓ Falling** - Value is decreasing\n- **→ Stable** - Value is steady\n\n## Plants Section\n\nShows all plants in the selected growth unit with:\n- Current growth stage\n- Days in current stage\n- Health status\n\n## Actuators Section\n\nDisplays your connected devices (pumps, fans, lights) and their current state (ON/OFF).\n\n## Quick Actions\n\nUse the buttons in the top-right to:\n- **Refresh** - Update all readings immediately\n- **Unit Selector** - Switch between different growth units"
+        },
+        {
+          "id": "adding-first-plant",
+          "title": "Adding Your First Plant",
+          "summary": "Step-by-step guide to adding plants to your growth unit",
+          "keywords": ["plant", "add", "create", "new", "seedling"],
+          "content": "# Adding Your First Plant\n\nPlants in SYSGrow help you track growth progress and get customized care recommendations.\n\n## How to Add a Plant\n\n### Step 1: Navigate to Plants\n\nClick **Plants** in the sidebar menu.\n\n### Step 2: Click Add Plant\n\nLook for the **+ Add Plant** button in the top-right corner.\n\n### Step 3: Fill in Plant Details\n\n1. **Name** - Give your plant a unique name (e.g., \"Tomato #1\" or \"Basil Corner\")\n2. **Plant Type** - Search and select from our database of 500+ plants\n3. **Growth Stage** - Select current stage:\n   - Seedling\n   - Vegetative\n   - Flowering\n   - Fruiting\n   - Harvest Ready\n4. **Days in Stage** - How many days since entering this stage\n\n### Step 4: Save\n\nClick **Add Plant** to create your plant entry.\n\n## Using the Growing Guide\n\nAfter adding a plant, click on it to see:\n- Optimal temperature and humidity ranges\n- Light requirements for each growth stage\n- Watering recommendations\n- Common problems and solutions\n\n## Plant Health Monitoring\n\nSYSGrow automatically monitors your plant's environment and alerts you when:\n- Conditions are outside optimal ranges\n- It's time to advance to the next growth stage\n- Potential problems are detected"
+        }
+      ]
+    },
+    {
+      "id": "schedules",
+      "title": "Schedules & Automation",
+      "icon": "fa-calendar-alt",
+      "description": "Learn about automated schedules",
+      "articles": [
+        {
+          "id": "schedule-types",
+          "title": "Understanding Schedule Types",
+          "summary": "Learn the difference between Simple, Interval, and Photoperiod schedules",
+          "keywords": ["schedule", "automation", "timer", "lights", "interval"],
+          "content": "# Understanding Schedule Types\n\nSYSGrow offers four types of schedules to automate your growing environment.\n\n## Simple Schedule\n\nThe most straightforward option - turn a device ON at one time and OFF at another.\n\n**Best for:**\n- Basic lighting schedules\n- Morning/evening watering\n- Ventilation during specific hours\n\n**Example:** Lights ON at 6:00 AM, OFF at 10:00 PM\n\n## Interval Schedule\n\nRun a device for a set duration, then wait before running again.\n\n**Best for:**\n- Misting systems (30 seconds every 2 hours)\n- Circulation fans (5 minutes every 30 minutes)\n- Drip irrigation\n\n**Example:** Pump ON for 60 seconds, wait 4 hours, repeat\n\n## Photoperiod Schedule\n\nControl lighting based on day length, essential for flowering plants.\n\n**Best for:**\n- Cannabis (18/6 veg, 12/12 flower)\n- Photoperiod-sensitive flowers\n- Seasonal simulation\n\n**Example:** 18 hours of light for vegetative growth\n\n## Condition-Based Schedule\n\nTrigger devices based on sensor readings.\n\n**Best for:**\n- Irrigation when soil moisture drops below 30%\n- Exhaust fans when temperature exceeds 28°C\n- Humidifiers when humidity drops below 50%\n\n**Example:** Turn ON pump when soil moisture < 35%, OFF when > 60%\n\n## Creating Your First Schedule\n\n1. Go to **Devices** in the sidebar\n2. Find the actuator you want to schedule\n3. Click the **Schedule** button (calendar icon)\n4. Select your schedule type\n5. Configure the timing parameters\n6. Click **Save Schedule**"
+        },
+        {
+          "id": "creating-schedules",
+          "title": "Creating Schedules",
+          "summary": "Step-by-step guide to creating automated schedules",
+          "keywords": ["create", "new", "schedule", "automation", "setup"],
+          "content": "# Creating Schedules\n\nAutomate your growing environment with scheduled device control.\n\n## Prerequisites\n\nBefore creating a schedule, ensure you have:\n1. At least one growth unit created\n2. An actuator (relay) connected to your system\n\n## Step-by-Step Guide\n\n### 1. Navigate to Devices\n\nGo to **Devices** in the sidebar.\n\n### 2. Find Your Actuator\n\nLocate the device you want to schedule in the actuators list.\n\n### 3. Open Schedule Settings\n\nClick the calendar icon or **Add Schedule** button.\n\n### 4. Choose Schedule Type\n\nSelect from:\n- **Simple** - ON/OFF at specific times\n- **Interval** - Cyclic ON/OFF\n- **Photoperiod** - Day/night light cycles\n- **Condition** - Sensor-triggered\n\n### 5. Configure Parameters\n\n**For Simple Schedules:**\n- Set start time (when to turn ON)\n- Set end time (when to turn OFF)\n- Select days of the week\n\n**For Interval Schedules:**\n- Set ON duration (e.g., 60 seconds)\n- Set OFF duration (e.g., 4 hours)\n- Optionally set active hours\n\n**For Photoperiod:**\n- Set hours of light (e.g., 18 for veg, 12 for flower)\n- Set light-on time (dawn)\n\n### 6. Enable and Save\n\n- Toggle **Enabled** to activate\n- Click **Save Schedule**\n\n## Managing Schedules\n\n- **Edit** - Click the pencil icon to modify\n- **Disable** - Toggle off without deleting\n- **Delete** - Remove the schedule entirely\n\n## Tips\n\n- Start with simple schedules and add complexity as needed\n- Test schedules manually first to ensure devices respond correctly\n- Use condition-based schedules for responsive irrigation"
+        }
+      ]
+    },
+    {
+      "id": "sensors",
+      "title": "Sensors & Readings",
+      "icon": "fa-thermometer-half",
+      "description": "Understanding sensor data",
+      "articles": [
+        {
+          "id": "understanding-readings",
+          "title": "Understanding Sensor Readings",
+          "summary": "Learn how to interpret your sensor data",
+          "keywords": ["sensor", "readings", "data", "temperature", "humidity", "soil"],
+          "content": "# Understanding Sensor Readings\n\nSensors are the eyes and ears of your growing system. Here's how to interpret what they're telling you.\n\n## Temperature\n\n**What it measures:** Air temperature in degrees Celsius (or Fahrenheit)\n\n**Ideal ranges by plant type:**\n- Cool-season crops (lettuce, spinach): 15-21°C (59-70°F)\n- Warm-season crops (tomatoes, peppers): 21-29°C (70-85°F)\n- Tropical plants: 24-32°C (75-90°F)\n\n**Signs of problems:**\n- Too hot: Wilting, leaf burn, bolting (premature flowering)\n- Too cold: Stunted growth, purple leaves, cold damage\n\n## Humidity\n\n**What it measures:** Relative humidity - the amount of water vapor in the air\n\n**Ideal ranges:**\n- Seedlings/clones: 70-80%\n- Vegetative growth: 50-70%\n- Flowering: 40-60%\n- Late flowering/ripening: 40-50%\n\n**Signs of problems:**\n- Too high: Mold, mildew, rot, pest problems\n- Too low: Slow growth, leaf curl, nutrient issues\n\n## Soil Moisture\n\n**What it measures:** Water content in the growing medium (0-100%)\n\n**General guidelines:**\n- 20-30%: Very dry - most plants need water\n- 40-60%: Ideal range for most plants\n- 70-80%: Wet - reduce watering\n- 90%+: Waterlogged - risk of root rot\n\n## Light (Lux)\n\n**What it measures:** Light intensity reaching your plants\n\n**Typical requirements:**\n- Seedlings: 5,000-10,000 lux\n- Leafy greens: 10,000-20,000 lux\n- Fruiting plants: 30,000-50,000 lux\n- Full sun equivalent: 50,000+ lux"
+        },
+        {
+          "id": "vpd-explained",
+          "title": "VPD Explained",
+          "summary": "What is Vapor Pressure Deficit and why it matters",
+          "keywords": ["vpd", "vapor", "pressure", "deficit", "transpiration"],
+          "content": "# VPD Explained\n\nVapor Pressure Deficit (VPD) is one of the most important metrics for plant health, yet it's often overlooked.\n\n## What is VPD?\n\nVPD measures the \"drying power\" of the air - how much moisture the air can still absorb. It's calculated from temperature and humidity.\n\n**Formula:** VPD = (Saturation Vapor Pressure) - (Actual Vapor Pressure)\n\nDon't worry - SYSGrow calculates this automatically!\n\n## Why VPD Matters\n\nPlants transpire (release water vapor through their leaves) based on VPD:\n\n- **Low VPD (< 0.4 kPa):** Air is nearly saturated. Plants can't transpire well, leading to:\n  - Nutrient uptake problems\n  - Increased disease risk\n  - Weak stems and leaves\n\n- **Optimal VPD (0.8-1.2 kPa):** Perfect balance for:\n  - Healthy transpiration\n  - Efficient nutrient transport\n  - Strong growth\n\n- **High VPD (> 1.5 kPa):** Air is very dry. Plants transpire too fast:\n  - Stomata close to conserve water\n  - Photosynthesis slows down\n  - Wilting and stress\n\n## Optimal VPD by Growth Stage\n\n| Stage | VPD Range | Temp/Humidity Example |\n|-------|-----------|----------------------|\n| Seedling/Clone | 0.4-0.8 kPa | 25°C / 70% RH |\n| Vegetative | 0.8-1.0 kPa | 26°C / 60% RH |\n| Early Flower | 1.0-1.2 kPa | 26°C / 55% RH |\n| Late Flower | 1.2-1.5 kPa | 24°C / 50% RH |\n\n## How to Adjust VPD\n\n**To lower VPD (increase humidity or decrease temperature):**\n- Use a humidifier\n- Reduce ventilation\n- Add more plants\n- Lower temperature\n\n**To raise VPD (decrease humidity or increase temperature):**\n- Use a dehumidifier\n- Increase ventilation\n- Raise temperature slightly"
+        },
+        {
+          "id": "sensor-calibration",
+          "title": "Calibrating Your Sensors",
+          "summary": "How to ensure accurate sensor readings",
+          "keywords": ["calibration", "accuracy", "sensor", "adjust", "correct"],
+          "content": "# Calibrating Your Sensors\n\nAccurate sensor readings are crucial for proper plant care. Here's how to calibrate your sensors.\n\n## When to Calibrate\n\n- When you first install a sensor\n- If readings seem inaccurate\n- After sensor firmware updates\n- Periodically (every 3-6 months)\n\n## Temperature Sensors\n\n### What you need:\n- A reliable reference thermometer\n- Time for sensors to stabilize (10-15 minutes)\n\n### Steps:\n1. Place your reference thermometer near the sensor\n2. Wait for readings to stabilize\n3. Compare readings\n4. If different, go to **Devices** > Select sensor > **Calibration**\n5. Enter the offset value (reference - sensor reading)\n\n## Humidity Sensors\n\n### Salt Test Method:\n1. Place sensor in sealed container with saturated salt solution\n2. Wait 8-12 hours\n3. Reading should be 75% RH\n4. Adjust calibration offset if needed\n\n**Note:** Most modern humidity sensors are factory-calibrated and rarely need adjustment.\n\n## Soil Moisture Sensors\n\n### Two-point calibration:\n1. **Dry reading:** Let the sensor dry completely in air\n2. Note the reading (this is your 0% or \"dry\" point)\n3. **Wet reading:** Place sensor in a glass of water\n4. Note the reading (this is your 100% or \"wet\" point)\n5. Enter these values in the sensor calibration settings\n\n## pH Sensors\n\n### Using calibration solutions:\n1. Rinse probe with distilled water\n2. Place in pH 7.0 buffer solution\n3. Calibrate to 7.0\n4. Rinse and place in pH 4.0 buffer\n5. Calibrate to 4.0\n6. Rinse and store properly\n\n**Important:** pH sensors require regular calibration (weekly for heavy use) and proper storage in electrode storage solution."
+        }
+      ]
+    },
+    {
+      "id": "plants",
+      "title": "Plants & Growth",
+      "icon": "fa-seedling",
+      "description": "Plant management and care",
+      "articles": [
+        {
+          "id": "growth-stages",
+          "title": "Understanding Growth Stages",
+          "summary": "Learn about the different stages of plant growth",
+          "keywords": ["growth", "stage", "seedling", "vegetative", "flowering"],
+          "content": "# Understanding Growth Stages\n\nTracking growth stages helps you provide the right conditions at the right time.\n\n## Seedling Stage\n\n**Duration:** 1-3 weeks\n\n**Characteristics:**\n- First true leaves appear\n- Delicate root system developing\n- Very sensitive to environment\n\n**Care tips:**\n- High humidity (70-80%)\n- Gentle lighting\n- Keep soil consistently moist but not wet\n- Warm temperatures (20-25°C)\n\n## Vegetative Stage\n\n**Duration:** 2-8 weeks (varies by plant)\n\n**Characteristics:**\n- Rapid leaf and stem growth\n- Strong root development\n- Plant establishes structure\n\n**Care tips:**\n- Moderate humidity (50-70%)\n- Increase light intensity\n- Begin regular feeding\n- Optimal temperature (21-29°C)\n\n## Flowering Stage\n\n**Duration:** 4-12 weeks (varies by plant)\n\n**Characteristics:**\n- Flowers/fruits begin forming\n- Nutrient needs change\n- Growth patterns shift\n\n**Care tips:**\n- Lower humidity (40-60%)\n- Adjust light schedule if photoperiod-sensitive\n- Switch to bloom nutrients\n- Watch for pests attracted to flowers\n\n## Fruiting/Ripening Stage\n\n**Duration:** 2-6 weeks\n\n**Characteristics:**\n- Fruits develop and ripen\n- Some plants stop vegetative growth\n- Color changes indicate ripeness\n\n**Care tips:**\n- Lower humidity (40-50%)\n- Reduce nitrogen, maintain potassium\n- Monitor for rot/mold\n- Begin harvest preparations\n\n## Harvest Stage\n\nWhen your plant is ready to harvest, SYSGrow will alert you based on:\n- Days since planting\n- Growth stage duration\n- Visual indicators you've recorded"
+        },
+        {
+          "id": "plant-health",
+          "title": "Monitoring Plant Health",
+          "summary": "How SYSGrow helps you keep plants healthy",
+          "keywords": ["health", "monitoring", "problems", "disease", "stress"],
+          "content": "# Monitoring Plant Health\n\nSYSGrow helps you detect and prevent plant health issues before they become serious.\n\n## Health Status Indicators\n\nEach plant shows a health status:\n\n- **Healthy** (Green) - All conditions optimal\n- **Stressed** (Yellow) - One or more conditions outside ideal range\n- **Critical** (Red) - Immediate attention needed\n\n## Automatic Health Monitoring\n\nSYSGrow continuously checks:\n\n### Environmental Factors\n- Temperature vs. optimal range for plant type\n- Humidity vs. current growth stage needs\n- Soil moisture vs. watering requirements\n- Light levels vs. plant requirements\n\n### VPD Analysis\n- Calculates VPD from temp/humidity\n- Compares to optimal range for growth stage\n- Alerts when VPD is too high or low\n\n## Common Problems and Solutions\n\n### Nutrient Deficiency Signs\n- Yellow leaves (nitrogen)\n- Purple stems (phosphorus)\n- Brown leaf edges (potassium)\n- Interveinal chlorosis (iron/magnesium)\n\n### Environmental Stress Signs\n- Wilting (water stress or heat)\n- Leaf curl (low humidity or heat)\n- Slow growth (cold or low light)\n- Leggy growth (insufficient light)\n\n## Using the Health Dashboard\n\n1. Go to **Plants** in the sidebar\n2. Click on any plant to see detailed health info\n3. Check the **Health Timeline** for recent events\n4. Review **Recommendations** for suggested actions\n\n## Setting Up Health Alerts\n\n1. Go to **Settings** > **Notifications**\n2. Enable **Plant Health Alerts**\n3. Set your preferred alert threshold\n4. Choose notification method (in-app, email)"
+        }
+      ]
+    },
+    {
+      "id": "settings",
+      "title": "Settings & Configuration",
+      "icon": "fa-cog",
+      "description": "System configuration options",
+      "articles": [
+        {
+          "id": "environment-settings",
+          "title": "Environment Settings",
+          "summary": "Configure your growing environment parameters",
+          "keywords": ["settings", "environment", "thresholds", "configuration"],
+          "content": "# Environment Settings\n\nCustomize how SYSGrow monitors and responds to environmental conditions.\n\n## Accessing Settings\n\n1. Click **Settings** in the sidebar\n2. Select the **Environment** tab\n\n## Threshold Configuration\n\nSet the acceptable ranges for each sensor type:\n\n### Temperature Thresholds\n- **Minimum:** Alert when temp drops below this\n- **Maximum:** Alert when temp exceeds this\n- **Critical Low:** Emergency alert threshold\n- **Critical High:** Emergency alert threshold\n\n### Humidity Thresholds\nSame structure as temperature, configured per growth unit.\n\n### Soil Moisture Thresholds\n- **Dry Threshold:** When to trigger irrigation\n- **Wet Threshold:** When to stop irrigation\n\n## Per-Plant vs. Per-Unit Settings\n\n**Unit-level settings:** Apply to all plants in a growth unit\n- Good for single-crop grows\n- Simpler to manage\n\n**Plant-level settings:** Override unit settings for specific plants\n- Useful for mixed gardens\n- More precise control\n\n## Advanced Settings\n\n### Polling Interval\nHow often sensors are read (default: 60 seconds)\n- Lower values = more responsive but more resource usage\n- Higher values = less responsive but better for Raspberry Pi\n\n### Averaging Window\nHow many readings to average for displayed values\n- Higher = smoother readings, slower response\n- Lower = more responsive, more fluctuation\n\n### Alert Cooldown\nMinimum time between repeated alerts for same condition\n- Prevents alert fatigue\n- Default: 15 minutes"
+        },
+        {
+          "id": "notification-settings",
+          "title": "Setting Up Notifications",
+          "summary": "Configure alerts and notification preferences",
+          "keywords": ["notifications", "alerts", "email", "push", "warning"],
+          "content": "# Setting Up Notifications\n\nStay informed about your grow with customizable notifications.\n\n## Notification Types\n\n### Critical Alerts\n- Sensor readings outside critical thresholds\n- Device failures\n- System errors\n\n### Warning Alerts\n- Readings approaching threshold limits\n- Maintenance reminders\n- Schedule conflicts\n\n### Info Notifications\n- Successful schedule executions\n- Growth stage reminders\n- Daily summaries\n\n## Configuration\n\n1. Go to **Settings** > **Notifications**\n\n### In-App Notifications\nAlways enabled. Appear in the notification bell in the header.\n\n### Email Notifications\n1. Enter your email address\n2. Click **Verify Email**\n3. Confirm via the link sent to you\n4. Select which alerts to receive via email\n\n### Push Notifications (Mobile)\nIf using the SYSGrow mobile app:\n1. Enable notifications in app settings\n2. Allow notifications when prompted\n3. Select notification categories\n\n## Quiet Hours\n\nPrevent notifications during certain times:\n1. Enable **Quiet Hours**\n2. Set start time (e.g., 10:00 PM)\n3. Set end time (e.g., 7:00 AM)\n4. Choose which alerts bypass quiet hours (critical alerts recommended)\n\n## Notification Grouping\n\nReduce notification overload:\n- **Immediate:** Each alert sent separately\n- **Batched:** Similar alerts grouped every 15 minutes\n- **Daily Digest:** Summary sent once per day"
+        }
+      ]
+    },
+    {
+      "id": "account",
+      "title": "Account & Security",
+      "icon": "fa-shield-alt",
+      "description": "Account management and security",
+      "articles": [
+        {
+          "id": "password-reset",
+          "title": "Resetting Your Password",
+          "summary": "How to reset your password if you've forgotten it",
+          "keywords": ["password", "reset", "forgot", "login", "access"],
+          "content": "# Resetting Your Password\n\nForgot your password? Here's how to regain access to your account.\n\n## From the Login Page\n\n1. Go to the login page\n2. Click **Forgot Password?**\n3. Enter your email address\n4. Click **Send Reset Link**\n5. Check your email for the reset link\n6. Click the link (valid for 1 hour)\n7. Enter your new password\n8. Confirm your new password\n9. Click **Reset Password**\n\n## Password Requirements\n\nYour new password must:\n- Be at least 8 characters long\n- Contain at least one uppercase letter\n- Contain at least one lowercase letter\n- Contain at least one number\n- Not be a commonly used password\n\n## If You Don't Receive the Email\n\n1. Check your spam/junk folder\n2. Wait a few minutes and try again\n3. Verify you entered the correct email\n4. Contact your administrator if problems persist\n\n## Changing Your Password (When Logged In)\n\nIf you want to change your password while already logged in:\n\n1. Go to **Settings** > **Security**\n2. Click **Change Password**\n3. Enter your current password\n4. Enter your new password\n5. Confirm your new password\n6. Click **Update Password**\n\n## Security Tips\n\n- Use a unique password for SYSGrow\n- Consider using a password manager\n- Change your password periodically\n- Never share your password with others"
+        },
+        {
+          "id": "recovery-codes",
+          "title": "Recovery Codes",
+          "summary": "Understanding and using account recovery codes",
+          "keywords": ["recovery", "codes", "backup", "access", "emergency"],
+          "content": "# Recovery Codes\n\nRecovery codes provide emergency access to your account.\n\n## What Are Recovery Codes?\n\nRecovery codes are one-time-use codes that let you access your account if you:\n- Forget your password\n- Lose access to your email\n- Need emergency access\n\n## Generating Recovery Codes\n\n1. Go to **Settings** > **Security**\n2. Click **Generate Recovery Codes**\n3. Enter your password to confirm\n4. **IMPORTANT:** Save these codes in a safe place\n\nYou'll receive 10 codes. Each can only be used once.\n\n## Storing Recovery Codes Safely\n\n**DO:**\n- Print them and store in a safe place\n- Save in a password manager\n- Store in an encrypted file\n\n**DON'T:**\n- Save in plain text on your computer\n- Share with anyone\n- Store only digitally (what if you lose access?)\n\n## Using a Recovery Code\n\n1. Go to the login page\n2. Click **Use Recovery Code**\n3. Enter one of your saved codes\n4. You'll be logged in\n5. Immediately set a new password\n6. Generate new recovery codes (the used one is now invalid)\n\n## Regenerating Codes\n\nIf you've used several codes or suspect they're compromised:\n\n1. Go to **Settings** > **Security**\n2. Click **Regenerate Recovery Codes**\n3. Old codes are immediately invalidated\n4. Save your new codes securely"
+        }
+      ]
+    },
+    {
+      "id": "troubleshooting",
+      "title": "Troubleshooting",
+      "icon": "fa-wrench",
+      "description": "Common problems and solutions",
+      "articles": [
+        {
+          "id": "common-errors",
+          "title": "Common Errors",
+          "summary": "Solutions to frequently encountered issues",
+          "keywords": ["error", "problem", "fix", "issue", "not working"],
+          "content": "# Common Errors\n\nHere are solutions to the most frequently encountered issues.\n\n## \"Connection Lost\" or \"Disconnected\"\n\n**Cause:** The browser lost connection to the SYSGrow server.\n\n**Solutions:**\n1. Check your internet connection\n2. Refresh the page\n3. If the server is on Raspberry Pi, ensure it's powered and connected\n4. Check if the SYSGrow service is running\n\n## \"Sensor Not Responding\"\n\n**Cause:** A sensor isn't sending data.\n\n**Solutions:**\n1. Check physical connections (GPIO, I2C, etc.)\n2. Verify power supply to the sensor\n3. Check sensor configuration in Devices page\n4. For MQTT sensors, verify broker connection\n5. Restart the sensor or device\n\n## \"Failed to Save Settings\"\n\n**Cause:** The server couldn't save your changes.\n\n**Solutions:**\n1. Check your internet connection\n2. Refresh the page and try again\n3. Check browser console for specific errors\n4. Verify you have permission to change settings\n\n## \"Database Locked\"\n\n**Cause:** SQLite database is busy (rare).\n\n**Solutions:**\n1. Wait a few seconds and retry\n2. Restart the SYSGrow server\n3. Check for runaway processes accessing the database\n\n## Page Not Loading / Blank Screen\n\n**Solutions:**\n1. Clear browser cache (Ctrl+Shift+Delete)\n2. Try a different browser\n3. Disable browser extensions\n4. Check browser console (F12) for errors\n\n## Slow Performance\n\n**On Raspberry Pi:**\n1. Reduce sensor polling frequency\n2. Limit number of browser tabs\n3. Check CPU/memory usage with `htop`\n4. Consider reducing data retention period"
+        },
+        {
+          "id": "device-offline",
+          "title": "Device Shows Offline",
+          "summary": "What to do when a device appears offline",
+          "keywords": ["offline", "disconnected", "not responding", "device", "sensor"],
+          "content": "# Device Shows Offline\n\nWhen a device appears offline, follow these troubleshooting steps.\n\n## For GPIO-Connected Devices\n\n### Check Physical Connections\n1. Power off the Raspberry Pi\n2. Verify all wires are securely connected\n3. Check for loose or damaged connections\n4. Ensure correct GPIO pin assignment\n5. Power on and test\n\n### Verify Configuration\n1. Go to **Devices** page\n2. Click on the offline device\n3. Confirm GPIO pin number is correct\n4. Check device type matches physical device\n\n## For MQTT Devices (ESP32)\n\n### Check Network Connection\n1. Verify ESP32 is powered on (LED indicator)\n2. Check if it's connected to WiFi\n3. Ping the device's IP address\n\n### Check MQTT Broker\n1. Verify MQTT broker (Mosquitto) is running\n2. Check broker logs for connection attempts\n3. Verify MQTT credentials are correct\n\n### Reset the Device\n1. Power cycle the ESP32\n2. Wait for it to reconnect (check broker logs)\n3. If still offline, check for firmware issues\n\n## For ZigBee Devices\n\n### Check ZigBee Network\n1. Verify ZigBee coordinator is online\n2. Check device pairing status\n3. Move device closer to coordinator if weak signal\n4. Re-pair device if necessary\n\n## Still Offline?\n\nIf device remains offline after troubleshooting:\n\n1. Check **System Health** page for more details\n2. Review system logs for error messages\n3. Test device independently (outside SYSGrow)\n4. Consider hardware failure if all else fails"
+        },
+        {
+          "id": "sensor-issues",
+          "title": "Sensor Reading Issues",
+          "summary": "Troubleshooting inaccurate or missing sensor readings",
+          "keywords": ["sensor", "reading", "wrong", "inaccurate", "stuck"],
+          "content": "# Sensor Reading Issues\n\nGetting strange readings? Here's how to diagnose and fix sensor problems.\n\n## Readings Stuck at Same Value\n\n**Possible causes:**\n1. Sensor is disconnected but returning cached value\n2. Sensor is faulty\n3. I2C communication issue\n\n**Solutions:**\n1. Check physical connections\n2. Restart the SYSGrow server\n3. Test sensor with independent tool\n4. Replace sensor if faulty\n\n## Readings Fluctuating Wildly\n\n**Possible causes:**\n1. Loose connections\n2. Electrical interference\n3. Sensor placed in unstable environment\n\n**Solutions:**\n1. Secure all connections\n2. Use shielded cables\n3. Move sensor away from electrical noise sources\n4. Increase averaging window in settings\n\n## Readings Seem Wrong\n\n**Possible causes:**\n1. Sensor needs calibration\n2. Wrong sensor type configured\n3. Unit conversion issue\n\n**Solutions:**\n1. Calibrate the sensor (see Calibration guide)\n2. Verify sensor type in configuration\n3. Check temperature unit (Celsius vs Fahrenheit)\n4. Compare with known-good reference device\n\n## No Readings at All\n\n**For I2C sensors:**\n1. Check I2C is enabled on Raspberry Pi\n2. Verify correct I2C address\n3. Run `i2cdetect -y 1` to see connected devices\n\n**For GPIO sensors:**\n1. Verify correct GPIO pin number\n2. Check pull-up/pull-down resistor requirements\n3. Test with simple script outside SYSGrow\n\n**For MQTT sensors:**\n1. Check MQTT connection status\n2. Verify correct topic configuration\n3. Use MQTT client to see if data is being published\n\n## Soil Moisture Sensor Specific\n\n- Ensure sensor is fully inserted in soil\n- Check for corrosion on probes\n- Capacitive sensors are more reliable than resistive\n- Calibrate for your specific soil type"
+        }
+      ]
+    }
+  ]
+}

@@ -28,6 +28,9 @@ devices_system.log
 logs/
 *.log
 *.log.*
+.coverage
+var/
+.github/
 database/sysgrow.db
 database/*.db
 database/*.db-journal

@@ -15,6 +15,7 @@ pymodbus>=3.1.0,<4.0.0
 pydantic>=2.0.0,<3.0.0
 
 # ===== SECURITY & ENCRYPTION =====
+bcrypt>=4.0.0,<6.0.0
 pycryptodome>=3.18.0,<4.0.0
 cryptography>=41.0.0,<42.0.0
 

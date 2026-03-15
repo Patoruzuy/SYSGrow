@@ -15,9 +15,9 @@ from .utils import (
 
 logger = logging.getLogger(__name__)
 
-# Check if config module is available
+# Check if defaults module is available
 try:
-    from app.config import SystemConfigDefaults
+    from app.defaults import SystemConfigDefaults
     CONFIG_AVAILABLE = True
 except ImportError:
     CONFIG_AVAILABLE = False

@@ -1,323 +1,188 @@
-# SYSGrow Backend Installation & Setup Guide
+# SYSGrow Installation Guide (Raspberry Pi Production)
 
-## 🚀 Quick Start
+This guide sets up SYSGrow on Raspberry Pi with:
 
-### Prerequisites
-- Python 3.11+
-- Git
-- SQLite3
-- Redis (optional, for caching)
-- Node.js (for mobile app development)
+- local SQLite database
+- local Mosquitto MQTT broker
+- `systemd` service (auto-start at boot)
 
-### Installation
+If you only need a quick manual run, use [`QUICK_START.md`](QUICK_START.md).
 
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd SYSGrow/backend
-   ```
+## 0. Assumptions
 
-2. **Create virtual environment**
-   ```bash
-   python -m venv venv
-   
-   # Windows
-   venv\Scripts\activate
-   
-   # Linux/macOS
-   source venv/bin/activate
-   ```
+- Raspberry Pi OS (Bookworm or Bullseye)
+- You have `sudo` access
+- You want SYSGrow installed at `/opt/sysgrow`
 
-3. **Install dependencies**
-   ```bash
-   # Basic installation
-   pip install -r requirements.txt
-   
-   # Development installation (includes testing tools)
-   pip install -r requirements-dev.txt
-   
-   # Or install using setup.py
-   pip install -e .
-   ```
-
-4. **Database setup**
-   ```bash
-   python -c "from infrastructure.database.sqlite_handler import SQLiteDatabaseHandler; SQLiteDatabaseHandler('sysgrow.db').initialize_database()"
-   ```
-
-5. **Run the application**
-   ```bash
-   python smart_agriculture_app.py
-   ```
-
-## 📋 Dependency Categories
-
-### Core Framework
-- **Flask**: Web framework for API and web interface
-- **Flask-SocketIO**: Real-time communication with frontend
-- **Werkzeug**: WSGI utilities
-
-### Communication
-- **paho-mqtt**: MQTT client for IoT device communication
-- **requests**: HTTP client for REST API calls
-- **aiohttp**: Async HTTP client/server
-
-### Database & Storage
-- **sqlite3**: Database operations
-- **redis**: Caching and session storage
-
-### Security
-- **pycryptodome**: Encryption for device communication
-- **cryptography**: Security utilities
-
-### Machine Learning & Data Science
-- **scikit-learn**: ML algorithms for plant growth prediction
-- **pandas**: Data manipulation and analysis
-- **numpy**: Numerical computing
-- **joblib**: ML model serialization
-
-### IoT & Hardware
-- **zigpy**: ZigBee protocol support
-- **RPi.GPIO**: Raspberry Pi GPIO control (Linux only)
-- **adafruit-circuitpython-ads1x15**: ADC sensor support
-
-### Scheduling & Automation
-- **schedule**: Simple job scheduling
-- **APScheduler**: Advanced scheduling
-
-### Visualization
-- **matplotlib**: Basic plotting
-- **plotly**: Interactive visualizations
-- **seaborn**: Statistical plotting
-
-### Development & Testing
-- **pytest**: Testing framework
-- **black**: Code formatting
-- **flake8**: Code linting
-- **mypy**: Type checking
-
-## 🏗️ Project Structure
-
-```
-backend/
-├── app/                    # Flask application
-│   ├── blueprints/         # Route blueprints
-│   ├── security/           # Authentication & security
-│   └── services/           # Business logic services
-├── ai/                     # Machine learning modules
-│   ├── enhanced_ml_trainer.py
-│   ├── plant_health_monitor.py
-│   └── ml_model.py
-├── devices/                # Device controllers
-│   ├── zigbee_energy_monitor.py
-│   ├── camera_manager.py
-│   └── actuator_controller.py
-├── environment/            # Environment monitoring
-│   ├── environment_collector.py
-│   └── control_logic.py
-├── infrastructure/         # Core infrastructure
-│   └── database/
-│       └── sqlite_handler.py
-├── app/
-│   └── blueprints/api/     # API endpoints
-├── templates/              # HTML templates
-├── static/                 # CSS, JS, images
-├── tests/                  # Test suites
-└── requirements.txt        # Dependencies
-```
-
-## 🔧 Configuration
-
-### Environment Variables
-Create a `.env` file in the backend directory:
-
-```env
-# Database
-DATABASE_PATH=sysgrow.db
-
-# MQTT
-MQTT_BROKER=localhost
-MQTT_PORT=1883
-MQTT_USERNAME=
-MQTT_PASSWORD=
-
-# Redis (optional)
-REDIS_URL=redis://localhost:6379/0
-
-# Security
-SECRET_KEY=your-secret-key-here
-ENCRYPTION_KEY=your-32-byte-encryption-key
-
-# ZigBee
-ZIGBEE_COORDINATOR_PATH=/dev/ttyUSB0
-ZIGBEE_CHANNEL=11
-
-# ML Training
-ML_TRAINING_SCHEDULE=02:00
-ML_MODEL_PATH=models/
-
-# Flask
-FLASK_ENV=development
-FLASK_DEBUG=True
-```
-
-### ZigBee Configuration
-Create `config/zigbee_config.json`:
-
-```json
-{
-    "coordinator": {
-        "path": "/dev/ttyUSB0",
-        "baudrate": 115200,
-        "channel": 11
-    },
-    "network": {
-        "pan_id": "0x1234",
-        "extended_pan_id": "00:12:34:56:78:9a:bc:de",
-        "network_key": "01:02:03:04:05:06:07:08:09:0a:0b:0c:0d:0e:0f:10"
-    },
-    "devices": {
-        "energy_monitors": [],
-        "sensors": [],
-        "actuators": []
-    }
-}
-```
-
-## 🧪 Testing
-
-Run the test suite:
+## 1. Install OS Packages
 
 ```bash
-# Run all tests
-pytest
-
-# Run with coverage
-pytest --cov=.
-
-# Run specific test file
-pytest tests/test_ml_trainer.py
-
-# Run tests in parallel
-pytest -n auto
+sudo apt update
+sudo apt install -y git python3 python3-venv python3-pip python3-dev \
+  build-essential pkg-config libsystemd-dev sqlite3 mosquitto mosquitto-clients
 ```
 
-## 🚀 Deployment
+## 2. Create Service User and Install Directory
 
-### Development Server
 ```bash
+sudo useradd --system --create-home --home-dir /opt/sysgrow --shell /usr/sbin/nologin sysgrow || true
+```
+
+## 3. Clone Repository
+
+```bash
+sudo git clone https://github.com/Patoruzuy/SYSGrow.git /opt/sysgrow
+sudo chown -R sysgrow:sysgrow /opt/sysgrow
+```
+
+## 4. Create Virtual Environment and Install Python Dependencies
+
+```bash
+sudo -u sysgrow python3 -m venv /opt/sysgrow/.venv
+sudo -u sysgrow /opt/sysgrow/.venv/bin/pip install --upgrade pip
+sudo -u sysgrow /opt/sysgrow/.venv/bin/pip install -r /opt/sysgrow/requirements.txt
+```
+
+## 5. Configure Runtime Environment
+
+Create ops env file from template:
+
+```bash
+sudo cp /opt/sysgrow/ops.env.example /opt/sysgrow/ops.env
+sudo chown sysgrow:sysgrow /opt/sysgrow/ops.env
+```
+
+Append required core variables:
+
+```bash
+sudo tee -a /opt/sysgrow/ops.env > /dev/null <<'EOF'
+SYSGROW_SECRET_KEY=replace-with-a-random-secret
+SYSGROW_HOST=0.0.0.0
+SYSGROW_PORT=8000
+SYSGROW_DATABASE_PATH=database/sysgrow.db
+SYSGROW_ENABLE_MQTT=true
+SYSGROW_MQTT_HOST=localhost
+SYSGROW_MQTT_PORT=1883
+SYSGROW_LOG_LEVEL=WARNING
+EOF
+```
+
+Generate a strong secret if needed:
+
+```bash
+python3 -c "import secrets; print(secrets.token_hex(32))"
+```
+
+## 6. Initialize Database
+
+```bash
+sudo -u sysgrow /opt/sysgrow/.venv/bin/python -c "from infrastructure.database.sqlite_handler import SQLiteDatabaseHandler; SQLiteDatabaseHandler('database/sysgrow.db').initialize_database()"
+```
+
+## 7. Configure Mosquitto (MQTT)
+
+Enable and start broker:
+
+```bash
+sudo systemctl enable --now mosquitto
+sudo systemctl status mosquitto --no-pager
+```
+
+Basic LAN listener config:
+
+```bash
+sudo tee /etc/mosquitto/conf.d/sysgrow.conf > /dev/null <<'EOF'
+listener 1883
+allow_anonymous true
+persistence true
+persistence_location /var/lib/mosquitto/
+EOF
+
+sudo systemctl restart mosquitto
+```
+
+Security note: for internet-exposed deployments, disable anonymous access and configure username/password.
+
+## 8. Install and Enable SYSGrow systemd Service
+
+```bash
+sudo cp /opt/sysgrow/deployment/sysgrow.service /etc/systemd/system/sysgrow.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now sysgrow
+```
+
+Check service:
+
+```bash
+sudo systemctl status sysgrow --no-pager
+journalctl -u sysgrow -f
+```
+
+## 9. Verify Endpoints
+
+From the Pi:
+
+```bash
+curl -s http://localhost:8000/api/v1/health/ping
+```
+
+From another device:
+
+- UI: `http://<pi-ip>:8000`
+- API docs: `http://<pi-ip>:8000/api/v1/docs`
+
+## 10. Update Procedure
+
+```bash
+sudo systemctl stop sysgrow
+sudo -u sysgrow git -C /opt/sysgrow pull
+sudo -u sysgrow /opt/sysgrow/.venv/bin/pip install -r /opt/sysgrow/requirements.txt
+sudo systemctl start sysgrow
+```
+
+## 11. Troubleshooting
+
+### App does not start
+
+```bash
+journalctl -u sysgrow -n 200 --no-pager
+```
+
+Common causes:
+
+- missing Python dependencies
+- bad `SYSGROW_SECRET_KEY`
+- invalid `SYSGROW_DATABASE_PATH`
+
+### MQTT connection errors
+
+```bash
+sudo systemctl status mosquitto --no-pager
+mosquitto_sub -h localhost -t '#' -C 1 -W 2
+```
+
+If this fails, fix broker first before debugging SYSGrow.
+
+### Port not reachable on LAN
+
+Check service bind config in `/opt/sysgrow/ops.env`:
+
+- `SYSGROW_HOST=0.0.0.0`
+- `SYSGROW_PORT=8000`
+
+Then restart:
+
+```bash
+sudo systemctl restart sysgrow
+```
+
+## 12. Optional: Run Without systemd (manual)
+
+```bash
+cd /opt/sysgrow
+source .venv/bin/activate
+export SYSGROW_ENABLE_MQTT=true
+export SYSGROW_HOST=0.0.0.0
+export SYSGROW_PORT=8000
 python smart_agriculture_app.py
 ```
-
-### Production Server (using Gunicorn)
-```bash
-pip install gunicorn
-gunicorn -w 4 -b 0.0.0.0:5000 smart_agriculture_app:app
-```
-
-### Docker Deployment
-```dockerfile
-FROM python:3.11-slim
-
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-
-COPY . .
-EXPOSE 5000
-
-CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5000", "smart_agriculture_app:app"]
-```
-
-## 🔍 Troubleshooting
-
-### Common Issues
-
-1. **ZigBee coordinator not found**
-   - Check USB device permissions
-   - Verify coordinator path in config
-   - Install zigpy coordintor-specific library
-
-2. **Redis connection errors**
-   - Install and start Redis server
-   - Check Redis configuration
-
-3. **SQLite permission errors**
-   - Check file permissions
-   - Ensure directory exists
-
-4. **MQTT connection failures**
-   - Verify broker address and port
-   - Check authentication credentials
-
-### Dependency Issues
-
-1. **Platform-specific dependencies**
-   ```bash
-   # Skip platform-specific packages
-   pip install -r requirements.txt --no-deps
-   
-   # Install manually
-   pip install Flask paho-mqtt scikit-learn
-   ```
-
-2. **Hardware library conflicts**
-   ```bash
-   # Skip hardware libraries on non-Pi systems
-   pip install -r requirements.txt --ignore-installed RPi.GPIO
-   ```
-
-## 📈 Performance Optimization
-
-### Database Optimization
-- Regular VACUUM operations
-- Proper indexing on frequently queried columns
-- Connection pooling for high-load scenarios
-
-### Memory Management
-- Monitor ML model memory usage
-- Implement model caching strategies
-- Use lazy loading for large datasets
-
-### Network Optimization
-- MQTT message batching
-- Compression for large payloads
-- Connection keep-alive optimization
-
-## 🔄 Database Migration
-
-If upgrading from previous versions:
-
-```bash
-python -c "from database.schema_upgrade import upgrade_database; upgrade_database()"
-```
-
-## 📱 Mobile App Integration
-
-The backend provides REST APIs for the mobile application. Key endpoints:
-
-- `/api/sensors/*` - Sensor data
-- `/api/devices/*` - Device control
-- `/api/energy/*` - Energy monitoring
-- `/api/plants/*` - Plant health data
-- `/api/ml/*` - ML predictions
-
-## 🎯 Next Steps
-
-1. Configure your IoT devices (ESP32-C6 modules)
-2. Set up ZigBee energy monitors
-3. Install mobile application
-4. Begin data collection and ML training
-
-For detailed feature documentation, see:
-- `ENHANCED_FEATURES_SETUP.md` - Enhanced features guide
-- `ESP32-C6-User-Experience-Recommendations.md` - Device setup guide
-- `docs/` directory for additional documentation
-
-## 🆘 Support
-
-For issues and questions:
-1. Check the troubleshooting section above
-2. Review log files in `logs/` directory
-3. Run tests to identify specific issues
-4. Create issue with detailed error information

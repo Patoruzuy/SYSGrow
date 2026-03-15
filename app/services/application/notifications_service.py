@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import json
 import logging
+import sqlite3
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Callable
 
@@ -41,6 +42,18 @@ if TYPE_CHECKING:
     from infrastructure.database.repositories.notifications import NotificationRepository
 
 logger = logging.getLogger(__name__)
+
+NOTIFICATION_RECOVERABLE_ERRORS = (
+    RuntimeError,
+    ValueError,
+    TypeError,
+    AttributeError,
+    LookupError,
+    OSError,
+    ImportError,
+    ArithmeticError,
+    sqlite3.Error,
+)
 
 
 # Backward compatibility alias
@@ -96,7 +109,7 @@ class NotificationsService:
                 return NotificationSettings.from_dict(data)
             # Return defaults
             return NotificationSettings(user_id=user_id)
-        except Exception as e:
+        except NOTIFICATION_RECOVERABLE_ERRORS as e:
             logger.error("Error getting notification settings: %s", e)
             return NotificationSettings(user_id=user_id)
 
@@ -104,7 +117,7 @@ class NotificationsService:
         """Save notification settings for a user."""
         try:
             return self._repo.save_settings(user_id, settings.to_dict())
-        except Exception as e:
+        except NOTIFICATION_RECOVERABLE_ERRORS as e:
             logger.error("Error saving notification settings: %s", e)
             return False
 
@@ -116,7 +129,7 @@ class NotificationsService:
                 if hasattr(current, key):
                     setattr(current, key, value)
             return self.save_user_settings(user_id, current)
-        except Exception as e:
+        except NOTIFICATION_RECOVERABLE_ERRORS as e:
             logger.error("Error updating notification settings: %s", e)
             return False
 
@@ -218,7 +231,7 @@ class NotificationsService:
             logger.info("Notification sent: [%s] %s to user %s", severity, title, user_id)
             return message_id
 
-        except Exception as e:
+        except NOTIFICATION_RECOVERABLE_ERRORS as e:
             logger.error("Error sending notification: %s", e)
             return None
 
@@ -256,7 +269,7 @@ class NotificationsService:
                 return start <= now <= end
             else:
                 return now >= start or now <= end
-        except Exception:
+        except (TypeError, ValueError, AttributeError):
             return False
 
     def _is_throttled(self, key: str, interval_seconds: int) -> bool:
@@ -313,6 +326,7 @@ class NotificationsService:
             self._emitter.emit_notification(payload)
             logger.debug("In-app notification sent to user %s", user_id)
         except Exception as e:
+            # Emitter transport failures must not break the main notification flow.
             logger.error("Failed to send in-app notification: %s", e)
 
     def _send_email(
@@ -356,6 +370,7 @@ class NotificationsService:
                 self._repo.update_email_status(message_id, sent=False, error="Email send failed")
 
         except Exception as e:
+            # SMTP/provider failures are isolated so the notification record still exists.
             error_msg = str(e)
             self._repo.update_email_status(message_id, sent=False, error=error_msg)
             logger.error("Failed to send email notification: %s", e)
@@ -619,7 +634,7 @@ class NotificationsService:
         """Get notifications for a user."""
         try:
             return self._repo.get_user_messages(user_id, unread_only, limit, offset)
-        except Exception as e:
+        except NOTIFICATION_RECOVERABLE_ERRORS as e:
             logger.error("Error getting user notifications: %s", e)
             return []
 
@@ -627,7 +642,7 @@ class NotificationsService:
         """Mark a notification as read."""
         try:
             return self._repo.mark_read(message_id)
-        except Exception as e:
+        except NOTIFICATION_RECOVERABLE_ERRORS as e:
             logger.error("Error marking notification as read: %s", e)
             return False
 
@@ -635,7 +650,7 @@ class NotificationsService:
         """Mark all notifications as read for a user."""
         try:
             return self._repo.mark_all_read(user_id)
-        except Exception as e:
+        except NOTIFICATION_RECOVERABLE_ERRORS as e:
             logger.error("Error marking all notifications as read: %s", e)
             return 0
 
@@ -643,7 +658,7 @@ class NotificationsService:
         """Delete a notification."""
         try:
             return self._repo.delete_message(message_id)
-        except Exception as e:
+        except NOTIFICATION_RECOVERABLE_ERRORS as e:
             logger.error("Error deleting notification: %s", e)
             return False
 
@@ -651,7 +666,7 @@ class NotificationsService:
         """Clear all notifications for a user."""
         try:
             return self._repo.clear_user_messages(user_id)
-        except Exception as e:
+        except NOTIFICATION_RECOVERABLE_ERRORS as e:
             logger.error("Error clearing user notifications: %s", e)
             return 0
 
@@ -659,7 +674,7 @@ class NotificationsService:
         """Get count of unread notifications for a user."""
         try:
             return self._repo.get_unread_count(user_id)
-        except Exception as e:
+        except NOTIFICATION_RECOVERABLE_ERRORS as e:
             logger.error("Error getting unread count: %s", e)
             return 0
 
@@ -671,7 +686,7 @@ class NotificationsService:
         """Get notifications requiring user action."""
         try:
             return self._repo.get_pending_actions(user_id, action_type)
-        except Exception as e:
+        except NOTIFICATION_RECOVERABLE_ERRORS as e:
             logger.error("Error getting pending actions: %s", e)
             return []
 
@@ -709,12 +724,17 @@ class NotificationsService:
 
             handler = self._action_handlers.get(action_type)
             if handler:
-                handled = handler(action_response, action_data, message)
+                try:
+                    handled = handler(action_response, action_data, message)
+                except Exception as handler_error:
+                    # User-registered callbacks are arbitrary code; isolate them.
+                    logger.error("Action handler failed for %s: %s", action_type, handler_error)
+                    return False
                 if not handled:
                     return False
 
             return self._repo.record_action(message_id, action_response)
-        except Exception as e:
+        except NOTIFICATION_RECOVERABLE_ERRORS as e:
             logger.error("Error recording action response: %s", e)
             return False
 
@@ -765,7 +785,7 @@ class NotificationsService:
                 feedback_notes=notes,
                 suggested_adjustment=suggested_adjustment,
             )
-        except Exception as e:
+        except NOTIFICATION_RECOVERABLE_ERRORS as e:
             logger.error("Error submitting irrigation feedback: %s", e)
             return False
 
@@ -773,7 +793,7 @@ class NotificationsService:
         """Get pending irrigation feedback requests for a user."""
         try:
             return self._repo.get_pending_irrigation_feedback(user_id)
-        except Exception as e:
+        except NOTIFICATION_RECOVERABLE_ERRORS as e:
             logger.error("Error getting pending irrigation feedback: %s", e)
             return []
 
@@ -785,7 +805,7 @@ class NotificationsService:
         """Get irrigation feedback history for a unit."""
         try:
             return self._repo.get_irrigation_feedback_history(unit_id, limit)
-        except Exception as e:
+        except NOTIFICATION_RECOVERABLE_ERRORS as e:
             logger.error("Error getting irrigation feedback history: %s", e)
             return []
 
@@ -793,7 +813,7 @@ class NotificationsService:
         """Mark that a threshold adjustment from feedback was applied."""
         try:
             return self._repo.mark_threshold_adjustment_applied(feedback_id)
-        except Exception as e:
+        except NOTIFICATION_RECOVERABLE_ERRORS as e:
             logger.error("Error marking threshold adjustment applied: %s", e)
             return False
 
@@ -803,6 +823,6 @@ class NotificationsService:
         """Purge old notifications."""
         try:
             return self._repo.purge_old(retention_days)
-        except Exception as e:
+        except NOTIFICATION_RECOVERABLE_ERRORS as e:
             logger.error("Error purging old notifications: %s", e)
             return 0

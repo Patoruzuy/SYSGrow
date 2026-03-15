@@ -4,18 +4,20 @@
 Encapsulates all database maintenance operations: backup, prune, vacuum,
 and table statistics.  Blueprint routes should call this service instead of
 performing raw SQL against the SQLite database directly.
+
+All SQL is delegated to
+:class:`~infrastructure.database.repositories.maintenance.MaintenanceRepository`;
+this service contains only orchestration/validation logic.
 """
 
 from __future__ import annotations
 
 import logging
-import sqlite3
-from contextlib import suppress
-from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from app.utils.time import iso_now
+if TYPE_CHECKING:
+    from infrastructure.database.repositories.maintenance import MaintenanceRepository
 
 logger = logging.getLogger(__name__)
 
@@ -25,23 +27,13 @@ class DatabaseMaintenanceService:
 
     Parameters
     ----------
-    db_path:
-        Path to the main SQLite database file.
+    repo:
+        :class:`~infrastructure.database.repositories.maintenance.MaintenanceRepository`
+        that handles all SQL and file-system work.
     """
 
-    def __init__(self, db_path: str | Path) -> None:
-        self._db_path = Path(db_path)
-
-    # ------------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------------
-
-    def _connect(self) -> sqlite3.Connection:
-        """Open a dedicated connection with a generous timeout."""
-        conn = sqlite3.connect(str(self._db_path), timeout=30, check_same_thread=False)
-        with suppress(Exception):
-            conn.execute("PRAGMA busy_timeout = 30000")
-        return conn
+    def __init__(self, repo: "MaintenanceRepository") -> None:
+        self._repo = repo
 
     # ------------------------------------------------------------------
     # Backup
@@ -53,7 +45,7 @@ class DatabaseMaintenanceService:
         label: str = "manual",
         directory: str | Path | None = None,
     ) -> dict[str, Any]:
-        """Create an online SQLite backup using the backup API.
+        """Create an online SQLite backup and return its metadata.
 
         Parameters
         ----------
@@ -69,36 +61,9 @@ class DatabaseMaintenanceService:
         Raises
         ------
         FileNotFoundError
-            If the main database file does not exist.
+            If the source database file does not exist.
         """
-        if not self._db_path.exists():
-            raise FileNotFoundError("Database file does not exist")
-
-        safe_label = label.strip()[:48] or "manual"
-        backup_dir = Path(directory) if directory else self._db_path.parent / "backups"
-        backup_dir.mkdir(parents=True, exist_ok=True)
-
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_name = f"{self._db_path.stem}_{safe_label}_{timestamp}.db"
-        backup_path = backup_dir / backup_name
-
-        src = self._connect()
-        try:
-            dst = self._connect()
-            try:
-                src.backup(dst)
-                dst.commit()
-            finally:
-                dst.close()
-        finally:
-            src.close()
-
-        return {
-            "directory": str(backup_dir.as_posix()),
-            "filename": backup_name,
-            "bytes": backup_path.stat().st_size if backup_path.exists() else None,
-            "created_at": iso_now(),
-        }
+        return self._repo.create_backup(label=label, directory=directory)
 
     # ------------------------------------------------------------------
     # Prune
@@ -119,8 +84,7 @@ class DatabaseMaintenanceService:
         retention_days:
             How many days of data to keep.
         unit_id:
-            Optional — restrict deletion to readings belonging to sensors
-            in this growth unit.
+            Optional — restrict deletion to sensors in this growth unit.
         dry_run:
             If ``True``, report the count without actually deleting.
         vacuum:
@@ -131,108 +95,24 @@ class DatabaseMaintenanceService:
         dict with ``deleted``, ``dry_run``, ``vacuum``, ``unit_id``,
         ``retention_days``, ``cutoff``.
         """
-        if not self._db_path.exists():
-            raise FileNotFoundError("Database file does not exist")
-
-        cutoff_dt = datetime.now() - timedelta(days=retention_days)
-        cutoff = cutoff_dt.strftime("%Y-%m-%d %H:%M:%S")
-
-        deleted = 0
-        conn = self._connect()
-        try:
-            if unit_id is None:
-                if dry_run:
-                    cur = conn.execute(
-                        "SELECT COUNT(1) AS cnt FROM SensorReading WHERE datetime(timestamp) < datetime(?)",
-                        (cutoff,),
-                    )
-                    row = cur.fetchone()
-                    deleted = int(row[0]) if row else 0
-                else:
-                    cur = conn.execute(
-                        "DELETE FROM SensorReading WHERE datetime(timestamp) < datetime(?)",
-                        (cutoff,),
-                    )
-                    deleted = int(cur.rowcount or 0)
-                    conn.commit()
-            else:
-                if dry_run:
-                    cur = conn.execute(
-                        "SELECT COUNT(1) AS cnt "
-                        "FROM SensorReading sr "
-                        "JOIN Sensor s ON s.sensor_id = sr.sensor_id "
-                        "WHERE s.unit_id = ? AND datetime(sr.timestamp) < datetime(?)",
-                        (unit_id, cutoff),
-                    )
-                    row = cur.fetchone()
-                    deleted = int(row[0]) if row else 0
-                else:
-                    cur = conn.execute(
-                        "DELETE FROM SensorReading "
-                        "WHERE reading_id IN ("
-                        "  SELECT sr.reading_id "
-                        "  FROM SensorReading sr "
-                        "  JOIN Sensor s ON s.sensor_id = sr.sensor_id "
-                        "  WHERE s.unit_id = ? AND datetime(sr.timestamp) < datetime(?)"
-                        ")",
-                        (unit_id, cutoff),
-                    )
-                    deleted = int(cur.rowcount or 0)
-                    conn.commit()
-
-            if vacuum and not dry_run:
-                conn.execute("VACUUM")
-                conn.commit()
-        finally:
-            conn.close()
-
-        return {
-            "deleted": deleted,
-            "dry_run": dry_run,
-            "vacuum": vacuum and (not dry_run),
-            "unit_id": unit_id,
-            "retention_days": retention_days,
-            "cutoff": cutoff_dt.isoformat(),
-        }
+        return self._repo.prune_sensor_readings(
+            retention_days=retention_days,
+            unit_id=unit_id,
+            dry_run=dry_run,
+            vacuum=vacuum,
+        )
 
     # ------------------------------------------------------------------
     # Vacuum
     # ------------------------------------------------------------------
 
     def vacuum(self) -> dict[str, Any]:
-        """Run ``VACUUM`` to reclaim disk space.
-
-        Raises
-        ------
-        FileNotFoundError
-            If the database file does not exist.
-        """
-        if not self._db_path.exists():
-            raise FileNotFoundError("Database file does not exist")
-
-        conn = self._connect()
-        try:
-            conn.execute("VACUUM")
-            conn.commit()
-        finally:
-            conn.close()
-
-        return {"vacuum": True, "timestamp": iso_now()}
+        """Run ``VACUUM`` to reclaim disk space."""
+        return self._repo.vacuum()
 
     # ------------------------------------------------------------------
     # Table statistics
     # ------------------------------------------------------------------
-
-    _KEY_TABLES = (
-        "SensorReading",
-        "ActuatorStateHistory",
-        "GrowthUnits",
-        "Plants",
-        "Sensor",
-        "Actuator",
-        "Alerts",
-        "NotificationHistory",
-    )
 
     def get_table_row_counts(self, tables: tuple[str, ...] | None = None) -> dict[str, int]:
         """Return ``{table_name: row_count}`` for a fixed set of key tables.
@@ -240,24 +120,10 @@ class DatabaseMaintenanceService:
         Parameters
         ----------
         tables:
-            Explicit list of table names.  Defaults to :pyattr:`_KEY_TABLES`.
+            Explicit list of table names.  Defaults to the built-in set in
+            :class:`~infrastructure.database.ops.maintenance.MaintenanceOperations`.
         """
-        tables = tables or self._KEY_TABLES
-        counts: dict[str, int] = {}
-        conn = self._connect()
-        try:
-            for table in tables:
-                try:
-                    # table names come from an internal constant, not user input
-                    cursor = conn.execute(
-                        f"SELECT COUNT(*) FROM {table}"  # nosec B608
-                    )
-                    counts[table] = cursor.fetchone()[0]
-                except Exception as exc:
-                    logger.debug("Skipping row count for table %s: %s", table, exc)
-        finally:
-            conn.close()
-        return counts
+        return self._repo.get_table_row_counts(tables)
 
     # ------------------------------------------------------------------
     # DB size info
@@ -265,28 +131,4 @@ class DatabaseMaintenanceService:
 
     def get_database_size_info(self) -> dict[str, Any]:
         """Return size information about the SQLite database files."""
-        info: dict[str, Any] = {
-            "main_db_mb": 0,
-            "wal_mb": 0,
-            "shm_mb": 0,
-            "total_mb": 0,
-            "warning": False,
-            "critical": False,
-        }
-        if not self._db_path.exists():
-            return info
-
-        info["main_db_mb"] = round(self._db_path.stat().st_size / (1024 * 1024), 2)
-
-        wal = self._db_path.with_suffix(".db-wal")
-        if wal.exists():
-            info["wal_mb"] = round(wal.stat().st_size / (1024 * 1024), 2)
-
-        shm = self._db_path.with_suffix(".db-shm")
-        if shm.exists():
-            info["shm_mb"] = round(shm.stat().st_size / (1024 * 1024), 2)
-
-        info["total_mb"] = round(info["main_db_mb"] + info["wal_mb"] + info["shm_mb"], 2)
-        info["warning"] = info["total_mb"] > 100
-        info["critical"] = info["total_mb"] > 500
-        return info
+        return self._repo.get_database_size_info()

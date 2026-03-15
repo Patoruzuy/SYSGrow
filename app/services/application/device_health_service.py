@@ -28,6 +28,11 @@ import logging
 from datetime import UTC
 from typing import TYPE_CHECKING, Any
 
+try:
+    from dateutil import parser as dateutil_parser
+except ImportError:
+    dateutil_parser = None
+
 if TYPE_CHECKING:
     from app.services.application.alert_service import AlertService
     from app.services.hardware import ActuatorManagementService, SensorManagementService
@@ -45,6 +50,9 @@ from app.utils.event_bus import EventBus
 from infrastructure.database.repositories.devices import DeviceRepository
 
 logger = logging.getLogger(__name__)
+
+NON_VALIDATION_ERRORS = (RuntimeError, TypeError, AttributeError, LookupError, OSError)
+RECOVERABLE_ERRORS = (*NON_VALIDATION_ERRORS, ValueError)
 
 
 class DeviceHealthService:
@@ -183,7 +191,7 @@ class DeviceHealthService:
         except ValueError as ve:
             logger.error("Validation error calibrating sensor %s: %s", sensor_id, ve)
             return {"success": False, "error": str(ve), "error_type": "validation"}
-        except Exception as e:
+        except NON_VALIDATION_ERRORS as e:
             logger.error("Error calibrating sensor %s: %s", sensor_id, e, exc_info=True)
             return {"success": False, "error": str(e), "error_type": "runtime"}
 
@@ -344,7 +352,7 @@ class DeviceHealthService:
                     total_readings=total_for_snapshot,
                     failed_readings=failed_for_snapshot,
                 )
-            except Exception as db_error:
+            except RECOVERABLE_ERRORS as db_error:
                 logger.warning("Failed to persist health snapshot: %s", db_error)
                 # Don't fail the whole operation if DB save fails
 
@@ -355,7 +363,7 @@ class DeviceHealthService:
         except ValueError as ve:
             logger.error("Validation error getting health for sensor %s: %s", sensor_id, ve)
             return {"success": False, "error": str(ve), "error_type": "validation"}
-        except Exception as e:
+        except NON_VALIDATION_ERRORS as e:
             logger.error("Error getting health for sensor %s: %s", sensor_id, e, exc_info=True)
             return {"success": False, "error": str(e), "error_type": "runtime"}
 
@@ -452,9 +460,9 @@ class DeviceHealthService:
                                     logger.info(
                                         "AlertService.create_alert returned id=%s for sensor %s", alert_id, sensor_id
                                     )
-                                except Exception as alert_error:
+                                except RECOVERABLE_ERRORS as alert_error:
                                     logger.warning("Failed to create alert for sensor anomaly: %s", alert_error)
-                            except Exception as alert_error:
+                            except RECOVERABLE_ERRORS as alert_error:
                                 logger.warning("Failed to prepare alert for sensor anomaly: %s", alert_error)
                     else:
                         logger.warning(
@@ -463,7 +471,7 @@ class DeviceHealthService:
                             std_dev,
                             stats,
                         )
-                except Exception as log_error:
+                except RECOVERABLE_ERRORS as log_error:
                     logger.warning("Failed to log anomaly for sensor %s: %s", sensor_id, log_error)
 
             logger.debug("Checked anomalies for sensor %s: anomaly=%s", sensor_id, is_anomaly)
@@ -484,7 +492,7 @@ class DeviceHealthService:
         except ValueError as ve:
             logger.error("Validation error checking anomalies for sensor %s: %s", sensor_id, ve)
             return {"success": False, "error": str(ve), "error_type": "validation"}
-        except Exception as e:
+        except NON_VALIDATION_ERRORS as e:
             logger.error("Error checking anomalies for sensor %s: %s", sensor_id, e, exc_info=True)
             return {"success": False, "error": str(e), "error_type": "runtime"}
 
@@ -528,7 +536,7 @@ class DeviceHealthService:
         except ValueError as ve:
             logger.error("Validation error getting statistics for sensor %s: %s", sensor_id, ve)
             return {"success": False, "error": str(ve), "error_type": "validation"}
-        except Exception as e:
+        except NON_VALIDATION_ERRORS as e:
             logger.error("Error getting statistics for sensor %s: %s", sensor_id, e, exc_info=True)
             return {"success": False, "error": str(e), "error_type": "runtime"}
 
@@ -571,7 +579,7 @@ class DeviceHealthService:
             logger.debug("Retrieved %s calibration records for sensor %s", len(history), sensor_id)
             return history
 
-        except Exception as e:
+        except RECOVERABLE_ERRORS as e:
             logger.error("Error getting calibration history for sensor %s: %s", sensor_id, e, exc_info=True)
             return []
 
@@ -614,7 +622,7 @@ class DeviceHealthService:
             logger.debug("Retrieved %s health records for sensor %s", len(history), sensor_id)
             return history
 
-        except Exception as e:
+        except RECOVERABLE_ERRORS as e:
             logger.error("Error getting health history for sensor %s: %s", sensor_id, e, exc_info=True)
             return []
 
@@ -650,7 +658,7 @@ class DeviceHealthService:
         except ValueError as ve:
             logger.warning("Validation error in get_sensor_anomaly_history: %s", ve)
             return []
-        except Exception as e:
+        except NON_VALIDATION_ERRORS as e:
             logger.error("Error getting anomaly history for sensor %s: %s", sensor_id, e, exc_info=True)
             return []
 
@@ -690,7 +698,7 @@ class DeviceHealthService:
             )
             logger.info("Saved health snapshot for actuator %s: %s (%s/100)", actuator_id, status, health_score)
             return history_id
-        except Exception as e:
+        except RECOVERABLE_ERRORS as e:
             logger.error("Error saving actuator health for %s: %s", actuator_id, e, exc_info=True)
             return None
 
@@ -709,7 +717,7 @@ class DeviceHealthService:
             history = self.repository.get_actuator_health_history(actuator_id, limit)
             logger.debug("Retrieved %s health records for actuator %s", len(history), actuator_id)
             return history
-        except Exception as e:
+        except RECOVERABLE_ERRORS as e:
             logger.error("Error getting health history for actuator %s: %s", actuator_id, e, exc_info=True)
             return []
 
@@ -767,7 +775,7 @@ class DeviceHealthService:
                         metadata={"anomaly_type": anomaly_type, "severity": severity, "details": details},
                     )
                     logger.info("Created alert for actuator %s anomaly: %s", actuator_id, anomaly_type)
-                except Exception as alert_error:
+                except RECOVERABLE_ERRORS as alert_error:
                     logger.warning("Failed to create alert for actuator anomaly: %s", alert_error)
 
             # Publish event for real-time alerts (typed payload)
@@ -783,7 +791,7 @@ class DeviceHealthService:
             )
 
             return anomaly_id
-        except Exception as e:
+        except RECOVERABLE_ERRORS as e:
             logger.error("Error logging actuator anomaly for %s: %s", actuator_id, e, exc_info=True)
             return None
 
@@ -802,7 +810,7 @@ class DeviceHealthService:
             anomalies = self.repository.get_actuator_anomalies(actuator_id, limit)
             logger.debug("Retrieved %s anomalies for actuator %s", len(anomalies), actuator_id)
             return anomalies
-        except Exception as e:
+        except RECOVERABLE_ERRORS as e:
             logger.error("Error getting anomalies for actuator %s: %s", actuator_id, e, exc_info=True)
             return []
 
@@ -825,7 +833,7 @@ class DeviceHealthService:
                     ActuatorAnomalyResolvedPayload(anomaly_id=anomaly_id),
                 )
             return success
-        except Exception as e:
+        except RECOVERABLE_ERRORS as e:
             logger.error("Error resolving actuator anomaly %s: %s", anomaly_id, e, exc_info=True)
             return False
 
@@ -862,7 +870,7 @@ class DeviceHealthService:
             )
 
             return calibration_id
-        except Exception as e:
+        except RECOVERABLE_ERRORS as e:
             logger.error("Error saving calibration for actuator %s: %s", actuator_id, e, exc_info=True)
             return None
 
@@ -880,7 +888,7 @@ class DeviceHealthService:
             calibrations = self.repository.get_actuator_calibrations(actuator_id)
             logger.debug("Retrieved %s calibrations for actuator %s", len(calibrations), actuator_id)
             return calibrations
-        except Exception as e:
+        except RECOVERABLE_ERRORS as e:
             logger.error("Error getting calibrations for actuator %s: %s", actuator_id, e, exc_info=True)
             return []
 
@@ -929,7 +937,7 @@ class DeviceHealthService:
             )
             logger.debug("Saved power reading for actuator %s: %sW", actuator_id, power_watts)
             return reading_id
-        except Exception as e:
+        except RECOVERABLE_ERRORS as e:
             logger.error("Error saving power reading for actuator %s: %s", actuator_id, e, exc_info=True)
             return None
 
@@ -951,7 +959,7 @@ class DeviceHealthService:
             readings = self.repository.get_actuator_power_readings(actuator_id, limit, hours)
             logger.debug("Retrieved %s power readings for actuator %s", len(readings), actuator_id)
             return readings
-        except Exception as e:
+        except RECOVERABLE_ERRORS as e:
             logger.error("Error getting power readings for actuator %s: %s", actuator_id, e, exc_info=True)
             return []
 
@@ -1067,7 +1075,7 @@ class DeviceHealthService:
                         logger.info(
                             "AlertService.create_alert returned id=%s for offline sensor %s", alert_id, sensor_id
                         )
-                    except Exception as alert_error:
+                    except RECOVERABLE_ERRORS as alert_error:
                         logger.warning("Failed to create offline alert: %s", alert_error)
 
                 # Create alert for critical health status. Only consider numeric
@@ -1123,7 +1131,7 @@ class DeviceHealthService:
                             alert_id,
                             sensor_id,
                         )
-                    except Exception as alert_error:
+                    except RECOVERABLE_ERRORS as alert_error:
                         logger.warning("Failed to create health alert: %s", alert_error)
 
             return {
@@ -1134,7 +1142,7 @@ class DeviceHealthService:
                 "offline_sensors": offline_sensors,
             }
 
-        except Exception as e:
+        except RECOVERABLE_ERRORS as e:
             logger.error("Error checking device health: %s", e, exc_info=True)
             return {"success": False, "error": str(e)}
 
@@ -1267,14 +1275,16 @@ class DeviceHealthService:
 
             last_read_time = None
             if isinstance(last_reading, str):
-                try:
-                    from dateutil import parser as dateutil_parser
+                if dateutil_parser is not None:
+                    try:
+                        last_read_time = dateutil_parser.isoparse(last_reading)
+                    except (ValueError, TypeError, OverflowError):
+                        last_read_time = None
 
-                    last_read_time = dateutil_parser.isoparse(last_reading)
-                except Exception:
+                if last_read_time is None:
                     try:
                         last_read_time = datetime.fromisoformat(last_reading.replace("Z", "+00:00"))
-                    except Exception:
+                    except ValueError:
                         return False
             elif hasattr(last_reading, "tzinfo") or hasattr(last_reading, "year"):
                 last_read_time = last_reading
@@ -1287,7 +1297,7 @@ class DeviceHealthService:
             now = datetime.now(tz=UTC)
             time_since_reading = now - last_read_time.astimezone(UTC)
             return time_since_reading > timedelta(minutes=self.offline_threshold_minutes)
-        except Exception:
+        except (AttributeError, OverflowError, TypeError, ValueError):
             return False
 
     # ==================== Health Score Interpretation ====================

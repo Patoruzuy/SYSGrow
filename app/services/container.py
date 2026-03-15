@@ -42,6 +42,7 @@ from app.services.hardware import ActuatorManagementService, SensorManagementSer
 from app.services.hardware.camera_service import CameraService
 from app.services.hardware.mqtt_sensor_service import MQTTSensorService
 from app.services.utilities.anomaly_detection_service import AnomalyDetectionService
+from app.services.utilities.database_maintenance_service import DatabaseMaintenanceService
 from app.services.utilities.system_health_service import SystemHealthService
 from app.utils.emitters import EmitterService
 from app.utils.plant_json_handler import PlantJsonHandler
@@ -97,6 +98,7 @@ class ServiceContainer:
     harvest_service: PlantHarvestService
     plant_journal_service: PlantJournalService
     irrigation_workflow_service: IrrigationWorkflowService
+    maintenance_service: DatabaseMaintenanceService
     scheduler: UnifiedScheduler
     camera_service: CameraService
     mqtt_client: MQTTClientWrapper | None

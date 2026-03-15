@@ -22,7 +22,6 @@ from app.blueprints.api._common import (
 )
 from app.blueprints.api.settings import settings_api
 from app.security.auth import api_login_required
-from app.services.utilities.database_maintenance_service import DatabaseMaintenanceService
 from app.utils.http import error_response, safe_route, success_response
 
 logger = logging.getLogger(__name__)
@@ -40,16 +39,12 @@ def _bool(value: Any, default: bool = False) -> bool:
     return default
 
 
-def _get_maintenance_service() -> DatabaseMaintenanceService | None:
-    """Resolve the database path and return a service instance."""
+def _get_maintenance_service():
+    """Return the pre-built DatabaseMaintenanceService from the container."""
     container = _get_container()
     if not container:
         return None
-    config = getattr(container, "config", None)
-    database_path = getattr(config, "database_path", None)
-    if not database_path:
-        return None
-    return DatabaseMaintenanceService(database_path)
+    return getattr(container, "maintenance_service", None)
 
 
 @settings_api.post("/database/backup")

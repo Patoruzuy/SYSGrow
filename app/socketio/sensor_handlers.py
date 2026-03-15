@@ -47,6 +47,25 @@ def _auto_join_unit_room(namespace_label: str) -> None:
         logger.warning("Failed to auto-join unit room for client %s (%s): %s", request.sid, namespace_label, e)
 
 
+def _auto_join_user_room(namespace_label: str) -> None:
+    """Best-effort auto-join the user room based on session.user_id.
+
+    Required for namespaces that use emit_to_user() (e.g. /notifications,
+    /alerts, /session) so that user-targeted events are actually delivered.
+    """
+    try:
+        user_id = session.get("user_id")
+        if user_id is None:
+            logger.info("⚠️  Client %s connected to %s with no user_id in session", request.sid, namespace_label)
+            return
+
+        user_id = int(user_id)
+        join_room(f"user_{user_id}")
+        logger.info("✅ Client %s auto-joined room user_%s (%s)", request.sid, user_id, namespace_label)
+    except Exception as e:
+        logger.warning("Failed to auto-join user room for client %s (%s): %s", request.sid, namespace_label, e)
+
+
 def _join_unit_from_payload(data) -> None:
     """Explicitly join a unit room (best-effort), respecting session as source of truth."""
     try:
@@ -182,6 +201,7 @@ def handle_system_disconnect():
 @socketio.on("connect", namespace=SOCKETIO_NAMESPACE_ALERTS)
 def handle_alerts_connect():
     logger.info("Client connected to /alerts namespace: %s", request.sid)
+    _auto_join_user_room("/alerts")
 
 
 @socketio.on("disconnect", namespace=SOCKETIO_NAMESPACE_ALERTS)
@@ -197,6 +217,7 @@ def handle_alerts_disconnect():
 @socketio.on("connect", namespace=SOCKETIO_NAMESPACE_NOTIFICATIONS)
 def handle_notifications_connect():
     logger.info("Client connected to /notifications namespace: %s", request.sid)
+    _auto_join_user_room("/notifications")
 
 
 @socketio.on("disconnect", namespace=SOCKETIO_NAMESPACE_NOTIFICATIONS)
@@ -212,6 +233,7 @@ def handle_notifications_disconnect():
 @socketio.on("connect", namespace=SOCKETIO_NAMESPACE_SESSION)
 def handle_session_connect():
     logger.info("Client connected to /session namespace: %s", request.sid)
+    _auto_join_user_room("/session")
 
 
 @socketio.on("disconnect", namespace=SOCKETIO_NAMESPACE_SESSION)

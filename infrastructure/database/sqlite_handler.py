@@ -16,6 +16,7 @@ from infrastructure.database.ops.camera import CameraOperations
 from infrastructure.database.ops.devices import DeviceOperations
 from infrastructure.database.ops.growth import GrowthOperations
 from infrastructure.database.ops.irrigation_workflow import IrrigationWorkflowOperations
+from infrastructure.database.ops.maintenance import MaintenanceOperations
 from infrastructure.database.ops.notifications import NotificationOperations
 from infrastructure.database.ops.schedules import ScheduleOperations
 from infrastructure.database.ops.settings import SettingsOperations
@@ -34,6 +35,7 @@ class SQLiteDatabaseHandler(
     NotificationOperations,
     IrrigationWorkflowOperations,
     ScheduleOperations,
+    MaintenanceOperations,
 ):
     """Thread-safe SQLite handler decoupled from Flask globals."""
 

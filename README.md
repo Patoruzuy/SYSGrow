@@ -1,22 +1,88 @@
-# SYSGrow
+<div align="center">
 
-Raspberry Pi-first smart agriculture platform for monitoring sensors, controlling actuators, and running automation from a local Flask app.
+# 🌱 SYSGrow
 
-Author: Patoruzuy
+**Raspberry Pi-first smart agriculture platform for local monitoring, automation, and control**
 
-## What This Repository Contains
+[![Author](https://img.shields.io/badge/author-Patoruzuy-2f855a)](https://github.com/Patoruzuy)
+[![Python](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Flask](https://img.shields.io/badge/flask-3.x-000000?logo=flask)](https://flask.palletsprojects.com/)
+[![SQLite](https://img.shields.io/badge/database-SQLite%20(WAL)-003B57?logo=sqlite)](https://sqlite.org/)
+[![MQTT](https://img.shields.io/badge/protocol-MQTT-660066?logo=eclipsemosquitto)](https://mosquitto.org/)
+[![Raspberry Pi](https://img.shields.io/badge/target-Raspberry%20Pi-C51A4A?logo=raspberrypi)](https://www.raspberrypi.com/)
+[![License](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
 
-This repository is the deployable SYSGrow backend application:
+[Quick Start](#-quick-start-raspberry-pi) · [Install Guide](docs/setup/INSTALLATION_GUIDE.md) · [Docs Index](docs/INDEX.md)
 
-- Flask web UI + API (`/api/v1/*`)
-- SQLite data layer (WAL mode)
-- MQTT integration for ESP32 and other IoT devices
-- Real-time updates via Socket.IO
-- Optional ML/AI modules
+</div>
 
-## Quick Start (Raspberry Pi Recommended)
+---
 
-These steps are the fastest path to a first working install on Raspberry Pi OS.
+## ✨ Overview
+
+SYSGrow turns a Raspberry Pi into a local smart-grow controller:
+
+- 🌡️ Sensor monitoring
+- 🔌 Actuator control
+- 📡 MQTT integration for ESP32 devices
+- 📈 Real-time dashboards (Socket.IO)
+- 🧠 Optional ML/AI modules
+
+Main API namespace: `/api/v1/*`
+
+Author: **Patoruzuy**
+
+## 🌟 Features
+
+### 🌱 Grow Operations
+
+- Multi-unit management from one dashboard
+- Plant lifecycle tracking and journal records
+- Configurable thresholds and schedules
+- Harvest reporting and historical records
+
+### 🔌 Devices and Hardware
+
+- ESP32 integration over MQTT
+- Sensor ingestion and calibration flows
+- Actuator control (relays, pumps, fans, lights)
+- Device health and infrastructure health endpoints
+
+### 📊 Real-Time Monitoring
+
+- Live dashboard updates through Socket.IO
+- Environmental trends and analytics views
+- Unit/device/system health breakdowns
+- Alerting and notifications pipeline
+
+### 🧠 AI/ML (Optional)
+
+- Irrigation and growth-support ML services
+- Plant health scoring and prediction endpoints
+- Retraining and monitoring modules
+- Analytics APIs for model and system insights
+
+## 🏗️ Architecture Snapshot
+
+```text
+UI + API Blueprints
+        ↓
+Application Services
+        ↓
+Domain + Hardware Services
+        ↓
+Infrastructure (SQLite, repositories, MQTT)
+```
+
+## 🧰 Tech Stack
+
+- Backend: Flask 3.x + Flask-SocketIO
+- Data: SQLite (WAL mode)
+- Messaging: MQTT (Mosquitto)
+- Runtime: Python 3.11+
+- Target: Raspberry Pi 3B+/4/5
+
+## 🚀 Quick Start (Raspberry Pi)
 
 ### 1. Install system packages
 
@@ -26,14 +92,14 @@ sudo apt install -y git python3 python3-venv python3-pip python3-dev \
   build-essential pkg-config libsystemd-dev sqlite3 mosquitto mosquitto-clients
 ```
 
-### 2. Clone and enter backend
+### 2. Clone and enter project
 
 ```bash
 git clone https://github.com/Patoruzuy/SYSGrow.git
 cd SYSGrow
 ```
 
-### 3. Create virtual environment and install dependencies
+### 3. Python environment
 
 ```bash
 python3 -m venv .venv
@@ -48,14 +114,14 @@ pip install -r requirements.txt
 python -c "from infrastructure.database.sqlite_handler import SQLiteDatabaseHandler; SQLiteDatabaseHandler('database/sysgrow.db').initialize_database()"
 ```
 
-### 5. Ensure MQTT broker is running
+### 5. Start MQTT broker
 
 ```bash
 sudo systemctl enable --now mosquitto
 sudo systemctl status mosquitto --no-pager
 ```
 
-### 6. Start SYSGrow
+### 6. Run SYSGrow
 
 ```bash
 export SYSGROW_ENABLE_MQTT=true
@@ -64,61 +130,51 @@ export SYSGROW_PORT=8000
 python smart_agriculture_app.py
 ```
 
-### 7. Open the app
+### 7. Open in browser
 
 - UI: `http://<your-pi-ip>:8000`
 - API docs: `http://<your-pi-ip>:8000/api/v1/docs`
 
-## First-Boot Validation Checklist
-
-After startup, confirm:
+## ✅ First-Boot Checklist
 
 1. `database/sysgrow.db` exists.
-2. `mosquitto` is active (`systemctl status mosquitto`).
-3. `/api/v1/health/ping` returns HTTP 200.
-4. UI opens from another device on your LAN.
+2. `mosquitto` is active.
+3. `curl http://localhost:8000/api/v1/health/ping` returns 200.
+4. UI loads from another device on your LAN.
 
-## Production Setup (systemd + auto-start)
+## 🛠️ Production Deployment
 
-Use the full deployment guide:
+For `systemd` boot-time startup and production setup:
 
 - [`docs/setup/INSTALLATION_GUIDE.md`](docs/setup/INSTALLATION_GUIDE.md)
 
-That guide includes:
-
-- service user creation
-- `systemd` service setup
-- boot-time startup
-- environment file configuration
-- logs and troubleshooting
-
-## Documentation Map
+## 📚 Documentation
 
 Start here:
 
-- Quick start: [`docs/setup/QUICK_START.md`](docs/setup/QUICK_START.md)
-- Full install guide: [`docs/setup/INSTALLATION_GUIDE.md`](docs/setup/INSTALLATION_GUIDE.md)
-- Documentation index: [`docs/INDEX.md`](docs/INDEX.md)
+- [`docs/setup/QUICK_START.md`](docs/setup/QUICK_START.md)
+- [`docs/setup/INSTALLATION_GUIDE.md`](docs/setup/INSTALLATION_GUIDE.md)
+- [`docs/INDEX.md`](docs/INDEX.md)
 
-Reference docs:
+Technical references:
 
-- Architecture: [`docs/architecture/ARCHITECTURE.md`](docs/architecture/ARCHITECTURE.md)
-- API docs summary: [`docs/api/API_UPDATES_SUMMARY.md`](docs/api/API_UPDATES_SUMMARY.md)
-- Hardware docs: [`docs/hardware/sensors.md`](docs/hardware/sensors.md)
+- [`docs/architecture/ARCHITECTURE.md`](docs/architecture/ARCHITECTURE.md)
+- [`docs/api/API_UPDATES_SUMMARY.md`](docs/api/API_UPDATES_SUMMARY.md)
+- [`docs/hardware/sensors.md`](docs/hardware/sensors.md)
 
-## Development Commands
+## 🧪 Development Commands
 
 ```bash
-# dev server (auto reload)
+# Development server (auto-reload)
 python start_dev.py
 
-# production-like local run
+# Production-like local run
 python smart_agriculture_app.py
 
-# test suite
+# Tests
 pytest
 ```
 
-## License
+## 📄 License
 
-MIT. See [`LICENSE`](LICENSE).
+MIT — see [`LICENSE`](LICENSE).

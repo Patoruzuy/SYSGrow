@@ -111,7 +111,17 @@
         return { ok: true, data: response?.unit || response?.data || response };
       } catch (error) {
         console.error('[UnitsDataService] createUnit failed:', error);
-        return { ok: false, error: error.message || 'Failed to create unit' };
+        const message =
+          error?.payload?.error?.message ||
+          (typeof error?.payload?.error === 'string' ? error.payload.error : null) ||
+          error?.message ||
+          'Failed to create unit';
+        return {
+          ok: false,
+          error: message,
+          status: error?.status || null,
+          details: error?.details || null
+        };
       }
     }
 
@@ -209,7 +219,7 @@
      */
     async deleteSchedule(scheduleId, unitId = null) {
       try {
-        await this.api.Device.deleteSchedule(scheduleId);
+        await this.api.Device.deleteSchedule(scheduleId, unitId);
         if (unitId) {
           this.cache.invalidate(this._key('schedules', unitId));
         }
@@ -669,7 +679,7 @@
         return await this._cached(
           cacheKey,
           async () => {
-            const response = await this.api.Plant.getPlantInfo(plantId);
+            const response = await this.api.Plant.getPlant(plantId);
             return response?.plant || response?.data || response || null;
           },
           { force }
@@ -685,7 +695,10 @@
      */
     async addPlant(payload) {
       try {
-        const response = await this.api.Plant.addPlant(payload);
+        const unitId = payload.unit_id;
+        const body = { ...payload };
+        delete body.unit_id;
+        const response = await this.api.Plant.addPlant(unitId, body);
         if (payload.unit_id) {
           this.cache.invalidate(this._key('plants', payload.unit_id));
         }
@@ -701,7 +714,7 @@
      */
     async removePlant(plantId, unitId = null) {
       try {
-        await this.api.Plant.removePlant(plantId);
+        await this.api.Plant.removePlant(unitId, plantId);
         if (unitId) {
           this.cache.invalidate(this._key('plants', unitId));
         }
@@ -778,8 +791,9 @@
         return await this._cached(
           cacheKey,
           async () => {
-            const response = await this.api.Analytics.getEnvironmentalMetrics(unitId);
-            return response?.metrics || response?.data || response || null;
+            const response = await this.api.Analytics.getEnvironmentalSummary(unitId);
+            const payload = response?.data || response || null;
+            return payload?.current || payload || null;
           },
           { force }
         );
@@ -817,19 +831,12 @@
     // --------------------------------------------------------------------------
 
     /**
-     * Start camera for unit
+     * Start camera for unit — uses centralized API for CSRF/error handling
      */
     async startCamera(unitId) {
       try {
-        const response = await fetch(`/api/growth/units/${unitId}/camera/start`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
-        });
-        if (!response.ok) {
-          return { ok: false, error: `HTTP ${response.status}: ${response.statusText}` };
-        }
-        const data = await response.json();
-        return data.ok !== false ? { ok: true, data } : { ok: false, error: data.error || 'Failed to start camera' };
+        const data = await this.api.Growth.startCamera(unitId);
+        return { ok: true, data };
       } catch (error) {
         console.error(`[UnitsDataService] startCamera(${unitId}) failed:`, error);
         return { ok: false, error: error.message || 'Failed to start camera' };
@@ -837,19 +844,12 @@
     }
 
     /**
-     * Stop camera for unit
+     * Stop camera for unit — uses centralized API for CSRF/error handling
      */
     async stopCamera(unitId) {
       try {
-        const response = await fetch(`/api/growth/units/${unitId}/camera/stop`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
-        });
-        if (!response.ok) {
-          return { ok: false, error: `HTTP ${response.status}: ${response.statusText}` };
-        }
-        const data = await response.json();
-        return data.ok !== false ? { ok: true, data } : { ok: false, error: data.error || 'Failed to stop camera' };
+        const data = await this.api.Growth.stopCamera(unitId);
+        return { ok: true, data };
       } catch (error) {
         console.error(`[UnitsDataService] stopCamera(${unitId}) failed:`, error);
         return { ok: false, error: error.message || 'Failed to stop camera' };
@@ -857,16 +857,12 @@
     }
 
     /**
-     * Get camera status for unit
+     * Get camera status for unit — uses centralized API for error handling
      */
     async getCameraStatus(unitId) {
       try {
-        const response = await fetch(`/api/growth/units/${unitId}/camera/status`);
-        if (!response.ok) {
-          return { ok: false, error: `HTTP ${response.status}: ${response.statusText}` };
-        }
-        const data = await response.json();
-        return data.ok !== false ? { ok: true, data } : { ok: false, error: data.error || 'Failed to get camera status' };
+        const data = await this.api.Growth.getCameraStatus(unitId);
+        return { ok: true, data };
       } catch (error) {
         console.error(`[UnitsDataService] getCameraStatus(${unitId}) failed:`, error);
         return { ok: false, error: error.message || 'Failed to get camera status' };

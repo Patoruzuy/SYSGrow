@@ -293,7 +293,15 @@ def create_unit() -> Response:
         except ValueError as exc:
             return safe_error(exc, 400)
 
-        created = _service().get_unit(unit_id)
+        try:
+            created = _service().get_unit(unit_id)
+        except RuntimeError as exc:
+            logger.warning(
+                "Growth unit %s created but unavailable for immediate fetch: %s",
+                unit_id,
+                exc,
+            )
+            created = None
         if not created:
             payload = {"unit_id": unit_id}
             if condition_profile:

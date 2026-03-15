@@ -111,7 +111,17 @@
         return { ok: true, data: response?.unit || response?.data || response };
       } catch (error) {
         console.error('[UnitsDataService] createUnit failed:', error);
-        return { ok: false, error: error.message || 'Failed to create unit' };
+        const message =
+          error?.payload?.error?.message ||
+          (typeof error?.payload?.error === 'string' ? error.payload.error : null) ||
+          error?.message ||
+          'Failed to create unit';
+        return {
+          ok: false,
+          error: message,
+          status: error?.status || null,
+          details: error?.details || null
+        };
       }
     }
 

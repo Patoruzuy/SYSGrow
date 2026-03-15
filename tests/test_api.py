@@ -72,6 +72,32 @@ def test_growth_unit_lifecycle(client):
     assert pytest.approx(data["temperature_threshold"], rel=1e-3) == 24.5
 
 
+def test_create_growth_unit_api_persists_when_runtime_bootstrap_fails(client, monkeypatch):
+    with client.application.app_context():
+        growth_service = client.application.config["CONTAINER"].growth_service
+
+        def _raise_runtime_bootstrap_error(*_args, **_kwargs):
+            raise RuntimeError("simulated runtime bootstrap failure")
+
+        monkeypatch.setattr(growth_service.factory, "create_runtime", _raise_runtime_bootstrap_error)
+
+    response = client.post(
+        "/api/growth/v2/units",
+        json={"name": "Resilient Unit", "location": "Indoor"},
+    )
+    assert response.status_code == 201
+
+    payload = response.get_json() or {}
+    assert payload.get("ok") is True
+    data = payload.get("data") or {}
+    created_unit_id = data.get("id") or data.get("unit_id")
+    assert created_unit_id is not None
+
+    with client.application.app_context():
+        persisted = client.application.config["CONTAINER"].growth_service.unit_repo.get_unit(int(created_unit_id))
+    assert persisted is not None
+
+
 def test_sensor_history_endpoint(app, client):
     with app.app_context():
         database = app.config["CONTAINER"].database

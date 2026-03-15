@@ -147,7 +147,7 @@
       modal.classList.add('active');
       document.body.style.overflow = 'hidden';
 
-      if (modalId === 'createUnitModal') {
+      if (modalId === 'createUnitModal' || modalId === 'create-unit-modal') {
         this._loadUnitProfileSelector();
       }
 
@@ -169,7 +169,7 @@
       // Reset forms within modal
       const forms = modal.querySelectorAll('form');
       forms.forEach(form => form.reset());
-      if (modalId === 'createUnitModal') {
+      if (modalId === 'createUnitModal' || modalId === 'create-unit-modal') {
         this._resetUnitProfileSelection();
       }
       if (modalId === 'addPlantModal') {
@@ -258,7 +258,7 @@
           <div class="empty-state">
             <i class="fas fa-seedling"></i>
             <p>No growth units yet</p>
-            <button class="btn btn-primary" onclick="window.unitsUI.openModal('create-unit-modal')">
+            <button class="btn btn-primary" onclick="window.unitsUI.openModal('createUnitModal')">
               Create Your First Unit
             </button>
           </div>
@@ -914,20 +914,86 @@
     // Create Unit
     // --------------------------------------------------------------------------
 
+    _parsePositiveNumber(value) {
+      if (value === null || value === undefined || value === '') {
+        return null;
+      }
+      const parsed = Number.parseFloat(String(value));
+      return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+    }
+
+    _buildCreateUnitPayload(formData) {
+      const payload = {
+        name: String(formData.get('name') || '').trim(),
+        location: String(formData.get('location') || 'Indoor').trim() || 'Indoor',
+        camera_enabled: formData.has('camera_enabled'),
+      };
+
+      const timezone = String(formData.get('timezone') || '').trim();
+      if (timezone) {
+        payload.timezone = timezone;
+      }
+
+      const customImage = String(formData.get('custom_image') || '').trim();
+      if (customImage) {
+        payload.custom_image = customImage;
+      }
+
+      const width = this._parsePositiveNumber(formData.get('dimensions[width]'));
+      const height = this._parsePositiveNumber(formData.get('dimensions[height]'));
+      const depth = this._parsePositiveNumber(formData.get('dimensions[depth]'));
+      if (width !== null && height !== null && depth !== null) {
+        payload.dimensions = { width, height, depth };
+      }
+
+      const schedulesByIndex = {};
+      for (const [key, rawValue] of formData.entries()) {
+        const match = key.match(/^device_schedules\[(\d+)\]\[(.+)\]$/);
+        if (!match) continue;
+
+        const index = match[1];
+        const field = match[2];
+        if (!schedulesByIndex[index]) {
+          schedulesByIndex[index] = {};
+        }
+        schedulesByIndex[index][field] = typeof rawValue === 'string' ? rawValue.trim() : rawValue;
+      }
+
+      const deviceSchedules = {};
+      Object.values(schedulesByIndex).forEach((row) => {
+        const deviceType = String(row.device_type || '').trim().toLowerCase();
+        const startTime = String(row.start_time || '').trim();
+        const endTime = String(row.end_time || '').trim();
+        if (!deviceType || !startTime || !endTime) {
+          return;
+        }
+        deviceSchedules[deviceType] = {
+          start_time: startTime,
+          end_time: endTime,
+          enabled: row.enabled === undefined || row.enabled === true || row.enabled === 'true' || row.enabled === 'on',
+        };
+      });
+
+      if (Object.keys(deviceSchedules).length > 0) {
+        payload.device_schedules = deviceSchedules;
+      }
+
+      return payload;
+    }
+
     async handleCreateUnit(e) {
       e.preventDefault();
       const form = e.target;
       const formData = new FormData(form);
-      const data = Object.fromEntries(formData.entries());
-      const profileId = data.condition_profile_id || null;
-      const profileMode = data.condition_profile_mode || 'active';
-      const profileName = data.condition_profile_name || null;
+      const payload = this._buildCreateUnitPayload(formData);
+      const profileId = String(formData.get('condition_profile_id') || '').trim() || null;
+      const profileMode = String(formData.get('condition_profile_mode') || 'active').trim() || 'active';
+      const profileName = String(formData.get('condition_profile_name') || '').trim() || null;
 
-      delete data.condition_profile_id;
-      delete data.condition_profile_mode;
-      delete data.condition_profile_name;
-      delete data.profile_plant_type;
-      delete data.profile_growth_stage;
+      if (!payload.name) {
+        this.showToast('Unit name is required', 'error');
+        return;
+      }
 
       const submitBtn = form.querySelector('button[type="submit"]');
       if (submitBtn) {
@@ -936,7 +1002,7 @@
       }
 
       try {
-        const result = await this.dataService.createUnit(data);
+        const result = await this.dataService.createUnit(payload);
 
         if (result.ok) {
           const unit = result.data || {};
@@ -952,11 +1018,14 @@
           await this.loadUnitsOverview();
           this.showToast('Unit created successfully', 'success');
         } else {
-          this.showToast(result.error || 'Failed to create unit', 'error');
+          const message = result.status === 401
+            ? 'Session expired. Please log in again.'
+            : (result.error || 'Failed to create unit');
+          this.showToast(message, 'error');
         }
       } catch (error) {
         console.error('[UnitsUIManager] handleCreateUnit failed:', error);
-        this.showToast('Failed to create unit', 'error');
+        this.showToast(error?.message || 'Failed to create unit', 'error');
       } finally {
         if (submitBtn) {
           submitBtn.disabled = false;

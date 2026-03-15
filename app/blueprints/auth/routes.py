@@ -125,19 +125,9 @@ def process_registration() -> Response:
     if container.auth_manager.register_user(username, password):
         container.audit_logger.log_event(actor=username, action="register", resource="user", outcome="success")
 
-        # Create default growth unit for new user
-        try:
-            unit_id = container.growth_service.create_unit(
-                name="My First Unit",
-                location="Indoor",
-                user_id=1,  # Default user ID
-            )
-            if unit_id:
-                current_app.logger.info("✅ Created default unit (ID: %s) for new user '%s'", unit_id, username)
-            else:
-                current_app.logger.warning("⚠️ Failed to create default unit for user '%s'", username)
-        except Exception as e:
-            current_app.logger.error("❌ Error creating default unit for user '%s': %s", username, e)
+        # Registration should not auto-create units.
+        # Users start with an empty workspace and explicitly create units from the UI.
+        current_app.logger.info("Registered user '%s' with no default unit auto-created", username)
 
         flash("Registration successful. Please log in.", "success")
         return redirect(url_for("auth.login"))

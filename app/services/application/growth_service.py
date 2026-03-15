@@ -1332,7 +1332,7 @@ class GrowthService:
     def determine_landing_page(self, user_id: int) -> dict[str, Any]:
         """Decide where a user should land after login.
 
-        * No units → auto-create a default unit, route to dashboard.
+        * No units → route to dashboard and prompt unit setup.
         * One unit → route straight to dashboard.
         * Multiple units → route to unit selector.
 
@@ -1343,13 +1343,7 @@ class GrowthService:
             units = self.list_units(user_id=user_id)
 
             if len(units) == 0:
-                unit_id = self.create_unit(
-                    name="My First Growth Unit",
-                    location="Indoor",
-                    user_id=user_id,
-                )
-                logger.info("Created default unit %s for new user %s", unit_id, user_id)
-                return {"route": "dashboard", "unit_id": unit_id, "is_new_user": True}
+                return {"route": "dashboard", "unit_id": None, "is_new_user": True, "needs_unit_setup": True}
 
             if len(units) == 1:
                 return {"route": "dashboard", "unit_id": units[0]["unit_id"], "is_new_user": False}
@@ -1493,15 +1487,14 @@ class GrowthService:
             Unit ID if successful, None otherwise
         """
         logger.info("Creating growth unit '%s' in location '%s'", name, location)
+        normalized_dimensions = normalize_dimensions(dimensions) if dimensions else dimensions
+        dimensions_json = dump_json_field(normalized_dimensions)
+
+        # Default user_id to 1 if not provided
+        if user_id is None:
+            user_id = 1
+
         try:
-            normalized_dimensions = normalize_dimensions(dimensions) if dimensions else dimensions
-
-            dimensions_json = dump_json_field(normalized_dimensions)
-
-            # Default user_id to 1 if not provided
-            if user_id is None:
-                user_id = 1
-
             logger.debug("Calling repo.create_unit with user_id=%s", user_id)
             unit_id = self.unit_repo.create_unit(
                 name=name,
@@ -1513,14 +1506,20 @@ class GrowthService:
                 camera_enabled=camera_enabled,
             )
             logger.debug("repo.create_unit returned unit_id=%s", unit_id)
+        except Exception as e:  # TODO(narrow): persistence failure paths
+            logger.error("Error persisting unit creation: %s", e, exc_info=True)
+            return None
 
-            if unit_id is None:
-                logger.error("repo.create_unit returned None; raising RuntimeError")
-                raise RuntimeError("Failed to create growth unit.")
+        if unit_id is None:
+            logger.error("repo.create_unit returned None for unit '%s'", name)
+            return None
 
+        # Invalidate API cache immediately after persistence.
+        self._invalidate_unit_cache(unit_id)
+
+        # Runtime startup is best-effort; persisted units must remain usable.
+        try:
             logger.debug("Creating unit runtime for unit_id=%s", unit_id)
-
-            # Create unit runtime and start hardware
             unit_data = {
                 "unit_id": unit_id,
                 "name": name,
@@ -1531,25 +1530,41 @@ class GrowthService:
                 "dimensions": normalized_dimensions,
                 "camera_enabled": camera_enabled,
             }
-
             runtime = self.factory.create_runtime(unit_data)
-
-            logger.debug("Runtime created for unit_id=%s; adding to _unit_runtimes", unit_id)
             with self._registry_lock:
                 self._unit_runtimes[unit_id] = runtime
 
-            self._invalidate_unit_cache(unit_id)
-
-            # Start hardware runtime
             logger.info("Starting hardware runtime for new unit %s (%s)", unit_id, name)
-            self.start_unit_runtime(unit_id)
+            if not self.start_unit_runtime(unit_id):
+                logger.warning(
+                    "Growth unit %s persisted, but runtime start failed; unit remains available",
+                    unit_id,
+                )
+        except Exception as e:  # TODO(narrow): runtime bootstrap failure paths
+            with self._registry_lock:
+                self._unit_runtimes.pop(unit_id, None)
+            logger.warning(
+                "Growth unit %s persisted, but runtime bootstrap failed: %s",
+                unit_id,
+                e,
+                exc_info=True,
+            )
 
+        try:
             self._auto_apply_plant_stage_schedules(
                 unit_id=unit_id,
                 require_empty=True,
                 reason="unit_creation",
             )
+        except Exception as e:  # TODO(narrow): scheduling bootstrap failure paths
+            logger.warning(
+                "Growth unit %s created, but failed to auto-apply schedules: %s",
+                unit_id,
+                e,
+                exc_info=True,
+            )
 
+        try:
             self.audit_logger.log_event(
                 actor="system",
                 action="create",
@@ -1558,13 +1573,11 @@ class GrowthService:
                 name=name,
                 location=location,
             )
+        except Exception as e:  # TODO(narrow): audit failure paths
+            logger.warning("Failed to write audit log for unit %s: %s", unit_id, e)
 
-            logger.info("Growth unit created successfully with unit_id=%s", unit_id)
-            return unit_id
-
-        except Exception as e:  # TODO(narrow): complex unit creation with DB, factory, hardware start, and audit
-            logger.error("Error creating unit: %s", e, exc_info=True)
-            return None
+        logger.info("Growth unit created successfully with unit_id=%s", unit_id)
+        return unit_id
 
     def update_unit(
         self,

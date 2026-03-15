@@ -116,7 +116,7 @@ pip install -e .
 
 #### 4️⃣ Initialize Database
 ```bash
-python -c "from infrastructure.database.sqlite_handler import SQLiteDatabaseHandler; SQLiteDatabaseHandler('sysgrow.db').initialize_database()"
+python -c "from infrastructure.database.sqlite_handler import SQLiteDatabaseHandler; db=SQLiteDatabaseHandler('sysgrow.db'); db.init_app()"
 ```
 
 #### 5️⃣ Run the Application

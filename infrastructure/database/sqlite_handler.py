@@ -53,6 +53,10 @@ class SQLiteDatabaseHandler(
         self.create_tables()
         self.run_migrations()
 
+    def initialize_database(self) -> None:
+        """Backward-compatible DB initialization entrypoint."""
+        self.init_app()
+
     def run_migrations(self) -> None:
         """Run standard sequential migrations."""
         try:
@@ -1548,4 +1552,3 @@ class SQLiteDatabaseHandler(
                 default_profiles
             )
         logging.info("Seeded DeviceEnergyProfiles table with %d default profiles.", len(default_profiles))
-

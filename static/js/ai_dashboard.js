@@ -230,10 +230,10 @@ class AIInsightsManager {
             const topFactors = risk.contributing_factors?.slice(0, 2) || [];
             const html = `
                 <div>
-                    <strong>${this.escapeHtml(risk.disease_type.replace('_', ' '))}</strong>
+                    <strong>${risk.disease_type.replace('_', ' ')}</strong>
                     ${topFactors.length > 0 ? `
                         <ul style="margin: 0.5rem 0 0 0; padding-left: 1.5rem; font-size: 0.875rem;">
-                            ${topFactors.map(f => `<li>${this.escapeHtml(f.factor)}: ${this.escapeHtml(f.impact)}</li>`).join('')}
+                            ${topFactors.map(f => `<li>${f.factor}: ${f.impact}</li>`).join('')}
                         </ul>
                     ` : ''}
                 </div>
@@ -418,10 +418,9 @@ class AIInsightsManager {
         
         // Update quick actions
         if (this.elements.optimizationActions && optimization.quick_actions) {
-            const esc = window.escapeHtmlAttr || this.escapeHtml;
             const html = optimization.quick_actions.slice(0, 3).map(action => `
-                <a href="#" class="quick-action-btn" data-action="${esc(action.type)}">
-                    <span>${this.escapeHtml(action.label)}</span>
+                <a href="#" class="quick-action-btn" data-action="${action.type}">
+                    <span>${action.label}</span>
                     <i class="fas fa-arrow-right"></i>
                 </a>
             `).join('');
@@ -559,7 +558,7 @@ class AIInsightsManager {
                 </div>
                 ${hasAlert ? `
                     <div class="forecast-alert">
-                        ⚠️ ${this.escapeHtml(day.predicted_issues[0].issue)}
+                        ⚠️ ${day.predicted_issues[0].issue}
                     </div>
                 ` : ''}
             </div>
@@ -576,25 +575,21 @@ class AIInsightsManager {
             
             if (growers.length > 0) {
                 this.renderSimilarGrowers(growers);
-                this.setCommunitySectionVisibility(true);
+                if (this.elements.communitySection) {
+                    this.elements.communitySection.style.display = 'block';
+                }
             } else {
-                this.setCommunitySectionVisibility(false);
+                if (this.elements.communitySection) {
+                    this.elements.communitySection.style.display = 'none';
+                }
             }
             
         } catch (error) {
             console.error('Error loading similar growers:', error);
-            this.setCommunitySectionVisibility(false);
+            if (this.elements.communitySection) {
+                this.elements.communitySection.style.display = 'none';
+            }
         }
-    }
-
-    /**
-     * Toggle visibility of optional community section.
-     * Hidden by default via CSS class, then shown when data exists.
-     * @param {boolean} isVisible
-     */
-    setCommunitySectionVisibility(isVisible) {
-        if (!this.elements.communitySection) return;
-        this.elements.communitySection.classList.toggle('section--hidden', !isVisible);
     }
     
     /**
@@ -621,7 +616,7 @@ class AIInsightsManager {
                     ${similarity}% similar setup
                 </div>
                 <div class="grower-info">
-                    <div class="grower-plant">${this.escapeHtml(success.plant_type)}</div>
+                    <div class="grower-plant">${success.plant_type}</div>
                     <div class="grower-stats">
                         <div class="grower-stat">
                             <span>Quality</span>
@@ -638,7 +633,7 @@ class AIInsightsManager {
                     <ul>
                         ${grower.key_conditions ? Object.entries(grower.key_conditions)
                             .slice(0, 3)
-                            .map(([key, value]) => `<li>${this.escapeHtml(key)}: ${this.escapeHtml(String(value))}</li>`)
+                            .map(([key, value]) => `<li>${key}: ${value}</li>`)
                             .join('') : '<li>No specific tips available</li>'}
                     </ul>
                 </div>
@@ -846,7 +841,6 @@ class AIInsightsManager {
      * Utility: Escape HTML
      */
     escapeHtml(text) {
-        if (window.escapeHtml) return window.escapeHtml(text);
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;

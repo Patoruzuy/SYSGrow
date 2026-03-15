@@ -18,16 +18,14 @@ This module centralizes:
 - Common service accessors
 - Datetime parsing utilities
 """
-
 from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Optional
 
 from flask import current_app, request, session
-
-from app.utils.http import error_response, success_response
+from app.utils.http import success_response, error_response
 from app.utils.time import coerce_datetime as _coerce_datetime_util
 
 logger = logging.getLogger("api._common")
@@ -38,44 +36,32 @@ logger = logging.getLogger("api._common")
 
 
 def get_user_id() -> int:
-    """Get current user ID from session.
-
-    Returns the authenticated user's ID, or ``1`` as a local-device
-    fallback when no session exists (SYSGrow is typically single-user
-    on a Raspberry Pi).  The API write-protection middleware already
-    blocks unauthenticated mutating requests, so this fallback only
-    applies to GET/read-only paths.
-    """
+    """Get current user ID from session."""
     return session.get("user_id", 1)
-
 
 def get_user_role() -> str:
     """Get current user role from session."""
     return session.get("user_role", "user")
 
-
 # ============================================================================
 # UNIT UTILITIES
 # ============================================================================
 
-
-def get_selected_unit_id() -> int | None:
+def get_selected_unit_id() -> Optional[int]:
     """Get current unit ID from session, if set."""
     return session.get("selected_unit")
-
 
 # ============================================================================
 # CONTAINER ACCESS
 # ============================================================================
 
-
 def get_container():
     """
     Get the service container from Flask app config.
-
+    
     Returns:
         ServiceContainer: The application service container
-
+        
     Raises:
         RuntimeError: If container is not configured
     """
@@ -89,11 +75,10 @@ def get_container():
 # REQUEST HELPERS
 # ============================================================================
 
-
 def get_json() -> dict:
     """
     Get JSON request body with silent failure.
-
+    
     Returns:
         dict: Parsed JSON body or empty dict if not available
     """
@@ -104,16 +89,15 @@ def get_json() -> dict:
 # RESPONSE HELPERS
 # ============================================================================
 
-
 def success(data: dict | list | None = None, status: int = 200, *, message: str | None = None):
     """
     Standard success response wrapper.
-
+    
     Args:
         data: Response data (dict or list)
         status: HTTP status code (default 200)
         message: Optional success message
-
+        
     Returns:
         Flask Response with format: {"ok": true, "data": ..., "error": null}
     """
@@ -123,12 +107,12 @@ def success(data: dict | list | None = None, status: int = 200, *, message: str 
 def fail(message: str, status: int = 400, *, details: dict | None = None):
     """
     Standard error response wrapper.
-
+    
     Args:
         message: Error message
         status: HTTP status code (default 400)
         details: Optional error details dict
-
+        
     Returns:
         Flask Response with format: {"ok": false, "data": null, "error": {...}}
     """
@@ -139,18 +123,17 @@ def fail(message: str, status: int = 400, *, details: dict | None = None):
 # DATETIME UTILITIES
 # ============================================================================
 
-
-def parse_datetime(param: str | None, default: datetime) -> datetime:
+def parse_datetime(param: Optional[str], default: datetime) -> datetime:
     """
     Parse ISO datetime string or return default.
-
+    
     Args:
         param: ISO 8601 datetime string (optional)
         default: Default datetime if param is None
-
+        
     Returns:
         Parsed datetime in UTC
-
+        
     Raises:
         ValueError: If param is invalid format
     """
@@ -162,17 +145,17 @@ def parse_datetime(param: str | None, default: datetime) -> datetime:
             raw = raw.replace("Z", "+00:00")
         parsed = datetime.fromisoformat(raw)
     except ValueError:
-        raise ValueError(f"Invalid datetime format: {param}. Expected ISO 8601.") from None
+        raise ValueError(f"Invalid datetime format: {param}. Expected ISO 8601.")
     return ensure_utc(parsed)
 
 
 def ensure_utc(dt: datetime) -> datetime:
     """
     Ensure datetime is in UTC timezone.
-
+    
     Args:
         dt: Datetime to convert
-
+        
     Returns:
         Datetime with UTC timezone
     """
@@ -181,13 +164,13 @@ def ensure_utc(dt: datetime) -> datetime:
     return dt.astimezone(timezone.utc)
 
 
-def coerce_datetime(value: Any) -> datetime | None:
+def coerce_datetime(value: Any) -> Optional[datetime]:
     """
     Coerce value to datetime, returning None on failure.
-
+    
     Args:
         value: String or datetime to coerce
-
+        
     Returns:
         Datetime in UTC or None if invalid
     """
@@ -198,11 +181,10 @@ def coerce_datetime(value: Any) -> datetime | None:
 # SERVICE ACCESSORS
 # ============================================================================
 
-
 def get_analytics_service():
     """
     Get analytics service from container.
-
+    
     Raises:
         RuntimeError: If service not available
     """
@@ -215,7 +197,7 @@ def get_analytics_service():
 def get_growth_service():
     """
     Get growth service from container.
-
+    
     Raises:
         RuntimeError: If service not available
     """
@@ -228,7 +210,7 @@ def get_growth_service():
 def get_sensor_service():
     """
     Get sensor management service from container.
-
+    
     Raises:
         RuntimeError: If service not available
     """
@@ -241,9 +223,9 @@ def get_sensor_service():
 def get_scheduling_service():
     """
     Get scheduling service from container.
-
+    
     Accesses the SchedulingService via the actuator manager.
-
+    
     Raises:
         RuntimeError: If service not available
     """
@@ -261,7 +243,7 @@ def get_scheduling_service():
 def get_database():
     """
     Get database handler from container.
-
+    
     Raises:
         RuntimeError: If database not available
     """
@@ -274,7 +256,7 @@ def get_database():
 def get_actuator_service():
     """
     Get actuator management service from container.
-
+    
     Raises:
         RuntimeError: If service not available
     """
@@ -287,7 +269,7 @@ def get_actuator_service():
 def get_plant_service():
     """
     Get plant service from container.
-
+    
     Raises:
         RuntimeError: If service not available
     """
@@ -300,7 +282,7 @@ def get_plant_service():
 def get_harvest_service():
     """
     Get harvest service from container.
-
+    
     Raises:
         RuntimeError: If service not available
     """
@@ -313,7 +295,7 @@ def get_harvest_service():
 def get_system_health_service():
     """
     Get system health service from container.
-
+    
     Raises:
         RuntimeError: If service not available
     """
@@ -326,7 +308,7 @@ def get_system_health_service():
 def get_device_health_service():
     """
     Get device health service from container.
-
+    
     Raises:
         RuntimeError: If service not available
     """
@@ -340,7 +322,7 @@ def get_climate_service():
     """
     Get climate control service from container.
     Returns the climate controller from growth service.
-
+    
     Raises:
         RuntimeError: If service not available
     """
@@ -351,7 +333,7 @@ def get_climate_service():
 def get_notifications_service():
     """
     Get notifications service from container.
-
+    
     Raises:
         RuntimeError: If service not available
     """
@@ -360,11 +342,10 @@ def get_notifications_service():
         raise RuntimeError("Notifications service not available")
     return container.notifications_service
 
-
 def get_irrigation_service():
     """
     Get irrigation workflow service from container.
-
+    
     Raises:
         RuntimeError: If service not available
     """
@@ -372,20 +353,6 @@ def get_irrigation_service():
     if not getattr(container, "irrigation_workflow_service", None):
         raise RuntimeError("Irrigation workflow service not available")
     return container.irrigation_workflow_service
-
-
-def get_irrigation_calculator():
-    """
-    Get shared irrigation calculator from the irrigation workflow service.
-
-    Raises:
-        RuntimeError: If workflow service or calculator is not available
-    """
-    service = get_irrigation_service()
-    calculator = getattr(service, "get_irrigation_calculator", lambda: None)()
-    if calculator is None:
-        raise RuntimeError("Irrigation calculator not available")
-    return calculator
 
 
 def get_manual_irrigation_service():
@@ -418,7 +385,7 @@ def get_threshold_service():
     """
     Get threshold service from container.
     Single source of truth for all threshold operations.
-
+    
     Raises:
         RuntimeError: If service not available
     """
@@ -431,7 +398,7 @@ def get_threshold_service():
 def get_ml_service():
     """
     Get ML models service from container.
-
+    
     Raises:
         RuntimeError: If service not available
     """
@@ -444,7 +411,7 @@ def get_ml_service():
 def get_device_repo():
     """
     Get device repository from container.
-
+    
     Raises:
         RuntimeError: If repository not available
     """
@@ -453,11 +420,10 @@ def get_device_repo():
         raise RuntimeError("Device repository not available")
     return container.device_repo
 
-
 def get_analytics_repo():
     """
     Get analytics repository from container.
-
+    
     Raises:
         RuntimeError: If repository not available
     """
@@ -466,11 +432,10 @@ def get_analytics_repo():
         raise RuntimeError("Analytics repository not available")
     return container.analytics_repo
 
-
 def get_unit_repo():
     """
     Get unit repository from container.
-
+    
     Raises:
         RuntimeError: If repository not available
     """
@@ -492,7 +457,7 @@ def get_zigbee_service():
 def get_device_coordinator():
     """
     Get device coordinator from container.
-
+    
     Raises:
         RuntimeError: If coordinator not available
     """
@@ -505,7 +470,7 @@ def get_device_coordinator():
 def get_plant_journal_service():
     """
     Get plant journal service from container.
-
+    
     Raises:
         RuntimeError: If service not available
     """
@@ -527,7 +492,7 @@ def get_camera_service():
 def get_settings_service():
     """
     Get settings service from container.
-
+    
     Raises:
         RuntimeError: If service not available
     """
@@ -540,7 +505,7 @@ def get_settings_service():
 def get_pump_calibration_service():
     """
     Get pump calibration service from container via irrigation workflow service.
-
+    
     Raises:
         RuntimeError: If service not available
     """

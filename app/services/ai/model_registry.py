@@ -12,16 +12,14 @@ Provides:
 
 from __future__ import annotations
 
-import contextlib
 import json
 import logging
 import shutil
-from dataclasses import asdict, dataclass
 from datetime import datetime
-from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Iterable
-
+from typing import Dict, List, Optional, Any, TYPE_CHECKING, Iterable, Tuple
+from dataclasses import dataclass, asdict
+from enum import Enum
 import joblib
 
 from app.utils.time import iso_now
@@ -46,7 +44,7 @@ class ModelStatus(Enum):
 class ModelMetadata:
     """
     Metadata for a trained model version.
-
+    
     Attributes:
         model_name: Name of the model (e.g., 'disease_predictor')
         version: Version identifier (e.g., 'v1', 'v2')
@@ -63,20 +61,20 @@ class ModelMetadata:
     version: str
     created_at: str
     status: ModelStatus
-    metrics: dict[str, float]
-    features: list[str]
+    metrics: Dict[str, float]
+    features: List[str]
     training_data_points: int
-    parameters: dict[str, Any]
+    parameters: Dict[str, Any]
     notes: str = ""
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
         data = asdict(self)
         data["status"] = self.status.value
         return data
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "ModelMetadata":
+    def from_dict(cls, data: Dict[str, Any]) -> "ModelMetadata":
         """Create from dictionary."""
         data["status"] = ModelStatus(data["status"])
         return cls(**data)
@@ -85,7 +83,7 @@ class ModelMetadata:
 class ModelRegistry:
     """
     ML model registry for version management and deployment.
-
+    
     Directory structure:
         models/
         ├── registry.json          (model inventory)
@@ -105,23 +103,23 @@ class ModelRegistry:
                 └── metadata.json
     """
 
-    def __init__(self, base_path: Path | None = None):
+    def __init__(self, base_path: Optional[Path] = None):
         """
         Initialize model registry.
-
+        
         Args:
             base_path: Base directory for models (defaults to 'models/')
         """
         self.base_path = Path(base_path) if base_path else Path("models")
         self.base_path.mkdir(parents=True, exist_ok=True)
-
+        
         self.registry_file = self.base_path / "registry.json"
         # registry.json supports both legacy dict format and list-based entry format.
         # Keep it flexible to avoid breaking older training scripts.
-        self._registry: dict[str, Any] = self._load_registry()
-
+        self._registry: Dict[str, Any] = self._load_registry()
+        
         # Model cache to avoid reloading
-        self._model_cache: dict[str, Any] = {}
+        self._model_cache: Dict[str, Any] = {}
 
     def _parse_iso_ts(self, value: object) -> datetime:
         """Best-effort ISO timestamp parsing for registry sorting."""
@@ -140,11 +138,11 @@ class ModelRegistry:
 
     def _latest_entry(
         self,
-        entries: list[dict[str, Any]],
+        entries: List[Dict[str, Any]],
         *,
-        version: str | None = None,
+        version: Optional[str] = None,
         prefer_active: bool = False,
-    ) -> dict[str, Any] | None:
+    ) -> Optional[Dict[str, Any]]:
         if not entries:
             return None
 
@@ -155,12 +153,16 @@ class ModelRegistry:
                 return None
 
         if prefer_active:
-            active = [e for e in filtered if str(e.get("status") or "").lower() in {"active", "production"}]
+            active = [
+                e
+                for e in filtered
+                if str(e.get("status") or "").lower() in {"active", "production"}
+            ]
             if active:
                 filtered = active
 
-        indexed: Iterable[tuple[int, dict[str, Any]]] = enumerate(filtered)
-        _idx, entry = max(
+        indexed: Iterable[Tuple[int, Dict[str, Any]]] = enumerate(filtered)
+        idx, entry = max(
             indexed,
             key=lambda pair: (self._parse_iso_ts(pair[1].get("created_at")), pair[0]),
         )
@@ -178,30 +180,24 @@ class ModelRegistry:
         except ValueError:
             return ModelStatus.ARCHIVED
 
-    def _load_registry(self) -> dict[str, dict[str, Any]]:
+    def _load_registry(self) -> Dict[str, Dict[str, Any]]:
         """Load registry from disk."""
         if self.registry_file.exists():
             try:
-                with open(self.registry_file) as f:
+                with open(self.registry_file, "r") as f:
                     return json.load(f)
             except Exception as e:
-                logger.error("Failed to load registry: %s", e, exc_info=True)
+                logger.error(f"Failed to load registry: {e}", exc_info=True)
                 return {}
         return {}
 
     def _save_registry(self) -> None:
-        """Save registry to disk using an atomic write (temp-file + rename)."""
-        tmp_file = self.registry_file.with_suffix(".json.tmp")
+        """Save registry to disk."""
         try:
-            with open(tmp_file, "w") as f:
+            with open(self.registry_file, "w") as f:
                 json.dump(self._registry, f, indent=2)
-            tmp_file.replace(self.registry_file)
         except Exception as e:
-            logger.error("Failed to save registry: %s", e, exc_info=True)
-            # Clean up temp file if rename failed
-            if tmp_file.exists():
-                with contextlib.suppress(OSError):
-                    tmp_file.unlink()
+            logger.error(f"Failed to save registry: {e}", exc_info=True)
 
     def _get_version_path(self, model_name: str, version: str) -> Path:
         """Get path to a model version directory."""
@@ -215,24 +211,24 @@ class ModelRegistry:
         self,
         model_name: str,
         model: Any,
-        metadata: ModelMetadata | dict[str, Any],
-        artifacts: dict[str, Any] | None = None,
+        metadata: ModelMetadata | Dict[str, Any],
+        artifacts: Optional[Dict[str, Any]] = None,
         **legacy_artifacts: Any,
     ) -> str:
         """
         Save a trained model with metadata.
-
+        
         Args:
             model_name: Name of the model
             model: Trained model object (will be pickled)
             metadata: Model metadata
             artifacts: Optional additional artifacts (e.g., scalers, encoders)
-
+            
         Returns:
             Version ID of the saved model
         """
         # Merge legacy artifacts (e.g. scaler=...) into artifacts dict.
-        merged_artifacts: dict[str, Any] = {}
+        merged_artifacts: Dict[str, Any] = {}
         if isinstance(artifacts, dict):
             merged_artifacts.update(artifacts)
         merged_artifacts.update({k: v for k, v in legacy_artifacts.items() if v is not None})
@@ -252,16 +248,7 @@ class ModelRegistry:
             metrics = dict(metadata.get("metrics") or {})
             if not metrics:
                 # Common trainer fields (kept for dashboard visibility).
-                for key in (
-                    "accuracy",
-                    "precision",
-                    "recall",
-                    "f1_score",
-                    "train_score",
-                    "test_score",
-                    "cv_mean",
-                    "cv_std",
-                ):
+                for key in ("accuracy", "precision", "recall", "f1_score", "train_score", "test_score", "cv_mean", "cv_std"):
                     if key in metadata:
                         metrics[key] = metadata[key]
                 if "validation_score" in metadata:
@@ -280,7 +267,9 @@ class ModelRegistry:
             features_used=features_used,
             hyperparameters=hyperparameters,
             training_samples=training_samples,
-            training_duration=float(metadata.get("training_time_seconds", 0.0)) if isinstance(metadata, dict) else None,
+            training_duration=float(metadata.get("training_time_seconds", 0.0))
+            if isinstance(metadata, dict)
+            else None,
             notes=notes,
             created_at=created_at,
             status=status,
@@ -293,15 +282,15 @@ class ModelRegistry:
         model: Any,
         model_name: str,
         version: str,
-        metrics: dict[str, Any] | None = None,
-        features_used: list[str] | None = None,
-        hyperparameters: dict[str, Any] | None = None,
-        training_samples: int | None = None,
-        training_duration: float | None = None,
+        metrics: Optional[Dict[str, Any]] = None,
+        features_used: Optional[List[str]] = None,
+        hyperparameters: Optional[Dict[str, Any]] = None,
+        training_samples: Optional[int] = None,
+        training_duration: Optional[float] = None,
         notes: str = "",
-        created_at: str | None = None,
+        created_at: Optional[str] = None,
         status: str = "inactive",
-        artifacts: dict[str, Any] | None = None,
+        artifacts: Optional[Dict[str, Any]] = None,
     ) -> str:
         """
         Register a model version using the list-based registry.json format.
@@ -358,15 +347,17 @@ class ModelRegistry:
         """Legacy-friendly alias for promoting a version to production/active."""
         return self.promote_to_production(model_name, version)
 
-    def load_model(self, model_name: str, version: str | None = None, use_cache: bool = True) -> Any | None:
+    def load_model(
+        self, model_name: str, version: Optional[str] = None, use_cache: bool = True
+    ) -> Optional[Any]:
         """
         Load a model by name and version.
-
+        
         Args:
             model_name: Name of the model
             version: Version to load (defaults to production version)
             use_cache: Whether to use cached model if available
-
+            
         Returns:
             Loaded model object or None if not found
         """
@@ -375,13 +366,13 @@ class ModelRegistry:
             if version is None:
                 version = self.get_production_version(model_name)
                 if version is None:
-                    logger.warning("No production version set for %s", model_name)
+                    logger.warning(f"No production version set for {model_name}")
                     return None
 
             # Check cache
             cache_key = f"{model_name}:{version}"
             if use_cache and cache_key in self._model_cache:
-                logger.debug("Using cached model %s", cache_key)
+                logger.debug(f"Using cached model {cache_key}")
                 return self._model_cache[cache_key]
 
             version_path = self._get_version_path(model_name, version)
@@ -397,7 +388,7 @@ class ModelRegistry:
                 return None
 
             model = joblib.load(model_file)
-            logger.info("Loaded model %s version %s", model_name, version)
+            logger.info(f"Loaded model {model_name} version {version}")
 
             # Cache it
             if use_cache:
@@ -406,18 +397,20 @@ class ModelRegistry:
             return model
 
         except Exception as e:
-            logger.error("Failed to load model: %s", e, exc_info=True)
+            logger.error(f"Failed to load model: {e}", exc_info=True)
             return None
 
-    def load_artifact(self, model_name: str, artifact_name: str, version: str | None = None) -> Any | None:
+    def load_artifact(
+        self, model_name: str, artifact_name: str, version: Optional[str] = None
+    ) -> Optional[Any]:
         """
         Load a model artifact (e.g., scaler, encoder).
-
+        
         Args:
             model_name: Name of the model
             artifact_name: Name of the artifact
             version: Version to load (defaults to production version)
-
+            
         Returns:
             Loaded artifact or None if not found
         """
@@ -440,21 +433,23 @@ class ModelRegistry:
                 return None
 
             artifact = joblib.load(artifact_file)
-            logger.debug("Loaded artifact %s for %s", artifact_name, model_name)
+            logger.debug(f"Loaded artifact {artifact_name} for {model_name}")
             return artifact
 
         except Exception as e:
-            logger.error("Failed to load artifact: %s", e, exc_info=True)
+            logger.error(f"Failed to load artifact: {e}", exc_info=True)
             return None
 
-    def get_metadata(self, model_name: str, version: str | None = None) -> ModelMetadata | None:
+    def get_metadata(
+        self, model_name: str, version: Optional[str] = None
+    ) -> Optional[ModelMetadata]:
         """
         Get model metadata.
-
+        
         Args:
             model_name: Name of the model
             version: Version to get metadata for (defaults to production)
-
+            
         Returns:
             ModelMetadata or None if not found
         """
@@ -468,7 +463,7 @@ class ModelRegistry:
             metadata_file = version_path / "metadata.json"
 
             if metadata_file.exists():
-                with open(metadata_file) as f:
+                with open(metadata_file, "r") as f:
                     data = json.load(f)
                     return ModelMetadata.from_dict(data)
 
@@ -498,23 +493,23 @@ class ModelRegistry:
             return None
 
         except Exception as e:
-            logger.error("Failed to get metadata: %s", e, exc_info=True)
+            logger.error(f"Failed to get metadata: {e}", exc_info=True)
             return None
 
-    def list_versions(self, model_name: str) -> list[str]:
+    def list_versions(self, model_name: str) -> List[str]:
         """
         List all versions of a model.
-
+        
         Args:
             model_name: Name of the model
-
+            
         Returns:
             List of version IDs
         """
         info = self._registry.get(model_name)
         if isinstance(info, list):
             # Return unique versions ordered by latest created_at.
-            by_version: dict[str, datetime] = {}
+            by_version: Dict[str, datetime] = {}
             for entry in info:
                 v = str(entry.get("version") or "unknown")
                 ts = self._parse_iso_ts(entry.get("created_at"))
@@ -526,13 +521,13 @@ class ModelRegistry:
             return info.get("versions", [])
         return []
 
-    def get_production_version(self, model_name: str) -> str | None:
+    def get_production_version(self, model_name: str) -> Optional[str]:
         """
         Get the current production version of a model.
-
+        
         Args:
             model_name: Name of the model
-
+            
         Returns:
             Production version ID or None
         """
@@ -551,11 +546,11 @@ class ModelRegistry:
     def promote_to_production(self, model_name: str, version: str) -> bool:
         """
         Promote a model version to production.
-
+        
         Args:
             model_name: Name of the model
             version: Version to promote
-
+            
         Returns:
             True if successful, False otherwise
         """
@@ -611,11 +606,11 @@ class ModelRegistry:
     def archive_version(self, model_name: str, version: str) -> bool:
         """
         Archive a model version (removes from active use but keeps files).
-
+        
         Args:
             model_name: Name of the model
             version: Version to archive
-
+            
         Returns:
             True if successful, False otherwise
         """
@@ -624,35 +619,35 @@ class ModelRegistry:
             metadata = self.get_metadata(model_name, version)
             if metadata:
                 metadata.status = ModelStatus.ARCHIVED
-
+                
                 metadata_file = self._get_version_path(model_name, version) / "metadata.json"
                 with open(metadata_file, "w") as f:
                     json.dump(metadata.to_dict(), f, indent=2)
 
-            logger.info("Archived %s version %s", model_name, version)
+            logger.info(f"Archived {model_name} version {version}")
             return True
 
         except Exception as e:
-            logger.error("Failed to archive version: %s", e, exc_info=True)
+            logger.error(f"Failed to archive version: {e}", exc_info=True)
             return False
 
     def delete_version(self, model_name: str, version: str) -> bool:
         """
         Permanently delete a model version.
-
+        
         WARNING: This cannot be undone!
-
+        
         Args:
             model_name: Name of the model
             version: Version to delete
-
+            
         Returns:
             True if successful, False otherwise
         """
         try:
             # Don't allow deleting production version
             if version == self.get_production_version(model_name):
-                logger.error("Cannot delete production version %s", version)
+                logger.error(f"Cannot delete production version {version}")
                 return False
 
             version_path = self._get_version_path(model_name, version)
@@ -660,21 +655,22 @@ class ModelRegistry:
                 shutil.rmtree(version_path)
 
             # Update registry
-            if model_name in self._registry and version in self._registry[model_name]["versions"]:
-                self._registry[model_name]["versions"].remove(version)
-                self._save_registry()
+            if model_name in self._registry:
+                if version in self._registry[model_name]["versions"]:
+                    self._registry[model_name]["versions"].remove(version)
+                    self._save_registry()
 
-            logger.info("Deleted %s version %s", model_name, version)
+            logger.info(f"Deleted {model_name} version {version}")
             return True
 
         except Exception as e:
-            logger.error("Failed to delete version: %s", e, exc_info=True)
+            logger.error(f"Failed to delete version: {e}", exc_info=True)
             return False
 
-    def list_models(self) -> list[dict[str, Any]]:
+    def list_models(self) -> List[Dict[str, Any]]:
         """
         List all registered models.
-
+        
         Returns:
             List of model info dicts
         """
@@ -688,10 +684,10 @@ class ModelRegistry:
                 active_entry = self._latest_entry(info, prefer_active=True)
                 if not active_entry:
                     active_entry = self._latest_entry(info)
-
+                
                 versions = self.list_versions(model_name)
                 production_version = active_entry.get("version") if active_entry else None
-
+                
                 # Map status: "active" -> "production", "inactive" -> "archived"
                 raw_status = active_entry.get("status", "unknown") if active_entry else "unknown"
                 if raw_status == "active":
@@ -700,51 +696,47 @@ class ModelRegistry:
                     status = "archived"
                 else:
                     status = raw_status
-
+                
                 # Extract metrics for frontend
                 metrics = active_entry.get("metrics", {}) if active_entry else {}
-
-                models.append(
-                    {
-                        "name": model_name,
-                        "versions": versions,
-                        "production_version": production_version,
-                        "status": status,
-                        "last_updated": active_entry.get("created_at") if active_entry else None,
-                        # Frontend-expected fields
-                        "active": raw_status == "active",
-                        "latest_version": production_version,
-                        "trained_at": active_entry.get("created_at") if active_entry else None,
-                        "accuracy": metrics.get("accuracy") or metrics.get("validation_score"),
-                        "mae": metrics.get("mae"),
-                        "r2": metrics.get("r2_score"),
-                    }
-                )
+                
+                models.append({
+                    "name": model_name,
+                    "versions": versions,
+                    "production_version": production_version,
+                    "status": status,
+                    "last_updated": active_entry.get("created_at") if active_entry else None,
+                    # Frontend-expected fields
+                    "active": raw_status == "active",
+                    "latest_version": production_version,
+                    "trained_at": active_entry.get("created_at") if active_entry else None,
+                    "accuracy": metrics.get("accuracy") or metrics.get("validation_score"),
+                    "mae": metrics.get("mae"),
+                    "r2": metrics.get("r2_score"),
+                })
             else:
                 # Handle dict-based format (legacy)
                 production_version = info.get("production_version")
                 metadata = self.get_metadata(model_name, production_version) if production_version else None
-
-                models.append(
-                    {
-                        "name": model_name,
-                        "versions": info.get("versions", []),
-                        "production_version": production_version,
-                        "status": metadata.status.value if metadata else "unknown",
-                        "last_updated": metadata.created_at if metadata else None,
-                        "active": metadata.status == ModelStatus.PRODUCTION if metadata else False,
-                        "latest_version": production_version,
-                    }
-                )
-
+                
+                models.append({
+                    "name": model_name,
+                    "versions": info.get("versions", []),
+                    "production_version": production_version,
+                    "status": metadata.status.value if metadata else "unknown",
+                    "last_updated": metadata.created_at if metadata else None,
+                    "active": metadata.status == ModelStatus.PRODUCTION if metadata else False,
+                    "latest_version": production_version,
+                })
+        
         return models
 
-    def _clear_model_cache(self, model_name: str | None = None) -> None:
+    def _clear_model_cache(self, model_name: Optional[str] = None) -> None:
         """Clear model cache for a specific model or all models."""
         if model_name:
-            keys_to_remove = [k for k in self._model_cache if k.startswith(f"{model_name}:")]
+            keys_to_remove = [k for k in self._model_cache.keys() if k.startswith(f"{model_name}:")]
             for key in keys_to_remove:
                 del self._model_cache[key]
         else:
             self._model_cache.clear()
-        logger.debug("Cleared model cache for %s", model_name or "all models")
+        logger.debug(f"Cleared model cache for {model_name or 'all models'}")

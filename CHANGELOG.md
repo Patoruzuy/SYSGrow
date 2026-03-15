@@ -179,5 +179,5 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Sprint 0 — Initial Audit & Baseline (2025-02-14)
 
 ### Added
-- Executive audit report (`docs/AUDIT_EXECUTIVE_REPORT.md`).
+- Executive audit report (`docs/archive/engineering/AUDIT_EXECUTIVE_REPORT.md`).
 - Architecture documentation refresh.

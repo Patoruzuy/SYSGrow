@@ -6,12 +6,11 @@ Supports both sync and async functions (note: acquiring a threading lock in asyn
 functions will block the event loop; project currently uses this decorator
 for synchronous methods).
 """
-
 from __future__ import annotations
 
-import inspect
+import asyncio
 from functools import wraps
-from typing import Callable
+from typing import Callable, Any
 
 
 def synchronized(func: Callable) -> Callable:
@@ -20,8 +19,7 @@ def synchronized(func: Callable) -> Callable:
     Works for normal functions and async coroutines. If no `_lock` attribute
     exists on `self`, the function is executed without locking.
     """
-    if inspect.iscoroutinefunction(func):
-
+    if asyncio.iscoroutinefunction(func):
         @wraps(func)
         async def _async_wrapped(*args, **kwargs):
             self = args[0] if args else None
@@ -30,7 +28,6 @@ def synchronized(func: Callable) -> Callable:
                 return await func(*args, **kwargs)
             with lock:
                 return await func(*args, **kwargs)
-
         return _async_wrapped
 
     @wraps(func)

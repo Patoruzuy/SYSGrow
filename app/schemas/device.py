@@ -5,35 +5,42 @@ Device Schemas
 Pydantic models for device (sensor/actuator) request/response validation.
 """
 
+from typing import Optional, List
 from datetime import datetime
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from app.enums import (
+    Protocol,
+    SensorType,
+    SensorModel,
+    ActuatorType,
+    ActuatorState,
+    PowerMode
+)
 
-from app.enums import ActuatorState, ActuatorType, PowerMode, Protocol, SensorModel, SensorType
 
 # ============================================================================
 # Sensor Schemas
 # ============================================================================
 
-
 class CreateSensorRequest(BaseModel):
     """Request model for creating a new sensor"""
-
     name: str = Field(..., min_length=1, max_length=100, description="Sensor name")
     type: SensorType = Field(..., description="Sensor type")
     model: SensorModel = Field(..., description="Sensor hardware model")
     protocol: Protocol = Field(default=Protocol.GPIO, description="Communication protocol")
-    gpio_pin: int | None = Field(default=None, ge=0, le=40, description="GPIO pin number (if applicable)")
-    i2c_address: str | None = Field(default=None, max_length=10, description="I2C address (if applicable)")
+    gpio_pin: Optional[int] = Field(default=None, ge=0, le=40, description="GPIO pin number (if applicable)")
+    i2c_address: Optional[str] = Field(default=None, max_length=10, description="I2C address (if applicable)")
     unit_id: int = Field(..., gt=0, description="Associated growth unit ID")
-    esp32_id: int | None = Field(default=None, gt=0, description="Associated ESP32 device ID")
+    esp32_id: Optional[int] = Field(default=None, gt=0, description="Associated ESP32 device ID")
     power_mode: PowerMode = Field(default=PowerMode.NORMAL, description="Power management mode")
-    min_threshold: float | None = Field(default=None, description="Minimum threshold value")
-    max_threshold: float | None = Field(default=None, description="Maximum threshold value")
-    mqtt_topic: str | None = Field(default=None, max_length=255, description="MQTT topic for MQTT/zigbee2mqtt devices")
-    zigbee_address: str | None = Field(default=None, max_length=64, description="Zigbee device address (if applicable)")
-    primary_metrics: list[str] | None = Field(
-        default=None, description="Optional list of primary metrics for priority selection"
+    min_threshold: Optional[float] = Field(default=None, description="Minimum threshold value")
+    max_threshold: Optional[float] = Field(default=None, description="Maximum threshold value")
+    mqtt_topic: Optional[str] = Field(default=None, max_length=255, description="MQTT topic for MQTT/zigbee2mqtt devices")
+    zigbee_address: Optional[str] = Field(default=None, max_length=64, description="Zigbee device address (if applicable)")
+    primary_metrics: Optional[List[str]] = Field(
+        default=None,
+        description="Optional list of primary metrics for priority selection"
     )
 
     @field_validator("type", mode="before")
@@ -91,7 +98,7 @@ class CreateSensorRequest(BaseModel):
         if v is not None and not v.startswith("0x"):
             raise ValueError("I2C address must start with 0x")
         return v
-
+    
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -113,19 +120,18 @@ class CreateSensorRequest(BaseModel):
 
 class UpdateSensorRequest(BaseModel):
     """Request model for updating an existing sensor"""
-
-    name: str | None = Field(default=None, min_length=1, max_length=100)
-    type: SensorType | None = Field(default=None)
-    model: SensorModel | None = Field(default=None)
-    communication_type: Protocol | None = Field(default=None)
-    gpio_pin: int | None = Field(default=None, ge=0, le=40)
-    i2c_address: str | None = Field(default=None, max_length=10)
-    power_mode: PowerMode | None = Field(default=None)
-    min_threshold: float | None = Field(default=None)
-    max_threshold: float | None = Field(default=None)
-    primary_metrics: list[str] | None = Field(default=None)
-    enabled: bool | None = Field(default=None)
-
+    name: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    type: Optional[SensorType] = Field(default=None)
+    model: Optional[SensorModel] = Field(default=None)
+    communication_type: Optional[Protocol] = Field(default=None)
+    gpio_pin: Optional[int] = Field(default=None, ge=0, le=40)
+    i2c_address: Optional[str] = Field(default=None, max_length=10)
+    power_mode: Optional[PowerMode] = Field(default=None)
+    min_threshold: Optional[float] = Field(default=None)
+    max_threshold: Optional[float] = Field(default=None)
+    primary_metrics: Optional[List[str]] = Field(default=None)
+    enabled: Optional[bool] = Field(default=None)
+    
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -140,26 +146,25 @@ class UpdateSensorRequest(BaseModel):
 
 class SensorResponse(BaseModel):
     """Response model for sensor data"""
-
     id: int
     name: str
     type: str
     model: str
     communication_type: str
-    gpio_pin: int | None
-    i2c_address: str | None
+    gpio_pin: Optional[int]
+    i2c_address: Optional[str]
     unit_id: int
-    esp32_id: int | None
+    esp32_id: Optional[int]
     power_mode: str
-    min_threshold: float | None
-    max_threshold: float | None
-    primary_metrics: list[str] | None = None
+    min_threshold: Optional[float]
+    max_threshold: Optional[float]
+    primary_metrics: Optional[List[str]] = None
     enabled: bool
-    last_value: float | None
-    last_reading_time: datetime | None
+    last_value: Optional[float]
+    last_reading_time: Optional[datetime]
     created_at: datetime
-    updated_at: datetime | None
-
+    updated_at: Optional[datetime]
+    
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -189,16 +194,14 @@ class SensorResponse(BaseModel):
 # Actuator Schemas
 # ============================================================================
 
-
 class CreateActuatorRequest(BaseModel):
     """Request model for creating a new actuator"""
-
     name: str = Field(..., min_length=1, max_length=100, description="Actuator name")
     type: ActuatorType = Field(..., description="Actuator type")
     communication_type: Protocol = Field(default=Protocol.GPIO, description="Communication protocol")
-    gpio_pin: int | None = Field(default=None, ge=0, le=40, description="GPIO pin number (if applicable)")
+    gpio_pin: Optional[int] = Field(default=None, ge=0, le=40, description="GPIO pin number (if applicable)")
     unit_id: int = Field(..., gt=0, description="Associated growth unit ID")
-    esp32_id: int | None = Field(default=None, gt=0, description="Associated ESP32 device ID")
+    esp32_id: Optional[int] = Field(default=None, gt=0, description="Associated ESP32 device ID")
     state: ActuatorState = Field(default=ActuatorState.OFF, description="Initial actuator state")
     power_mode: PowerMode = Field(default=PowerMode.NORMAL, description="Power management mode")
 
@@ -217,12 +220,6 @@ class CreateActuatorRequest(BaseModel):
             "RELAY": ActuatorType.RELAY,
             "VALVE": ActuatorType.VALVE,
             "MOTOR": ActuatorType.MOTOR,
-            "DIMMER": ActuatorType.DIMMER,
-            "SWITCH": ActuatorType.SWITCH,
-            "SENSOR": ActuatorType.SENSOR,
-            "UNKNOWN": ActuatorType.UNKNOWN,
-            # Legacy domain-layer aliases
-            "PUMP": ActuatorType.WATER_PUMP,
         }
         if isinstance(v, ActuatorType):
             return v
@@ -270,15 +267,14 @@ class CreateActuatorRequest(BaseModel):
 
 class UpdateActuatorRequest(BaseModel):
     """Request model for updating an existing actuator"""
-
-    name: str | None = Field(default=None, min_length=1, max_length=100)
-    type: ActuatorType | None = Field(default=None)
-    communication_type: Protocol | None = Field(default=None)
-    gpio_pin: int | None = Field(default=None, ge=0, le=40)
-    state: ActuatorState | None = Field(default=None)
-    power_mode: PowerMode | None = Field(default=None)
-    enabled: bool | None = Field(default=None)
-
+    name: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    type: Optional[ActuatorType] = Field(default=None)
+    communication_type: Optional[Protocol] = Field(default=None)
+    gpio_pin: Optional[int] = Field(default=None, ge=0, le=40)
+    state: Optional[ActuatorState] = Field(default=None)
+    power_mode: Optional[PowerMode] = Field(default=None)
+    enabled: Optional[bool] = Field(default=None)
+    
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -292,10 +288,9 @@ class UpdateActuatorRequest(BaseModel):
 
 class ControlActuatorRequest(BaseModel):
     """Request model for controlling actuator state"""
-
     state: ActuatorState = Field(..., description="Desired actuator state")
-    duration: int | None = Field(default=None, ge=0, description="Duration in seconds (for timed operations)")
-
+    duration: Optional[int] = Field(default=None, ge=0, description="Duration in seconds (for timed operations)")
+    
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -308,21 +303,20 @@ class ControlActuatorRequest(BaseModel):
 
 class ActuatorResponse(BaseModel):
     """Response model for actuator data"""
-
     id: int
     name: str
     type: str
     communication_type: str
-    gpio_pin: int | None
+    gpio_pin: Optional[int]
     unit_id: int
-    esp32_id: int | None
+    esp32_id: Optional[int]
     state: str
     power_mode: str
     enabled: bool
-    last_state_change: datetime | None
+    last_state_change: Optional[datetime]
     created_at: datetime
-    updated_at: datetime | None
-
+    updated_at: Optional[datetime]
+    
     model_config = ConfigDict(
         json_schema_extra={
             "example": {

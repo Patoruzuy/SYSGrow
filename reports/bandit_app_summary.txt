@@ -1,0 +1,427 @@
+FILE: app\services\ai\irrigation_predictor.py
+LINE: 1756
+TEST: try_except_continue
+SEVERITY: None CONF: None
+MSG: Try, Except, Continue detected.
+------------------------------------------------------------
+FILE: app\services\application\irrigation_workflow_service.py
+LINE: 1382
+TEST: try_except_pass
+SEVERITY: None CONF: None
+MSG: Try, Except, Pass detected.
+------------------------------------------------------------
+FILE: app\services\application\irrigation_workflow_service.py
+LINE: 1378
+TEST: try_except_pass
+SEVERITY: None CONF: None
+MSG: Try, Except, Pass detected.
+------------------------------------------------------------
+FILE: app\services\application\analytics_service.py
+LINE: 1075
+TEST: try_except_pass
+SEVERITY: None CONF: None
+MSG: Try, Except, Pass detected.
+------------------------------------------------------------
+FILE: app\services\hardware\actuator_management_service.py
+LINE: 826
+TEST: try_except_pass
+SEVERITY: None CONF: None
+MSG: Try, Except, Pass detected.
+------------------------------------------------------------
+FILE: app\workers\scheduled_tasks.py
+LINE: 809
+TEST: try_except_pass
+SEVERITY: None CONF: None
+MSG: Try, Except, Pass detected.
+------------------------------------------------------------
+FILE: app\services\hardware\actuator_management_service.py
+LINE: 786
+TEST: try_except_pass
+SEVERITY: None CONF: None
+MSG: Try, Except, Pass detected.
+------------------------------------------------------------
+FILE: app\services\hardware\mqtt_sensor_service.py
+LINE: 751
+TEST: try_except_pass
+SEVERITY: None CONF: None
+MSG: Try, Except, Pass detected.
+------------------------------------------------------------
+FILE: app\blueprints\api\ml_ai\predictions.py
+LINE: 711
+TEST: blacklist
+SEVERITY: None CONF: None
+MSG: Standard pseudo-random generators are not suitable for security/cryptographic purposes.
+------------------------------------------------------------
+FILE: app\blueprints\api\ml_ai\predictions.py
+LINE: 710
+TEST: blacklist
+SEVERITY: None CONF: None
+MSG: Standard pseudo-random generators are not suitable for security/cryptographic purposes.
+------------------------------------------------------------
+FILE: app\blueprints\api\ml_ai\predictions.py
+LINE: 709
+TEST: blacklist
+SEVERITY: None CONF: None
+MSG: Standard pseudo-random generators are not suitable for security/cryptographic purposes.
+------------------------------------------------------------
+FILE: app\services\container_builder.py
+LINE: 679
+TEST: try_except_pass
+SEVERITY: None CONF: None
+MSG: Try, Except, Pass detected.
+------------------------------------------------------------
+FILE: app\hardware\adapters\sensors\sysgrow_adapter.py
+LINE: 648
+TEST: try_except_pass
+SEVERITY: None CONF: None
+MSG: Try, Except, Pass detected.
+------------------------------------------------------------
+FILE: app\hardware\adapters\sensors\sysgrow_adapter.py
+LINE: 614
+TEST: try_except_pass
+SEVERITY: None CONF: None
+MSG: Try, Except, Pass detected.
+------------------------------------------------------------
+FILE: app\services\hardware\actuator_management_service.py
+LINE: 544
+TEST: try_except_pass
+SEVERITY: None CONF: None
+MSG: Try, Except, Pass detected.
+------------------------------------------------------------
+FILE: app\blueprints\api\plants\disease.py
+LINE: 514
+TEST: try_except_pass
+SEVERITY: None CONF: None
+MSG: Try, Except, Pass detected.
+------------------------------------------------------------
+FILE: app\services\application\harvest_service.py
+LINE: 468
+TEST: hardcoded_sql_expressions
+SEVERITY: None CONF: None
+MSG: Possible SQL injection vector through string-based query construction.
+------------------------------------------------------------
+FILE: app\services\application\plant_journal_service.py
+LINE: 465
+TEST: try_except_pass
+SEVERITY: None CONF: None
+MSG: Try, Except, Pass detected.
+------------------------------------------------------------
+FILE: app\blueprints\api\ml_ai\models.py
+LINE: 452
+TEST: blacklist
+SEVERITY: None CONF: None
+MSG: Standard pseudo-random generators are not suitable for security/cryptographic purposes.
+------------------------------------------------------------
+FILE: app\blueprints\api\ml_ai\models.py
+LINE: 451
+TEST: blacklist
+SEVERITY: None CONF: None
+MSG: Standard pseudo-random generators are not suitable for security/cryptographic purposes.
+------------------------------------------------------------
+FILE: app\blueprints\api\ml_ai\models.py
+LINE: 450
+TEST: blacklist
+SEVERITY: None CONF: None
+MSG: Standard pseudo-random generators are not suitable for security/cryptographic purposes.
+------------------------------------------------------------
+FILE: app\blueprints\api\ml_ai\models.py
+LINE: 449
+TEST: blacklist
+SEVERITY: None CONF: None
+MSG: Standard pseudo-random generators are not suitable for security/cryptographic purposes.
+------------------------------------------------------------
+FILE: app\services\ai\irrigation_predictor.py
+LINE: 437
+TEST: try_except_pass
+SEVERITY: None CONF: None
+MSG: Try, Except, Pass detected.
+------------------------------------------------------------
+FILE: app\services\application\alert_service.py
+LINE: 431
+TEST: try_except_pass
+SEVERITY: None CONF: None
+MSG: Try, Except, Pass detected.
+------------------------------------------------------------
+FILE: app\services\ai\plant_health_scorer.py
+LINE: 430
+TEST: try_except_pass
+SEVERITY: None CONF: None
+MSG: Try, Except, Pass detected.
+------------------------------------------------------------
+FILE: app\blueprints\api\ml_ai\training_data.py
+LINE: 428
+TEST: try_except_pass
+SEVERITY: None CONF: None
+MSG: Try, Except, Pass detected.
+------------------------------------------------------------
+FILE: app\blueprints\api\ml_ai\training_data.py
+LINE: 424
+TEST: try_except_pass
+SEVERITY: None CONF: None
+MSG: Try, Except, Pass detected.
+------------------------------------------------------------
+FILE: app\services\application\alert_service.py
+LINE: 411
+TEST: try_except_continue
+SEVERITY: None CONF: None
+MSG: Try, Except, Continue detected.
+------------------------------------------------------------
+FILE: app\services\application\zigbee_management_service.py
+LINE: 347
+TEST: try_except_pass
+SEVERITY: None CONF: None
+MSG: Try, Except, Pass detected.
+------------------------------------------------------------
+FILE: app\hardware\devices\camera_manager.py
+LINE: 343
+TEST: request_without_timeout
+SEVERITY: None CONF: None
+MSG: Call to requests without timeout
+------------------------------------------------------------
+FILE: app\services\application\zigbee_management_service.py
+LINE: 339
+TEST: try_except_pass
+SEVERITY: None CONF: None
+MSG: Try, Except, Pass detected.
+------------------------------------------------------------
+FILE: app\defaults.py
+LINE: 306
+TEST: try_except_continue
+SEVERITY: None CONF: None
+MSG: Try, Except, Continue detected.
+------------------------------------------------------------
+FILE: app\blueprints\api\health\system.py
+LINE: 294
+TEST: try_except_pass
+SEVERITY: None CONF: None
+MSG: Try, Except, Pass detected.
+------------------------------------------------------------
+FILE: app\services\ai\irrigation_predictor.py
+LINE: 294
+TEST: try_except_pass
+SEVERITY: None CONF: None
+MSG: Try, Except, Pass detected.
+------------------------------------------------------------
+FILE: app\blueprints\api\health\system.py
+LINE: 291
+TEST: hardcoded_sql_expressions
+SEVERITY: None CONF: None
+MSG: Possible SQL injection vector through string-based query construction.
+------------------------------------------------------------
+FILE: app\utils\raspberry_pi_optimizer.py
+LINE: 291
+TEST: try_except_pass
+SEVERITY: None CONF: None
+MSG: Try, Except, Pass detected.
+------------------------------------------------------------
+FILE: app\services\hardware\sensor_management_service.py
+LINE: 262
+TEST: try_except_pass
+SEVERITY: None CONF: None
+MSG: Try, Except, Pass detected.
+------------------------------------------------------------
+FILE: app\services\ai\ab_testing.py
+LINE: 256
+TEST: blacklist
+SEVERITY: None CONF: None
+MSG: Standard pseudo-random generators are not suitable for security/cryptographic purposes.
+------------------------------------------------------------
+FILE: app\services\ai\irrigation_predictor.py
+LINE: 248
+TEST: try_except_pass
+SEVERITY: None CONF: None
+MSG: Try, Except, Pass detected.
+------------------------------------------------------------
+FILE: app\services\hardware\sensor_management_service.py
+LINE: 223
+TEST: try_except_pass
+SEVERITY: None CONF: None
+MSG: Try, Except, Pass detected.
+------------------------------------------------------------
+FILE: app\blueprints\api\ml_ai\monitoring.py
+LINE: 206
+TEST: blacklist
+SEVERITY: None CONF: None
+MSG: Standard pseudo-random generators are not suitable for security/cryptographic purposes.
+------------------------------------------------------------
+FILE: app\blueprints\api\ml_ai\monitoring.py
+LINE: 205
+TEST: blacklist
+SEVERITY: None CONF: None
+MSG: Standard pseudo-random generators are not suitable for security/cryptographic purposes.
+------------------------------------------------------------
+FILE: app\blueprints\api\ml_ai\monitoring.py
+LINE: 204
+TEST: blacklist
+SEVERITY: None CONF: None
+MSG: Standard pseudo-random generators are not suitable for security/cryptographic purposes.
+------------------------------------------------------------
+FILE: app\blueprints\api\ml_ai\monitoring.py
+LINE: 202
+TEST: blacklist
+SEVERITY: None CONF: None
+MSG: Standard pseudo-random generators are not suitable for security/cryptographic purposes.
+------------------------------------------------------------
+FILE: app\blueprints\api\ml_ai\monitoring.py
+LINE: 201
+TEST: blacklist
+SEVERITY: None CONF: None
+MSG: Standard pseudo-random generators are not suitable for security/cryptographic purposes.
+------------------------------------------------------------
+FILE: app\blueprints\api\ml_ai\monitoring.py
+LINE: 198
+TEST: blacklist
+SEVERITY: None CONF: None
+MSG: Standard pseudo-random generators are not suitable for security/cryptographic purposes.
+------------------------------------------------------------
+FILE: app\blueprints\api\ml_ai\monitoring.py
+LINE: 198
+TEST: blacklist
+SEVERITY: None CONF: None
+MSG: Standard pseudo-random generators are not suitable for security/cryptographic purposes.
+------------------------------------------------------------
+FILE: app\blueprints\api\ml_ai\monitoring.py
+LINE: 193
+TEST: blacklist
+SEVERITY: None CONF: None
+MSG: Standard pseudo-random generators are not suitable for security/cryptographic purposes.
+------------------------------------------------------------
+FILE: app\blueprints\api\ml_ai\monitoring.py
+LINE: 192
+TEST: blacklist
+SEVERITY: None CONF: None
+MSG: Standard pseudo-random generators are not suitable for security/cryptographic purposes.
+------------------------------------------------------------
+FILE: app\services\hardware\mqtt_sensor_service.py
+LINE: 189
+TEST: try_except_pass
+SEVERITY: None CONF: None
+MSG: Try, Except, Pass detected.
+------------------------------------------------------------
+FILE: app\blueprints\api\ml_ai\monitoring.py
+LINE: 188
+TEST: blacklist
+SEVERITY: None CONF: None
+MSG: Standard pseudo-random generators are not suitable for security/cryptographic purposes.
+------------------------------------------------------------
+FILE: app\blueprints\api\health\units.py
+LINE: 170
+TEST: try_except_pass
+SEVERITY: None CONF: None
+MSG: Try, Except, Pass detected.
+------------------------------------------------------------
+FILE: app\blueprints\api\analytics\sensors.py
+LINE: 162
+TEST: try_except_pass
+SEVERITY: None CONF: None
+MSG: Try, Except, Pass detected.
+------------------------------------------------------------
+FILE: app\utils\raspberry_pi_optimizer.py
+LINE: 146
+TEST: try_except_pass
+SEVERITY: None CONF: None
+MSG: Try, Except, Pass detected.
+------------------------------------------------------------
+FILE: app\services\hardware\mqtt_sensor_service.py
+LINE: 137
+TEST: try_except_pass
+SEVERITY: None CONF: None
+MSG: Try, Except, Pass detected.
+------------------------------------------------------------
+FILE: app\services\hardware\camera_service.py
+LINE: 135
+TEST: hardcoded_password_string
+SEVERITY: None CONF: None
+MSG: Possible hardcoded password: 'None'
+------------------------------------------------------------
+FILE: app\hardware\actuators\relays\wifi_relay.py
+LINE: 113
+TEST: try_except_pass
+SEVERITY: None CONF: None
+MSG: Try, Except, Pass detected.
+------------------------------------------------------------
+FILE: app\blueprints\api\dashboard.py
+LINE: 107
+TEST: try_except_pass
+SEVERITY: None CONF: None
+MSG: Try, Except, Pass detected.
+------------------------------------------------------------
+FILE: app\controllers\plant_sensor_controller.py
+LINE: 103
+TEST: try_except_continue
+SEVERITY: None CONF: None
+MSG: Try, Except, Continue detected.
+------------------------------------------------------------
+FILE: app\hardware\devices\camera_manager.py
+LINE: 99
+TEST: try_except_pass
+SEVERITY: None CONF: None
+MSG: Try, Except, Pass detected.
+------------------------------------------------------------
+FILE: app\hardware\actuators\relays\wifi_relay.py
+LINE: 97
+TEST: try_except_pass
+SEVERITY: None CONF: None
+MSG: Try, Except, Pass detected.
+------------------------------------------------------------
+FILE: app\blueprints\api\settings\retention.py
+LINE: 73
+TEST: try_except_pass
+SEVERITY: None CONF: None
+MSG: Try, Except, Pass detected.
+------------------------------------------------------------
+FILE: app\hardware\devices\camera_manager.py
+LINE: 73
+TEST: try_except_pass
+SEVERITY: None CONF: None
+MSG: Try, Except, Pass detected.
+------------------------------------------------------------
+FILE: app\blueprints\api\health\units.py
+LINE: 68
+TEST: try_except_pass
+SEVERITY: None CONF: None
+MSG: Try, Except, Pass detected.
+------------------------------------------------------------
+FILE: app\blueprints\api\settings\retention.py
+LINE: 66
+TEST: try_except_pass
+SEVERITY: None CONF: None
+MSG: Try, Except, Pass detected.
+------------------------------------------------------------
+FILE: app\blueprints\api\settings\database.py
+LINE: 61
+TEST: try_except_pass
+SEVERITY: None CONF: None
+MSG: Try, Except, Pass detected.
+------------------------------------------------------------
+FILE: app\services\application\settings_service.py
+LINE: 57
+TEST: hardcoded_password_string
+SEVERITY: None CONF: None
+MSG: Possible hardcoded password: 'True'
+------------------------------------------------------------
+FILE: app\hardware\mqtt\mqtt_fcm_notifier.py
+LINE: 29
+TEST: request_without_timeout
+SEVERITY: None CONF: None
+MSG: Call to requests without timeout
+------------------------------------------------------------
+FILE: app\hardware\actuators\utils\encryption.py
+LINE: 14
+TEST: blacklist
+SEVERITY: None CONF: None
+MSG: The pyCrypto library and its module pad are no longer actively maintained and have been deprecated. Consider using pyca/cryptography library.
+------------------------------------------------------------
+FILE: app\hardware\actuators\utils\encryption.py
+LINE: 13
+TEST: blacklist
+SEVERITY: None CONF: None
+MSG: The pyCrypto library and its module AES are no longer actively maintained and have been deprecated. Consider using pyca/cryptography library.
+------------------------------------------------------------
+FILE: app\hardware\mqtt\mqtt_fcm_notifier.py
+LINE: 13
+TEST: hardcoded_password_string
+SEVERITY: None CONF: None
+MSG: Possible hardcoded password: 'USER_DEVICE_FCM_TOKEN'
+------------------------------------------------------------
+TOTAL_APP_ISSUES: 71

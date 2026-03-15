@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui %}
+
+{% block title %}Disease Monitoring - SYSGrow{% endblock %}
+
+{% block body_class %}disease-monitoring-page{% endblock %}
+
+{% block content %}
+<div id="disease-monitoring-page" aria-labelledby="disease-monitoring-heading">
+    
+    {# Using standardized page header #}
+    {{ ui.page_header(
+        title="Disease Monitoring",
+        icon="fas fa-virus",
+        subtitle="Real-time disease risk assessment and prevention across all units.",
+        actions=ui.ui_button("Refresh Data", id="refresh-btn", icon="fas fa-sync-alt", variant="primary", size="sm")
+    ) }}
+
+    <!-- Summary Statistics -->
+    <div class="row g-4 mb-4" id="stats-section">
+        <div class="col-md-6 col-lg-3">
+            {{ ui.kpi_card(
+                title="Total Units",
+                value="0",
+                icon="fas fa-microscope",
+                variant="primary",
+                value_id="total-units"
+            ) }}
+        </div>
+        <div class="col-md-6 col-lg-3">
+            {{ ui.kpi_card(
+                title="High Risk",
+                value="0",
+                icon="fas fa-exclamation-triangle",
+                variant="warning",
+                value_id="high-risk-count"
+            ) }}
+        </div>
+        <div class="col-md-6 col-lg-3">
+            {{ ui.kpi_card(
+                title="Critical Risk",
+                value="0",
+                icon="fas fa-biohazard",
+                variant="danger",
+                value_id="critical-risk-count"
+            ) }}
+        </div>
+        <div class="col-md-6 col-lg-3">
+            {{ ui.kpi_card(
+                title="Most Common",
+                value="N/A",
+                icon="fas fa-chart-pie",
+                variant="success",
+                value_id="common-risk"
+            ) }}
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <!-- Active Alerts -->
+        <div class="col-lg-5">
+            {% call ui.content_card(title="Active Alerts", icon="fas fa-bell") %}
+                <div id="alerts-container" class="min-vh-25 overflow-auto" style="max-height: 480px;">
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-primary spinner-border-sm me-2" role="status"></div>
+                        <span class="text-muted small">Loading active alerts...</span>
+                    </div>
+                </div>
+            {% endcall %}
+        </div>
+
+        <!-- Unit Risk Cards -->
+        <div class="col-lg-7">
+            {% call ui.content_card(title="Unit Risk Assessments", icon="fas fa-clipboard-check") %}
+                <div id="units-container" class="min-vh-25 overflow-auto" style="max-height: 480px;">
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-primary spinner-border-sm me-2" role="status"></div>
+                        <span class="text-muted small">Loading risk assessments...</span>
+                    </div>
+                </div>
+            {% endcall %}
+        </div>
+    </div>
+
+    <!-- Disease Statistics Row -->
+    <div class="row g-4">
+        <div class="col-xl-8">
+            {% call ui.content_card(title="Disease Distribution (90 days)", icon="fas fa-chart-line") %}
+                <div style="height: 350px; position: relative;">
+                    <canvas id="disease-distribution-chart"></canvas>
+                </div>
+            {% endcall %}
+        </div>
+        <div class="col-xl-4">
+            {% call ui.content_card(title="Common Symptoms", icon="fas fa-notes-medical") %}
+                <div id="symptoms-list" class="min-vh-25">
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-primary spinner-border-sm me-2" role="status"></div>
+                        <span class="text-muted small">Loading statistics...</span>
+                    </div>
+                </div>
+            {% endcall %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<!-- Disease Dashboard - Modular Architecture -->
+<script src="/static/js/disease-dashboard/data-service.js"></script>
+<script src="/static/js/disease-dashboard/ui-manager.js"></script>
+<script src="/static/js/disease-dashboard/main.js"></script>
+{% endblock %}

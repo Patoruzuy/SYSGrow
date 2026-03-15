@@ -288,8 +288,13 @@
         this._plantGrid = new window.PlantHealthGrid('plants-container', {
           compact: true,
           onClick: (plantId, plantSummary) => {
-            // Navigate to full detail page
-            window.location.href = `/plants/${plantId}/my-detail`;
+            if (this._plantDetailsModal) {
+              const unitId = plantSummary?.unit_id || this.dataService.getSelectedUnitId();
+              this._plantDetailsModal.open({ plantId, unitId, plantSummary });
+              return;
+            }
+
+            window.location.href = `/plants/${plantId}`;
           },
         });
       }
@@ -775,8 +780,6 @@
         this.updatePlantsGrid(summary.plants);
         // Also update AI Health Banner from plants data
         this.updateAIHealthBanner({ plants: summary.plants });
-        // Enhance banner with AI-generated insight text
-        this.loadAIInsight();
         // Update irrigation plant selector
         this.updateIrrigationPlantSelector(summary.plants);
       }
@@ -1858,8 +1861,6 @@
 
         if (plantHealth) {
           this.updateAIHealthBanner(plantHealth);
-          // Enhance banner with AI-generated insight text
-          this.loadAIInsight();
         }
       } catch (error) {
         this.error('Failed to load health data:', error);

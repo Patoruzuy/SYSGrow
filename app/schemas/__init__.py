@@ -6,187 +6,202 @@ This module provides Pydantic models for request/response validation.
 Schemas ensure data integrity and provide automatic validation.
 """
 
-from app.schemas.common import ErrorResponse, PaginatedResponse, SuccessResponse
-from app.schemas.device import (
-    ActuatorResponse,
-    ControlActuatorRequest,
-    CreateActuatorRequest,
-    CreateSensorRequest,
-    SensorResponse,
-    UpdateActuatorRequest,
-    UpdateSensorRequest,
+from app.schemas.growth import (
+    CreateGrowthUnitRequest,
+    UpdateGrowthUnitRequest,
+    GrowthUnitResponse,
+    CreatePlantRequest,
+    UpdatePlantRequest,
+    PlantResponse,
+    ThresholdSettings,
+    # v3 Schedule schemas
+    ScheduleCreateSchema,
+    ScheduleUpdateSchema,
+    ScheduleResponseSchema,
+    ScheduleListResponseSchema,
+    ScheduleSummarySchema,
+    PhotoperiodConfigSchema,
 )
+
+from app.schemas.device import (
+    CreateSensorRequest,
+    UpdateSensorRequest,
+    SensorResponse,
+    CreateActuatorRequest,
+    UpdateActuatorRequest,
+    ActuatorResponse,
+    ControlActuatorRequest
+)
+
+from app.schemas.common import (
+    SuccessResponse,
+    ErrorResponse,
+    PaginatedResponse
+)
+
+from app.schemas.system import (
+    SystemInfoSchema
+)
+
+from app.schemas.health import (
+    SystemHealthResponse,
+    MetricDataPoint
+)
+
 from app.schemas.events import (
+    SensorUpdatePayload,
+    PlantLifecyclePayload,
+    PlantStageUpdatePayload,
+    PlantGrowthWarningPayload,
+    DeviceLifecyclePayload,
+    ActuatorLifecyclePayload,
     ActuatorAnomalyPayload,
     ActuatorAnomalyResolvedPayload,
     ActuatorCalibrationPayload,
-    ActuatorLifecyclePayload,
+    ThresholdsUpdatePayload,
+    SensorReloadPayload,
+    RelayStatePayload,
+    DeviceCommandPayload,
     ActuatorStatePayload,
     ConnectivityStatePayload,
-    DeviceCommandPayload,
-    DeviceLifecyclePayload,
     NotificationPayload,
-    PlantGrowthWarningPayload,
-    PlantLifecyclePayload,
-    PlantStageUpdatePayload,
-    RelayStatePayload,
-    SensorReloadPayload,
-    SensorUpdatePayload,
-    ThresholdsUpdatePayload,
 )
-from app.schemas.growth import (
-    CreateGrowthUnitRequest,
-    CreatePlantRequest,
-    GrowthUnitResponse,
-    PhotoperiodConfigSchema,
-    PlantResponse,
-    # v3 Schedule schemas
-    ScheduleCreateSchema,
-    ScheduleListResponseSchema,
-    ScheduleResponseSchema,
-    ScheduleSummarySchema,
-    ScheduleUpdateSchema,
-    ThresholdSettings,
-    UpdateGrowthUnitRequest,
-    UpdatePlantRequest,
+
+from app.schemas.plants import (
+    RecordHealthObservationRequest,
+    CreateObservationRequest,
+    CreateNutrientRecordRequest,
+    HarvestPlantRequest,
+    UpdatePlantStageRequest,
+    PlantDiagnosisRequest,
+    AddPlantToCrudRequest,
+    ModifyPlantCrudRequest,
+    ObservationType,
+    NutrientType,
+    ApplicationType,
 )
-from app.schemas.health import MetricDataPoint, SystemHealthResponse
+
 from app.schemas.irrigation import (
-    IrrigationAction,
-    IrrigationConfigRequest,
     IrrigationDelayRequest,
-    IrrigationEligibilityTraceResponse,
-    IrrigationExecutionLogResponse,
     IrrigationFeedbackRequest,
-    IrrigationFeedbackResponse,
-    IrrigationNotificationActionRequest,
     ManualIrrigationLogRequest,
+    IrrigationConfigRequest,
+    IrrigationNotificationActionRequest,
+    IrrigationAction,
+    IrrigationFeedbackResponse,
+    IrrigationExecutionLogResponse,
+    IrrigationEligibilityTraceResponse,
     ManualIrrigationLogResponse,
     ManualIrrigationPredictionResponse,
 )
+
 from app.schemas.ml import (
     DiseaseRiskRequest,
     GrowthComparisonRequest,
     GrowthTransitionRequest,
     HealthObservationRequest,
-    ModelActivateRequest,
-    ModelCompareRequest,
-    ModelType,
+    WhatIfSimulationRequest,
     RetrainingJobRequest,
+    ModelCompareRequest,
+    ModelActivateRequest,
     RootCauseAnalysisRequest,
     ScheduleType,
-    WhatIfSimulationRequest,
+    ModelType,
 )
-from app.schemas.personalized import (
-    ConditionProfileCard,
-    ConditionProfileLinkSummary,
-    ConditionProfileSection,
-    ConditionProfileSelectorResponse,
-)
-from app.schemas.plants import (
-    AddPlantToCrudRequest,
-    ApplicationType,
-    CreateNutrientRecordRequest,
-    CreateObservationRequest,
-    HarvestPlantRequest,
-    ModifyPlantCrudRequest,
-    NutrientType,
-    ObservationType,
-    PlantDiagnosisRequest,
-    RecordHealthObservationRequest,
-    UpdatePlantStageRequest,
-)
-from app.schemas.system import SystemInfoSchema
 
 __all__ = [
-    "ActuatorAnomalyPayload",
-    "ActuatorAnomalyResolvedPayload",
-    "ActuatorCalibrationPayload",
-    "ActuatorLifecyclePayload",
-    "ActuatorResponse",
-    "ActuatorStatePayload",
-    "AddPlantToCrudRequest",
-    "ApplicationType",
-    # Personalized learning schemas
-    "ConditionProfileCard",
-    "ConditionProfileLinkSummary",
-    "ConditionProfileSection",
-    "ConditionProfileSelectorResponse",
-    "ConnectivityStatePayload",
-    "ControlActuatorRequest",
-    "CreateActuatorRequest",
     # Growth schemas
-    "CreateGrowthUnitRequest",
-    "CreateNutrientRecordRequest",
-    "CreateObservationRequest",
-    "CreatePlantRequest",
-    # Device schemas
-    "CreateSensorRequest",
-    "DeviceCommandPayload",
-    "DeviceLifecyclePayload",
-    # ML/AI schemas
-    "DiseaseRiskRequest",
-    "ErrorResponse",
-    "GrowthComparisonRequest",
-    "GrowthTransitionRequest",
-    "GrowthUnitResponse",
-    "HarvestPlantRequest",
-    "HealthObservationRequest",
-    "IrrigationAction",
-    "IrrigationConfigRequest",
-    # Irrigation schemas
-    "IrrigationDelayRequest",
-    "IrrigationEligibilityTraceResponse",
-    "IrrigationExecutionLogResponse",
-    "IrrigationFeedbackRequest",
-    "IrrigationFeedbackResponse",
-    "IrrigationNotificationActionRequest",
-    "ManualIrrigationLogRequest",
-    "ManualIrrigationLogResponse",
-    "ManualIrrigationPredictionResponse",
-    "MetricDataPoint",
-    "ModelActivateRequest",
-    "ModelCompareRequest",
-    "ModelType",
-    "ModifyPlantCrudRequest",
-    "NotificationPayload",
-    "NutrientType",
-    "ObservationType",
-    "PaginatedResponse",
-    "PhotoperiodConfigSchema",
-    "PlantDiagnosisRequest",
-    "PlantGrowthWarningPayload",
-    "PlantLifecyclePayload",
-    "PlantResponse",
-    "PlantStageUpdatePayload",
-    # Plant schemas
-    "RecordHealthObservationRequest",
-    "RelayStatePayload",
-    "RetrainingJobRequest",
-    "RootCauseAnalysisRequest",
+    'CreateGrowthUnitRequest',
+    'UpdateGrowthUnitRequest',
+    'GrowthUnitResponse',
+    'CreatePlantRequest',
+    'UpdatePlantRequest',
+    'PlantResponse',
+    'ThresholdSettings',
+    
     # Schedule schemas (v3)
-    "ScheduleCreateSchema",
-    "ScheduleListResponseSchema",
-    "ScheduleResponseSchema",
-    "ScheduleSummarySchema",
-    "ScheduleType",
-    "ScheduleUpdateSchema",
-    "SensorReloadPayload",
-    "SensorResponse",
-    # Event payload schemas
-    "SensorUpdatePayload",
+    'ScheduleCreateSchema',
+    'ScheduleUpdateSchema',
+    'ScheduleResponseSchema',
+    'ScheduleListResponseSchema',
+    'ScheduleSummarySchema',
+    'PhotoperiodConfigSchema',
+    
+    # Device schemas
+    'CreateSensorRequest',
+    'UpdateSensorRequest',
+    'SensorResponse',
+    'CreateActuatorRequest',
+    'UpdateActuatorRequest',
+    'ActuatorResponse',
+    'ControlActuatorRequest',
+    
     # Common schemas
-    "SuccessResponse",
-    # Health schemas
-    "SystemHealthResponse",
+    'SuccessResponse',
+    'ErrorResponse',
+    'PaginatedResponse',
+
     # System schemas
-    "SystemInfoSchema",
-    "ThresholdSettings",
-    "ThresholdsUpdatePayload",
-    "UpdateActuatorRequest",
-    "UpdateGrowthUnitRequest",
-    "UpdatePlantRequest",
-    "UpdatePlantStageRequest",
-    "UpdateSensorRequest",
-    "WhatIfSimulationRequest",
+    'SystemInfoSchema',
+
+    # Health schemas
+    'SystemHealthResponse',
+    'MetricDataPoint',
+
+    # Plant schemas
+    'RecordHealthObservationRequest',
+    'CreateObservationRequest',
+    'CreateNutrientRecordRequest',
+    'HarvestPlantRequest',
+    'UpdatePlantStageRequest',
+    'PlantDiagnosisRequest',
+    'AddPlantToCrudRequest',
+    'ModifyPlantCrudRequest',
+    'ObservationType',
+    'NutrientType',
+    'ApplicationType',
+    
+    # Irrigation schemas
+    'IrrigationDelayRequest',
+    'IrrigationFeedbackRequest',
+    'ManualIrrigationLogRequest',
+    'IrrigationConfigRequest',
+    'IrrigationNotificationActionRequest',
+    'IrrigationExecutionLogResponse',
+    'IrrigationEligibilityTraceResponse',
+    'ManualIrrigationLogResponse',
+    'ManualIrrigationPredictionResponse',
+    'IrrigationAction',
+    'IrrigationFeedbackResponse',
+    
+    # ML/AI schemas
+    'DiseaseRiskRequest',
+    'GrowthComparisonRequest',
+    'GrowthTransitionRequest',
+    'HealthObservationRequest',
+    'WhatIfSimulationRequest',
+    'RetrainingJobRequest',
+    'ModelCompareRequest',
+    'ModelActivateRequest',
+    'RootCauseAnalysisRequest',
+    'ScheduleType',
+    'ModelType',
+
+    # Event payload schemas
+    'SensorUpdatePayload',
+    'PlantLifecyclePayload',
+    'PlantStageUpdatePayload',
+    'PlantGrowthWarningPayload',
+    'DeviceLifecyclePayload',
+    'ActuatorLifecyclePayload',
+    'ActuatorAnomalyPayload',
+    'ActuatorAnomalyResolvedPayload',
+    'ActuatorCalibrationPayload',
+    'ThresholdsUpdatePayload',
+    'SensorReloadPayload',
+    'RelayStatePayload',
+    'DeviceCommandPayload',
+    'ActuatorStatePayload',
+    'ConnectivityStatePayload',
+    'NotificationPayload',
 ]

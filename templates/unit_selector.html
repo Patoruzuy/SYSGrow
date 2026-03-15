@@ -3,12 +3,6 @@
 {% block title %}Select a Growth Unit - SYSGrow{% endblock %}
 {% block body_class %}units-page{% endblock %}
 
-{% block styles %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/unit-selector.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/units.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/components/plants.css') }}">
-{% endblock %}
-
 {% block content %}
 <div class="page-shell">
 <div class="page-surface">
@@ -246,6 +240,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/api.js') }}"></script>
 <script type="module">
   import { initUnitSelector } from "{{ url_for('static', filename='js/unit_selector.js') }}";
   initUnitSelector();

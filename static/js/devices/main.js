@@ -50,7 +50,7 @@
 
             console.log('[Devices] Initialization complete');
         } catch (error) {
-            window.SYSGrow.initError('Devices', error);
+            console.error('[Devices] Initialization failed:', error);
         }
     }
 

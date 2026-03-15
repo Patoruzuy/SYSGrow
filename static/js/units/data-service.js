@@ -209,7 +209,7 @@
      */
     async deleteSchedule(scheduleId, unitId = null) {
       try {
-        await this.api.Device.deleteSchedule(scheduleId, unitId);
+        await this.api.Device.deleteSchedule(scheduleId);
         if (unitId) {
           this.cache.invalidate(this._key('schedules', unitId));
         }
@@ -669,7 +669,7 @@
         return await this._cached(
           cacheKey,
           async () => {
-            const response = await this.api.Plant.getPlant(plantId);
+            const response = await this.api.Plant.getPlantInfo(plantId);
             return response?.plant || response?.data || response || null;
           },
           { force }
@@ -685,10 +685,7 @@
      */
     async addPlant(payload) {
       try {
-        const unitId = payload.unit_id;
-        const body = { ...payload };
-        delete body.unit_id;
-        const response = await this.api.Plant.addPlant(unitId, body);
+        const response = await this.api.Plant.addPlant(payload);
         if (payload.unit_id) {
           this.cache.invalidate(this._key('plants', payload.unit_id));
         }
@@ -704,7 +701,7 @@
      */
     async removePlant(plantId, unitId = null) {
       try {
-        await this.api.Plant.removePlant(unitId, plantId);
+        await this.api.Plant.removePlant(plantId);
         if (unitId) {
           this.cache.invalidate(this._key('plants', unitId));
         }
@@ -781,9 +778,8 @@
         return await this._cached(
           cacheKey,
           async () => {
-            const response = await this.api.Analytics.getEnvironmentalSummary(unitId);
-            const payload = response?.data || response || null;
-            return payload?.current || payload || null;
+            const response = await this.api.Analytics.getEnvironmentalMetrics(unitId);
+            return response?.metrics || response?.data || response || null;
           },
           { force }
         );
@@ -821,12 +817,19 @@
     // --------------------------------------------------------------------------
 
     /**
-     * Start camera for unit — uses centralized API for CSRF/error handling
+     * Start camera for unit
      */
     async startCamera(unitId) {
       try {
-        const data = await this.api.Growth.startCamera(unitId);
-        return { ok: true, data };
+        const response = await fetch(`/api/growth/units/${unitId}/camera/start`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        if (!response.ok) {
+          return { ok: false, error: `HTTP ${response.status}: ${response.statusText}` };
+        }
+        const data = await response.json();
+        return data.ok !== false ? { ok: true, data } : { ok: false, error: data.error || 'Failed to start camera' };
       } catch (error) {
         console.error(`[UnitsDataService] startCamera(${unitId}) failed:`, error);
         return { ok: false, error: error.message || 'Failed to start camera' };
@@ -834,12 +837,19 @@
     }
 
     /**
-     * Stop camera for unit — uses centralized API for CSRF/error handling
+     * Stop camera for unit
      */
     async stopCamera(unitId) {
       try {
-        const data = await this.api.Growth.stopCamera(unitId);
-        return { ok: true, data };
+        const response = await fetch(`/api/growth/units/${unitId}/camera/stop`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        if (!response.ok) {
+          return { ok: false, error: `HTTP ${response.status}: ${response.statusText}` };
+        }
+        const data = await response.json();
+        return data.ok !== false ? { ok: true, data } : { ok: false, error: data.error || 'Failed to stop camera' };
       } catch (error) {
         console.error(`[UnitsDataService] stopCamera(${unitId}) failed:`, error);
         return { ok: false, error: error.message || 'Failed to stop camera' };
@@ -847,12 +857,16 @@
     }
 
     /**
-     * Get camera status for unit — uses centralized API for error handling
+     * Get camera status for unit
      */
     async getCameraStatus(unitId) {
       try {
-        const data = await this.api.Growth.getCameraStatus(unitId);
-        return { ok: true, data };
+        const response = await fetch(`/api/growth/units/${unitId}/camera/status`);
+        if (!response.ok) {
+          return { ok: false, error: `HTTP ${response.status}: ${response.statusText}` };
+        }
+        const data = await response.json();
+        return data.ok !== false ? { ok: true, data } : { ok: false, error: data.error || 'Failed to get camera status' };
       } catch (error) {
         console.error(`[UnitsDataService] getCameraStatus(${unitId}) failed:`, error);
         return { ok: false, error: error.message || 'Failed to get camera status' };

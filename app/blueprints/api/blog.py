@@ -3,7 +3,6 @@
 Provides public access to blog posts and categories.
 No authentication required for better SEO.
 """
-
 from __future__ import annotations
 
 import json
@@ -11,13 +10,11 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from flask import Blueprint, Response, jsonify, request
-
-from app.utils.http import safe_route
+from flask import Blueprint, jsonify, request
 
 logger = logging.getLogger(__name__)
 
-blog_api = Blueprint("blog_api", __name__)
+blog_api = Blueprint("blog_api", __name__, url_prefix="/api/blog")
 
 # Cache for blog data
 _blog_data_cache: dict[str, Any] | None = None
@@ -32,14 +29,14 @@ def _load_blog_data() -> dict[str, Any]:
 
     try:
         data_path = Path(__file__).resolve().parent.parent.parent.parent / "static" / "data" / "blog_posts.json"
-        with open(data_path, encoding="utf-8") as f:
+        with open(data_path, "r", encoding="utf-8") as f:
             _blog_data_cache = json.load(f)
         return _blog_data_cache
     except FileNotFoundError:
         logger.error("Blog posts data file not found")
         return {"posts": [], "categories": []}
     except json.JSONDecodeError as e:
-        logger.error("Invalid JSON in blog posts file: %s", e)
+        logger.error(f"Invalid JSON in blog posts file: {e}")
         return {"posts": [], "categories": []}
 
 
@@ -54,8 +51,7 @@ def _api_error(message: str, status: int = 400):
 
 
 @blog_api.route("/posts", methods=["GET"])
-@safe_route("Failed to retrieve blog posts")
-def get_posts() -> Response:
+def get_posts():
     """Get blog posts with optional filtering and pagination.
 
     Query Parameters:
@@ -91,47 +87,46 @@ def get_posts() -> Response:
         # Apply search filter
         if search_term:
             searchable = (
-                post.get("title", "").lower()
-                + " "
-                + post.get("summary", "").lower()
-                + " "
-                + " ".join(post.get("tags", []))
+                post.get("title", "").lower() + " " +
+                post.get("summary", "").lower() + " " +
+                " ".join(post.get("tags", []))
             )
             if search_term not in searchable:
                 continue
 
         # Return post without full content for listing
-        filtered_posts.append(
-            {
-                "id": post.get("id"),
-                "slug": post.get("slug"),
-                "title": post.get("title"),
-                "summary": post.get("summary"),
-                "category": post.get("category"),
-                "emoji": post.get("emoji"),
-                "author": post.get("author"),
-                "published_at": post.get("published_at"),
-                "reading_time": post.get("reading_time"),
-                "featured": post.get("featured", False),
-                "tags": post.get("tags", []),
-            }
-        )
+        filtered_posts.append({
+            "id": post.get("id"),
+            "slug": post.get("slug"),
+            "title": post.get("title"),
+            "summary": post.get("summary"),
+            "category": post.get("category"),
+            "emoji": post.get("emoji"),
+            "author": post.get("author"),
+            "published_at": post.get("published_at"),
+            "reading_time": post.get("reading_time"),
+            "featured": post.get("featured", False),
+            "tags": post.get("tags", [])
+        })
 
     # Sort by published_at descending (newest first)
     filtered_posts.sort(key=lambda x: x.get("published_at", ""), reverse=True)
 
     # Apply pagination
     total = len(filtered_posts)
-    paginated = filtered_posts[offset : offset + limit]
+    paginated = filtered_posts[offset:offset + limit]
 
-    return _api_success(
-        {"posts": paginated, "total": total, "limit": limit, "offset": offset, "has_more": offset + limit < total}
-    )
+    return _api_success({
+        "posts": paginated,
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+        "has_more": offset + limit < total
+    })
 
 
 @blog_api.route("/post/<slug>", methods=["GET"])
-@safe_route("Failed to retrieve blog post")
-def get_post(slug: str) -> Response:
+def get_post(slug: str):
     """Get a single blog post by slug with full content.
 
     Args:
@@ -150,8 +145,7 @@ def get_post(slug: str) -> Response:
 
 
 @blog_api.route("/categories", methods=["GET"])
-@safe_route("Failed to retrieve blog categories")
-def get_categories() -> Response:
+def get_categories():
     """Get all blog categories with post counts.
 
     Returns:
@@ -168,22 +162,19 @@ def get_categories() -> Response:
     categories = []
     for cat in data.get("categories", []):
         cat_id = cat.get("id")
-        categories.append(
-            {
-                "id": cat_id,
-                "name": cat.get("name"),
-                "description": cat.get("description"),
-                "icon": cat.get("icon"),
-                "post_count": category_counts.get(cat_id, 0),
-            }
-        )
+        categories.append({
+            "id": cat_id,
+            "name": cat.get("name"),
+            "description": cat.get("description"),
+            "icon": cat.get("icon"),
+            "post_count": category_counts.get(cat_id, 0)
+        })
 
     return _api_success(categories)
 
 
 @blog_api.route("/featured", methods=["GET"])
-@safe_route("Failed to retrieve featured posts")
-def get_featured() -> Response:
+def get_featured():
     """Get featured blog posts.
 
     Query Parameters:
@@ -198,20 +189,18 @@ def get_featured() -> Response:
     featured = []
     for post in data.get("posts", []):
         if post.get("featured", False):
-            featured.append(
-                {
-                    "id": post.get("id"),
-                    "slug": post.get("slug"),
-                    "title": post.get("title"),
-                    "summary": post.get("summary"),
-                    "category": post.get("category"),
-                    "emoji": post.get("emoji"),
-                    "author": post.get("author"),
-                    "published_at": post.get("published_at"),
-                    "reading_time": post.get("reading_time"),
-                    "tags": post.get("tags", []),
-                }
-            )
+            featured.append({
+                "id": post.get("id"),
+                "slug": post.get("slug"),
+                "title": post.get("title"),
+                "summary": post.get("summary"),
+                "category": post.get("category"),
+                "emoji": post.get("emoji"),
+                "author": post.get("author"),
+                "published_at": post.get("published_at"),
+                "reading_time": post.get("reading_time"),
+                "tags": post.get("tags", [])
+            })
 
     # Sort by published_at descending
     featured.sort(key=lambda x: x.get("published_at", ""), reverse=True)
@@ -220,8 +209,7 @@ def get_featured() -> Response:
 
 
 @blog_api.route("/tags", methods=["GET"])
-@safe_route("Failed to retrieve blog tags")
-def get_tags() -> Response:
+def get_tags():
     """Get all unique tags with post counts.
 
     Returns:
@@ -241,8 +229,7 @@ def get_tags() -> Response:
 
 
 @blog_api.route("/search", methods=["GET"])
-@safe_route("Failed to search blog posts")
-def search_posts() -> Response:
+def search_posts():
     """Search blog posts.
 
     Query Parameters:
@@ -283,21 +270,23 @@ def search_posts() -> Response:
             score += 15
 
         if score > 0:
-            results.append(
-                {
-                    "id": post.get("id"),
-                    "slug": post.get("slug"),
-                    "title": post.get("title"),
-                    "summary": post.get("summary"),
-                    "category": post.get("category"),
-                    "emoji": post.get("emoji"),
-                    "published_at": post.get("published_at"),
-                    "reading_time": post.get("reading_time"),
-                    "score": score,
-                }
-            )
+            results.append({
+                "id": post.get("id"),
+                "slug": post.get("slug"),
+                "title": post.get("title"),
+                "summary": post.get("summary"),
+                "category": post.get("category"),
+                "emoji": post.get("emoji"),
+                "published_at": post.get("published_at"),
+                "reading_time": post.get("reading_time"),
+                "score": score
+            })
 
     # Sort by score descending
     results.sort(key=lambda x: x["score"], reverse=True)
 
-    return _api_success({"results": results[:limit], "total": len(results), "query": query})
+    return _api_success({
+        "results": results[:limit],
+        "total": len(results),
+        "query": query
+    })

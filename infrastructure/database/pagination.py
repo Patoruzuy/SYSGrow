@@ -14,7 +14,8 @@ Date: December 2025
 """
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Dict, List, Optional, Tuple
+
 
 # Pagination Constants (Pi-friendly defaults)
 DEFAULT_LIMIT = 100
@@ -26,15 +27,14 @@ MIN_OFFSET = 0
 @dataclass
 class PaginationParams:
     """Validated pagination parameters."""
-
     limit: int
     offset: int
 
     @classmethod
     def from_request(
         cls,
-        limit: int | None = None,
-        offset: int | None = None,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
     ) -> "PaginationParams":
         """
         Create validated pagination parameters from request inputs.
@@ -82,8 +82,7 @@ class PaginationParams:
 @dataclass
 class PaginatedResponse:
     """Standard paginated response structure."""
-
-    items: list[Any]
+    items: List[Any]
     total: int
     limit: int
     offset: int
@@ -112,7 +111,7 @@ class PaginatedResponse:
             return 0
         return (self.offset // self.limit) + 1
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON responses."""
         return {
             "items": self.items,
@@ -124,14 +123,14 @@ class PaginatedResponse:
                 "has_prev": self.has_prev,
                 "page_count": self.page_count,
                 "current_page": self.current_page,
-            },
+            }
         }
 
 
 def validate_pagination(
-    limit: int | None = None,
-    offset: int | None = None,
-) -> tuple[int, int]:
+    limit: Optional[int] = None,
+    offset: Optional[int] = None,
+) -> Tuple[int, int]:
     """
     Validate pagination parameters (convenience function).
 
@@ -151,9 +150,9 @@ def validate_pagination(
 
 def apply_pagination_to_query(
     query: str,
-    limit: int | None = None,
-    offset: int | None = None,
-) -> tuple[str, int, int]:
+    limit: Optional[int] = None,
+    offset: Optional[int] = None,
+) -> Tuple[str, int, int]:
     """
     Add LIMIT/OFFSET clause to SQL query.
 

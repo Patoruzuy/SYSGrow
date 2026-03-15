@@ -168,10 +168,8 @@
       const statusClass = this._getStatusClass(isOn, isOnline, hasError, isPending);
       const toggleState = isOn ? 'on' : 'off';
 
-      const escAttr = window.escapeHtmlAttr || (t => String(t ?? '').replace(/[&"'<>]/g, c => ({'&':'&amp;','"':'&quot;',"'":'&#39;','<':'&lt;','>':'&gt;'}[c])));
-
       return `
-        <div class="actuator-control ${statusClass}" data-actuator-id="${escAttr(id)}">
+        <div class="actuator-control ${statusClass}" data-actuator-id="${id}">
           <div class="actuator-control__icon">
             <i class="${icon}"></i>
           </div>
@@ -184,9 +182,9 @@
           <div class="actuator-control__toggle-wrapper">
             <button
               class="actuator-control__toggle ${toggleState}"
-              data-actuator-id="${escAttr(id)}"
+              data-actuator-id="${id}"
               ${!isOnline || isPending ? 'disabled' : ''}
-              aria-label="Toggle ${escAttr(name)}"
+              aria-label="Toggle ${name}"
               aria-pressed="${isOn}"
             >
               <span class="toggle-track">

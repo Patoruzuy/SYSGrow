@@ -14,7 +14,6 @@
   let environmentalChart;
   let efficiencyScore;
   let alertTimeline;
-  let alertRefreshInterval;
 
   const DEBUG = localStorage.getItem('dashboard:debug') === '1';
 
@@ -57,7 +56,7 @@
 
       console.log('[Dashboard] Initialized');
     } catch (error) {
-      window.SYSGrow.initError('Dashboard', error);
+      console.error('[Dashboard] Initialization failed:', error);
     }
   }
 
@@ -118,8 +117,6 @@
 
       const ctx = canvas.getContext('2d');
 
-      const { cssVar } = window.SYSGrow;
-
       new Chart(ctx, {
         type: 'line',
         data: {
@@ -128,8 +125,8 @@
             {
               label: 'Temperature (°C)',
               data: temperatures,
-              borderColor: cssVar('--chart-temperature'),
-              backgroundColor: cssVar('--chart-temperature-bg'),
+              borderColor: '#ff6b6b',
+              backgroundColor: 'rgba(255, 107, 107, 0.1)',
               fill: false,
               tension: 0.4,
               pointRadius: 0,
@@ -138,8 +135,8 @@
             {
               label: 'Humidity (%)',
               data: humidities,
-              borderColor: cssVar('--chart-humidity'),
-              backgroundColor: cssVar('--chart-humidity-bg'),
+              borderColor: '#4dabf7',
+              backgroundColor: 'rgba(77, 171, 247, 0.1)',
               fill: false,
               tension: 0.4,
               pointRadius: 0,
@@ -148,8 +145,8 @@
             {
               label: 'Soil Moisture (%)',
               data: soilMoistures,
-              borderColor: cssVar('--chart-soil'),
-              backgroundColor: cssVar('--chart-soil-bg'),
+              borderColor: '#8b5a2b',
+              backgroundColor: 'rgba(139, 90, 43, 0.1)',
               fill: false,
               tension: 0.4,
               pointRadius: 0,
@@ -189,7 +186,7 @@
             },
             y: {
               beginAtZero: false,
-              grid: { color: cssVar('--chart-grid') }
+              grid: { color: 'rgba(0, 0, 0, 0.05)' }
             }
           }
         }
@@ -277,8 +274,8 @@
         // Load initial alerts
         loadAndRenderAlerts(unitId);
         
-        // Auto-refresh alerts (store ID for cleanup)
-        alertRefreshInterval = setInterval(() => loadAndRenderAlerts(unitId), 60000);
+        // Auto-refresh alerts
+        setInterval(() => loadAndRenderAlerts(unitId), 60000);
         
         console.log('[Dashboard] AlertTimeline initialized with actions');
       } else {
@@ -368,9 +365,7 @@
       loadAndRenderAlerts(unitId ? parseInt(unitId) : null);
     } catch (error) {
       console.error('[Dashboard] Failed to resolve alert:', error);
-      if (window.showNotification) {
-        window.showNotification('Failed to resolve alert. Please try again.', 'error');
-      }
+      alert('Failed to resolve alert. Please try again.');
     }
   }
 
@@ -414,14 +409,11 @@
       setTimeout(() => loadAndRenderAlerts(unitId ? parseInt(unitId) : null), 500);
     } catch (error) {
       console.error('[Dashboard] Failed to clear all alerts:', error);
-      if (window.showNotification) {
-        window.showNotification('Failed to clear alerts. Please try again.', 'error');
-      }
+      alert('Failed to clear alerts. Please try again.');
     }
   }
 
   window.addEventListener('beforeunload', () => {
-    if (alertRefreshInterval) clearInterval(alertRefreshInterval);
     try { uiManager?.destroy?.(); } catch {}
     try { environmentalChart?.destroy?.(); } catch {}
     try { efficiencyScore?.destroy?.(); } catch {}

@@ -7,10 +7,10 @@ name = "sysgrow-smart-agriculture"
 version = "3.0.0"
 description = "SYSGrow Smart Agriculture IoT System"
 readme = "README.md"
-requires-python = ">=3.11,<4"
+requires-python = ">=3.8,<4"
 license = { text = "MIT" }
 authors = [ { name = "Sebastian Gomez", email = "patoruzuy@tutanota.com" } ]
-keywords = ["raspberry", "RPi", "iot", "agriculture", "smart-farming", "plants", "esp32", "sensors", "automation", "machine-learning"]
+keywords = ["iot", "agriculture", "smart-farming", "esp32", "sensors", "automation", "machine-learning"]
 classifiers = [
   "Development Status :: 4 - Beta",
   "Intended Audience :: Developers",
@@ -19,16 +19,16 @@ classifiers = [
   "Topic :: Home Automation",
   "License :: OSI Approved :: MIT License",
   "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
-  "Programming Language :: Python :: 3.12",
-  "Programming Language :: Python :: 3.13",
 ]
 
 # Dependencies: populated from requirements.txt (platform-specific markers removed)
 dependencies = [
   "Flask>=2.3.0,<3.0.0",
   "Flask-SocketIO>=5.3.0,<6.0.0",
-  "flask-compress>=1.15,<2.0.0",
   "Werkzeug>=2.3.0,<3.0.0",
   "paho-mqtt>=2.1.0",
   "requests>=2.31.0,<3.0.0",
@@ -36,8 +36,7 @@ dependencies = [
   "pydantic>=2.0.0,<3.0.0",
   "pycryptodome>=3.18.0,<4.0.0",
   "cryptography>=41.0.0,<42.0.0",
-  "numpy>=1.24.0,<2.0.0; python_version < '3.13'",
-  "numpy>=2.1.0,<3.0.0; python_version >= '3.13'",
+  "numpy>=1.24.0,<2.0.0",
   "pandas>=2.0.0,<3.0.0",
   "scikit-learn>=1.3.0,<2.0.0",
   "joblib>=1.3.0,<2.0.0",
@@ -68,12 +67,13 @@ dev = [
   "pytest>=7.4.0",
   "pytest-flask>=1.2.0",
   "pytest-cov>=4.1.0",
-  "ruff>=0.9.0",
-  "pre-commit>=4.0.0",
+  "black>=23.7.0",
+  "flake8>=6.0.0",
+  "mypy>=1.5.0",
+  "isort>=5.12.0",
 ]
 parsing = [
-  "lxml>=4.9.0,<5.0.0; python_version < '3.13'",
-  "lxml>=5.3.0,<6.0.0; python_version >= '3.13'",
+  "lxml>=4.9.0,<5.0.0",
 ]
 hardware = [
   "RPi.GPIO>=0.7.1",
@@ -97,7 +97,7 @@ windows = [
 ]
 
 linux = [
-  "systemd-python>=234; platform_system=='Linux'",
+  "python-systemd>=234; platform_system=='Linux'",
 ]
 
 zigbee = [
@@ -154,125 +154,3 @@ exclude = ["tests", "docs"]
   "config/*.json",
   "config/*.yaml",
 ]
-
-# ---------------------------------------------------------------------------
-# Ruff — linter & formatter
-# ---------------------------------------------------------------------------
-[tool.ruff]
-target-version = "py311"
-line-length = 120
-# Exclude auto-generated and non-source directories
-exclude = [
-  ".venv",
-  "venv",
-  "__pycache__",
-  "migrations",
-  "sysgrow_smart_agriculture.egg-info",
-  "data",
-  "models",
-  "static",
-  "templates",
-  "docs",
-  "releases",
-  "scripts",
-]
-
-[tool.ruff.lint]
-# Start conservative — enable rules incrementally
-select = [
-  "F",      # pyflakes — undefined names, unused imports, etc.
-  "E",      # pycodestyle errors
-  "W",      # pycodestyle warnings
-  "I",      # isort — import ordering
-  "UP",     # pyupgrade — modernise syntax
-  "B",      # flake8-bugbear — likely bugs & design problems
-  "SIM",    # flake8-simplify — simplifiable constructs
-  "T20",    # flake8-print — flag print() in production code
-  "RUF",    # Ruff-specific rules
-]
-ignore = [
-  "E501",   # line-too-long — handled by formatter
-  "E712",   # comparison to True/False — too noisy for existing code
-  "E402",   # module-import-not-at-top — lazy ML imports are intentional
-  "E701",   # multiple-statements-on-one-line — minor style
-  "B008",   # function-call-in-default-argument — Flask patterns use this
-  "B905",   # zip-without-explicit-strict — too noisy for now
-  "SIM108", # use-ternary — readability preference
-  "SIM117", # combine-with-statements — readability preference
-  "UP007",  # non-pep604-annotation — Optional[X] still fine
-  "UP035",  # deprecated-import — typing.Dict→dict etc., defer to Sprint 5+
-  "UP037",  # quoted-annotation — too many changes, defer
-  "UP042",  # replace-str-enum — defer, requires code review
-  "RUF002", # ambiguous-unicode-char-docstring — false positives on accented names
-  "RUF003", # ambiguous-unicode-char-comment — same
-  "RUF012", # mutable-class-default — dataclass pattern false-positives
-  "RUF013", # implicit-optional — too many changes, defer
-  "RUF015", # unnecessary-iterable-allocation-for-first-element
-  "UP017",  # datetime-timezone-utc — prefer timezone.utc over Python 3.11+ UTC alias
-]
-# Keep timezone.utc style even if UP017 gets explicitly selected on the CLI.
-unfixable = ["UP017"]
-
-# Do NOT auto-remove unused imports in __init__.py barrel files
-[tool.ruff.lint.per-file-ignores]
-"__init__.py" = ["F401"]      # unused imports are re-exports
-"app/workers/*" = ["T20"]     # CLI workers may legitimately print
-"start_dev.py" = ["T20"]      # dev-server banner prints are intentional
-"tests/*" = ["T20", "B011"]   # tests can print and use assert True
-
-[tool.ruff.lint.isort]
-known-first-party = ["app", "infrastructure", "integrations"]
-force-single-line = false
-combine-as-imports = true
-
-[tool.ruff.format]
-quote-style = "double"
-indent-style = "space"
-docstring-code-format = true
-
-# ---------------------------------------------------------------------------
-# Pytest
-# ---------------------------------------------------------------------------
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-python_files = ["test_*.py"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
-minversion = "7.0"
-addopts = "-v --tb=short"
-markers = [
-    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "integration: tests requiring real database or external resources",
-    "smoke: lightweight import / instantiation checks",
-]
-
-# ---------------------------------------------------------------------------
-# Coverage
-# ---------------------------------------------------------------------------
-[tool.coverage.run]
-source = ["app"]
-omit = [
-    "app/__pycache__/*",
-    "app/*/migrations/*",
-    "app/hardware/*",          # hardware-specific; tested on-device
-]
-
-[tool.coverage.report]
-show_missing = true
-skip_empty = true
-precision = 1
-fail_under = 35                 # baseline 36.8% — raise incrementally toward 70%
-exclude_lines = [
-    "pragma: no cover",
-    "if __name__ == .__main__.",
-    "if TYPE_CHECKING:",
-    "raise NotImplementedError",
-    "@overload",
-]
-
-# ---------------------------------------------------------------------------
-# Bandit — security linter
-# ---------------------------------------------------------------------------
-[tool.bandit]
-exclude_dirs = [".venv", "venv", "tests", "data", "docs", "scripts"]
-skips = ["B311"]  # random not used for crypto — used for ML

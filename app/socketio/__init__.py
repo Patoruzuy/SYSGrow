@@ -15,7 +15,7 @@ Namespaces:
 
 Usage:
     Import this module after socketio.init_app() to register all handlers.
-
+    
     from app.socketio import register_handlers
     register_handlers()
 """
@@ -28,18 +28,14 @@ logger = logging.getLogger(__name__)
 def register_handlers():
     """
     Register all Socket.IO event handlers.
-
+    
     This function must be called AFTER socketio.init_app() to ensure
     the Flask app context is available for all handlers.
     """
     # Import handlers to trigger @socketio.on() decorator registration
-    from . import (
-        ml_handlers,
-        sensor_handlers,
-    )
-
-    _ = (ml_handlers, sensor_handlers)
-    # from . import notification_handlers
-    # from . import alert_handlers
-
+    from . import sensor_handlers  # noqa: F401
+    from . import ml_handlers  # noqa: F401
+    # from . import notification_handlers  # noqa: F401 - future
+    # from . import alert_handlers  # noqa: F401 - future
+    
     logger.info("✅ Socket.IO handlers registered (core, system/ml)")

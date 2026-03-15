@@ -3,16 +3,14 @@ Control System Domain Objects
 ==============================
 Dataclasses for climate control logic.
 """
-
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+from typing import Any, Dict, Optional
 
 
 @dataclass
 class ControlConfig:
     """Configuration for control loops."""
-
     # Temperature control
     temp_setpoint: float = 24.0
     temp_kp: float = 1.0
@@ -57,12 +55,11 @@ class ControlConfig:
 @dataclass
 class ControlMetrics:
     """Metrics for control loop performance."""
-
     total_actions: int = 0
     successful_actions: int = 0
     failed_actions: int = 0
     average_response_time: float = 0.0
-    last_action_time: datetime | None = None
+    last_action_time: Optional[datetime] = None
     consecutive_errors: int = 0
 
     @property
@@ -72,14 +69,14 @@ class ControlMetrics:
             return 100.0
         return (self.successful_actions / self.total_actions) * 100.0
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
         return {
-            "total_actions": self.total_actions,
-            "successful_actions": self.successful_actions,
-            "failed_actions": self.failed_actions,
-            "success_rate": self.success_rate,
-            "average_response_time": self.average_response_time,
-            "last_action_time": self.last_action_time.isoformat() if self.last_action_time else None,
-            "consecutive_errors": self.consecutive_errors,
+            'total_actions': self.total_actions,
+            'successful_actions': self.successful_actions,
+            'failed_actions': self.failed_actions,
+            'success_rate': self.success_rate,
+            'average_response_time': self.average_response_time,
+            'last_action_time': self.last_action_time.isoformat() if self.last_action_time else None,
+            'consecutive_errors': self.consecutive_errors
         }

@@ -10,21 +10,16 @@ Author: SYSGrow Team
 Date: January 2026
 """
 
-from __future__ import annotations
-
 import logging
-
-from flask import Response, request, session
-
-from app.blueprints.api._common import fail, get_container, success
+from flask import request, session
 from app.blueprints.api.settings import settings_api
+from app.blueprints.api._common import success, fail, get_container
+from app.domain.notification_settings import NotificationSettings
 from app.enums import (
-    IrrigationFeedback,
-    NotificationSeverity,
     NotificationType,
+    NotificationSeverity,
+    IrrigationFeedback,
 )
-from app.utils.http import safe_route
-
 # Backward compatibility alias - keep function names for minimal changes
 success_response = success
 error_response = fail
@@ -40,10 +35,8 @@ def _get_current_user_id() -> int:
 
 # --- Notification Settings Endpoints ---
 
-
 @settings_api.get("/notifications")
-@safe_route("Failed to get notification settings")
-def get_notification_settings() -> Response:
+def get_notification_settings():
     """
     Get notification settings for the current user.
 
@@ -79,23 +72,27 @@ def get_notification_settings() -> Response:
             }
         }
     """
-    container = get_container()
-    if not container:
-        return error_response("Service container not available", 500)
+    try:
+        container = get_container()
+        if not container:
+            return error_response("Service container not available", 500)
 
-    notifications_service = getattr(container, "notifications_service", None)
-    if not notifications_service:
-        return error_response("Notification service not available", 503)
+        notifications_service = getattr(container, "notifications_service", None)
+        if not notifications_service:
+            return error_response("Notification service not available", 503)
 
-    user_id = _get_current_user_id()
-    settings = notifications_service.get_user_settings(user_id)
+        user_id = _get_current_user_id()
+        settings = notifications_service.get_user_settings(user_id)
 
-    return success_response(settings.to_dict())
+        return success_response(settings.to_dict())
+
+    except Exception as e:
+        logger.exception("Error getting notification settings")
+        return error_response(f"Failed to get notification settings: {str(e)}", 500)
 
 
 @settings_api.put("/notifications")
-@safe_route("Failed to update notification settings")
-def update_notification_settings() -> Response:
+def update_notification_settings():
     """
     Update notification settings for the current user.
 
@@ -129,66 +126,73 @@ def update_notification_settings() -> Response:
     Returns:
         JSON response with updated settings
     """
-    container = get_container()
-    if not container:
-        return error_response("Service container not available", 500)
+    try:
+        container = get_container()
+        if not container:
+            return error_response("Service container not available", 500)
 
-    notifications_service = getattr(container, "notifications_service", None)
-    if not notifications_service:
-        return error_response("Notification service not available", 503)
+        notifications_service = getattr(container, "notifications_service", None)
+        if not notifications_service:
+            return error_response("Notification service not available", 503)
 
-    data = request.get_json()
-    if not data:
-        return error_response("Request body is required", 400)
+        data = request.get_json()
+        if not data:
+            return error_response("Request body is required", 400)
 
-    user_id = _get_current_user_id()
+        user_id = _get_current_user_id()
 
-    # Validate email address format if provided
-    email_address = data.get("email_address")
-    if email_address and "@" not in email_address:
-        return error_response("Invalid email address format", 400)
+        # Validate email address format if provided
+        email_address = data.get("email_address")
+        if email_address and "@" not in email_address:
+            return error_response("Invalid email address format", 400)
 
-    # Validate SMTP port if provided
-    smtp_port = data.get("smtp_port")
-    if smtp_port is not None and (not isinstance(smtp_port, int) or smtp_port < 1 or smtp_port > 65535):
-        return error_response("Invalid SMTP port: must be between 1 and 65535", 400)
+        # Validate SMTP port if provided
+        smtp_port = data.get("smtp_port")
+        if smtp_port is not None:
+            if not isinstance(smtp_port, int) or smtp_port < 1 or smtp_port > 65535:
+                return error_response("Invalid SMTP port: must be between 1 and 65535", 400)
 
-    # Validate quiet hours format if provided
-    quiet_hours_start = data.get("quiet_hours_start")
-    quiet_hours_end = data.get("quiet_hours_end")
-    if quiet_hours_start:
-        try:
-            from datetime import datetime
+        # Validate quiet hours format if provided
+        quiet_hours_start = data.get("quiet_hours_start")
+        quiet_hours_end = data.get("quiet_hours_end")
+        if quiet_hours_start:
+            try:
+                from datetime import datetime
+                datetime.strptime(quiet_hours_start, "%H:%M")
+            except ValueError:
+                return error_response("Invalid quiet_hours_start: use HH:MM format", 400)
+        if quiet_hours_end:
+            try:
+                from datetime import datetime
+                datetime.strptime(quiet_hours_end, "%H:%M")
+            except ValueError:
+                return error_response("Invalid quiet_hours_end: use HH:MM format", 400)
 
-            datetime.strptime(quiet_hours_start, "%H:%M")
-        except ValueError:
-            return error_response("Invalid quiet_hours_start: use HH:MM format", 400)
-    if quiet_hours_end:
-        try:
-            from datetime import datetime
+        # Validate interval if provided
+        interval = data.get("min_notification_interval_seconds")
+        if interval is not None:
+            if not isinstance(interval, int) or interval < 0:
+                return error_response("Invalid interval: must be a non-negative integer", 400)
 
-            datetime.strptime(quiet_hours_end, "%H:%M")
-        except ValueError:
-            return error_response("Invalid quiet_hours_end: use HH:MM format", 400)
+        # Update settings
+        success = notifications_service.update_user_settings(user_id, data)
+        if not success:
+            return error_response("Failed to update notification settings", 500)
 
-    # Validate interval if provided
-    interval = data.get("min_notification_interval_seconds")
-    if interval is not None and (not isinstance(interval, int) or interval < 0):
-        return error_response("Invalid interval: must be a non-negative integer", 400)
+        # Return updated settings
+        updated_settings = notifications_service.get_user_settings(user_id)
+        return success_response(
+            updated_settings.to_dict(),
+            message="Notification settings updated successfully"
+        )
 
-    # Update settings
-    success = notifications_service.update_user_settings(user_id, data)
-    if not success:
-        return error_response("Failed to update notification settings", 500)
-
-    # Return updated settings
-    updated_settings = notifications_service.get_user_settings(user_id)
-    return success_response(updated_settings.to_dict(), message="Notification settings updated successfully")
+    except Exception as e:
+        logger.exception("Error updating notification settings")
+        return error_response(f"Failed to update notification settings: {str(e)}", 500)
 
 
 @settings_api.post("/notifications/test-email")
-@safe_route("Failed to send test email notification")
-def test_email_notification() -> Response:
+def test_email_notification():
     """
     Send a test email notification to verify SMTP configuration.
 
@@ -197,50 +201,54 @@ def test_email_notification() -> Response:
     Returns:
         JSON response indicating success or failure with error details
     """
-    container = get_container()
-    if not container:
-        return error_response("Service container not available", 500)
+    try:
+        container = get_container()
+        if not container:
+            return error_response("Service container not available", 500)
 
-    notifications_service = getattr(container, "notifications_service", None)
-    if not notifications_service:
-        return error_response("Notification service not available", 503)
+        notifications_service = getattr(container, "notifications_service", None)
+        if not notifications_service:
+            return error_response("Notification service not available", 503)
 
-    user_id = _get_current_user_id()
-    settings = notifications_service.get_user_settings(user_id)
+        user_id = _get_current_user_id()
+        settings = notifications_service.get_user_settings(user_id)
 
-    if not settings.email_enabled:
-        return error_response("Email notifications are not enabled", 400)
+        if not settings.email_enabled:
+            return error_response("Email notifications are not enabled", 400)
 
-    if not settings.email_address:
-        return error_response("Email address not configured", 400)
+        if not settings.email_address:
+            return error_response("Email address not configured", 400)
 
-    if not settings.smtp_host:
-        return error_response("SMTP host not configured", 400)
+        if not settings.smtp_host:
+            return error_response("SMTP host not configured", 400)
 
-    # Send test notification (force=True bypasses preferences)
-    message_id = notifications_service.send_notification(
-        user_id=user_id,
-        notification_type=NotificationType.SYSTEM_ALERT,
-        title="Test Notification",
-        message="This is a test notification from your SYSGrow system. If you received this email, your notification settings are configured correctly!",
-        severity=NotificationSeverity.INFO,
-        force=True,
-    )
-
-    if message_id:
-        return success_response(
-            {"message_id": message_id}, message="Test notification sent successfully. Check your email."
+        # Send test notification (force=True bypasses preferences)
+        message_id = notifications_service.send_notification(
+            user_id=user_id,
+            notification_type=NotificationType.SYSTEM_ALERT,
+            title="Test Notification",
+            message="This is a test notification from your SYSGrow system. If you received this email, your notification settings are configured correctly!",
+            severity=NotificationSeverity.INFO,
+            force=True,
         )
-    else:
-        return error_response("Failed to send test notification", 500)
+
+        if message_id:
+            return success_response(
+                {"message_id": message_id},
+                message="Test notification sent successfully. Check your email."
+            )
+        else:
+            return error_response("Failed to send test notification", 500)
+
+    except Exception as e:
+        logger.exception("Error sending test email notification")
+        return error_response(f"Failed to send test notification: {str(e)}", 500)
 
 
 # --- Notification Messages Endpoints ---
 
-
 @settings_api.get("/notifications/messages")
-@safe_route("Failed to get notifications")
-def get_notifications() -> Response:
+def get_notifications():
     """
     Get notifications for the current user.
 
@@ -252,120 +260,143 @@ def get_notifications() -> Response:
     Returns:
         JSON response with list of notifications
     """
-    container = get_container()
-    if not container:
-        return error_response("Service container not available", 500)
+    try:
+        container = get_container()
+        if not container:
+            return error_response("Service container not available", 500)
 
-    notifications_service = getattr(container, "notifications_service", None)
-    if not notifications_service:
-        return error_response("Notification service not available", 503)
+        notifications_service = getattr(container, "notifications_service", None)
+        if not notifications_service:
+            return error_response("Notification service not available", 503)
 
-    user_id = _get_current_user_id()
-    unread_only = request.args.get("unread_only", "false").lower() == "true"
-    limit = min(request.args.get("limit", 50, type=int), 200)
-    offset = request.args.get("offset", 0, type=int)
+        user_id = _get_current_user_id()
+        unread_only = request.args.get("unread_only", "false").lower() == "true"
+        limit = min(request.args.get("limit", 50, type=int), 200)
+        offset = request.args.get("offset", 0, type=int)
 
-    notifications = notifications_service.get_user_notifications(
-        user_id=user_id,
-        unread_only=unread_only,
-        limit=limit,
-        offset=offset,
-    )
+        notifications = notifications_service.get_user_notifications(
+            user_id=user_id,
+            unread_only=unread_only,
+            limit=limit,
+            offset=offset,
+        )
 
-    unread_count = notifications_service.get_unread_count(user_id)
+        unread_count = notifications_service.get_unread_count(user_id)
 
-    return success_response(
-        {
+        return success_response({
             "notifications": notifications,
             "unread_count": unread_count,
             "pagination": {
                 "limit": limit,
                 "offset": offset,
-            },
-        }
-    )
+            }
+        })
+
+    except Exception as e:
+        logger.exception("Error getting notifications")
+        return error_response(f"Failed to get notifications: {str(e)}", 500)
 
 
 @settings_api.post("/notifications/messages/<int:message_id>/read")
-@safe_route("Failed to mark notification as read")
-def mark_notification_read(message_id: int) -> Response:
+def mark_notification_read(message_id: int):
     """Mark a notification as read."""
-    container = get_container()
-    if not container:
-        return error_response("Service container not available", 500)
+    try:
+        container = get_container()
+        if not container:
+            return error_response("Service container not available", 500)
 
-    notifications_service = getattr(container, "notifications_service", None)
-    if not notifications_service:
-        return error_response("Notification service not available", 503)
+        notifications_service = getattr(container, "notifications_service", None)
+        if not notifications_service:
+            return error_response("Notification service not available", 503)
 
-    success = notifications_service.mark_notification_read(message_id)
-    if success:
-        return success_response({"message_id": message_id}, message="Notification marked as read")
-    else:
-        return error_response("Failed to mark notification as read", 500)
+        success = notifications_service.mark_notification_read(message_id)
+        if success:
+            return success_response({"message_id": message_id}, message="Notification marked as read")
+        else:
+            return error_response("Failed to mark notification as read", 500)
+
+    except Exception as e:
+        logger.exception("Error marking notification as read")
+        return error_response(f"Failed to mark notification as read: {str(e)}", 500)
 
 
 @settings_api.post("/notifications/messages/read-all")
-@safe_route("Failed to mark all notifications as read")
-def mark_all_notifications_read() -> Response:
+def mark_all_notifications_read():
     """Mark all notifications as read for the current user."""
-    container = get_container()
-    if not container:
-        return error_response("Service container not available", 500)
+    try:
+        container = get_container()
+        if not container:
+            return error_response("Service container not available", 500)
 
-    notifications_service = getattr(container, "notifications_service", None)
-    if not notifications_service:
-        return error_response("Notification service not available", 503)
+        notifications_service = getattr(container, "notifications_service", None)
+        if not notifications_service:
+            return error_response("Notification service not available", 503)
 
-    user_id = _get_current_user_id()
-    count = notifications_service.mark_all_read(user_id)
+        user_id = _get_current_user_id()
+        count = notifications_service.mark_all_read(user_id)
 
-    return success_response({"marked_read": count}, message=f"Marked {count} notifications as read")
+        return success_response(
+            {"marked_read": count},
+            message=f"Marked {count} notifications as read"
+        )
+
+    except Exception as e:
+        logger.exception("Error marking all notifications as read")
+        return error_response(f"Failed to mark all notifications as read: {str(e)}", 500)
 
 
 @settings_api.delete("/notifications/messages/<int:message_id>")
-@safe_route("Failed to delete notification")
-def delete_notification(message_id: int) -> Response:
+def delete_notification(message_id: int):
     """Delete a notification."""
-    container = get_container()
-    if not container:
-        return error_response("Service container not available", 500)
+    try:
+        container = get_container()
+        if not container:
+            return error_response("Service container not available", 500)
 
-    notifications_service = getattr(container, "notifications_service", None)
-    if not notifications_service:
-        return error_response("Notification service not available", 503)
+        notifications_service = getattr(container, "notifications_service", None)
+        if not notifications_service:
+            return error_response("Notification service not available", 503)
 
-    success = notifications_service.delete_notification(message_id)
-    if success:
-        return success_response(None, message="Notification deleted")
-    else:
-        return error_response("Failed to delete notification", 500)
+        success = notifications_service.delete_notification(message_id)
+        if success:
+            return success_response(None, message="Notification deleted")
+        else:
+            return error_response("Failed to delete notification", 500)
+
+    except Exception as e:
+        logger.exception("Error deleting notification")
+        return error_response(f"Failed to delete notification: {str(e)}", 500)
 
 
 @settings_api.delete("/notifications/messages")
-@safe_route("Failed to clear notifications")
-def clear_all_notifications() -> Response:
+def clear_all_notifications():
     """Clear all notifications for the current user."""
-    container = get_container()
-    if not container:
-        return error_response("Service container not available", 500)
+    try:
+        container = get_container()
+        if not container:
+            return error_response("Service container not available", 500)
 
-    notifications_service = getattr(container, "notifications_service", None)
-    if not notifications_service:
-        return error_response("Notification service not available", 503)
+        notifications_service = getattr(container, "notifications_service", None)
+        if not notifications_service:
+            return error_response("Notification service not available", 503)
 
-    user_id = _get_current_user_id()
-    count = notifications_service.clear_user_notifications(user_id)
+        user_id = _get_current_user_id()
+        count = notifications_service.clear_user_notifications(user_id)
 
-    return success_response({"deleted": count}, message=f"Deleted {count} notifications")
+        return success_response(
+            {"deleted": count},
+            message=f"Deleted {count} notifications"
+        )
+
+    except Exception as e:
+        logger.exception("Error clearing notifications")
+        return error_response(f"Failed to clear notifications: {str(e)}", 500)
 
 
 # --- Action Notifications Endpoints ---
 
-
 @settings_api.get("/notifications/actions")
-@safe_route("Failed to get pending actions")
-def get_pending_actions() -> Response:
+def get_pending_actions():
     """
     Get notifications that require user action.
 
@@ -375,25 +406,29 @@ def get_pending_actions() -> Response:
     Returns:
         JSON response with list of notifications requiring action
     """
-    container = get_container()
-    if not container:
-        return error_response("Service container not available", 500)
+    try:
+        container = get_container()
+        if not container:
+            return error_response("Service container not available", 500)
 
-    notifications_service = getattr(container, "notifications_service", None)
-    if not notifications_service:
-        return error_response("Notification service not available", 503)
+        notifications_service = getattr(container, "notifications_service", None)
+        if not notifications_service:
+            return error_response("Notification service not available", 503)
 
-    user_id = _get_current_user_id()
-    action_type = request.args.get("action_type")
+        user_id = _get_current_user_id()
+        action_type = request.args.get("action_type")
 
-    actions = notifications_service.get_pending_actions(user_id, action_type)
+        actions = notifications_service.get_pending_actions(user_id, action_type)
 
-    return success_response({"pending_actions": actions})
+        return success_response({"pending_actions": actions})
+
+    except Exception as e:
+        logger.exception("Error getting pending actions")
+        return error_response(f"Failed to get pending actions: {str(e)}", 500)
 
 
 @settings_api.post("/notifications/actions/<int:message_id>/respond")
-@safe_route("Failed to respond to action")
-def respond_to_action(message_id: int) -> Response:
+def respond_to_action(message_id: int):
     """
     Respond to an action notification.
 
@@ -405,58 +440,66 @@ def respond_to_action(message_id: int) -> Response:
     Returns:
         JSON response indicating success
     """
-    container = get_container()
-    if not container:
-        return error_response("Service container not available", 500)
+    try:
+        container = get_container()
+        if not container:
+            return error_response("Service container not available", 500)
 
-    notifications_service = getattr(container, "notifications_service", None)
-    if not notifications_service:
-        return error_response("Notification service not available", 503)
+        notifications_service = getattr(container, "notifications_service", None)
+        if not notifications_service:
+            return error_response("Notification service not available", 503)
 
-    data = request.get_json()
-    if not data or "response" not in data:
-        return error_response("Response is required", 400)
+        data = request.get_json()
+        if not data or "response" not in data:
+            return error_response("Response is required", 400)
 
-    response = data["response"]
-    success = notifications_service.respond_to_action(message_id, response)
+        response = data["response"]
+        success = notifications_service.respond_to_action(message_id, response)
 
-    if success:
-        return success_response(
-            {"message_id": message_id, "response": response}, message="Action recorded successfully"
-        )
-    else:
-        return error_response("Failed to record action response", 500)
+        if success:
+            return success_response(
+                {"message_id": message_id, "response": response},
+                message="Action recorded successfully"
+            )
+        else:
+            return error_response("Failed to record action response", 500)
+
+    except Exception as e:
+        logger.exception("Error responding to action")
+        return error_response(f"Failed to respond to action: {str(e)}", 500)
 
 
 # --- Irrigation Feedback Endpoints ---
 
-
 @settings_api.get("/notifications/irrigation-feedback")
-@safe_route("Failed to get irrigation feedback")
-def get_irrigation_feedback() -> Response:
+def get_irrigation_feedback():
     """
     Get pending irrigation feedback requests for the current user.
 
     Returns:
         JSON response with list of pending feedback requests
     """
-    container = get_container()
-    if not container:
-        return error_response("Service container not available", 500)
+    try:
+        container = get_container()
+        if not container:
+            return error_response("Service container not available", 500)
 
-    notifications_service = getattr(container, "notifications_service", None)
-    if not notifications_service:
-        return error_response("Notification service not available", 503)
+        notifications_service = getattr(container, "notifications_service", None)
+        if not notifications_service:
+            return error_response("Notification service not available", 503)
 
-    user_id = _get_current_user_id()
-    pending = notifications_service.get_pending_irrigation_feedback(user_id)
+        user_id = _get_current_user_id()
+        pending = notifications_service.get_pending_irrigation_feedback(user_id)
 
-    return success_response({"pending_feedback": pending})
+        return success_response({"pending_feedback": pending})
+
+    except Exception as e:
+        logger.exception("Error getting irrigation feedback")
+        return error_response(f"Failed to get irrigation feedback: {str(e)}", 500)
 
 
 @settings_api.post("/notifications/irrigation-feedback/<int:feedback_id>")
-@safe_route("Failed to submit irrigation feedback")
-def submit_irrigation_feedback(feedback_id: int) -> Response:
+def submit_irrigation_feedback(feedback_id: int):
     """
     Submit irrigation feedback.
 
@@ -470,63 +513,70 @@ def submit_irrigation_feedback(feedback_id: int) -> Response:
     Returns:
         JSON response indicating success
     """
-    container = get_container()
-    if not container:
-        return error_response("Service container not available", 500)
+    try:
+        container = get_container()
+        if not container:
+            return error_response("Service container not available", 500)
 
-    notifications_service = getattr(container, "notifications_service", None)
-    if not notifications_service:
-        return error_response("Notification service not available", 503)
+        notifications_service = getattr(container, "notifications_service", None)
+        if not notifications_service:
+            return error_response("Notification service not available", 503)
 
-    data = request.get_json()
-    if not data or "response" not in data:
-        return error_response("Response is required", 400)
+        data = request.get_json()
+        if not data or "response" not in data:
+            return error_response("Response is required", 400)
 
-    response = data["response"]
-    valid_responses = {
-        IrrigationFeedbackResponse.TOO_LITTLE,
-        IrrigationFeedbackResponse.JUST_RIGHT,
-        IrrigationFeedbackResponse.TOO_MUCH,
-        IrrigationFeedbackResponse.TRIGGERED_TOO_EARLY,
-        IrrigationFeedbackResponse.TRIGGERED_TOO_LATE,
-        IrrigationFeedbackResponse.SKIPPED,
-    }
-    if response not in valid_responses:
-        return error_response(f"Invalid response. Must be one of: {', '.join(valid_responses)}", 400)
+        response = data["response"]
+        valid_responses = {
+            IrrigationFeedbackResponse.TOO_LITTLE,
+            IrrigationFeedbackResponse.JUST_RIGHT,
+            IrrigationFeedbackResponse.TOO_MUCH,
+            IrrigationFeedbackResponse.TRIGGERED_TOO_EARLY,
+            IrrigationFeedbackResponse.TRIGGERED_TOO_LATE,
+            IrrigationFeedbackResponse.SKIPPED,
+        }
+        if response not in valid_responses:
+            return error_response(
+                f"Invalid response. Must be one of: {', '.join(valid_responses)}", 400
+            )
 
-    notes = data.get("notes")
-    success = notifications_service.submit_irrigation_feedback(
-        feedback_id=feedback_id,
-        response=response,
-        notes=notes,
-    )
-
-    if success:
-        irrigation_service = getattr(container, "irrigation_workflow_service", None)
-        if irrigation_service:
-            try:
-                irrigation_service.handle_feedback_for_feedback_id(
-                    feedback_id=feedback_id,
-                    feedback_response=response,
-                    user_id=_get_current_user_id(),
-                    notes=notes,
-                )
-            except Exception as e:
-                logger.warning(
-                    "Failed to apply irrigation feedback for feedback_id %s: %s",
-                    feedback_id,
-                    e,
-                )
-        return success_response(
-            {"feedback_id": feedback_id, "response": response}, message="Feedback submitted successfully"
+        notes = data.get("notes")
+        success = notifications_service.submit_irrigation_feedback(
+            feedback_id=feedback_id,
+            response=response,
+            notes=notes,
         )
-    else:
-        return error_response("Failed to submit feedback", 500)
+
+        if success:
+            irrigation_service = getattr(container, "irrigation_workflow_service", None)
+            if irrigation_service:
+                try:
+                    irrigation_service.handle_feedback_for_feedback_id(
+                        feedback_id=feedback_id,
+                        feedback_response=response,
+                        user_id=_get_current_user_id(),
+                        notes=notes,
+                    )
+                except Exception as e:
+                    logger.warning(
+                        "Failed to apply irrigation feedback for feedback_id %s: %s",
+                        feedback_id,
+                        e,
+                    )
+            return success_response(
+                {"feedback_id": feedback_id, "response": response},
+                message="Feedback submitted successfully"
+            )
+        else:
+            return error_response("Failed to submit feedback", 500)
+
+    except Exception as e:
+        logger.exception("Error submitting irrigation feedback")
+        return error_response(f"Failed to submit feedback: {str(e)}", 500)
 
 
 @settings_api.get("/notifications/irrigation-feedback/history/<int:unit_id>")
-@safe_route("Failed to get irrigation feedback history")
-def get_irrigation_feedback_history(unit_id: int) -> Response:
+def get_irrigation_feedback_history(unit_id: int):
     """
     Get irrigation feedback history for a growth unit.
 
@@ -536,15 +586,20 @@ def get_irrigation_feedback_history(unit_id: int) -> Response:
     Returns:
         JSON response with feedback history
     """
-    container = get_container()
-    if not container:
-        return error_response("Service container not available", 500)
+    try:
+        container = get_container()
+        if not container:
+            return error_response("Service container not available", 500)
 
-    notifications_service = getattr(container, "notifications_service", None)
-    if not notifications_service:
-        return error_response("Notification service not available", 503)
+        notifications_service = getattr(container, "notifications_service", None)
+        if not notifications_service:
+            return error_response("Notification service not available", 503)
 
-    limit = request.args.get("limit", 20, type=int)
-    history = notifications_service.get_irrigation_feedback_history(unit_id, limit)
+        limit = request.args.get("limit", 20, type=int)
+        history = notifications_service.get_irrigation_feedback_history(unit_id, limit)
 
-    return success_response({"feedback_history": history})
+        return success_response({"feedback_history": history})
+
+    except Exception as e:
+        logger.exception("Error getting irrigation feedback history")
+        return error_response(f"Failed to get feedback history: {str(e)}", 500)

@@ -1,8 +1,7 @@
-from datetime import UTC
 from types import SimpleNamespace
 
-from app.domain.sensors.sensor_entity import SensorType
 from app.hardware.sensors.processors.priority_processor import PriorityProcessor
+from app.domain.sensors.sensor_entity import SensorType
 
 # Use max valid stale_seconds (3600) for tests that need "never stale" behavior
 STALE_NEVER = 3600
@@ -55,12 +54,9 @@ def test_environment_sensor_wins_temperature_and_humidity_over_soil_probe():
     pr.ingest(sensor=soil_sensor, reading=soil_reading, resolve_sensor=resolve_sensor)
     snapshot = pr.ingest(sensor=env_sensor, reading=env_reading, resolve_sensor=resolve_sensor)
 
-    # Environment sensor should be selected as primary for air temperature/humidity
-    # when available, while soil moisture must be provided by the plant probe.
     assert pr.get_primary_sensor(1, "temperature") == 2
     assert pr.get_primary_sensor(1, "humidity") == 2
-    # Aggregation may not assign a specific primary sensor for soil moisture
-    assert pr.get_primary_sensor(1, "soil_moisture") in {None, 1}
+    assert pr.get_primary_sensor(1, "soil_moisture") == 1
 
     # Snapshot should reflect environment for temp/humidity, soil for soil_moisture
     assert snapshot is not None
@@ -115,17 +111,17 @@ def test_air_quality_combo_is_primary_for_co2_voc_but_not_temp_humidity_when_ded
     )
     snapshot = pr.ingest(sensor=temp_humidity, reading=th_reading, resolve_sensor=resolve_sensor)
 
-    # Temperature/humidity primary may be the dedicated sensor or the air combo
-    assert pr.get_primary_sensor(1, "temperature") in {10, 11}
-    assert pr.get_primary_sensor(1, "humidity") in {10, 11}
+    # Dedicated sensor should win temperature/humidity
+    assert pr.get_primary_sensor(1, "temperature") == 11
+    assert pr.get_primary_sensor(1, "humidity") == 11
 
-    # Air combo should be primary for air-quality metrics (co2/voc)
+    # Air combo should remain primary for air-quality metrics
     assert pr.get_primary_sensor(1, "co2") == 10
     assert pr.get_primary_sensor(1, "voc") == 10
 
     assert snapshot is not None
-    assert snapshot.metrics["temperature"].source.sensor_id in {10, 11}
-    assert snapshot.metrics["humidity"].source.sensor_id in {10, 11}
+    assert snapshot.metrics["temperature"].source.sensor_id == 11
+    assert snapshot.metrics["humidity"].source.sensor_id == 11
     assert snapshot.metrics["co2"].source.sensor_id == 10
     assert snapshot.metrics["voc"].source.sensor_id == 10
 
@@ -176,9 +172,7 @@ def test_soil_moisture_is_average_across_all_plants():
     )
     snapshot = pr.ingest(
         sensor=env,
-        reading=SimpleNamespace(
-            sensor_id=23, unit_id=1, data={"temperature": 22.0, "humidity": 60.0}, quality_score=1.0
-        ),
+        reading=SimpleNamespace(sensor_id=23, unit_id=1, data={"temperature": 22.0, "humidity": 60.0}, quality_score=1.0),
         resolve_sensor=resolve_sensor,
     )
 
@@ -192,7 +186,6 @@ def test_stale_sensor_eviction_prevents_memory_growth():
     """Test that stale sensors are evicted to prevent unbounded memory growth."""
     from datetime import timedelta
     from unittest.mock import patch
-
     from app.utils.time import utc_now
 
     # Use small max_tracked to force eviction (min is 10)
@@ -257,7 +250,6 @@ def test_soil_moisture_sensors_are_not_evicted_too_aggressively():
     """Soil probes can report less frequently; keep them up to MAX_STALE_SECONDS."""
     from datetime import timedelta
     from unittest.mock import patch
-
     from app.utils.time import utc_now
 
     pr = PriorityProcessor(stale_seconds=60, max_tracked_sensors=10)
@@ -469,7 +461,6 @@ def test_snapshot_cache_and_stats():
     """Test that snapshot caching works and stats are tracked."""
     from datetime import timedelta
     from unittest.mock import patch
-
     from app.utils.time import utc_now
 
     pr = PriorityProcessor(stale_seconds=180)
@@ -628,16 +619,16 @@ def test_trend_computation_in_dashboard_snapshot():
 
 def test_light_sensors_are_not_evicted_too_aggressively():
     """Test that light sensors persist longer than standard eviction threshold.
-
+    
     Light sensors, like soil moisture probes, often report infrequently (every 5-10 minutes).
     They should be kept in memory up to MAX_STALE_SECONDS (30 min) so the dashboard
     doesn't lose the light reading between sensor reports.
     """
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone
     from unittest.mock import patch
-
+    
     pr = PriorityProcessor(stale_seconds=60)  # Standard threshold: 60s
-
+    
     # Light sensor that reports every 5 minutes
     light_sensor = SimpleNamespace(
         id=10,
@@ -648,14 +639,12 @@ def test_light_sensors_are_not_evicted_too_aggressively():
         protocol="zigbee2mqtt",
         power_source="battery",
     )
-
+    
     sensors = {10: light_sensor}
-
-    def resolve_sensor(sid):
-        return sensors.get(sid)
-
+    resolve_sensor = lambda sid: sensors.get(sid)
+    
     # Initial reading at t=0
-    base_time = datetime(2026, 1, 2, 12, 0, 0, tzinfo=UTC)
+    base_time = datetime(2026, 1, 2, 12, 0, 0, tzinfo=timezone.utc)
     with patch("app.hardware.sensors.processors.priority_processor.utc_now", return_value=base_time):
         reading = SimpleNamespace(
             sensor_id=10,
@@ -664,11 +653,11 @@ def test_light_sensors_are_not_evicted_too_aggressively():
             quality_score=0.9,
         )
         snapshot1 = pr.ingest(sensor=light_sensor, reading=reading, resolve_sensor=resolve_sensor)
-
+    
     assert snapshot1 is not None
     assert snapshot1.metrics.get("lux") is not None
     assert snapshot1.metrics["lux"].value == 15000.0
-
+    
     # 3 minutes later (180s) - beyond eviction threshold (2 × 60s = 120s)
     # but within MAX_STALE_SECONDS (1 hour = 3600s)
     later_time = base_time + timedelta(seconds=180)
@@ -692,11 +681,11 @@ def test_light_sensors_are_not_evicted_too_aggressively():
     very_late_time = base_time + timedelta(minutes=65)
     with patch("app.hardware.sensors.processors.priority_processor.utc_now", return_value=very_late_time):
         pr._evict_stale_entries()
-
+        
         # Now sensor should be evicted
-
+        
         # Dashboard snapshot should not include light
         snapshot3 = pr.build_snapshot_for_unit(unit_id=1, resolve_sensor=resolve_sensor, use_cache=False)
-
+        
     if snapshot3:
         assert snapshot3.metrics.get("lux") is None

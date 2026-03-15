@@ -54,7 +54,7 @@
       console.log('[DeviceHealth] Module initialized successfully');
 
     } catch (error) {
-      window.SYSGrow.initError('DeviceHealth', error);
+      console.error('[DeviceHealth] Initialization failed:', error);
     }
   }
 

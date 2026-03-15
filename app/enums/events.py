@@ -27,7 +27,6 @@ class NotificationEvent(str, Enum):
     PLANT_HEALTH_WARNING = "plant_health_warning"
     PLANT_EVENT = "plant_event"
 
-
 class NotificationSeverity(str, Enum):
     INFO = "info"
     WARNING = "warning"
@@ -36,14 +35,12 @@ class NotificationSeverity(str, Enum):
 
 class IrrigationEligibilityDecision(str, Enum):
     """Decision outcomes for irrigation eligibility tracing."""
-
     NOTIFY = "notify"
     SKIP = "skip"
 
 
 class IrrigationSkipReason(str, Enum):
     """Skip reasons for irrigation eligibility tracing."""
-
     DISABLED = "disabled"
     PENDING_REQUEST = "pending_request"
     HYSTERESIS_NOT_MET = "hysteresis_not_met"
@@ -54,8 +51,7 @@ class IrrigationSkipReason(str, Enum):
     MANUAL_MODE_NO_AUTO = "manual_mode_no_auto"
     CALLBACK_ERROR = "callback_error"
     REQUEST_CREATE_FAILED = "request_create_failed"
-
-
+    
 class SensorEvent(str, Enum):
     TEMPERATURE_UPDATE = "temperature_update"
     HUMIDITY_UPDATE = "humidity_update"
@@ -68,6 +64,7 @@ class SensorEvent(str, Enum):
     EC_UPDATE = "ec_update"
     AIR_QUALITY_UPDATE = "air_quality_update"
     SMOKE_UPDATE = "smoke_update"
+
 
     @staticmethod
     def for_type(sensor_type: str) -> "SensorEvent":
@@ -123,7 +120,6 @@ class RuntimeEvent(str, Enum):
 
 class ActivityEvent(str, Enum):
     """Activity events for logging user actions and system events."""
-
     PLANT_ADDED = "activity.plant_added"
     PLANT_REMOVED = "activity.plant_removed"
     PLANT_UPDATED = "activity.plant_updated"

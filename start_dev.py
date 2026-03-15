@@ -1,42 +1,51 @@
-"""Development server with auto-reload and debug mode.
-
-Usage::
-
-    python start_dev.py          # default: 0.0.0.0:8000, debug=True
-    SYSGROW_PORT=5000 python start_dev.py
-"""
-
-from __future__ import annotations
+# Simple startup script for SYSGrow on Windows
+# This sets basic environment variables and starts the application
 
 import os
-import sys
+import secrets
 
-if sys.platform == "win32":
-    sys.stdout.reconfigure(encoding="utf-8")
+# Set required environment variables if not already set
+if not os.getenv('SYSGROW_SECRET_KEY') and not os.getenv('FLASK_SECRET_KEY'):
+    # Generate a random secret key for development
+    secret_key = secrets.token_hex(32)
+    os.environ['FLASK_SECRET_KEY'] = secret_key
+    print(f"Generated development secret key: {secret_key}")
 
-# Sensible dev defaults
-os.environ.setdefault("SYSGROW_ENABLE_MQTT", "True")
-os.environ.setdefault("DATABASE_PATH", "database/sysgrow.db")
-os.environ.setdefault("SYSGROW_DEBUG", "True")
+# Set other default environment variables
+os.environ.setdefault('FLASK_ENV', 'development')
+os.environ.setdefault('FLASK_DEBUG', 'True')
+os.environ.setdefault('DATABASE_PATH', 'sysgrow_dev.db')
 
-from app import create_app, socketio
+print("Starting SYSGrow Backend...")
+print("Environment variables set:")
+print(f"  FLASK_ENV: {os.getenv('FLASK_ENV')}")
+print(f"  FLASK_DEBUG: {os.getenv('FLASK_DEBUG')}")
+print(f"  DATABASE_PATH: {os.getenv('DATABASE_PATH')}")
 
-app = create_app(bootstrap_runtime=True)
-
-if __name__ == "__main__":
-    host = os.environ.get("SYSGROW_HOST", "0.0.0.0")
-    port = int(os.environ.get("SYSGROW_PORT", "8000"))
-
-    print(f"\n  🌱  SYSGrow dev server → http://{host}:{port}\n")
-
+# Import and start the application
+try:
+    from app import create_app, socketio
+    
+    app = create_app(bootstrap_runtime=True)
+    
+    print("\n🌱 SYSGrow Backend Starting...")
+    print("📊 Access the web interface at: http://localhost:5000")
+    print("🔧 Development mode enabled")
+    print("\nPress Ctrl+C to stop the server\n")
+    
+    # Run the application
     try:
-        socketio.run(
-            app,
-            host=host,
-            port=port,
-            debug=True,
-            use_reloader=True,
-            allow_unsafe_werkzeug=True,
-        )
-    except KeyboardInterrupt:
-        print("\n  ⏹  Stopped.")
+        socketio.run(app, host='0.0.0.0', port=5000, debug=True)
+    except Exception as run_error:
+        print(f"\n❌ Server runtime error: {run_error}")
+        import traceback
+        traceback.print_exc()
+    
+except ImportError as e:
+    print(f"❌ Import Error: {e}")
+    print("\n💡 Missing dependencies. Please install required packages:")
+    print("   pip install -r requirements-windows.txt")
+    
+except Exception as e:
+    print(f"❌ Error starting application: {e}")
+    print("\n💡 Check the error message above and install missing dependencies")

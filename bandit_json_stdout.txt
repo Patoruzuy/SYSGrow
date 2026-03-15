@@ -1,0 +1,25 @@
+[main]	INFO	profile include tests: None
+[main]	INFO	profile exclude tests: B311
+[main]	INFO	cli include tests: None
+[main]	INFO	cli exclude tests: None
+[manager]	WARNING	Test in comment: using is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: pycryptodome is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: maintained is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: fork is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: of is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: pyCrypto is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: local is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: model is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: path is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: local is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: model is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: path is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: table_name is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: is is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: a is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: compile is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: time is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: constant is not a test name or id, ignoring
+[tester]	WARNING	nosec encountered (B608), but no failed test on line 517
+Working... ---------------------------------------- 100% 0:00:05
+[json]	INFO	JSON output written to file: bandit_report.json

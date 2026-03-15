@@ -16,23 +16,15 @@ def app(tmp_path, monkeypatch):
 
 @pytest.fixture()
 def client(app):
-    c = app.test_client()
-    with c.session_transaction() as sess:
-        sess["user"] = "testuser"
-        sess["user_id"] = 1
-    return c
+    return app.test_client()
 
 
 def _create_unit(client) -> int:
-    # Create unit directly via service to avoid API-side schema mismatches
-    with client.application.app_context():
-        container = client.application.config["CONTAINER"]
-        # Create directly with repository to avoid runtime startup defaults that validate thresholds
-        # The ServiceContainer exposes a GrowthRepository facade which contains the underlying UnitRepository
-        unit_repo = getattr(container.growth_repo, "_unit_repo", None)
-        if unit_repo is None:
-            raise AttributeError("Unable to access UnitRepository from ServiceContainer.growth_repo")
-        unit_id = unit_repo.create_unit(name="Settings Unit", location="Indoor", user_id=1, air_quality_threshold=100.0)
+    response = client.post("/api/growth/v2/units", json={"name": "Settings Unit", "location": "Indoor"})
+    assert response.status_code in (200, 201)
+    payload = response.get_json() or {}
+    data = payload.get("data") or {}
+    unit_id = data.get("unit_id") or data.get("id")
     assert unit_id is not None
     return unit_id
 
@@ -46,12 +38,8 @@ def test_plants_seeded(app):
 
 
 def test_hotspot_settings_roundtrip(client):
-    # Before any setup, GET returns 200 with configured=False defaults
     response = client.get("/api/settings/hotspot")
-    assert response.status_code == 200
-    initial = (response.get_json() or {}).get("data", {})
-    assert initial.get("configured") is False
-    assert initial.get("ssid") == ""
+    assert response.status_code == 404
 
     payload = {"ssid": "GrowTent", "password": "secret123"}
     response = client.put("/api/settings/hotspot", json=payload)
@@ -110,50 +98,39 @@ def test_camera_settings_roundtrip(client):
 def test_device_schedule_roundtrip(client):
     """Test device schedules using the Growth API (replaces deprecated settings/light endpoint)."""
     unit_id = _create_unit(client)
-
-    # Set light schedule via Growth API (v3 requires a `name`)
+    
+    # Set light schedule via Growth API
     response = client.post(
-        f"/api/growth/v3/units/{unit_id}/schedules",
-        json={
-            "name": "Morning Light",
-            "device_type": "light",
-            "start_time": "08:00",
-            "end_time": "20:00",
-            "enabled": True,
-        },
+        f"/api/growth/v2/units/{unit_id}/schedules",
+        json={"device_type": "light", "start_time": "08:00", "end_time": "20:00", "enabled": True}
     )
-    assert response.status_code in (200, 201)
+    assert response.status_code == 200
 
-    # Get all schedules (v3 returns a list under `schedules`)
-    response = client.get(f"/api/growth/v3/units/{unit_id}/schedules")
+    # Get all schedules
+    response = client.get(f"/api/growth/v2/units/{unit_id}/schedules")
     assert response.status_code == 200
     payload = response.get_json() or {}
     assert payload.get("ok") is True
     data = payload.get("data") or {}
-    schedules = data.get("schedules") or []
-    assert any(
-        s.get("device_type") == "light" and s.get("start_time") == "08:00" and s.get("end_time") == "20:00"
-        for s in schedules
-    )
+    schedules = data.get("device_schedules") or {}
+    assert "light" in schedules
+    assert schedules["light"]["start_time"] == "08:00"
+    assert schedules["light"]["end_time"] == "20:00"
 
 
 def test_environment_thresholds_validation(client):
-    # Create a unit and include unit_id in payloads (service requires unit context)
-    unit_id = _create_unit(client)
-
     bad_response = client.put(
         "/api/settings/environment",
-        json={"unit_id": unit_id, "temperature_threshold": 24.0, "humidity_threshold": 55.0},
+        json={"temperature_threshold": 24.0, "humidity_threshold": 55.0},
     )
-    # Partial updates are accepted by the current service implementation
-    assert bad_response.status_code == 200
+    assert bad_response.status_code == 400
 
     good_response = client.put(
         "/api/settings/environment",
         json={
-            "unit_id": unit_id,
             "temperature_threshold": 24.5,
             "humidity_threshold": 55.0,
+            "soil_moisture_threshold": 35.0,
         },
     )
     assert good_response.status_code == 200

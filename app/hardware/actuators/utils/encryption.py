@@ -1,55 +1,35 @@
 """
 WiFi Credential Encryption for ESP32 Devices
-=============================================
 
-Uses **AES-256-GCM** (authenticated encryption with associated data).
+SECURITY NOTE: The AES key must be configured via environment variable
+SYSGROW_AES_KEY in production. The default key is INSECURE and should
+only be used for development. Both the backend and ESP32 firmware must
+use the same key.
 
-Output format (base64-encoded)::
-
-    nonce (12 bytes) || ciphertext || auth-tag (16 bytes)
-
-The ESP32 firmware must decode in the same order.
-
-SECURITY NOTE
--------------
-* The AES key **must** be configured via the ``SYSGROW_AES_KEY``
-  environment variable in production.
-* Key format: **64 hex characters** (32 bytes = 256-bit).
-* The default key is *INSECURE* — development only.
-* Both backend and ESP32 firmware must share the same key.
+Key format: 32 hex characters (16 bytes) e.g., "A1B2C3D4E5F6A7B8C9D0E1F2A3B4C5D6"
 """
-
-from __future__ import annotations
-
-import base64
-import json
-import logging
 import os
-
-from Crypto.Cipher import AES  # nosec B413 - using pycryptodome (maintained fork of pyCrypto)
-from Crypto.Random import get_random_bytes  # nosec B413
+import logging
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import pad
+import base64
 
 logger = logging.getLogger(__name__)
 
-# Default key for development ONLY — INSECURE
-_DEFAULT_KEY_HEX = "A1B2C3D4E5F6A7B8C9D0E1F2A3B4C5D6A1B2C3D4E5F6A7B8C9D0E1F2A3B4C5D6"
-_NONCE_BYTES = 12  # recommended nonce length for GCM
+# Default key for development ONLY - INSECURE
+_DEFAULT_KEY_HEX = "A1B2C3D4E5F6A7B8C9D0E1F2A3B4C5D6"
 _USING_DEFAULT_KEY = False
 
 
-# ---------------------------------------------------------------------------
-# Key management
-# ---------------------------------------------------------------------------
-
-
 def _get_aes_key() -> bytes:
-    """Load the 256-bit AES key from the environment (or fall back to the
-    insecure default for development).
+    """
+    Get the AES key from environment variable or use default.
 
-    Returns
-    -------
-    bytes
-        32-byte AES key.
+    In production, set SYSGROW_AES_KEY to a 32-character hex string.
+    The same key must be configured in ESP32 firmware.
+
+    Returns:
+        16-byte AES key
     """
     global _USING_DEFAULT_KEY
 
@@ -59,84 +39,63 @@ def _get_aes_key() -> bytes:
         _USING_DEFAULT_KEY = True
         key_hex = _DEFAULT_KEY_HEX
         logger.warning(
-            "SECURITY WARNING: Using default AES key. Set SYSGROW_AES_KEY environment variable for production!"
+            "SECURITY WARNING: Using default AES key. "
+            "Set SYSGROW_AES_KEY environment variable for production!"
         )
     else:
         _USING_DEFAULT_KEY = False
-        # Accept the old 128-bit (32 hex) key with a deprecation warning
-        if len(key_hex) == 32:
-            logger.warning("SYSGROW_AES_KEY is 128-bit (32 hex chars). Please upgrade to a 256-bit key (64 hex chars).")
-            # Pad by repeating to get 256-bit — ensures old setups still boot.
-            key_hex = key_hex + key_hex
 
-    if len(key_hex) != 64:
-        raise ValueError(f"SYSGROW_AES_KEY must be 64 hex characters (256-bit). Got {len(key_hex)} characters.")
+    # Validate key format
+    if len(key_hex) != 32:
+        raise ValueError(
+            f"SYSGROW_AES_KEY must be exactly 32 hex characters (16 bytes), "
+            f"got {len(key_hex)} characters"
+        )
 
     try:
         return bytes.fromhex(key_hex)
-    except ValueError as exc:
-        raise ValueError(f"SYSGROW_AES_KEY contains invalid hex characters: {exc}") from exc
+    except ValueError as e:
+        raise ValueError(f"SYSGROW_AES_KEY contains invalid hex characters: {e}")
 
 
 def is_using_default_key() -> bool:
-    """Return ``True`` if the system is using the insecure default key."""
+    """Check if the system is using the default (insecure) AES key."""
     return _USING_DEFAULT_KEY
 
 
-# Initialise key once at module import
-AES_KEY: bytes = _get_aes_key()
-
-
-# ---------------------------------------------------------------------------
-# Public API
-# ---------------------------------------------------------------------------
-
-
-def _encrypt_bytes(plaintext: bytes) -> str:
-    """Encrypt *plaintext* with AES-256-GCM.
-
-    Returns a **base64-encoded** string whose decoded form is::
-
-        nonce (12 B) || ciphertext || tag (16 B)
-    """
-    nonce = get_random_bytes(_NONCE_BYTES)
-    cipher = AES.new(AES_KEY, AES.MODE_GCM, nonce=nonce)
-    ciphertext, tag = cipher.encrypt_and_digest(plaintext)
-    # Pack: nonce + ciphertext + tag
-    return base64.b64encode(nonce + ciphertext + tag).decode()
+# Initialize key on module load
+AES_KEY = _get_aes_key()
 
 
 def encrypt_wifi_payload(ssid: str, password: str) -> str:
-    """Encrypt Wi-Fi credentials for delivery to an ESP32.
-
-    Parameters
-    ----------
-    ssid : str
-        The Wi-Fi SSID.
-    password : str
-        The Wi-Fi password.
-
-    Returns
-    -------
-    str
-        Base64-encoded ``nonce || ciphertext || tag``.
     """
-    data = json.dumps({"ssid": ssid, "password": password}).encode()
-    return _encrypt_bytes(data)
+    Encrypts Wi-Fi credentials using AES ECB mode.
+
+    Args:
+        ssid (str): The Wi-Fi SSID.
+        password (str): The Wi-Fi password.
+
+    Returns:
+        str: Base64-encoded encrypted payload.
+    """
+    data = f'{{"ssid":"{ssid}", "password":"{password}"}}'.encode()
+    cipher = AES.new(AES_KEY, AES.MODE_ECB)
+    encrypted = cipher.encrypt(pad(data, AES.block_size))
+    return base64.b64encode(encrypted).decode()
 
 
 def encrypt_json_payload(json_data: dict) -> str:
-    """Encrypt an arbitrary JSON-serialisable dictionary.
-
-    Parameters
-    ----------
-    json_data : dict
-        Data to encrypt.
-
-    Returns
-    -------
-    str
-        Base64-encoded ``nonce || ciphertext || tag``.
     """
+    Encrypts an entire JSON dictionary payload.
+
+    Args:
+        json_data (dict): JSON data to encrypt.
+
+    Returns:
+        str: Base64-encoded encrypted string.
+    """
+    import json
     raw = json.dumps(json_data).encode()
-    return _encrypt_bytes(raw)
+    cipher = AES.new(AES_KEY, AES.MODE_ECB)
+    encrypted = cipher.encrypt(pad(raw, AES.block_size))
+    return base64.b64encode(encrypted).decode()

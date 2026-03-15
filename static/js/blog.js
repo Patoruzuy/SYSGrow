@@ -4,7 +4,7 @@
  */
 
 // API endpoints
-const BLOG_ENDPOINTS = {
+const API = {
     posts: '/api/blog/posts',
     post: (slug) => `/api/blog/post/${slug}`,
     categories: '/api/blog/categories',
@@ -30,10 +30,6 @@ let state = {
 async function fetchAPI(url) {
     try {
         const response = await fetch(url);
-        if (!response.ok) {
-            console.error('API HTTP error:', response.status, response.statusText);
-            return null;
-        }
         const data = await response.json();
         if (data.ok) {
             return data.data;
@@ -60,10 +56,9 @@ function formatDate(dateString) {
 }
 
 /**
- * Escape HTML to prevent XSS — delegate to shared utility
+ * Escape HTML to prevent XSS
  */
 function escapeHtml(text) {
-    if (window.escapeHtml) return window.escapeHtml(text);
     if (!text) return '';
     const div = document.createElement('div');
     div.textContent = text;
@@ -205,7 +200,7 @@ async function loadPosts(append = false) {
     }
 
     // Build URL
-    let url = `${BLOG_ENDPOINTS.posts}?limit=${state.limit}&offset=${state.offset}`;
+    let url = `${API.posts}?limit=${state.limit}&offset=${state.offset}`;
     if (state.selectedCategory && state.selectedCategory !== 'all') {
         url += `&category=${encodeURIComponent(state.selectedCategory)}`;
     }
@@ -366,7 +361,7 @@ function setupClearFilters() {
  */
 export async function initBlogPage() {
     // Load featured posts
-    const featured = await fetchAPI(`${BLOG_ENDPOINTS.featured}?limit=1`);
+    const featured = await fetchAPI(`${API.featured}?limit=1`);
     if (featured && featured.length > 0) {
         renderFeaturedPost(featured[0]);
     } else {
@@ -376,7 +371,7 @@ export async function initBlogPage() {
     }
 
     // Load categories
-    const categories = await fetchAPI(BLOG_ENDPOINTS.categories);
+    const categories = await fetchAPI(API.categories);
     if (categories) {
         state.categories = categories;
         renderCategories(categories);
@@ -404,7 +399,7 @@ export async function initBlogPost() {
     }
 
     // Load post
-    const post = await fetchAPI(BLOG_ENDPOINTS.post(slug));
+    const post = await fetchAPI(API.post(slug));
 
     if (!post) {
         document.getElementById('post-content').innerHTML = `
@@ -493,7 +488,7 @@ async function loadRelatedPosts(category, currentSlug) {
     const container = document.getElementById('related-posts');
     if (!container) return;
 
-    const data = await fetchAPI(`${BLOG_ENDPOINTS.posts}?category=${encodeURIComponent(category)}&limit=5`);
+    const data = await fetchAPI(`${API.posts}?category=${encodeURIComponent(category)}&limit=5`);
 
     if (!data || !data.posts) {
         container.innerHTML = '<li>No related posts</li>';
@@ -524,7 +519,7 @@ async function loadSidebarCategories() {
     const container = document.getElementById('sidebar-categories');
     if (!container) return;
 
-    const categories = await fetchAPI(BLOG_ENDPOINTS.categories);
+    const categories = await fetchAPI(API.categories);
 
     if (!categories || categories.length === 0) {
         container.innerHTML = '<li>No categories</li>';
@@ -548,7 +543,7 @@ async function loadTagsCloud() {
     const container = document.getElementById('tags-cloud');
     if (!container) return;
 
-    const tags = await fetchAPI(BLOG_ENDPOINTS.tags);
+    const tags = await fetchAPI(API.tags);
 
     if (!tags || tags.length === 0) {
         container.innerHTML = '<span>No tags</span>';
@@ -738,7 +733,7 @@ function setupSearchAutocomplete() {
     searchInput.parentNode.appendChild(suggestionBox);
 
     // Load all posts for suggestions
-    fetchAPI(`${BLOG_ENDPOINTS.posts}?limit=100`).then(data => {
+    fetchAPI(`${API.posts}?limit=100`).then(data => {
         if (data && data.posts) {
             suggestions = data.posts.map(p => ({
                 title: p.title,

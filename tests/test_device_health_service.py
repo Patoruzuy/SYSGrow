@@ -15,3 +15,4 @@ def test_device_health_service_initializes() -> None:
     assert service.calibration_service is not None
     assert service.anomaly_service is not None
     assert service.discovery_service is None
+

@@ -11,25 +11,21 @@ Usage:
 import sqlite3
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from infrastructure.database.sqlite_handler import SQLiteDatabaseHandler
 
 
-def migrate(db_handler: "SQLiteDatabaseHandler") -> bool:
+def migrate(db_path: str) -> bool:
     """
     Add unique index on ActuatorConfig.actuator_id for upsert support.
 
     Args:
-        db_handler: SQLiteDatabaseHandler instance
+        db_path: Path to SQLite database
 
     Returns:
         True if successful
     """
-    print("Running migration 051")
+    print(f"Running migration 051 on {db_path}")
 
-    conn = db_handler.get_db()
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
     try:
@@ -77,6 +73,8 @@ def migrate(db_handler: "SQLiteDatabaseHandler") -> bool:
         print(f"Error during migration: {e}")
         conn.rollback()
         return False
+    finally:
+        conn.close()
 
 
 if __name__ == "__main__":

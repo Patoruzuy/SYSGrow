@@ -23,7 +23,12 @@ sensor_service = container.sensor_management_service
 
 # Register GPIO sensor
 sensor_service.register_sensor(
-    sensor_id=1, name="Environment Sensor", sensor_type="ENVIRONMENT", protocol="I2C", unit_id=1, model="ENS160AHT21"
+    sensor_id=1,
+    name="Environment Sensor",
+    sensor_type="ENVIRONMENT",
+    protocol="I2C",
+    unit_id=1,
+    model="ENS160AHT21"
 )
 
 # Read sensor with automatic calibration and anomaly detection
@@ -38,83 +43,88 @@ Use the SensorManagementService API for all sensor operations.
 """
 
 # Factory & Registry (for internal use)
+from .factory import SensorFactory, get_global_factory
+from .registry import SensorRegistry, get_global_registry
+
 # Domain Layer
 from app.domain.sensors import (
-    CalibrationData,
-    CalibrationType,
-    HealthLevel,
-    HealthStatus,
-    Protocol,
-    ReadingStatus,
-    SensorConfig,
     SensorEntity,
     SensorReading,
+    SensorConfig,
+    CalibrationData,
+    HealthStatus,
     SensorType,
+    Protocol,
+    CalibrationType,
+    HealthLevel,
+    ReadingStatus
 )
 
 # Adapters
 from app.hardware.adapters.sensors import (
-    GPIOAdapter,
     ISensorAdapter,
-    ModbusAdapter,
-    SYSGrowAdapter,
-    Zigbee2MQTTAdapter,
+    GPIOAdapter,
     ZigbeeAdapter,
+    Zigbee2MQTTAdapter,
+    SYSGrowAdapter,
+    ModbusAdapter
 )
 
 # Processors
 from app.hardware.sensors.processors import (
-    CalibrationProcessor,
-    EnrichmentProcessor,
     IDataProcessor,
-    PriorityProcessor,
-    TransformationProcessor,
     ValidationProcessor,
+    TransformationProcessor,
+    CalibrationProcessor,
+    PriorityProcessor,
+    EnrichmentProcessor
 )
-from app.services.application.zigbee_management_service import ZigbeeManagementService
-from app.services.utilities.anomaly_detection_service import AnomalyDetectionService
 
 # Services
 from app.services.utilities.calibration_service import CalibrationService
+from app.services.utilities.anomaly_detection_service import AnomalyDetectionService
+from app.services.application.zigbee_management_service import ZigbeeManagementService
 from app.services.utilities.system_health_service import SystemHealthService
 
-from .factory import SensorFactory, get_global_factory
-from .registry import SensorRegistry, get_global_registry
-
 __all__ = [
-    "AnomalyDetectionService",
-    "CalibrationData",
-    "CalibrationProcessor",
-    # Services
-    "CalibrationService",
-    "CalibrationType",
-    "EnrichmentProcessor",
-    "GPIOAdapter",
-    "HealthLevel",
-    "HealthStatus",
-    # Processors
-    "IDataProcessor",
-    # Adapters
-    "ISensorAdapter",
-    "ModbusAdapter",
-    "PriorityProcessor",
-    "Protocol",
-    "ReadingStatus",
-    "SYSGrowAdapter",
-    "SensorConfig",
-    # Domain
-    "SensorEntity",
     # Factory & Infrastructure
-    "SensorFactory",
-    "SensorReading",
-    "SensorRegistry",
-    "SensorType",
-    "SystemHealthService",
-    "TransformationProcessor",
-    "ValidationProcessor",
-    "Zigbee2MQTTAdapter",
-    "ZigbeeAdapter",
-    "ZigbeeManagementService",
-    "get_global_factory",
-    "get_global_registry",
+    'SensorFactory',
+    'SensorRegistry',
+    'get_global_factory',
+    'get_global_registry',
+    
+    # Domain
+    'SensorEntity',
+    'SensorReading',
+    'SensorConfig',
+    'CalibrationData',
+    'HealthStatus',
+    'SensorType',
+    'Protocol',
+    'CalibrationType',
+    'HealthLevel',
+    'ReadingStatus',
+    
+    # Adapters
+    'ISensorAdapter',
+    'GPIOAdapter',
+    'ZigbeeAdapter',
+    'Zigbee2MQTTAdapter',
+    'SYSGrowAdapter',
+    'ModbusAdapter',
+    
+    # Processors
+    'IDataProcessor',
+    'ValidationProcessor',
+    'TransformationProcessor',
+    'CalibrationProcessor',
+    'PriorityProcessor',
+    'EnrichmentProcessor',
+    
+    # Services
+    'CalibrationService',
+    'AnomalyDetectionService',
+    'ZigbeeManagementService',
+    'SystemHealthService',
 ]
+

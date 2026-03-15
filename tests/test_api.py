@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 
 import pytest
 
@@ -19,19 +19,16 @@ def app(tmp_path, monkeypatch):
 
 @pytest.fixture()
 def client(app):
-    c = app.test_client()
-    with c.session_transaction() as sess:
-        sess["user"] = "testuser"
-        sess["user_id"] = 1
-    return c
+    return app.test_client()
 
 
 def test_growth_unit_lifecycle(client):
-    # Create a growth unit (ensure API auth in session)
-    # Create unit directly via service to avoid blueprint parameter mismatch
-    with client.application.app_context():
-        container = client.application.config["CONTAINER"]
-        unit_id = container.growth_service.create_unit(name="Unit A", location="Indoor", user_id=1)
+    # Create a growth unit
+    response = client.post("/api/growth/v2/units", json={"name": "Unit A", "location": "Indoor"})
+    assert response.status_code == 201
+    payload = response.get_json() or {}
+    created = payload.get("data", {}) or {}
+    unit_id = created.get("unit_id") or created.get("id")
     assert unit_id is not None
 
     # List growth units
@@ -64,6 +61,7 @@ def test_growth_unit_lifecycle(client):
         json={
             "temperature_threshold": 24.5,
             "humidity_threshold": 55.0,
+            "soil_moisture_threshold": 35.0,
         },
     )
     assert response.status_code == 200
@@ -75,7 +73,7 @@ def test_growth_unit_lifecycle(client):
 def test_sensor_history_endpoint(app, client):
     with app.app_context():
         database = app.config["CONTAINER"].database
-        now = datetime.now(UTC)
+        now = datetime.utcnow()
         earlier = now - timedelta(hours=1)
 
         with database.connection() as conn:
@@ -141,14 +139,12 @@ def test_sensor_history_endpoint(app, client):
     assert response.status_code == 200
     payload = response.get_json()
     data = payload.get("data") if isinstance(payload, dict) else payload
-    # The API wraps chart data inside the envelope `data` -> `data`.
-    chart = (data.get("data") or {}) if isinstance(data, dict) else {}
-    assert len(chart.get("timestamps", [])) == 2
-    assert chart.get("temperature", [None])[0] is not None
+    assert len(data["timestamps"]) == 2
+    assert data["readings"]["temperature"][0] is not None
 
 
 def test_status_endpoint(client):
-    response = client.get("/api/v1/dashboard/status")
+    response = client.get("/status/")
     assert response.status_code == 200
     data = response.get_json()
-    assert data["ok"] is True
+    assert data["status"] == "ok"

@@ -11,20 +11,15 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any
-
-from app.domain.plant_health import EnvironmentalCorrelation, PlantHealthObservation
-from app.domain.plant_symptoms import (
-    SYMPTOM_DATABASE as _SYMPTOM_DB,
-    TREATMENT_MAP as _TREATMENT_DB,
-)
-from app.enums import PlantHealthStatus
+from typing import Dict, List, Optional, Tuple, TYPE_CHECKING, Any
 from app.utils.time import iso_now
+from app.enums import DiseaseType, PlantHealthStatus
+from app.domain.plant_health import PlantHealthObservation, EnvironmentalCorrelation
 
 if TYPE_CHECKING:
-    from app.services.application.plant_journal_service import PlantJournalService
-    from app.services.application.threshold_service import ThresholdService
     from infrastructure.database.repositories.ai import AIHealthDataRepository
+    from app.services.application.threshold_service import ThresholdService
+    from app.services.application.plant_journal_service import PlantJournalService
 
 logger = logging.getLogger(__name__)
 
@@ -44,25 +39,79 @@ class PlantHealthMonitor:
         - threshold_service: Set by ContainerBuilder for optimal conditions
     """
 
-    # Symptom & treatment knowledge — imported from single source of truth.
-    SYMPTOM_DATABASE = _SYMPTOM_DB
-    TREATMENT_MAP = _TREATMENT_DB
+    # Symptom database mapping symptoms to causes
+    SYMPTOM_DATABASE = {
+        "yellowing_leaves": {
+            "likely_causes": ["overwatering", "nitrogen_deficiency", "root_rot"],
+            "environmental_factors": ["soil_moisture", "drainage", "nutrition"],
+        },
+        "brown_spots": {
+            "likely_causes": ["fungal_infection", "bacterial_spot", "nutrient_burn"],
+            "environmental_factors": ["humidity", "air_circulation", "nutrition"],
+        },
+        "wilting": {
+            "likely_causes": ["underwatering", "root_damage", "heat_stress"],
+            "environmental_factors": ["soil_moisture", "temperature", "humidity"],
+        },
+        "stunted_growth": {
+            "likely_causes": ["poor_lighting", "nutrient_deficiency", "root_bound"],
+            "environmental_factors": ["lux", "nutrition", "space"],
+        },
+        "leaf_curl": {
+            "likely_causes": ["heat_stress", "pest_damage", "overwatering"],
+            "environmental_factors": ["temperature", "humidity", "soil_moisture"],
+        },
+        "white_powdery_coating": {
+            "likely_causes": ["powdery_mildew", "high_humidity"],
+            "environmental_factors": ["humidity", "air_circulation", "temperature"],
+        },
+        "webbing_on_leaves": {
+            "likely_causes": ["spider_mites", "low_humidity"],
+            "environmental_factors": ["humidity", "temperature", "air_circulation"],
+        },
+        "holes_in_leaves": {
+            "likely_causes": ["caterpillars", "beetles", "slugs"],
+            "environmental_factors": ["pest_control", "cleanliness"],
+        },
+    }
 
-    @property
-    def symptom_database(self) -> dict:
-        """Public accessor (used by API blueprints)."""
-        return self.SYMPTOM_DATABASE
-
-    @property
-    def treatment_map(self) -> dict:
-        """Public accessor (used by API blueprints)."""
-        return self.TREATMENT_MAP
+    # Treatment recommendations by symptom
+    TREATMENT_MAP = {
+        "yellowing_leaves": [
+            "Check drainage and reduce watering if overwatered",
+            "Apply nitrogen fertilizer if deficiency suspected",
+            "Inspect roots for rot and trim if necessary",
+        ],
+        "brown_spots": [
+            "Improve air circulation",
+            "Reduce humidity if too high",
+            "Apply fungicide if fungal infection suspected",
+            "Isolate plant to prevent spread",
+        ],
+        "wilting": [
+            "Check soil moisture and water if dry",
+            "Reduce temperature if heat stress suspected",
+            "Inspect roots for damage",
+        ],
+        "white_powdery_coating": [
+            "Reduce humidity",
+            "Improve air circulation",
+            "Apply fungicide for powdery mildew",
+            "Remove affected leaves",
+        ],
+        "webbing_on_leaves": [
+            "Increase humidity",
+            "Apply miticide for spider mites",
+            "Improve air circulation",
+            "Regularly mist leaves",
+        ],
+    }
 
     def __init__(
         self,
         repo_health: "AIHealthDataRepository",
-        journal_service: "PlantJournalService" | None = None,
-        threshold_service: "ThresholdService" | None = None,
+        journal_service: Optional["PlantJournalService"] = None,
+        threshold_service: Optional["ThresholdService"] = None,
     ):
         """
         Initialize plant health monitor.
@@ -76,15 +125,17 @@ class PlantHealthMonitor:
         self.journal_service = journal_service
         self.threshold_service = threshold_service
 
-    def record_observation(self, observation: PlantHealthObservation) -> int | None:
+    def record_observation(
+        self, observation: PlantHealthObservation
+    ) -> Optional[int]:
         """
         Record a plant health observation.
-
+        
         Uses PlantJournalService as single source of truth, then performs AI analysis.
-
+        
         Args:
             observation: Health observation to record
-
+            
         Returns:
             observation_id if successful, None otherwise
         """
@@ -109,27 +160,29 @@ class PlantHealthMonitor:
                 notes=observation.notes,
                 image_path=observation.image_path,
                 user_id=observation.user_id,
-                observation_date=observation.observation_date.isoformat() if observation.observation_date else None,
+                observation_date=observation.observation_date.isoformat() if observation.observation_date else None
             )
 
             if entry_id:
                 # Perform AI-specific analysis
                 self.analyze_environmental_correlation(observation)
-                logger.info("Recorded health observation via journal: %s", entry_id)
+                logger.info(f"Recorded health observation via journal: {entry_id}")
 
             return entry_id
 
         except Exception as e:
-            logger.error("Failed to record health observation: %s", e, exc_info=True)
+            logger.error(f"Failed to record health observation: {e}", exc_info=True)
             return None
 
-    def analyze_environmental_correlation(self, observation: PlantHealthObservation) -> list[EnvironmentalCorrelation]:
+    def analyze_environmental_correlation(
+        self, observation: PlantHealthObservation
+    ) -> List[EnvironmentalCorrelation]:
         """
         Analyze correlation between plant health issues and environmental conditions.
-
+        
         Args:
             observation: Health observation to analyze
-
+            
             Returns:
                     List[EnvironmentalCorrelation]: a list of EnvironmentalCorrelation dataclass
                     instances describing how each environmental factor relates to the
@@ -154,7 +207,7 @@ class PlantHealthMonitor:
             Notes:
                     The method also persists the computed correlations to a local
                     JSONL file for ML training and debugging purposes.
-        """
+            """
         correlations = []
 
         try:
@@ -165,7 +218,7 @@ class PlantHealthMonitor:
             env_data = self._get_recent_environmental_data(observation.unit_id)
 
             if not env_data:
-                logger.warning("No environmental data for unit %s", observation.unit_id)
+                logger.warning(f"No environmental data for unit {observation.unit_id}")
                 return correlations
 
             # Analyze each environmental factor
@@ -184,12 +237,16 @@ class PlantHealthMonitor:
                         else:
                             deviation = (current_value - optimal_range[1]) / optimal_range[1]
 
-                        correlation_strength = min(1.0, deviation * (observation.severity_level / 5.0))
+                        correlation_strength = min(
+                            1.0, deviation * (observation.severity_level / 5.0)
+                        )
 
                     correlation = EnvironmentalCorrelation(
                         factor_name=factor,
                         correlation_strength=correlation_strength,
-                        confidence_level=self._calculate_confidence(factor, observation.symptoms),
+                        confidence_level=self._calculate_confidence(
+                            factor, observation.symptoms
+                        ),
                         recommended_range=optimal_range,
                         current_value=current_value,
                         trend=self._analyze_trend(observation.unit_id, factor),
@@ -201,30 +258,32 @@ class PlantHealthMonitor:
             self._store_correlations(observation, correlations)
 
         except Exception as e:
-            logger.error("Failed to analyze environmental correlation: %s", e, exc_info=True)
+            logger.error(f"Failed to analyze environmental correlation: {e}", exc_info=True)
 
         return correlations
 
     def get_health_recommendations(
         self,
         unit_id: int,
-        plant_type: str | None = None,
-        growth_stage: str | None = None,
-    ) -> dict[str, Any]:
+        plant_type: Optional[str] = None,
+        growth_stage: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """
         Get health recommendations based on recent observations.
-
+        
         Args:
             unit_id: Unit ID
             plant_type: Optional plant type
             growth_stage: Optional growth stage
-
+            
         Returns:
             Dictionary with health status, recommendations, and trends
         """
         try:
             # Get recent observations
-            recent_observations = self.repo_health.get_recent_observations(unit_id, limit=20, days=7)
+            recent_observations = self.repo_health.get_recent_observations(
+                unit_id, limit=20, days=7
+            )
 
             if not recent_observations:
                 return {"status": "healthy", "recommendations": []}
@@ -249,18 +308,20 @@ class PlantHealthMonitor:
             for symptom, count in symptom_counts.items():
                 if count >= 2 and symptom in self.SYMPTOM_DATABASE:
                     symptom_info = self.SYMPTOM_DATABASE[symptom]
-                    recommendations.append(
-                        {
-                            "issue": symptom,
-                            "frequency": count,
-                            "likely_causes": symptom_info["likely_causes"],
-                            "recommended_actions": self.TREATMENT_MAP.get(symptom, ["Consult plant care specialist"]),
-                        }
-                    )
+                    recommendations.append({
+                        "issue": symptom,
+                        "frequency": count,
+                        "likely_causes": symptom_info["likely_causes"],
+                        "recommended_actions": self.TREATMENT_MAP.get(
+                            symptom, ["Consult plant care specialist"]
+                        ),
+                    })
 
             # Get environmental recommendations
             env_data = self._get_recent_environmental_data(unit_id)
-            env_recommendations = self._analyze_environmental_issues(env_data, plant_type, growth_stage)
+            env_recommendations = self._analyze_environmental_issues(
+                env_data, plant_type, growth_stage
+            )
 
             return {
                 "status": recent_observations[0]["health_status"],
@@ -272,15 +333,17 @@ class PlantHealthMonitor:
             }
 
         except Exception as e:
-            logger.error("Failed to get health recommendations: %s", e, exc_info=True)
+            logger.error(f"Failed to get health recommendations: {e}", exc_info=True)
             return {"status": "unknown", "recommendations": []}
 
-    def _get_thresholds(self, observation: PlantHealthObservation) -> dict[str, dict[str, Any]]:
+    def _get_thresholds(self, observation: PlantHealthObservation) -> Dict[str, Dict[str, Any]]:
         """Get environmental thresholds for observation."""
         if self.threshold_service and observation.plant_type:
-            thresholds_obj = self.threshold_service.get_thresholds(observation.plant_type, observation.growth_stage)
+            thresholds_obj = self.threshold_service.get_thresholds(
+                observation.plant_type, observation.growth_stage
+            )
             return thresholds_obj.to_dict()
-
+        
         # Generic fallback thresholds
         return {
             "temperature": {"optimal_range": (20, 25)},
@@ -288,7 +351,9 @@ class PlantHealthMonitor:
             "soil_moisture": {"optimal_range": (60, 80)},
         }
 
-    def _get_recent_environmental_data(self, unit_id: int, hours: int = 24) -> dict[str, float]:
+    def _get_recent_environmental_data(
+        self, unit_id: int, hours: int = 24
+    ) -> Dict[str, float]:
         """Get recent environmental data averages."""
         try:
             end_time = iso_now()
@@ -298,7 +363,9 @@ class PlantHealthMonitor:
             result = {}
 
             for metric in metrics:
-                readings = self.repo_health.get_sensor_readings_for_period(unit_id, start_time, end_time, metric)
+                readings = self.repo_health.get_sensor_readings_for_period(
+                    unit_id, start_time, end_time, metric
+                )
                 if readings:
                     avg = sum(r[1] for r in readings if r[1] is not None) / len(readings)
                     result[metric] = avg
@@ -308,16 +375,17 @@ class PlantHealthMonitor:
             return result
 
         except Exception as e:
-            logger.error("Failed to get environmental data: %s", e, exc_info=True)
+            logger.error(f"Failed to get environmental data: {e}", exc_info=True)
             return {}
 
-    def _calculate_confidence(self, factor: str, symptoms: list[str]) -> float:
+    def _calculate_confidence(self, factor: str, symptoms: List[str]) -> float:
         """Calculate confidence level for environmental factor correlation."""
         confidence = 0.5
 
         for symptom in symptoms:
-            if symptom in self.SYMPTOM_DATABASE and factor in self.SYMPTOM_DATABASE[symptom]["environmental_factors"]:
-                confidence += 0.2
+            if symptom in self.SYMPTOM_DATABASE:
+                if factor in self.SYMPTOM_DATABASE[symptom]["environmental_factors"]:
+                    confidence += 0.2
 
         return min(1.0, confidence)
 
@@ -327,7 +395,9 @@ class PlantHealthMonitor:
             end_time = iso_now()
             start_time = (datetime.fromisoformat(end_time) - timedelta(hours=hours)).isoformat()
 
-            readings = self.repo_health.get_sensor_readings_for_period(unit_id, start_time, end_time, factor)
+            readings = self.repo_health.get_sensor_readings_for_period(
+                unit_id, start_time, end_time, factor
+            )
 
             if len(readings) < 2:
                 return "stable"
@@ -349,10 +419,12 @@ class PlantHealthMonitor:
                 return "stable"
 
         except Exception as e:
-            logger.error("Failed to analyze trend: %s", e, exc_info=True)
+            logger.error(f"Failed to analyze trend: {e}", exc_info=True)
             return "stable"
 
-    def _store_correlations(self, observation: PlantHealthObservation, correlations: list[EnvironmentalCorrelation]):
+    def _store_correlations(
+        self, observation: PlantHealthObservation, correlations: List[EnvironmentalCorrelation]
+    ):
         """Store environmental correlations for ML training via repository."""
         try:
             if not self.repo_health:
@@ -380,11 +452,11 @@ class PlantHealthMonitor:
             )
 
         except Exception as e:
-            logger.error("Failed to store correlations: %s", e, exc_info=True)
+            logger.error(f"Failed to store correlations: {e}", exc_info=True)
 
     def _analyze_environmental_issues(
-        self, env_data: dict[str, float], plant_type: str | None, growth_stage: str | None
-    ) -> list[dict[str, Any]]:
+        self, env_data: Dict[str, float], plant_type: Optional[str], growth_stage: Optional[str]
+    ) -> List[Dict[str, Any]]:
         """Analyze environmental conditions and provide recommendations."""
         recommendations = []
 
@@ -403,27 +475,23 @@ class PlantHealthMonitor:
                 optimal_range = (optimal_value - tolerance, optimal_value + tolerance)
 
                 if value < optimal_range[0]:
-                    recommendations.append(
-                        {
-                            "factor": factor,
-                            "issue": f"{factor} too low",
-                            "current_value": value,
-                            "recommended_range": optimal_range,
-                            "action": f"Increase {factor}",
-                            "plant_specific": plant_type is not None,
-                        }
-                    )
+                    recommendations.append({
+                        "factor": factor,
+                        "issue": f"{factor} too low",
+                        "current_value": value,
+                        "recommended_range": optimal_range,
+                        "action": f"Increase {factor}",
+                        "plant_specific": plant_type is not None,
+                    })
                 elif value > optimal_range[1]:
-                    recommendations.append(
-                        {
-                            "factor": factor,
-                            "issue": f"{factor} too high",
-                            "current_value": value,
-                            "recommended_range": optimal_range,
-                            "action": f"Decrease {factor}",
-                            "plant_specific": plant_type is not None,
-                        }
-                    )
+                    recommendations.append({
+                        "factor": factor,
+                        "issue": f"{factor} too high",
+                        "current_value": value,
+                        "recommended_range": optimal_range,
+                        "action": f"Decrease {factor}",
+                        "plant_specific": plant_type is not None,
+                    })
 
         return recommendations
 
@@ -452,5 +520,5 @@ class PlantHealthMonitor:
                 return "stable"
 
         except Exception as e:
-            logger.error("Failed to analyze health trend: %s", e, exc_info=True)
+            logger.error(f"Failed to analyze health trend: {e}", exc_info=True)
             return "unknown"

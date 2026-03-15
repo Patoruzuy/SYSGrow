@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from flask import Blueprint, Response, current_app, flash, redirect, render_template, request, session, url_for
+from flask import Blueprint, current_app, flash, redirect, render_template, request, session, url_for
 
 from app.security.auth import current_username
 
@@ -16,29 +16,13 @@ def login() -> str:
 
 
 @auth_bp.post("/login")
-def authenticate() -> Response:
+def authenticate():
     container = current_app.config["CONTAINER"]
     username = request.form.get("username", "").strip()
     password = request.form.get("password", "")
     remember_me = request.form.get("remember_me") == "on"
 
-    # --- brute-force protection -------------------------------------------
-    limiter = current_app.config.get("LOGIN_LIMITER")
-    client_ip = request.remote_addr or "unknown"
-    if limiter:
-        locked, remaining = limiter.is_locked(client_ip)
-        if locked:
-            minutes_left = (remaining + 59) // 60  # round up
-            flash(
-                f"Too many failed attempts. Try again in {minutes_left} minute(s).",
-                "error",
-            )
-            return redirect(url_for("auth.login"))
-
     if container.auth_manager.authenticate_user(username, password):
-        # Clear brute-force counter on success
-        if limiter:
-            limiter.record_success(client_ip)
         # Security: Regenerate session to prevent session fixation attacks
         # Preserve selected_unit preference if it exists
         preserved_unit = session.get("selected_unit")
@@ -69,40 +53,26 @@ def authenticate() -> Response:
                     first_unit_id = units[0].get("unit_id")
                     if first_unit_id:
                         session["selected_unit"] = first_unit_id
-                        current_app.logger.info("✅ Auto-selected unit %s for user '%s'", first_unit_id, username)
+                        current_app.logger.info(f"✅ Auto-selected unit {first_unit_id} for user '{username}'")
             except Exception as e:
-                current_app.logger.error("❌ Error auto-selecting unit for user '%s': %s", username, e)
-
+                current_app.logger.error(f"❌ Error auto-selecting unit for user '{username}': {e}")
+        
         container.audit_logger.log_event(actor=username, action="login", resource="session", outcome="success")
-
+        
         # Log activity
         from app.services.application.activity_logger import ActivityLogger
-
-        if hasattr(container, "activity_logger") and container.activity_logger:
+        if hasattr(container, 'activity_logger') and container.activity_logger:
             container.activity_logger.log_activity(
                 activity_type=ActivityLogger.USER_LOGIN,
                 description=f"User '{username}' logged in",
                 user_id=session.get("user_id"),
-                severity=ActivityLogger.INFO,
+                severity=ActivityLogger.INFO
             )
-
+        
         flash("Logged in successfully!", "success")
         return redirect(url_for("ui.index"))
 
-    container.audit_logger.log_event(
-        actor=username or "anonymous", action="login", resource="session", outcome="denied"
-    )
-
-    # Record failed attempt for brute-force protection
-    if limiter:
-        now_locked, _ = limiter.record_failure(client_ip)
-        if now_locked:
-            flash(
-                "Too many failed attempts. Your access has been temporarily locked.",
-                "error",
-            )
-            return redirect(url_for("auth.login"))
-
+    container.audit_logger.log_event(actor=username or "anonymous", action="login", resource="session", outcome="denied")
     flash("Invalid username or password.", "error")
     return redirect(url_for("auth.login"))
 
@@ -113,7 +83,7 @@ def register() -> str:
 
 
 @auth_bp.post("/register")
-def process_registration() -> Response:
+def process_registration():
     container = current_app.config["CONTAINER"]
     username = request.form.get("username", "").strip()
     password = request.form.get("password", "")
@@ -124,21 +94,21 @@ def process_registration() -> Response:
 
     if container.auth_manager.register_user(username, password):
         container.audit_logger.log_event(actor=username, action="register", resource="user", outcome="success")
-
+        
         # Create default growth unit for new user
         try:
             unit_id = container.growth_service.create_unit(
                 name="My First Unit",
                 location="Indoor",
-                user_id=1,  # Default user ID
+                user_id=1  # Default user ID
             )
             if unit_id:
-                current_app.logger.info("✅ Created default unit (ID: %s) for new user '%s'", unit_id, username)
+                current_app.logger.info(f"✅ Created default unit (ID: {unit_id}) for new user '{username}'")
             else:
-                current_app.logger.warning("⚠️ Failed to create default unit for user '%s'", username)
+                current_app.logger.warning(f"⚠️ Failed to create default unit for user '{username}'")
         except Exception as e:
-            current_app.logger.error("❌ Error creating default unit for user '%s': %s", username, e)
-
+            current_app.logger.error(f"❌ Error creating default unit for user '{username}': {e}")
+        
         flash("Registration successful. Please log in.", "success")
         return redirect(url_for("auth.login"))
 
@@ -148,7 +118,7 @@ def process_registration() -> Response:
 
 
 @auth_bp.get("/logout")
-def logout() -> Response:
+def logout():
     username = session.pop("user", None)
     user_id = session.pop("user_id", None)
     if username:
@@ -157,13 +127,12 @@ def logout() -> Response:
 
         # Log activity
         from app.services.application.activity_logger import ActivityLogger
-
-        if hasattr(container, "activity_logger") and container.activity_logger:
+        if hasattr(container, 'activity_logger') and container.activity_logger:
             container.activity_logger.log_activity(
                 activity_type=ActivityLogger.USER_LOGOUT,
                 description=f"User '{username}' logged out",
                 user_id=user_id,
-                severity=ActivityLogger.INFO,
+                severity=ActivityLogger.INFO
             )
 
     flash("You have been logged out.", "success")
@@ -171,7 +140,6 @@ def logout() -> Response:
 
 
 # --- Password Recovery Routes ---
-
 
 @auth_bp.get("/forgot-password")
 def forgot_password() -> str:
@@ -183,7 +151,7 @@ def forgot_password() -> str:
 
 
 @auth_bp.post("/forgot-password")
-def process_forgot_password() -> Response:
+def process_forgot_password():
     """Process forgot password request and send reset link."""
     container = current_app.config["CONTAINER"]
     identifier = request.form.get("identifier", "").strip()
@@ -202,8 +170,12 @@ def process_forgot_password() -> Response:
 
     if not user:
         # Don't reveal if user exists - always show success message
-        current_app.logger.warning("Password reset requested for unknown user: %s", identifier)
-        flash("If an account exists with that username or email, you will receive password reset instructions.", "info")
+        current_app.logger.warning(f"Password reset requested for unknown user: {identifier}")
+        flash(
+            "If an account exists with that username or email, "
+            "you will receive password reset instructions.",
+            "info"
+        )
         return redirect(url_for("auth.login"))
 
     # Generate reset token
@@ -228,7 +200,7 @@ def process_forgot_password() -> Response:
                     to_address=user["email"],
                     subject="SYSGrow Password Reset",
                     body_text=f"""
-Hello {user["username"]},
+Hello {user['username']},
 
 You requested a password reset for your SYSGrow account.
 
@@ -261,7 +233,7 @@ SYSGrow Smart Agriculture Platform
             <h1>Password Reset</h1>
         </div>
         <div class="content">
-            <p>Hello <strong>{user["username"]}</strong>,</p>
+            <p>Hello <strong>{user['username']}</strong>,</p>
             <p>You requested a password reset for your SYSGrow account.</p>
             <p>Click the button below to reset your password:</p>
             <p style="text-align: center;">
@@ -276,18 +248,24 @@ SYSGrow Smart Agriculture Platform
     </div>
 </body>
 </html>
-                    """,
+                    """
                 )
                 email_sent = email_service.send(email_msg)
         except Exception as e:
-            current_app.logger.error("Failed to send password reset email: %s", e)
+            current_app.logger.error(f"Failed to send password reset email: {e}")
 
     if email_sent:
-        flash("Password reset instructions have been sent to your email.", "success")
+        flash(
+            "Password reset instructions have been sent to your email.",
+            "success"
+        )
     else:
         # If email not configured or failed, show the reset link directly
         # In production, you might want to handle this differently
-        flash(f"Email not configured. Use this link to reset your password: {reset_url}", "warning")
+        flash(
+            f"Email not configured. Use this link to reset your password: {reset_url}",
+            "warning"
+        )
 
     container.audit_logger.log_event(
         actor=user["username"],
@@ -315,7 +293,7 @@ def reset_password(token: str) -> str:
 
 
 @auth_bp.post("/reset-password/<token>")
-def process_reset_password(token: str) -> Response:
+def process_reset_password(token: str):
     """Process the password reset."""
     container = current_app.config["CONTAINER"]
 
@@ -345,7 +323,6 @@ def process_reset_password(token: str) -> Response:
 
 # --- Recovery Code Routes (Offline Password Recovery) ---
 
-
 @auth_bp.get("/recover")
 def recover() -> str:
     """Display the recovery code password reset form."""
@@ -356,7 +333,7 @@ def recover() -> str:
 
 
 @auth_bp.post("/recover")
-def process_recover() -> Response:
+def process_recover():
     """Process password reset using a recovery code."""
     container = current_app.config["CONTAINER"]
 

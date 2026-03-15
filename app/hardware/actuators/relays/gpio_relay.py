@@ -1,10 +1,8 @@
 # Description: GPIO relay implementation for Raspberry Pi.
 #
 import logging
-
 from app.enums.events import DeviceEvent
 from app.schemas.events import RelayStatePayload
-
 from .relay_base import RelayBase
 
 logger = logging.getLogger(__name__)
@@ -17,7 +15,7 @@ class GPIORelay(RelayBase):
     Attributes:
         device (str): The name of the controlled device.
         pin (int): The GPIO pin used to control the relay.
-
+    
     Methods:
         turn_on(): Turns the relay on by setting the GPIO pin HIGH.
         turn_off(): Turns the relay off by setting the GPIO pin LOW.
@@ -38,15 +36,14 @@ class GPIORelay(RelayBase):
         if self.GPIO:
             self.GPIO.setmode(self.GPIO.BCM)
             self.GPIO.setup(self.pin, self.GPIO.OUT)
-            logger.info("GPIO pin %s set as OUTPUT", self.pin)
+            logger.info(f"GPIO pin {self.pin} set as OUTPUT")
         else:
-            logger.warning("GPIO is not available.  GPIO Relay %s will not function.", self.device)
+            logger.warning(f"GPIO is not available.  GPIO Relay {self.device} will not function.")
 
     def _setup_gpio(self):
         """Imports and sets up GPIO only if running on Raspberry Pi."""
         try:
-            import RPi.GPIO as GPIO  # type: ignore
-
+            import RPi.GPIO as GPIO # type: ignore
             return GPIO
         except (ImportError, RuntimeError):
             logger.error("GPIO not available. Running in non-Raspberry Pi environment.")
@@ -61,11 +58,11 @@ class GPIORelay(RelayBase):
                     DeviceEvent.RELAY_STATE_CHANGED,
                     RelayStatePayload(device=self.device, state="on"),
                 )  # Publish Event
-                logger.info("Turned on GPIO relay for %s on pin %s", self.device, self.pin)
+                logger.info(f"Turned on GPIO relay for {self.device} on pin {self.pin}")
             except Exception as e:
-                logger.error("Error turning on GPIO relay %s: %s", self.device, e)
+                logger.error(f"Error turning on GPIO relay {self.device}: {e}")
         else:
-            logger.warning("GPIO not initialized. Cannot turn on relay %s", self.device)
+            logger.warning(f"GPIO not initialized. Cannot turn on relay {self.device}")
 
     def turn_off(self):
         """Turns the relay off by setting the GPIO pin LOW."""
@@ -76,20 +73,20 @@ class GPIORelay(RelayBase):
                     DeviceEvent.RELAY_STATE_CHANGED,
                     RelayStatePayload(device=self.device, state="off"),
                 )  # Publish Event
-                logger.info("Turned off GPIO relay for %s on pin %s", self.device, self.pin)
+                logger.info(f"Turned off GPIO relay for {self.device} on pin {self.pin}")
             except Exception as e:
-                logger.error("Error turning off GPIO relay %s: %s", self.device, e)
+                logger.error(f"Error turning off GPIO relay {self.device}: {e}")
         else:
-            logger.warning("GPIO not initialized. Cannot turn off relay %s", self.device)
+            logger.warning(f"GPIO not initialized. Cannot turn off relay {self.device}")
 
     def cleanup(self):
         """Releases the GPIO pin resources."""
         if self.GPIO:
             try:
                 self.GPIO.cleanup(self.pin)
-                logger.info("Cleaned up GPIO pin %s for %s", self.pin, self.device)
+                logger.info(f"Cleaned up GPIO pin {self.pin} for {self.device}")
             except Exception as e:
-                logger.error("Error cleaning up GPIO pin %s: %s", self.pin, e)
+                logger.error(f"Error cleaning up GPIO pin {self.pin}: {e}")
 
     def __enter__(self):
         """Enter the runtime context related to this object."""
@@ -102,3 +99,4 @@ class GPIORelay(RelayBase):
     def __del__(self):
         """Destructor to ensure cleanup is called when the object is destroyed."""
         self.cleanup()
+

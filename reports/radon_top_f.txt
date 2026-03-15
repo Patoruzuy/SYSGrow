@@ -1,0 +1,16 @@
+﻿
+radon_cc_summary.txt:67:    F 489:0 get_dashboard_summary - F (115)
+radon_cc_summary.txt:325:    F 347:0 respond_to_threshold_proposal - F (41)
+radon_cc_summary.txt:443:    F 338:0 get_condition_profile_selector - F (42)
+radon_cc_summary.txt:2074:    M 464:4 
+FeatureEngineer.create_irrigation_features - F (63)
+radon_cc_summary.txt:2075:    M 862:4 
+EnvironmentalFeatureExtractor.extract_all_features - F (47)
+radon_cc_summary.txt:2379:    M 112:4 AlertService.create_alert - F (71)
+radon_cc_summary.txt:2390:    M 2478:4 
+AnalyticsService.get_enriched_sensor_history - F (64)
+radon_cc_summary.txt:2681:    M 582:4 PlantViewService.create_plant - F (54)
+radon_cc_summary.txt:2746:    M 695:4 ThresholdService.get_threshold_ranges - 
+F (41)
+
+

@@ -1,3 +1,152 @@
+<<<<<<< HEAD
+<!-- devices.html -->
+
+{% extends 'base.html' %}
+
+{% block content %}
+<main>
+    <div class="main-content-forms">
+        <h1>Devices</h1>
+        <fieldset class="light-container">
+            <h2>Light</h2>
+            <div class="form-row">
+                <form id="add-light-form">
+                    <label for="light_pin">GPIO pin: </label>
+                    <select id="light_pin" name="light_pin">
+                        {% for pin, name in available_gpio_pins.items() %}
+                        <option value="{{ pin }}">{{ name }}</option>
+                        {% endfor %}
+                    </select>
+                    <label for="light_ip">IP Address: </label>
+                    <input type="text" id="light_ip" name="light_ip">
+                    <button type="submit" class="submitbtn">Add Light</button>
+                </form>
+            </div>
+            
+            <h2>Fan</h2>
+            <div class="form-row">
+                <form id="add-fan-form">
+                    <label for="fan_pin">GPIO pin: </label>
+                    <select id="fan_pin" name="fan_pin">
+                        {% for pin, name in available_gpio_pins.items() %}
+                        <option value="{{ pin }}">{{ name }}</option>
+                        {% endfor %}
+                    </select>
+                    <label for="fan_ip">IP Address: </label>
+                    <input type="text" id="fan_ip" name="fan_ip">
+                    <button type="submit" class="submitbtn">Add fan</button>
+                </form>
+            </div>
+        </fieldset>
+        
+        <h2>Add Actuator</h2>
+        <form id="add-actuator-form">
+            <div class="form-row">
+                <label for="actuator_type">Type: </label>
+                <select id="actuator_type" name="actuator_type">
+                    <option value="Light">Light</option>
+                    <option value="Heater">Heater</option>
+                    <option value="Cooler">Cooler</option>
+                    <option value="Humidifier">Humidifier</option>
+                    <option value="Deshumidifier">Dehumidifier</option>
+                    <option value="Water-Pump">Water Pump</option>
+                    <option value="CO2-Injector">CO2 Injector</option>
+                </select>
+            </div>
+            <div class="form-row">
+                <label for="actuator_pin">GPIO Pin: </label>
+                <select id="actuator_pin" name="actuator_pin">
+                    {% for pin, name in available_gpio_pins.items() %}
+                    <option value="{{ pin }}">{{ name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-row">
+                <label for="actuator_ip">IP Address: </label>
+                <input type="text" id="actuator_ip" name="actuator_ip">
+            </div>
+            <div class="form-row">
+                <button type="submit" class="submitbtn">Add Actuator</button>
+            </div>
+        </form>
+        
+        <h2>Add Sensor</h2>
+        <form id="add-sensor-form">
+            <div class="form-row">
+                <label for="sensor_name">Name: <span class="required">*</span></label>
+                <input type="text" id="sensor_name" name="sensor_name" required>
+            </div>
+            <div class="form-row">
+            <label for="sensor_type">Communication: </label>
+            <select id="sensor_type" name="sensor_type" onchange="updateSensorModelOptions()">
+                <option value="environment_sensor">Environment Sensors</option>
+                <option value="plant_sensor">Plant Sensors</option>
+            </select>
+            </div>
+            <div class="form-row">
+                <label for="sensor_model">Model: </label>
+                <select id="sensor_model" name="sensor_model" placeholder="Select sensor model">
+                    <!-- Options will be dynamically populated based on sensor name selection -->
+                </select>
+            </div>
+            <div class="form-row">
+                <div id="adc_channel_div" style="display: none;">
+                    <label for="adc_channel">ADC Channel: </label>
+                    <select id="adc_channel" name="adc_channel">
+                        <option value="P0">ADS.P0</option>
+                        <option value="P1">ADS.P1</option>
+                        <option value="P2">ADS.P2</option>
+                        <option value="P3">ADS.P3</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div id="gpio_pin_div">
+                    <label for="sensor_pin">GPIO Pin: </label>
+                    <select id="sensor_pin" name="sensor_pin">
+                        {% for pin, name in available_gpio_pins.items() %}
+                        <option value="{{ pin }}">{{ name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <label for="sensor_ip">IP Address: </label>
+                <input type="text" id="sensor_ip" name="sensor_ip">
+            </div>
+            <div class="form-row">
+                <button type="submit" class="submitbtn">Add Sensor</button>
+            </div>
+        </form>
+        <h2>Available Actuators</h2>
+        <ul id="available-actuators">
+            {% for actuator in available_actuators %}
+            <li>{{ actuator }}</li>
+            {% endfor %}
+        </ul>
+        
+        <h2>Active Actuators</h2>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>PIN</th>
+                    <th>IP Address</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for data in db_actuators %}
+                <tr>
+                    <td>{{ data.id }}</td>
+                    <td>{{ data.name }}</td>
+                    <td>{{ data.gpio }}</td>
+                    <td>{{ data.ip_address }}</td>
+                    <td><button onclick="removeActuator('{{ data.name }}')">Remove</button>
+                        <button onclick="controlActuator('{{ data.name }}', 'activate')">On</button>
+                        <button onclick="controlActuator('{{ data.name }}', 'deactivate')">Off</button>
+=======
 {% extends "base.html" %}
 {% import "macros.html" as ui %}
 
@@ -6,8 +155,6 @@
 
 {% block styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/devices.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/components/alerts.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -34,14 +181,14 @@
     ) }}
 
     <!-- Contextual Help Banner -->
-    {{ ui.help_banner(
-      title='New to device management?',
-      text='Learn how to add sensors, calibrate readings, and set up schedules.',
-      icon='lightbulb',
-      link_text='Calibration Guide',
-      category='sensors',
-      article_id='sensor-calibration'
-    ) }}
+    <div class="help-banner">
+      <i class="fas fa-lightbulb"></i>
+      <div class="help-banner-content">
+        <p class="help-banner-title">New to device management?</p>
+        <p class="help-banner-text">Learn how to add sensors, calibrate readings, and set up schedules.</p>
+      </div>
+      {{ ui.help_link('sensors', 'sensor-calibration', 'Calibration Guide') }}
+    </div>
 
     <input type="hidden" id="selected-unit-id" value="{{ selected_unit_id or '' }}">
 
@@ -339,11 +486,160 @@
                                 data-action="remove-sensor" data-sensor-id="{{ data.sensor_id }}">
                             Remove
                         </button>
+>>>>>>> update
                     </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
+<<<<<<< HEAD
+        <h1>Active Sensors</h1>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Model</th>
+                    <th>PIN</th>
+                    <th>IP Address</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for data in db_sensors %}
+                <tr>
+                    <td>{{ data.sensor_id }}</td>
+                    <td>{{ data.name }}</td>
+                    <td>{{ data.sensor_type }}</td>
+                    <td>{{ data.sensor_model }}</td>
+                    <td>{{ data.gpio }}</td>
+                    <td>{{ data.ip_address }}</td>
+                    <td><button onclick="removeSensor('{{ data.sensor_id }}')">Remove</button></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</main>
+<script>
+    const sensorModelOptions = {
+        'environment_sensor': [
+            { value: 'MQ', text: 'Smoke Sensor' },
+            { value: 'BME280', text: 'BME280 Sensor' },
+            { value: 'ENS160AHT21', text: 'Environment Sensor' },
+            { value: 'TSL2591', text: 'Light Intensity Sensor' }
+        ],
+        'plant_sensor': [
+            { value: 'Soil-Moisture', text: 'Soil Moisture Sensor' }
+        ]
+    };
+
+    document.addEventListener('DOMContentLoaded', function() {
+        updateSensorModelOptions();  // Initialize sensor types based on default selection
+    });
+
+    function updateSensorModelOptions() {
+        const sensorType = document.getElementById('sensor_type').value;
+        const sensorModelSelect = document.getElementById('sensor_model');
+        sensorModelSelect.innerHTML = '';  // Clear existing options
+
+        // Populate sensor model options based on selected sensor type
+        sensorModelOptions[sensorType].forEach(option => {
+            let opt = document.createElement('option');
+            opt.value = option.value;
+            opt.textContent = option.text;
+            sensorModelSelect.appendChild(opt);
+        });
+
+        toggleAdcChannelVisibility();  // Update visibility of ADC channel selector
+    }
+
+    function toggleAdcChannelVisibility() {
+        const sensorType = document.getElementById('sensor_type').value;  // Correct variable name
+        const adcChannelDiv = document.getElementById('adc_channel_div');
+        const gpioPinDiv = document.getElementById('gpio_pin_div');
+
+        if (sensorType === 'plant_sensor') {  // Correct variable name
+            adcChannelDiv.style.display = 'block';
+            gpioPinDiv.style.display = 'none';
+        } else {
+            adcChannelDiv.style.display = 'none';
+            gpioPinDiv.style.display = 'block';
+        }
+    }
+
+    document.getElementById('sensor_type').addEventListener('change', function() {
+        updateSensorModelOptions();  // Call update function when sensor model changes
+    });
+
+    document.getElementById('add-sensor-form').addEventListener('submit', function(event) {
+        event.preventDefault();
+        const formData = new FormData(event.target);
+        fetch('/add_sensor', {
+            method: 'POST',
+            body: formData
+        }).then(response => response.json())
+        .then(data => {
+            alert(data.status);
+            location.reload();
+        });
+    });
+
+    function removeSensor(sensorId) {
+    fetch('/remove_sensor', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({sensor_id: sensorId})  // Sending sensor_id instead of sensor_type
+    }).then(response => response.json())
+    .then(data => {
+        alert(data.status);
+        location.reload();
+    }).catch(error => {
+        console.error('Error removing sensor:', error);
+    });
+}
+
+    document.getElementById('add-actuator-form').addEventListener('submit', function(event) {
+        event.preventDefault();
+        const formData = new FormData(event.target);
+        fetch('/add_actuator', {
+            method: 'POST',
+            body: formData
+        }).then(response => response.json())
+        .then(data => {
+            alert(data.status);
+            location.reload();
+        });
+    });
+
+    function removeActuator(actuatorType) {
+        fetch('/remove_actuator', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({actuator_type: actuatorType})
+        }).then(response => response.json())
+        .then(data => {
+            alert(data.status);
+            location.reload();
+        });
+    }
+
+    function controlActuator(actuatorType, action) {
+        fetch('/control_actuator', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({actuator_type: actuatorType, action: action})
+        }).then(response => response.json())
+        .then(data => {
+            alert(data.status);
+        });
+    }
+</script>
+
+{% endblock %}
+
+=======
         </div>
         {% else %}
         <div class="empty-state text-center p-4">
@@ -1340,6 +1636,9 @@
 <script src="{{ url_for('static', filename='js/utils/modal.js') }}?v=20251214170523"></script>
 <script src="{{ url_for('static', filename='js/utils/base-manager.js') }}?v=20251214170523"></script>
 
+<!-- Load API layer -->
+<script src="{{ url_for('static', filename='js/api.js') }}?v=20251214170600"></script>
+
 <!-- Load Socket.IO manager (used for Zigbee live updates) -->
 <script src="{{ url_for('static', filename='js/socket.js') }}?v=20251214170600"></script>
 
@@ -1400,3 +1699,4 @@
     }
 </script>
 {% endblock %}
+>>>>>>> update

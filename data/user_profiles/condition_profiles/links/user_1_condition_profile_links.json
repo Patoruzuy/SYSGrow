@@ -1,0 +1,29 @@
+[
+  {
+    "user_id": 1,
+    "target_type": "unit",
+    "target_id": 6,
+    "profile_id": "97a4ece9ae8642688e965ebbd28cafb9",
+    "mode": "active",
+    "created_at": "2026-02-01T17:20:57.073371",
+    "updated_at": "2026-02-01T17:20:57.073371"
+  },
+  {
+    "user_id": 1,
+    "target_type": "unit",
+    "target_id": 7,
+    "profile_id": "97a4ece9ae8642688e965ebbd28cafb9",
+    "mode": "active",
+    "created_at": "2026-02-01T17:21:38.636007",
+    "updated_at": "2026-02-01T17:21:38.636007"
+  },
+  {
+    "user_id": 1,
+    "target_type": "unit",
+    "target_id": 8,
+    "profile_id": "97a4ece9ae8642688e965ebbd28cafb9",
+    "mode": "active",
+    "created_at": "2026-02-01T17:23:02.575638",
+    "updated_at": "2026-02-01T17:23:02.575638"
+  }
+]

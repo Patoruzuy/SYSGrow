@@ -85,7 +85,7 @@
 }
 
 .gauge-score {
-  font-family: var(--font-heading);
+  font-family: 'Segoe UI', system-ui, sans-serif;
 }
 
 .efficiency-grade-display {
@@ -110,7 +110,7 @@
 }
 
 .grade-letter {
-  font-family: var(--font-heading);
+  font-family: 'Segoe UI', system-ui, sans-serif;
 }
 
 /* Grade Colors */

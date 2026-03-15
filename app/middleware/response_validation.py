@@ -14,8 +14,8 @@ Date: December 2025
 """
 
 import logging
-
-from flask import Flask, Response, request
+from flask import Flask, request, Response
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +28,6 @@ def init_response_validation(app: Flask, *, strict_mode: bool = False) -> None:
         app: Flask application instance
         strict_mode: If True, return 500 for invalid responses (default: False, log warning only)
     """
-
     @app.after_request
     def validate_response_envelope(response: Response) -> Response:
         """Validate that API responses follow the standard envelope format."""
@@ -49,38 +48,35 @@ def init_response_validation(app: Flask, *, strict_mode: bool = False) -> None:
             validation_errors = _validate_envelope(data)
 
             if validation_errors:
-                error_msg = (
-                    f"Invalid API response format on {request.method} {request.path}: {', '.join(validation_errors)}"
-                )
+                error_msg = f"Invalid API response format on {request.method} {request.path}: {', '.join(validation_errors)}"
                 logger.warning(error_msg)
 
                 if strict_mode:
                     # In strict mode, return 500 with proper error envelope
                     from app.utils.http import error_response
-
                     return error_response(
                         "Internal server error: Invalid response format",
                         status=500,
-                        details={"validation_errors": validation_errors},
+                        details={"validation_errors": validation_errors}
                     )
                 else:
                     # In permissive mode, just log the warning
                     # Add header to help identify problematic responses in development
-                    response.headers["X-Envelope-Validation"] = "FAILED"
+                    response.headers['X-Envelope-Validation'] = 'FAILED'
             else:
                 # Valid envelope, add header to confirm
-                response.headers["X-Envelope-Validation"] = "PASSED"
+                response.headers['X-Envelope-Validation'] = 'PASSED'
 
         except (ValueError, TypeError) as e:
             # JSON parsing failed - not a valid JSON response
-            logger.debug("Skipping validation for non-JSON response: %s", e)
+            logger.debug(f"Skipping validation for non-JSON response: {e}")
 
         return response
 
-    logger.info("Response validation middleware initialized (strict_mode=%s)", strict_mode)
+    logger.info(f"Response validation middleware initialized (strict_mode={strict_mode})")
 
 
-def _should_validate(path: str, content_type: str | None) -> bool:
+def _should_validate(path: str, content_type: Optional[str]) -> bool:
     """
     Determine if response should be validated.
 
@@ -92,19 +88,18 @@ def _should_validate(path: str, content_type: str | None) -> bool:
         True if response should be validated
     """
     # Only validate /api/* endpoints
-    if not path.startswith("/api/"):
+    if not path.startswith('/api/'):
         return False
 
     # Skip health check endpoints (avoid circular validation)
-    if "/health" in path and (path.startswith("/api/health") or path.startswith("/api/v1/health")):
-        return False
-
-    # Skip OpenAPI docs endpoints (they return raw spec, not envelope)
-    if path.startswith("/api/v1/docs"):
+    if path.startswith('/api/health'):
         return False
 
     # Only validate JSON responses
-    return not (content_type is None or "application/json" not in content_type)
+    if content_type is None or 'application/json' not in content_type:
+        return False
+
+    return True
 
 
 def _validate_envelope(data: dict) -> list[str]:
@@ -125,15 +120,15 @@ def _validate_envelope(data: dict) -> list[str]:
         return errors
 
     # Check required fields
-    if "ok" not in data:
+    if 'ok' not in data:
         errors.append("Missing required field 'ok'")
-    elif not isinstance(data["ok"], bool):
+    elif not isinstance(data['ok'], bool):
         errors.append("Field 'ok' must be a boolean")
 
-    if "data" not in data:
+    if 'data' not in data:
         errors.append("Missing required field 'data'")
 
-    if "error" not in data:
+    if 'error' not in data:
         errors.append("Missing required field 'error'")
 
     # If we have errors, no need to check consistency
@@ -141,15 +136,15 @@ def _validate_envelope(data: dict) -> list[str]:
         return errors
 
     # Check consistency: ok=True should have data, ok=False should have error
-    if data["ok"]:
-        if data["error"] is not None:
+    if data['ok']:
+        if data['error'] is not None:
             errors.append("Success responses (ok=True) must have error=None")
     else:
-        if data["error"] is None:
+        if data['error'] is None:
             errors.append("Error responses (ok=False) must have non-null error object")
-        elif not isinstance(data["error"], dict):
+        elif not isinstance(data['error'], dict):
             errors.append("Error field must be an object/dict")
-        elif "message" not in data["error"]:
+        elif 'message' not in data['error']:
             errors.append("Error object must contain 'message' field")
 
     return errors

@@ -4,13 +4,12 @@ Manual irrigation logging and post-watering capture service.
 Stores manual watering events for sensor-only setups and captures post-watering
 moisture readings after a settle delay to support dry-down modeling.
 """
-
 from __future__ import annotations
 
 import logging
 import os
 from datetime import timedelta
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 from app.enums import NotificationSeverity, NotificationType, SensorEvent
 from app.utils.time import coerce_datetime, iso_now, utc_now
@@ -26,13 +25,13 @@ class ManualIrrigationService:
         *,
         irrigation_repo: Any,
         analytics_repo: Any,
-        plant_service: Any | None = None,
-        plant_model_service: Any | None = None,
-        notifications_service: Any | None = None,
-        device_repo: Any | None = None,
-        unit_repo: Any | None = None,
-        event_bus: Any | None = None,
-        scheduler: Any | None = None,
+        plant_service: Optional[Any] = None,
+        plant_model_service: Optional[Any] = None,
+        notifications_service: Optional[Any] = None,
+        device_repo: Optional[Any] = None,
+        growth_repo: Optional[Any] = None,
+        event_bus: Optional[Any] = None,
+        scheduler: Optional[Any] = None,
     ) -> None:
         self._repo = irrigation_repo
         self._analytics = analytics_repo
@@ -40,21 +39,33 @@ class ManualIrrigationService:
         self._model_service = plant_model_service
         self._notifications = notifications_service
         self._device_repo = device_repo
-        self._unit_repo = unit_repo
+        self._growth_repo = growth_repo #TODO: Remove dependency on growth repo and use unit repo
         self._event_bus = event_bus
         self._scheduler = scheduler
-        self._last_moisture_by_sensor: dict[int, float] = {}
-        self._last_prompt_by_plant: dict[int, str] = {}
+        self._last_moisture_by_sensor: Dict[int, float] = {}
+        self._last_prompt_by_plant: Dict[int, str] = {}
 
-        self._pre_moisture_window_minutes = int(os.getenv("SYSGROW_MANUAL_IRRIGATION_PRE_WINDOW_MINUTES", "15"))
-        self._default_settle_delay_min = int(os.getenv("SYSGROW_MANUAL_IRRIGATION_SETTLE_DELAY_MINUTES", "15"))
+        self._pre_moisture_window_minutes = int(
+            os.getenv("SYSGROW_MANUAL_IRRIGATION_PRE_WINDOW_MINUTES", "15")
+        )
+        self._default_settle_delay_min = int(
+            os.getenv("SYSGROW_MANUAL_IRRIGATION_SETTLE_DELAY_MINUTES", "15")
+        )
         self._post_capture_interval_seconds = int(
             os.getenv("SYSGROW_MANUAL_IRRIGATION_POST_CAPTURE_INTERVAL_SECONDS", "60")
         )
-        self._moisture_rise_threshold = float(os.getenv("SYSGROW_MANUAL_IRRIGATION_RISE_THRESHOLD", "5.0"))
-        self._prompt_cooldown_minutes = int(os.getenv("SYSGROW_MANUAL_IRRIGATION_PROMPT_COOLDOWN_MINUTES", "60"))
-        self._recent_irrigation_minutes = int(os.getenv("SYSGROW_MANUAL_IRRIGATION_RECENT_AUTOWATER_MINUTES", "90"))
-        self._fallback_window_hours = int(os.getenv("SYSGROW_MANUAL_IRRIGATION_FALLBACK_WINDOW_HOURS", "24"))
+        self._moisture_rise_threshold = float(
+            os.getenv("SYSGROW_MANUAL_IRRIGATION_RISE_THRESHOLD", "5.0")
+        )
+        self._prompt_cooldown_minutes = int(
+            os.getenv("SYSGROW_MANUAL_IRRIGATION_PROMPT_COOLDOWN_MINUTES", "60")
+        )
+        self._recent_irrigation_minutes = int(
+            os.getenv("SYSGROW_MANUAL_IRRIGATION_RECENT_AUTOWATER_MINUTES", "90")
+        )
+        self._fallback_window_hours = int(
+            os.getenv("SYSGROW_MANUAL_IRRIGATION_FALLBACK_WINDOW_HOURS", "24")
+        )
 
     def set_scheduler(self, scheduler: Any) -> None:
         """Attach scheduler for interval jobs."""
@@ -66,11 +77,11 @@ class ManualIrrigationService:
         user_id: int,
         unit_id: int,
         plant_id: int,
-        watered_at_utc: str | None = None,
-        amount_ml: float | None = None,
-        notes: str | None = None,
-        settle_delay_min: int | None = None,
-    ) -> dict[str, Any]:
+        watered_at_utc: Optional[str] = None,
+        amount_ml: Optional[float] = None,
+        notes: Optional[str] = None,
+        settle_delay_min: Optional[int] = None,
+    ) -> Dict[str, Any]:
         """Log a manual watering event with pre-moisture context."""
         watered_at = coerce_datetime(watered_at_utc) if watered_at_utc else utc_now()
         if watered_at is None:
@@ -89,7 +100,11 @@ class ManualIrrigationService:
             pre_moisture = pre_reading.get("soil_moisture")
             pre_moisture_at_utc = pre_reading.get("timestamp")
 
-        settle_delay = int(settle_delay_min) if settle_delay_min is not None else self._default_settle_delay_min
+        settle_delay = (
+            int(settle_delay_min)
+            if settle_delay_min is not None
+            else self._default_settle_delay_min
+        )
 
         log_id = self._repo.create_manual_irrigation_log(
             user_id=user_id,
@@ -109,14 +124,14 @@ class ManualIrrigationService:
 
         return {"ok": True, "log_id": log_id}
 
-    def capture_manual_outcomes(self, limit: int = 50) -> list[int]:
+    def capture_manual_outcomes(self, limit: int = 50) -> List[int]:
         """Capture post-watering moisture for due manual logs."""
         pending = self._repo.get_manual_logs_pending_post_capture(limit=limit)
         if not pending:
             return []
 
         now = utc_now()
-        updated: list[int] = []
+        updated: List[int] = []
 
         for log in pending:
             watered_at = coerce_datetime(log.get("watered_at_utc"))
@@ -202,9 +217,9 @@ class ManualIrrigationService:
     def _get_current_moisture(
         self,
         *,
-        plant_id: int | None,
-        unit_id: int | None,
-    ) -> float | None:
+        plant_id: Optional[int],
+        unit_id: Optional[int],
+    ) -> Optional[float]:
         """Fetch the latest moisture reading for a plant or unit."""
         if self._plant_service:
             plant = None
@@ -232,7 +247,7 @@ class ManualIrrigationService:
             return float(reading["soil_moisture"])
         return None
 
-    def _on_soil_moisture_update(self, data: dict[str, Any]) -> None:
+    def _on_soil_moisture_update(self, data: Dict[str, Any]) -> None:
         """Prompt for manual irrigation logging on moisture spikes."""
         try:
             sensor_id = data.get("sensor_id")
@@ -273,7 +288,8 @@ class ManualIrrigationService:
 
             title = "Manual Watering Detected"
             message = (
-                "Soil moisture increased unexpectedly. Did you water manually? Log the amount to improve predictions."
+                "Soil moisture increased unexpectedly. "
+                "Did you water manually? Log the amount to improve predictions."
             )
 
             self._notifications.send_notification(
@@ -300,7 +316,7 @@ class ManualIrrigationService:
         except Exception as exc:
             logger.debug("Manual irrigation prompt failed: %s", exc)
 
-    def _resolve_plant_id(self, sensor_id: int, unit_id: int) -> int | None:
+    def _resolve_plant_id(self, sensor_id: int, unit_id: int) -> Optional[int]:
         """Resolve plant_id from sensor or unit context."""
         plant_id = self._analytics.get_plant_id_for_sensor(sensor_id)
         if plant_id:
@@ -312,17 +328,17 @@ class ManualIrrigationService:
                 return int(plant.plant_id)
         return None
 
-    def _resolve_user_id(self, unit_id: int) -> int | None:
+    def _resolve_user_id(self, unit_id: int) -> Optional[int]:
         """Resolve user_id owning a unit."""
-        if not self._unit_repo:
+        if not self._growth_repo:
             return None
-        unit = self._unit_repo.get_unit(unit_id)
+        unit = self._growth_repo.get_unit(unit_id)
         if not unit:
             return None
         unit_data = dict(unit)
         return unit_data.get("user_id")
 
-    def _resolve_plant_threshold(self, plant_id: int, unit_id: int) -> float | None:
+    def _resolve_plant_threshold(self, plant_id: int, unit_id: int) -> Optional[float]:
         """Resolve per-plant soil moisture threshold."""
         if not self._plant_service:
             return None
@@ -391,7 +407,7 @@ class ManualIrrigationService:
         plant_id: int,
         unit_id: int,
         current_moisture: float,
-        model_result: dict[str, Any] | None = None,
+        model_result: Optional[Dict[str, Any]] = None,
     ) -> None:
         """Send next-irrigation prediction after manual watering."""
         if not self._notifications or not self._model_service or unit_id <= 0:
@@ -421,7 +437,10 @@ class ManualIrrigationService:
         if hours_until is None or predicted_at is None:
             return
         title = "Next Watering Estimate"
-        message = f"Based on recent dry-down, likely needs water in ~{hours_until} hours (around {predicted_at})."
+        message = (
+            f"Based on recent dry-down, likely needs water in ~{hours_until} hours "
+            f"(around {predicted_at})."
+        )
 
         self._notifications.send_notification(
             user_id=user_id,

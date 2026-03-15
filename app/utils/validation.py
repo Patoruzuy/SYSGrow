@@ -10,14 +10,12 @@ Features:
 - Request validation decorator
 - Safe SQL parameter handling
 """
-
+import re
 import html
 import logging
-import re
 from functools import wraps
-from typing import Any, Callable
-
-from flask import jsonify, request
+from typing import Any, Callable, Dict, List, Optional, Type, Union
+from flask import request, jsonify
 from pydantic import BaseModel, ValidationError
 
 logger = logging.getLogger(__name__)
@@ -27,8 +25,7 @@ logger = logging.getLogger(__name__)
 # Input Sanitization
 # =============================================================================
 
-
-def sanitize_string(value: str | None, max_length: int = 1000) -> str | None:
+def sanitize_string(value: Optional[str], max_length: int = 1000) -> Optional[str]:
     """
     Sanitize a string input to prevent XSS and limit length.
 
@@ -68,10 +65,10 @@ def sanitize_string(value: str | None, max_length: int = 1000) -> str | None:
 
 
 def sanitize_dict(
-    data: dict[str, Any],
+    data: Dict[str, Any],
     string_max_length: int = 1000,
     recursive: bool = True,
-) -> dict[str, Any]:
+) -> Dict[str, Any]:
     """
     Sanitize all string values in a dictionary.
 
@@ -112,7 +109,6 @@ def sanitize_dict(
 # Common Validators
 # =============================================================================
 
-
 def validate_id(value: Any, name: str = "id") -> int:
     """
     Validate that a value is a positive integer ID.
@@ -133,7 +129,7 @@ def validate_id(value: Any, name: str = "id") -> int:
     try:
         id_val = int(value)
     except (TypeError, ValueError):
-        raise ValueError(f"{name} must be a valid integer") from None
+        raise ValueError(f"{name} must be a valid integer")
 
     if id_val < 1:
         raise ValueError(f"{name} must be a positive integer")
@@ -142,8 +138,8 @@ def validate_id(value: Any, name: str = "id") -> int:
 
 
 def validate_pagination(
-    limit: int | None = None,
-    offset: int | None = None,
+    limit: Optional[int] = None,
+    offset: Optional[int] = None,
     default_limit: int = 50,
     max_limit: int = 500,
 ) -> tuple:
@@ -184,7 +180,7 @@ def validate_pagination(
     return limit, offset
 
 
-def validate_date_string(value: str | None, name: str = "date") -> str | None:
+def validate_date_string(value: Optional[str], name: str = "date") -> Optional[str]:
     """
     Validate an ISO date string (YYYY-MM-DD).
 
@@ -213,15 +209,14 @@ def validate_date_string(value: str | None, name: str = "date") -> str | None:
     # Validate components
     try:
         from datetime import datetime
-
         datetime.strptime(value, "%Y-%m-%d")
     except ValueError:
-        raise ValueError(f"{name} is not a valid date") from None
+        raise ValueError(f"{name} is not a valid date")
 
     return value
 
 
-def validate_datetime_string(value: str | None, name: str = "datetime") -> str | None:
+def validate_datetime_string(value: Optional[str], name: str = "datetime") -> Optional[str]:
     """
     Validate an ISO datetime string.
 
@@ -270,7 +265,7 @@ def validate_datetime_string(value: str | None, name: str = "datetime") -> str |
 
 def validate_enum_value(
     value: Any,
-    allowed_values: list[str],
+    allowed_values: List[str],
     name: str = "value",
     case_sensitive: bool = False,
 ) -> str:
@@ -308,11 +303,11 @@ def validate_enum_value(
 
 def validate_number_range(
     value: Any,
-    min_val: float | None = None,
-    max_val: float | None = None,
+    min_val: Optional[float] = None,
+    max_val: Optional[float] = None,
     name: str = "value",
     allow_none: bool = False,
-) -> float | None:
+) -> Optional[float]:
     """
     Validate that a number is within a specified range.
 
@@ -337,7 +332,7 @@ def validate_number_range(
     try:
         num = float(value)
     except (TypeError, ValueError):
-        raise ValueError(f"{name} must be a valid number") from None
+        raise ValueError(f"{name} must be a valid number")
 
     if min_val is not None and num < min_val:
         raise ValueError(f"{name} must be at least {min_val}")
@@ -352,11 +347,10 @@ def validate_number_range(
 # Request Validation Decorator
 # =============================================================================
 
-
 def validate_request(
-    schema: type[BaseModel] | None = None,
+    schema: Optional[Type[BaseModel]] = None,
     sanitize: bool = True,
-    required_params: list[str] | None = None,
+    required_params: Optional[List[str]] = None,
 ) -> Callable:
     """
     Decorator for validating and sanitizing request data.
@@ -376,13 +370,12 @@ def validate_request(
     Returns:
         Decorated function
     """
-
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         def wrapper(*args, **kwargs):
             try:
                 # Get request data
-                if request.method in ("POST", "PUT", "PATCH"):
+                if request.method in ('POST', 'PUT', 'PATCH'):
                     data = request.get_json(silent=True) or {}
                 else:
                     data = dict(request.args)
@@ -395,45 +388,46 @@ def validate_request(
                 if required_params:
                     missing = [p for p in required_params if p not in data or data[p] is None]
                     if missing:
-                        return jsonify(
-                            {
-                                "ok": False,
-                                "data": None,
-                                "error": {"message": f"Missing required parameters: {', '.join(missing)}"},
-                            }
-                        ), 400
+                        return jsonify({
+                            'ok': False,
+                            'data': None,
+                            'error': {'message': f"Missing required parameters: {', '.join(missing)}"}
+                        }), 400
 
                 # Validate with schema if provided
                 if schema:
                     try:
                         validated = schema(**data)
-                        kwargs["validated_data"] = validated
+                        kwargs['validated_data'] = validated
                     except ValidationError as e:
-                        return jsonify(
-                            {
-                                "ok": False,
-                                "data": None,
-                                "error": {"message": "Validation failed", "details": e.errors()},
+                        return jsonify({
+                            'ok': False,
+                            'data': None,
+                            'error': {
+                                'message': 'Validation failed',
+                                'details': e.errors()
                             }
-                        ), 400
+                        }), 400
                 else:
-                    kwargs["validated_data"] = data
+                    kwargs['validated_data'] = data
 
                 return func(*args, **kwargs)
 
             except Exception as e:
-                logger.error("Request validation error: %s", e)
-                return jsonify({"ok": False, "data": None, "error": {"message": "Invalid request"}}), 400
+                logger.error(f"Request validation error: {e}")
+                return jsonify({
+                    'ok': False,
+                    'data': None,
+                    'error': {'message': 'Invalid request'}
+                }), 400
 
         return wrapper
-
     return decorator
 
 
 # =============================================================================
 # SQL Parameter Safety
 # =============================================================================
-
 
 def safe_like_pattern(value: str) -> str:
     """
@@ -456,7 +450,7 @@ def safe_like_pattern(value: str) -> str:
 
 def validate_sort_column(
     column: str,
-    allowed_columns: list[str],
+    allowed_columns: List[str],
     default: str = "id",
 ) -> str:
     """
@@ -484,7 +478,7 @@ def validate_sort_column(
     return default
 
 
-def validate_sort_direction(direction: str | None) -> str:
+def validate_sort_direction(direction: Optional[str]) -> str:
     """
     Validate sort direction.
 

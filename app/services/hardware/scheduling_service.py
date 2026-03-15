@@ -22,19 +22,18 @@ This service manages schedule storage, retrieval, and evaluation logic.
 Author: Sebastian Gomez
 Date: January 2026
 """
-
 from __future__ import annotations
 
-import json
 import logging
+import json
 import threading
-from dataclasses import dataclass
 from datetime import datetime, timedelta
+from typing import TYPE_CHECKING, Dict, List, Optional, Any, Tuple, Callable
+from dataclasses import dataclass
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Callable
 
-from app.domain.schedules import PhotoperiodConfig, Schedule
-from app.enums import PhotoperiodSource, ScheduleState, ScheduleType
+from app.domain.schedules import Schedule, PhotoperiodConfig
+from app.enums import ScheduleType, ScheduleState, PhotoperiodSource
 
 if TYPE_CHECKING:
     from app.domain.schedules.repository import ScheduleRepository
@@ -43,21 +42,9 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-SCHEDULING_RECOVERABLE_ERRORS = (
-    RuntimeError,
-    ValueError,
-    TypeError,
-    AttributeError,
-    LookupError,
-    OSError,
-    ImportError,
-    ArithmeticError,
-)
-
 
 class ScheduleAction(str, Enum):
     """Actions for schedule history logging."""
-
     CREATED = "created"
     UPDATED = "updated"
     DELETED = "deleted"
@@ -71,45 +58,42 @@ class ScheduleAction(str, Enum):
 @dataclass
 class ScheduleConflict:
     """Represents a schedule conflict."""
-
     schedule_a: Schedule
     schedule_b: Schedule
     overlap_start: str
     overlap_end: str
-    conflicting_days: list[int]
+    conflicting_days: List[int]
     resolution: str = "higher_priority_wins"
 
 
 @dataclass
 class SchedulePreviewEvent:
     """A preview event showing when a schedule will activate/deactivate."""
-
     schedule_id: int
     schedule_name: str
     device_type: str
     event_time: datetime
     event_type: str  # "activate" or "deactivate"
     state: str  # "on" or "off"
-    value: float | None = None
+    value: Optional[float] = None
 
 
 @dataclass
 class ExecutionResult:
     """Result of a schedule execution attempt."""
-
     schedule_id: int
-    actuator_id: int | None
+    actuator_id: Optional[int]
     success: bool
     action: str
-    error_message: str | None = None
+    error_message: Optional[str] = None
     retry_count: int = 0
-    response_time_ms: int | None = None
+    response_time_ms: Optional[int] = None
 
 
 class SchedulingService:
     """
     Centralized scheduling service for all device schedules.
-
+    
     This service provides:
     - CRUD operations for schedules (persisted via repository)
     - Conflict detection between schedules
@@ -119,7 +103,7 @@ class SchedulingService:
     - Schedule preview for planning
     - Startup state synchronization
     - Retry logic with exponential backoff
-
+    
     Architecture:
     - Memory-first pattern: in-memory storage is source of truth for active units
     - Repository persistence for cold-start loading and durability
@@ -132,38 +116,38 @@ class SchedulingService:
 
     def __init__(
         self,
-        repository: "ScheduleRepository" | None = None,
-        sun_times_service: "SunTimesService" | None = None,
+        repository: Optional["ScheduleRepository"] = None,
+        sun_times_service: Optional["SunTimesService"] = None,
     ):
         """
         Initialize scheduling service.
-
+        
         Args:
             repository: ScheduleRepository for persistence
             sun_times_service: Service for sun times calculations
         """
         self.repository = repository
         self.sun_times_service = sun_times_service
-
+        
         # ==================== In-Memory Schedule Storage ====================
         # Primary storage: unit_id -> {schedule_id: Schedule}
         # This is the single source of truth for active unit schedules
-        self._schedules: dict[int, dict[int, Schedule]] = {}
+        self._schedules: Dict[int, Dict[int, Schedule]] = {}
         self._schedules_lock = threading.Lock()
-
+        
         # Track which units have been loaded from DB
         self._loaded_units: set[int] = set()
-
+        
         # Track execution state for startup sync
-        self._last_execution_state: dict[int, bool] = {}  # schedule_id -> was_active
+        self._last_execution_state: Dict[int, bool] = {}  # schedule_id -> was_active
 
         # Track last lux-derived day/night state per unit for hysteresis
-        self._last_light_sensor_state: dict[int, bool] = {}
+        self._last_light_sensor_state: Dict[int, bool] = {}
         self._light_state_lock = threading.Lock()
 
         # Optional unified scheduler for interval task registration
-        self._scheduler: "UnifiedScheduler" | None = None
-
+        self._scheduler: Optional["UnifiedScheduler"] = None
+        
         logger.info("SchedulingService initialized with memory-first storage")
 
     def set_scheduler(self, scheduler: "UnifiedScheduler") -> None:
@@ -178,7 +162,7 @@ class SchedulingService:
         func: Callable[[], Any],
         interval_seconds: int,
         job_id: str,
-        namespace: str | None = None,
+        namespace: Optional[str] = None,
         start_immediately: bool = False,
     ) -> None:
         """Register an interval task with the unified scheduler."""
@@ -196,16 +180,16 @@ class SchedulingService:
         )
 
     # ==================== In-Memory Schedule Management ====================
-
-    def _get_unit_schedules(self, unit_id: int) -> dict[int, Schedule]:
+    
+    def _get_unit_schedules(self, unit_id: int) -> Dict[int, Schedule]:
         """
         Get or initialize schedule collection for a unit.
-
+        
         Thread-safe access to the unit's schedule dictionary.
-
+        
         Args:
             unit_id: Unit identifier
-
+            
         Returns:
             Dictionary of schedule_id -> Schedule for the unit
         """
@@ -213,20 +197,20 @@ class SchedulingService:
             if unit_id not in self._schedules:
                 self._schedules[unit_id] = {}
             return self._schedules[unit_id]
-
+    
     def _add_schedule_to_memory(self, schedule: Schedule) -> None:
         """
         Add schedule to in-memory collection.
-
+        
         Thread-safe insertion into the unit's schedule dictionary.
-
+        
         Args:
             schedule: Schedule instance to add
         """
         if not schedule.schedule_id:
             logger.warning("Cannot add schedule without ID to memory")
             return
-
+            
         with self._schedules_lock:
             unit_id = schedule.unit_id
             if unit_id not in self._schedules:
@@ -238,17 +222,17 @@ class SchedulingService:
                 schedule.name,
                 unit_id,
             )
-
-    def _remove_schedule_from_memory(self, unit_id: int, schedule_id: int) -> Schedule | None:
+    
+    def _remove_schedule_from_memory(self, unit_id: int, schedule_id: int) -> Optional[Schedule]:
         """
         Remove schedule from in-memory collection.
-
+        
         Thread-safe removal from the unit's schedule dictionary.
-
+        
         Args:
             unit_id: Unit identifier
             schedule_id: Schedule identifier to remove
-
+            
         Returns:
             Removed Schedule or None if not found
         """
@@ -258,22 +242,22 @@ class SchedulingService:
             if removed:
                 logger.debug("Removed schedule %s from memory for unit %s", schedule_id, unit_id)
             return removed
-
+    
     def _update_schedule_in_memory(self, schedule: Schedule) -> bool:
         """
         Update schedule in in-memory collection.
-
+        
         Thread-safe update in the unit's schedule dictionary.
-
+        
         Args:
             schedule: Schedule with updated values
-
+            
         Returns:
             True if updated, False if not found
         """
         if not schedule.schedule_id:
             return False
-
+            
         with self._schedules_lock:
             unit_schedules = self._schedules.get(schedule.unit_id, {})
             if schedule.schedule_id not in unit_schedules:
@@ -281,46 +265,46 @@ class SchedulingService:
             unit_schedules[schedule.schedule_id] = schedule
             logger.debug("Updated schedule %s in memory for unit %s", schedule.schedule_id, schedule.unit_id)
             return True
-
-    def get_schedule_from_memory(self, unit_id: int, schedule_id: int) -> Schedule | None:
+    
+    def get_schedule_from_memory(self, unit_id: int, schedule_id: int) -> Optional[Schedule]:
         """
         Get schedule from in-memory collection (fast path).
-
+        
         Thread-safe read from the unit's schedule dictionary.
-
+        
         Args:
             unit_id: Unit identifier
             schedule_id: Schedule identifier
-
+            
         Returns:
             Schedule or None if not found in memory
         """
         with self._schedules_lock:
             unit_schedules = self._schedules.get(unit_id, {})
             return unit_schedules.get(schedule_id)
-
-    def get_schedules_for_unit_from_memory(self, unit_id: int) -> list[Schedule]:
+    
+    def get_schedules_for_unit_from_memory(self, unit_id: int) -> List[Schedule]:
         """
         Get all schedules for a unit from memory.
-
+        
         Thread-safe read of all schedules in a unit.
-
+        
         Args:
             unit_id: Unit identifier
-
+            
         Returns:
             List of Schedule objects (empty if unit not loaded)
         """
         with self._schedules_lock:
             unit_schedules = self._schedules.get(unit_id, {})
             return list(unit_schedules.values())
-
+    
     def clear_unit_schedules(self, unit_id: int) -> None:
         """
         Clear all schedules for a unit from memory.
-
+        
         Called when a unit is stopped or deleted.
-
+        
         Args:
             unit_id: Unit identifier
         """
@@ -329,52 +313,52 @@ class SchedulingService:
             self._loaded_units.discard(unit_id)
             if removed_count > 0:
                 logger.debug("Cleared %d schedules from memory for unit %s", removed_count, unit_id)
-
+    
     def is_unit_loaded(self, unit_id: int) -> bool:
         """
         Check if schedules for a unit are loaded in memory.
-
+        
         Args:
             unit_id: Unit identifier
-
+            
         Returns:
             True if unit has been loaded (even if no schedules)
         """
         with self._schedules_lock:
             return unit_id in self._loaded_units
-
+    
     def list_schedules(
         self,
         unit_id: int,
-        device_type: str | None = None,
+        device_type: Optional[str] = None,
         enabled_only: bool = False,
-    ) -> list[Schedule]:
+    ) -> List[Schedule]:
         """
         List all schedules for a unit (alias for get_schedules_for_unit).
-
+        
         Consistent API naming with PlantService.list_plants().
         Memory-first: returns from memory if loaded, falls back to DB.
-
+        
         Args:
             unit_id: Growth unit ID
             device_type: Optional filter by device type
             enabled_only: Only return enabled schedules
-
+            
         Returns:
             List of Schedule objects
         """
         return self.get_schedules_for_unit(unit_id, device_type, enabled_only)
-
+    
     def load_schedules_for_unit(self, unit_id: int) -> int:
         """
         Load all schedules for a unit from database into memory.
-
+        
         Called by GrowthService when starting a unit runtime.
         Uses memory-first pattern: clears existing and reloads from DB.
-
+        
         Args:
             unit_id: Unit identifier
-
+            
         Returns:
             Number of schedules loaded
         """
@@ -383,23 +367,28 @@ class SchedulingService:
             with self._schedules_lock:
                 self._loaded_units.add(unit_id)
             return 0
-
+            
         try:
+            # Clear existing schedules for this unit
+            self.clear_unit_schedules(unit_id)
+            
+            # Load from database
             schedules = self.repository.get_by_unit(unit_id)
+            
             with self._schedules_lock:
                 self._schedules[unit_id] = {}
                 for schedule in schedules:
                     if schedule.schedule_id:
                         self._schedules[unit_id][schedule.schedule_id] = schedule
                 self._loaded_units.add(unit_id)
-
+            
             logger.info("Loaded %d schedules for unit %s", len(schedules), unit_id)
             return len(schedules)
-
-        except SCHEDULING_RECOVERABLE_ERRORS as e:
+            
+        except Exception as e:
             logger.error("Failed to load schedules for unit %s: %s", unit_id, e)
             with self._schedules_lock:
-                self._loaded_units.discard(unit_id)
+                self._loaded_units.add(unit_id)  # Mark as loaded even on error
             return 0
 
     # ==================== CRUD Operations (Memory-First + Persist) ====================
@@ -409,40 +398,43 @@ class SchedulingService:
         schedule: Schedule,
         check_conflicts: bool = True,
         source: str = "user",
-        user_id: int | None = None,
-    ) -> Schedule | None:
+        user_id: Optional[int] = None,
+    ) -> Optional[Schedule]:
         """
         Create a new schedule and persist via repository.
-
+        
         Args:
             schedule: Schedule to create
             check_conflicts: Whether to check for conflicts first
             source: Source of the change (user, system, auto)
             user_id: User making the change
-
+            
         Returns:
             Created schedule with ID, or None on failure
         """
         if not self.repository:
             logger.warning("No repository configured, cannot persist schedule")
             return None
-
+            
         if not schedule.validate():
-            logger.error("Invalid schedule for %s", schedule.device_type)
+            logger.error(f"Invalid schedule for {schedule.device_type}")
             return None
-
+        
         # Check for conflicts if requested
         if check_conflicts:
             conflicts = self.detect_conflicts(schedule)
             if conflicts:
-                logger.warning("Schedule conflicts detected for %s: %s conflicts", schedule.device_type, len(conflicts))
+                logger.warning(
+                    f"Schedule conflicts detected for {schedule.device_type}: "
+                    f"{len(conflicts)} conflicts"
+                )
                 # Log conflicts but don't block creation - priority resolves them
                 for conflict in conflicts:
                     logger.debug(
                         f"  Conflict with schedule {conflict.schedule_b.schedule_id}: "
                         f"{conflict.overlap_start}-{conflict.overlap_end}"
                     )
-
+            
         try:
             created = self.repository.create(schedule)
             if created:
@@ -460,53 +452,20 @@ class SchedulingService:
                     f"for {created.device_type} on unit {created.unit_id}"
                 )
             return created
-        except SCHEDULING_RECOVERABLE_ERRORS as e:
-            logger.error("Failed to create schedule: %s", e, exc_info=True)
+        except Exception as e:
+            logger.error(f"Failed to create schedule: {e}", exc_info=True)
             return None
 
-    def build_photoperiod_config(self, photoperiod_payload: Any | None) -> PhotoperiodConfig | None:
-        """Construct a PhotoperiodConfig from a schema/dataclass-like payload."""
-        if not photoperiod_payload:
-            return None
-        return PhotoperiodConfig(
-            source=photoperiod_payload.source,
-            sensor_threshold=photoperiod_payload.sensor_threshold,
-            sensor_tolerance=photoperiod_payload.sensor_tolerance,
-            prefer_sensor=photoperiod_payload.prefer_sensor,
-            min_light_hours=photoperiod_payload.min_light_hours,
-            max_light_hours=photoperiod_payload.max_light_hours,
-        )
-
-    def build_schedule_from_payload(self, *, unit_id: int, payload: Any) -> Schedule:
-        """Construct a Schedule entity from a validated schema payload."""
-        return Schedule(
-            unit_id=unit_id,
-            name=payload.name,
-            device_type=payload.device_type,
-            actuator_id=payload.actuator_id,
-            schedule_type=payload.schedule_type,
-            start_time=payload.start_time,
-            end_time=payload.end_time,
-            interval_minutes=payload.interval_minutes,
-            duration_minutes=payload.duration_minutes,
-            days_of_week=payload.days_of_week,
-            enabled=payload.enabled,
-            state_when_active=payload.state_when_active,
-            value=payload.value,
-            photoperiod=self.build_photoperiod_config(payload.photoperiod),
-            priority=payload.priority,
-        )
-
-    def get_schedule(self, schedule_id: int, unit_id: int | None = None) -> Schedule | None:
+    def get_schedule(self, schedule_id: int, unit_id: Optional[int] = None) -> Optional[Schedule]:
         """
         Get a schedule by ID.
-
+        
         Memory-first: checks memory if unit_id provided, falls back to DB.
-
+        
         Args:
             schedule_id: Schedule identifier
             unit_id: Optional unit_id for memory lookup (faster)
-
+            
         Returns:
             Schedule or None if not found
         """
@@ -515,32 +474,32 @@ class SchedulingService:
             schedule = self.get_schedule_from_memory(unit_id, schedule_id)
             if schedule:
                 return schedule
-
+        
         # Fall back to repository
         if not self.repository:
             return None
         try:
             return self.repository.get_by_id(schedule_id)
-        except SCHEDULING_RECOVERABLE_ERRORS as e:
-            logger.error("Failed to get schedule %s: %s", schedule_id, e)
+        except Exception as e:
+            logger.error(f"Failed to get schedule {schedule_id}: {e}")
             return None
 
     def get_schedules_for_unit(
         self,
         unit_id: int,
-        device_type: str | None = None,
+        device_type: Optional[str] = None,
         enabled_only: bool = False,
-    ) -> list[Schedule]:
+    ) -> List[Schedule]:
         """
         Get all schedules for a growth unit.
-
+        
         Memory-first: returns from memory if unit loaded, falls back to DB.
-
+        
         Args:
             unit_id: Growth unit ID
             device_type: Optional filter by device type
             enabled_only: Only return enabled schedules
-
+            
         Returns:
             List of schedules
         """
@@ -552,11 +511,11 @@ class SchedulingService:
             if enabled_only:
                 schedules = [s for s in schedules if s.enabled]
             return schedules
-
+        
         # Fallback to repository for units not loaded in memory
         if not self.repository:
             return []
-
+            
         try:
             if device_type:
                 schedules = self.repository.get_by_device_type(unit_id, device_type)
@@ -564,24 +523,24 @@ class SchedulingService:
                 schedules = self.repository.get_enabled_schedules(unit_id)
             else:
                 schedules = self.repository.get_by_unit(unit_id)
-
+                
             return schedules
-        except SCHEDULING_RECOVERABLE_ERRORS as e:
-            logger.error("Failed to get schedules for unit %s: %s", unit_id, e)
+        except Exception as e:
+            logger.error(f"Failed to get schedules for unit {unit_id}: {e}")
             return []
 
-    def get_schedules_for_actuator(self, actuator_id: int) -> list[Schedule]:
+    def get_schedules_for_actuator(self, actuator_id: int) -> List[Schedule]:
         """
         Get all schedules for a specific actuator.
-
+        
         Args:
             actuator_id: Actuator identifier
-
+            
         Returns:
             List of schedules linked to this actuator
         """
         # Memory-first: scan in-memory schedules if available
-        matches: list[Schedule] = []
+        matches: List[Schedule] = []
         with self._schedules_lock:
             for unit_schedules in self._schedules.values():
                 for schedule in unit_schedules.values():
@@ -594,112 +553,96 @@ class SchedulingService:
             return []
         try:
             return self.repository.get_by_actuator(actuator_id)
-        except SCHEDULING_RECOVERABLE_ERRORS as e:
-            logger.error("Failed to get schedules for actuator %s: %s", actuator_id, e)
+        except Exception as e:
+            logger.error(f"Failed to get schedules for actuator {actuator_id}: {e}")
             return []
 
     def update_schedule(
         self,
         schedule: Schedule,
         source: str = "user",
-        user_id: int | None = None,
-        reason: str | None = None,
+        user_id: Optional[int] = None,
+        reason: Optional[str] = None,
     ) -> bool:
         """
         Update an existing schedule.
-
+        
         Memory-first: updates memory immediately, then persists to DB.
-
+        
         Args:
             schedule: Schedule with updated values
             source: Source of the change
             user_id: User making the change
             reason: Optional reason for the change
-
+            
         Returns:
             True if updated successfully
         """
         if not schedule.schedule_id:
             logger.error("Cannot update schedule without ID")
             return False
-
+            
         if not schedule.validate():
-            logger.error("Invalid schedule data for %s", schedule.device_type)
+            logger.error(f"Invalid schedule data for {schedule.device_type}")
             return False
-
-        before_schedule = None
-        if self.repository:
-            try:
-                before_schedule = self.repository.get_by_id(schedule.schedule_id)
-            except SCHEDULING_RECOVERABLE_ERRORS as e:
-                logger.warning(
-                    "Failed to fetch schedule %s before update: %s",
-                    schedule.schedule_id,
-                    e,
-                )
-        if not before_schedule:
-            before_schedule = self.get_schedule_from_memory(schedule.unit_id, schedule.schedule_id)
-        before_snapshot = self._clone_schedule(before_schedule)
-        before_state = before_snapshot.to_dict() if before_snapshot else None
-
-        in_memory_before = self.get_schedule_from_memory(schedule.unit_id, schedule.schedule_id)
-        memory_was_updated = bool(in_memory_before) and self._update_schedule_in_memory(schedule)
-
+        
+        # Get before state for history (from memory first, then DB)
+        before_schedule = self.get_schedule_from_memory(schedule.unit_id, schedule.schedule_id)
+        if not before_schedule and self.repository:
+            before_schedule = self.repository.get_by_id(schedule.schedule_id)
+        before_state = before_schedule.to_dict() if before_schedule else None
+        
+        # Memory-first: update in memory immediately
+        self._update_schedule_in_memory(schedule)
+        
         # Persist to repository
         if not self.repository:
             logger.warning("No repository configured, schedule updated in memory only")
             return True
-
+            
         try:
             updated = self.repository.update(schedule)
             if updated:
-                self._add_schedule_to_memory(updated)
                 self._log_history(
-                    updated,
+                    schedule,
                     ScheduleAction.UPDATED,
                     before_state=before_state,
-                    after_state=updated.to_dict(),
+                    after_state=schedule.to_dict(),
                     source=source,
                     user_id=user_id,
                     reason=reason,
                 )
-                logger.info("Updated schedule %s", schedule.schedule_id)
-                return True
-
-            if memory_was_updated and before_snapshot:
-                self._update_schedule_in_memory(before_snapshot)
-            return False
-        except SCHEDULING_RECOVERABLE_ERRORS as e:
-            logger.error("Failed to update schedule %s: %s", schedule.schedule_id, e)
-            if memory_was_updated and before_snapshot:
-                self._update_schedule_in_memory(before_snapshot)
+                logger.info(f"Updated schedule {schedule.schedule_id}")
+            return updated is not None
+        except Exception as e:
+            logger.error(f"Failed to update schedule {schedule.schedule_id}: {e}")
             return False
 
     def delete_schedule(
         self,
         schedule_id: int,
         source: str = "user",
-        user_id: int | None = None,
-        reason: str | None = None,
+        user_id: Optional[int] = None,
+        reason: Optional[str] = None,
     ) -> bool:
         """
         Delete a schedule permanently.
-
+        
         Memory-first: removes from memory immediately, then deletes from DB.
-
+        
         Args:
             schedule_id: Schedule to delete
             source: Source of the change
             user_id: User making the change
             reason: Optional reason for deletion
-
+            
         Returns:
             True if deleted successfully
         """
         # Get schedule first for history logging and unit_id (memory first)
         schedule = None
         unit_id = None
-
+        
         # Try to find schedule in memory first
         with self._schedules_lock:
             for uid, unit_schedules in self._schedules.items():
@@ -707,28 +650,24 @@ class SchedulingService:
                     schedule = unit_schedules[schedule_id]
                     unit_id = uid
                     break
-
+        
         # Fall back to repository if not in memory
         if not schedule and self.repository:
-            try:
-                schedule = self.repository.get_by_id(schedule_id)
-            except SCHEDULING_RECOVERABLE_ERRORS as e:
-                logger.warning("Failed to fetch schedule %s for delete: %s", schedule_id, e)
+            schedule = self.repository.get_by_id(schedule_id)
             if schedule:
                 unit_id = schedule.unit_id
-
+        
         before_state = schedule.to_dict() if schedule else None
-
-        removed_from_memory: Schedule | None = None
+        
         # Memory-first: remove from memory immediately
         if unit_id is not None:
-            removed_from_memory = self._remove_schedule_from_memory(unit_id, schedule_id)
-
+            self._remove_schedule_from_memory(unit_id, schedule_id)
+        
         # Persist deletion to repository
         if not self.repository:
             logger.warning("No repository configured, schedule removed from memory only")
             return True
-
+            
         try:
             success = self.repository.delete(schedule_id)
             if success and schedule:
@@ -740,42 +679,36 @@ class SchedulingService:
                     user_id=user_id,
                     reason=reason,
                 )
-                logger.info("Deleted schedule %s", schedule_id)
-                return True
-
-            if removed_from_memory:
-                self._add_schedule_to_memory(removed_from_memory)
+                logger.info(f"Deleted schedule {schedule_id}")
             return success
-        except SCHEDULING_RECOVERABLE_ERRORS as e:
-            logger.error("Failed to delete schedule %s: %s", schedule_id, e)
-            if removed_from_memory:
-                self._add_schedule_to_memory(removed_from_memory)
+        except Exception as e:
+            logger.error(f"Failed to delete schedule {schedule_id}: {e}")
             return False
 
     def delete_schedules_for_unit(self, unit_id: int) -> int:
         """
         Delete all schedules for a unit.
-
+        
         Memory-first: clears memory immediately, then deletes from DB.
-
+        
         Args:
             unit_id: Unit to delete schedules for
-
+            
         Returns:
             Number of deleted schedules
         """
         # Memory-first: clear from memory first
         self.clear_unit_schedules(unit_id)
-
+        
         if not self.repository:
             logger.warning("No repository configured, schedules cleared from memory only")
             return 0
         try:
             count = self.repository.delete_by_unit(unit_id)
-            logger.info("Deleted %s schedules for unit %s", count, unit_id)
+            logger.info(f"Deleted {count} schedules for unit {unit_id}")
             return count
-        except SCHEDULING_RECOVERABLE_ERRORS as e:
-            logger.error("Failed to delete schedules for unit %s: %s", unit_id, e)
+        except Exception as e:
+            logger.error(f"Failed to delete schedules for unit {unit_id}: {e}")
             return 0
 
     def set_schedule_enabled(
@@ -783,19 +716,19 @@ class SchedulingService:
         schedule_id: int,
         enabled: bool,
         source: str = "user",
-        user_id: int | None = None,
+        user_id: Optional[int] = None,
     ) -> bool:
         """
         Enable or disable a schedule without deleting it.
-
+        
         Memory-first: updates memory immediately, then persists to DB.
-
+        
         Args:
             schedule_id: Schedule to modify
             enabled: New enabled state
             source: Source of the change
             user_id: User making the change
-
+            
         Returns:
             True if updated successfully
         """
@@ -808,36 +741,28 @@ class SchedulingService:
                     schedule = unit_schedules[schedule_id]
                     unit_id = uid
                     break
-
+        
         # Fall back to repository if not in memory
         if not schedule and self.repository:
-            try:
-                schedule = self.repository.get_by_id(schedule_id)
-            except SCHEDULING_RECOVERABLE_ERRORS as e:
-                logger.warning("Failed to fetch schedule %s for enable toggle: %s", schedule_id, e)
+            schedule = self.repository.get_by_id(schedule_id)
             if schedule:
                 unit_id = schedule.unit_id
-
+        
         if not schedule:
-            logger.warning("Schedule %s not found", schedule_id)
+            logger.warning(f"Schedule {schedule_id} not found")
             return False
-
-        previous_enabled = schedule.enabled
-        memory_schedule: Schedule | None = None
+        
         # Memory-first: update in memory if loaded
         if unit_id is not None and self.is_unit_loaded(unit_id):
             with self._schedules_lock:
                 if unit_id in self._schedules and schedule_id in self._schedules[unit_id]:
-                    memory_schedule = self._schedules[unit_id][schedule_id]
-                    previous_enabled = memory_schedule.enabled
-                    memory_schedule.enabled = enabled
-                    schedule.enabled = enabled
-
+                    self._schedules[unit_id][schedule_id].enabled = enabled
+        
         # Persist to repository
         if not self.repository:
             logger.warning("No repository configured, schedule enabled state updated in memory only")
             return True
-
+            
         try:
             success = self.repository.set_enabled(schedule_id, enabled)
             if success:
@@ -848,18 +773,10 @@ class SchedulingService:
                     source=source,
                     user_id=user_id,
                 )
-                logger.info("Schedule %s %s", schedule_id, "enabled" if enabled else "disabled")
-                return True
-
-            if memory_schedule is not None:
-                memory_schedule.enabled = previous_enabled
-            schedule.enabled = previous_enabled
+                logger.info(f"Schedule {schedule_id} {'enabled' if enabled else 'disabled'}")
             return success
-        except SCHEDULING_RECOVERABLE_ERRORS as e:
-            logger.error("Failed to set schedule %s enabled=%s: %s", schedule_id, enabled, e)
-            if memory_schedule is not None:
-                memory_schedule.enabled = previous_enabled
-            schedule.enabled = previous_enabled
+        except Exception as e:
+            logger.error(f"Failed to set schedule {schedule_id} enabled={enabled}: {e}")
             return False
 
     # ==================== Conflict Detection ====================
@@ -867,43 +784,43 @@ class SchedulingService:
     def detect_conflicts(
         self,
         schedule: Schedule,
-        exclude_schedule_id: int | None = None,
-    ) -> list[ScheduleConflict]:
+        exclude_schedule_id: Optional[int] = None,
+    ) -> List[ScheduleConflict]:
         """
         Detect time conflicts between a schedule and existing schedules.
-
+        
         Args:
             schedule: Schedule to check for conflicts
             exclude_schedule_id: Schedule ID to exclude (for updates)
-
+            
         Returns:
             List of detected conflicts
         """
         conflicts = []
-
+        
         existing = self.get_schedules_for_unit(
             schedule.unit_id,
             device_type=schedule.device_type,
             enabled_only=True,
         )
-
+        
         for other in existing:
             if exclude_schedule_id and other.schedule_id == exclude_schedule_id:
                 continue
             if other.schedule_id == schedule.schedule_id:
                 continue
-
+                
             conflict = self._check_overlap(schedule, other)
             if conflict:
                 conflicts.append(conflict)
-
+        
         return conflicts
 
     def _check_overlap(
         self,
         schedule_a: Schedule,
         schedule_b: Schedule,
-    ) -> ScheduleConflict | None:
+    ) -> Optional[ScheduleConflict]:
         """Check if two schedules overlap in time."""
         segments_a = self._expand_schedule_segments(schedule_a)
         segments_b = self._expand_schedule_segments(schedule_b)
@@ -911,7 +828,7 @@ class SchedulingService:
         if not segments_a or not segments_b:
             return None
 
-        overlap_days: list[int] = []
+        overlap_days: List[int] = []
         overlap_start = None
         overlap_end = None
 
@@ -939,14 +856,14 @@ class SchedulingService:
             resolution="higher_priority_wins" if schedule_a.priority != schedule_b.priority else "first_created_wins",
         )
 
-    def _expand_schedule_segments(self, schedule: Schedule) -> list[tuple[int, int, int]]:
+    def _expand_schedule_segments(self, schedule: Schedule) -> List[Tuple[int, int, int]]:
         """Expand schedule into day-specific segments for overlap detection."""
         if not schedule.days_of_week:
             return []
 
         start = self._time_to_minutes(schedule.start_time)
         end = self._time_to_minutes(schedule.end_time)
-        segments: list[tuple[int, int, int]] = []
+        segments: List[Tuple[int, int, int]] = []
 
         for day in schedule.days_of_week:
             if start == end:
@@ -974,140 +891,60 @@ class SchedulingService:
         m = minutes % 60
         return f"{h:02d}:{m:02d}"
 
-    @staticmethod
-    def _clone_schedule(schedule: Schedule | None) -> Schedule | None:
-        """Create a detached copy of a schedule object."""
-        if schedule is None:
-            return None
-        return Schedule.from_dict(schedule.to_dict())
-
-    @staticmethod
-    def _schedule_order_key(schedule: Schedule) -> tuple[int, datetime, int]:
-        """Sort key: higher priority first, then oldest creation, then smallest ID."""
-        created_at = schedule.created_at if isinstance(schedule.created_at, datetime) else datetime.min
-        schedule_id = schedule.schedule_id if schedule.schedule_id is not None else (2**31 - 1)
-        return (-schedule.priority, created_at, schedule_id)
-
-    def select_effective_schedule(self, schedules: list[Schedule]) -> Schedule | None:
-        """Select the highest-priority schedule from an already filtered list."""
-        if not schedules:
-            return None
-        return sorted(schedules, key=self._schedule_order_key)[0]
-
     # ==================== Schedule Evaluation ====================
-
-    def is_schedule_active(
-        self,
-        schedule: Schedule,
-        unit_id: int,
-        check_time: datetime | None = None,
-        lux_reading: float | None = None,
-        *,
-        unit_timezone: str | None = None,
-    ) -> bool:
-        """
-        Determine if a specific schedule is active at a given time.
-
-        For non-light schedules (or light schedules without photoperiod), this
-        delegates to Schedule.is_active_at(). For photoperiod schedules, this
-        applies source-aware logic (schedule/sensor/hybrid/sun_api).
-        """
-        if not schedule.enabled:
-            return False
-
-        schedule_active = schedule.is_active_at(check_time, timezone=unit_timezone)
-        if schedule.device_type != "light" or not schedule.photoperiod:
-            return schedule_active
-
-        pp = schedule.photoperiod
-        if pp.source == PhotoperiodSource.SCHEDULE:
-            return schedule_active
-
-        if pp.source == PhotoperiodSource.SENSOR and lux_reading is not None:
-            is_day = self._evaluate_lux_state(
-                unit_id,
-                lux_reading,
-                pp.sensor_threshold,
-                pp.sensor_tolerance,
-            )
-            if is_day is None:
-                return schedule_active
-            return bool(schedule_active and not is_day)
-
-        if pp.source == PhotoperiodSource.HYBRID and lux_reading is not None:
-            if not schedule_active:
-                return False
-            if pp.prefer_sensor:
-                is_day = self._evaluate_lux_state(
-                    unit_id,
-                    lux_reading,
-                    pp.sensor_threshold,
-                    pp.sensor_tolerance,
-                )
-                if is_day is None:
-                    return schedule_active
-                return not is_day
-            return True
-
-        if pp.source == PhotoperiodSource.SUN_API:
-            return self._evaluate_sun_based_schedule(
-                schedule,
-                check_time,
-                unit_timezone=unit_timezone,
-            )
-
-        return schedule_active
 
     def is_device_active(
         self,
         unit_id: int,
         device_type: str,
-        check_time: datetime | None = None,
+        check_time: Optional[datetime] = None,
         *,
-        unit_timezone: str | None = None,
+        unit_timezone: Optional[str] = None,
     ) -> bool:
         """
         Check if any schedule for device type is currently active.
-
+        
         Uses priority to resolve conflicts (higher priority wins).
-
+        
         Args:
             unit_id: Growth unit ID
             device_type: Device type to check
             check_time: Time to evaluate (defaults to now)
-
+            
         Returns:
             True if device should be ON based on schedules
         """
-        schedules = self.get_schedules_for_unit(unit_id, device_type=device_type, enabled_only=True)
-
+        schedules = self.get_schedules_for_unit(
+            unit_id, device_type=device_type, enabled_only=True
+        )
+        
         if not schedules:
             return False
-
+            
         # Sort by priority (higher first)
         schedules.sort(key=lambda s: s.priority, reverse=True)
-
+        
         # Check each schedule in priority order
         for schedule in schedules:
             if schedule.is_active_at(check_time, timezone=unit_timezone):
                 return schedule.state_when_active == ScheduleState.ON
-
+                
         return False
 
     def get_active_schedules(
         self,
         unit_id: int,
-        check_time: datetime | None = None,
+        check_time: Optional[datetime] = None,
         *,
-        unit_timezone: str | None = None,
-    ) -> list[Schedule]:
+        unit_timezone: Optional[str] = None,
+    ) -> List[Schedule]:
         """
         Get all currently active schedules for a unit.
-
+        
         Args:
             unit_id: Growth unit ID
             check_time: Time to evaluate (defaults to now)
-
+            
         Returns:
             List of active schedules
         """
@@ -1118,46 +955,48 @@ class SchedulingService:
         self,
         unit_id: int,
         device_type: str,
-        check_time: datetime | None = None,
+        check_time: Optional[datetime] = None,
         *,
-        unit_timezone: str | None = None,
-    ) -> float | None:
+        unit_timezone: Optional[str] = None,
+    ) -> Optional[float]:
         """
         Get the value (dimmer level) for a device based on active schedules.
-
+        
         Args:
             unit_id: Growth unit ID
             device_type: Device type
             check_time: Time to evaluate
-
+            
         Returns:
             Value (0-100) or None if no value specified
         """
-        schedules = self.get_schedules_for_unit(unit_id, device_type=device_type, enabled_only=True)
-
+        schedules = self.get_schedules_for_unit(
+            unit_id, device_type=device_type, enabled_only=True
+        )
+        
         if not schedules:
             return None
-
+            
         # Sort by priority
         schedules.sort(key=lambda s: s.priority, reverse=True)
-
+        
         for schedule in schedules:
             if schedule.is_active_at(check_time, timezone=unit_timezone) and schedule.value is not None:
                 return schedule.value
-
+                
         return None
 
     # ==================== Light Schedule Helpers ====================
 
-    def get_light_schedule(self, unit_id: int) -> Schedule | None:
+    def get_light_schedule(self, unit_id: int) -> Optional[Schedule]:
         """
         Get the primary light schedule for a unit.
-
+        
         Returns the highest priority enabled light schedule.
-
+        
         Args:
             unit_id: Growth unit ID
-
+            
         Returns:
             Primary light schedule or None
         """
@@ -1166,25 +1005,18 @@ class SchedulingService:
             device_type="light",
             enabled_only=True,
         )
-        return self.select_effective_schedule(schedules)
-
-    def get_photoperiod_schedule(self, unit_id: int) -> Schedule | None:
-        """
-        Get the primary photoperiod light schedule for a unit.
-
-        Returns the highest-priority light schedule whose type is photoperiod.
-        """
-        schedules = self.get_schedules_for_unit(unit_id, device_type="light", enabled_only=False)
-        photoperiod_schedules = [s for s in schedules if s.schedule_type == ScheduleType.PHOTOPERIOD]
-        return self.select_effective_schedule(photoperiod_schedules)
+        if not schedules:
+            return None
+        schedules.sort(key=lambda s: s.priority, reverse=True)
+        return schedules[0]
 
     def get_light_hours(self, unit_id: int) -> float:
         """
         Calculate total light hours from the light schedule.
-
+        
         Args:
             unit_id: Growth unit ID
-
+            
         Returns:
             Light hours per day (0 if no schedule)
         """
@@ -1196,41 +1028,86 @@ class SchedulingService:
     def is_light_on(
         self,
         unit_id: int,
-        check_time: datetime | None = None,
-        lux_reading: float | None = None,
+        check_time: Optional[datetime] = None,
+        lux_reading: Optional[float] = None,
         *,
-        unit_timezone: str | None = None,
+        unit_timezone: Optional[str] = None,
     ) -> bool:
         """
         Determine if light should be ON, considering photoperiod config.
-
+        
         Args:
             unit_id: Growth unit ID
             check_time: Time to evaluate
             lux_reading: Optional current lux sensor reading
-
+            
         Returns:
             True if light should be ON
         """
         schedule = self.get_light_schedule(unit_id)
         if not schedule:
             return False
-
-        return self.is_schedule_active(
-            schedule=schedule,
-            unit_id=unit_id,
-            check_time=check_time,
-            lux_reading=lux_reading,
-            unit_timezone=unit_timezone,
-        )
+            
+        # Simple schedule check
+        if not schedule.photoperiod:
+            return schedule.is_active_at(check_time, timezone=unit_timezone)
+            
+        # Photoperiod logic
+        pp = schedule.photoperiod
+        schedule_active = schedule.is_active_at(check_time, timezone=unit_timezone)
+        
+        if pp.source == PhotoperiodSource.SCHEDULE:
+            return schedule_active
+            
+        if pp.source == PhotoperiodSource.SENSOR and lux_reading is not None:
+            # Sensor determines day/night with hysteresis
+            is_day = self._evaluate_lux_state(
+                unit_id,
+                lux_reading,
+                pp.sensor_threshold,
+                pp.sensor_tolerance,
+            )
+            if is_day is None:
+                return schedule_active
+            # During day hours, supplemental light not needed if sensor reads day
+            if schedule_active and not is_day:
+                return True  # Need artificial light
+            return False
+            
+        if pp.source == PhotoperiodSource.HYBRID and lux_reading is not None:
+            # Hybrid: schedule determines window, sensor fine-tunes
+            if not schedule_active:
+                return False
+            # Within schedule window, use sensor
+            if pp.prefer_sensor:
+                is_day = self._evaluate_lux_state(
+                    unit_id,
+                    lux_reading,
+                    pp.sensor_threshold,
+                    pp.sensor_tolerance,
+                )
+                if is_day is None:
+                    return schedule_active
+                return not is_day
+            return True
+            
+        # SUN_API integration
+        if pp.source == PhotoperiodSource.SUN_API:
+            return self._evaluate_sun_based_schedule(
+                schedule,
+                check_time,
+                unit_timezone=unit_timezone,
+            )
+            
+        return schedule_active
 
     def _evaluate_lux_state(
         self,
         unit_id: int,
-        lux_reading: float | None,
+        lux_reading: Optional[float],
         threshold: float,
         tolerance: float,
-    ) -> bool | None:
+    ) -> Optional[bool]:
         """Evaluate day/night state with hysteresis for a unit's lux reading."""
         if lux_reading is None:
             return None
@@ -1268,22 +1145,22 @@ class SchedulingService:
     def _evaluate_sun_based_schedule(
         self,
         schedule: Schedule,
-        check_time: datetime | None = None,
+        check_time: Optional[datetime] = None,
         *,
-        unit_timezone: str | None = None,
+        unit_timezone: Optional[str] = None,
     ) -> bool:
         """Evaluate schedule using sun times API."""
         if not self.sun_times_service:
             logger.warning("Sun times service not configured, falling back to schedule")
             return schedule.is_active_at(check_time, timezone=unit_timezone)
-
+        
         check_time = Schedule._normalize_check_time(check_time, unit_timezone)
-
+        
         # Get sun times config
         sun_config = schedule.photoperiod.sun_times if schedule.photoperiod else None
         lat = sun_config.latitude if sun_config else None
         lng = sun_config.longitude if sun_config else None
-
+        
         return self.sun_times_service.is_daytime(
             check_time=check_time,
             latitude=lat,
@@ -1297,18 +1174,18 @@ class SchedulingService:
         self,
         unit_id: int,
         hours_ahead: int = 24,
-        device_type: str | None = None,
+        device_type: Optional[str] = None,
         *,
-        unit_timezone: str | None = None,
-    ) -> list[SchedulePreviewEvent]:
+        unit_timezone: Optional[str] = None,
+    ) -> List[SchedulePreviewEvent]:
         """
         Preview schedule events for the next N hours.
-
+        
         Args:
             unit_id: Growth unit ID
             hours_ahead: Hours to preview (default 24)
             device_type: Optional filter by device type
-
+            
         Returns:
             List of upcoming schedule events
         """
@@ -1316,45 +1193,43 @@ class SchedulingService:
         tz = Schedule._resolve_timezone(unit_timezone)
         now = datetime.now(tz) if tz else datetime.now()
         end_time = now + timedelta(hours=hours_ahead)
-
-        schedules = self.get_schedules_for_unit(unit_id, device_type=device_type, enabled_only=True)
-
+        
+        schedules = self.get_schedules_for_unit(
+            unit_id, device_type=device_type, enabled_only=True
+        )
+        
         for schedule in schedules:
             # Sample at 1-minute intervals
             current = now
             was_active = schedule.is_active_at(now, timezone=unit_timezone)
-
+            
             while current < end_time:
                 current += timedelta(minutes=1)
                 is_active = schedule.is_active_at(current, timezone=unit_timezone)
-
+                
                 if is_active and not was_active:
-                    events.append(
-                        SchedulePreviewEvent(
-                            schedule_id=schedule.schedule_id,
-                            schedule_name=schedule.name,
-                            device_type=schedule.device_type,
-                            event_time=current,
-                            event_type="activate",
-                            state=schedule.state_when_active.value,
-                            value=schedule.value,
-                        )
-                    )
+                    events.append(SchedulePreviewEvent(
+                        schedule_id=schedule.schedule_id,
+                        schedule_name=schedule.name,
+                        device_type=schedule.device_type,
+                        event_time=current,
+                        event_type="activate",
+                        state=schedule.state_when_active.value,
+                        value=schedule.value,
+                    ))
                 elif not is_active and was_active:
-                    events.append(
-                        SchedulePreviewEvent(
-                            schedule_id=schedule.schedule_id,
-                            schedule_name=schedule.name,
-                            device_type=schedule.device_type,
-                            event_time=current,
-                            event_type="deactivate",
-                            state="off",
-                            value=None,
-                        )
-                    )
-
+                    events.append(SchedulePreviewEvent(
+                        schedule_id=schedule.schedule_id,
+                        schedule_name=schedule.name,
+                        device_type=schedule.device_type,
+                        event_time=current,
+                        event_type="deactivate",
+                        state="off",
+                        value=None,
+                    ))
+                
                 was_active = is_active
-
+        
         # Sort by event time
         events.sort(key=lambda e: e.event_time)
         return events
@@ -1364,40 +1239,41 @@ class SchedulingService:
     def generate_schedules_from_plant(
         self,
         unit_id: int,
-        plant_info: dict[str, Any],
+        plant_info: Dict[str, Any],
         current_stage: str,
-        light_actuator_id: int | None = None,
-        fan_actuator_id: int | None = None,
-    ) -> list[Schedule]:
+        light_actuator_id: Optional[int] = None,
+        fan_actuator_id: Optional[int] = None,
+    ) -> List[Schedule]:
         """
         Generate schedules automatically from plant growth stage data.
-
+        
         Reads automation and growth_stages data from plants_info.json
         and creates appropriate schedules for the current stage.
-
+        
         Args:
             unit_id: Growth unit ID
             plant_info: Plant data from plants_info.json
             current_stage: Current growth stage name
             light_actuator_id: Optional actuator ID for lights
             fan_actuator_id: Optional actuator ID for fans
-
+            
         Returns:
             List of generated schedules
         """
         generated = []
-
+        
         # Get automation settings
         automation = plant_info.get("automation", {})
         lighting_schedule = automation.get("lighting_schedule", {})
-
+        
         # Get stage-specific lighting from automation.lighting_schedule
         stage_key = current_stage.lower()
         stage_lighting = lighting_schedule.get(stage_key, {})
-
+        
         if not stage_lighting:
             raise ValueError(
-                f"No lighting data found for stage '{current_stage}'. Configure plant lighting before auto-generation."
+                f"No lighting data found for stage '{current_stage}'. "
+                "Configure plant lighting before auto-generation."
             )
 
         hours = stage_lighting.get("hours")
@@ -1406,13 +1282,17 @@ class SchedulingService:
         intensity = stage_lighting.get("intensity")
 
         if hours is None or intensity is None:
-            raise ValueError(f"Lighting data for stage '{current_stage}' is missing hours or intensity.")
+            raise ValueError(
+                f"Lighting data for stage '{current_stage}' is missing hours or intensity."
+            )
 
         try:
             hours_value = float(hours)
             intensity_value = float(intensity)
         except (TypeError, ValueError) as exc:
-            raise ValueError(f"Lighting data for stage '{current_stage}' must be numeric.") from exc
+            raise ValueError(
+                f"Lighting data for stage '{current_stage}' must be numeric."
+            ) from exc
 
         # Calculate start/end times (centered on noon)
         half_hours = hours_value / 2
@@ -1439,7 +1319,7 @@ class SchedulingService:
             },
         )
         generated.append(light_schedule)
-
+        
         # Create environmental controls if defined
         env_controls = automation.get("environmental_controls", {})
         if env_controls and fan_actuator_id:
@@ -1458,21 +1338,21 @@ class SchedulingService:
                 },
             )
             generated.append(fan_schedule)
-
+        
         return generated
 
     def apply_plant_stage_schedules(
         self,
         unit_id: int,
-        plant_info: dict[str, Any],
+        plant_info: Dict[str, Any],
         current_stage: str,
-        light_actuator_id: int | None = None,
-        fan_actuator_id: int | None = None,
+        light_actuator_id: Optional[int] = None,
+        fan_actuator_id: Optional[int] = None,
         replace_existing: bool = True,
     ) -> int:
         """
         Apply auto-generated schedules from plant stage to a unit.
-
+        
         Args:
             unit_id: Growth unit ID
             plant_info: Plant data from plants_info.json
@@ -1480,7 +1360,7 @@ class SchedulingService:
             light_actuator_id: Optional actuator ID for lights
             fan_actuator_id: Optional actuator ID for fans
             replace_existing: If True, remove existing auto-generated schedules
-
+            
         Returns:
             Number of schedules created
         """
@@ -1494,7 +1374,7 @@ class SchedulingService:
                         source="system",
                         reason=f"Replaced by new stage: {current_stage}",
                     )
-
+        
         # Generate new schedules
         try:
             new_schedules = self.generate_schedules_from_plant(
@@ -1512,7 +1392,7 @@ class SchedulingService:
                 exc,
             )
             raise
-
+        
         # Create each schedule
         created_count = 0
         for schedule in new_schedules:
@@ -1523,29 +1403,32 @@ class SchedulingService:
             )
             if created:
                 created_count += 1
-
-        logger.info("Applied %s auto-generated schedules for unit %s stage '%s'", created_count, unit_id, current_stage)
+        
+        logger.info(
+            f"Applied {created_count} auto-generated schedules for unit {unit_id} "
+            f"stage '{current_stage}'"
+        )
         return created_count
 
     # ==================== Startup State Sync ====================
 
     def sync_actuator_states_at_startup(
         self,
-        unit_ids: list[int],
+        unit_ids: List[int],
         actuator_manager: Any,
         *,
-        unit_timezones: dict[int, str] | None = None,
-    ) -> dict[str, Any]:
+        unit_timezones: Optional[Dict[int, str]] = None,
+    ) -> Dict[str, Any]:
         """
         Synchronize actuator states with active schedules at startup.
-
+        
         Ensures actuators are in the correct state when system starts,
         rather than waiting for the next schedule check.
-
+        
         Args:
             unit_ids: List of unit IDs to sync
             actuator_manager: ActuatorManager instance
-
+            
         Returns:
             Summary of sync results
         """
@@ -1554,70 +1437,48 @@ class SchedulingService:
             "actuators_synced": 0,
             "errors": [],
         }
-
+        
         for unit_id in unit_ids:
             try:
                 unit_timezone = unit_timezones.get(unit_id) if unit_timezones else None
                 tz = Schedule._resolve_timezone(unit_timezone)
                 now = datetime.now(tz) if tz else datetime.now()
                 schedules = self.get_schedules_for_unit(unit_id, enabled_only=True)
-
-                active_by_schedule: dict[int, bool] = {}
-                by_actuator: dict[int, list[Schedule]] = {}
+                
                 for schedule in schedules:
-                    if schedule.device_type == "light" and schedule.photoperiod:
-                        if schedule.photoperiod.source == PhotoperiodSource.SUN_API:
-                            is_active = self._evaluate_sun_based_schedule(
-                                schedule,
-                                now,
-                                unit_timezone=unit_timezone,
-                            )
-                        else:
-                            is_active = schedule.is_active_at(now, timezone=unit_timezone)
-                    else:
-                        is_active = schedule.is_active_at(now, timezone=unit_timezone)
-
-                    if schedule.schedule_id is not None:
-                        active_by_schedule[schedule.schedule_id] = is_active
-                        self._last_execution_state[schedule.schedule_id] = is_active
-                    if schedule.actuator_id:
-                        by_actuator.setdefault(schedule.actuator_id, []).append(schedule)
-
-                for actuator_id, actuator_schedules in by_actuator.items():
-                    active_schedules: list[Schedule] = []
-                    for schedule in actuator_schedules:
-                        if schedule.schedule_id is None:
-                            continue
-                        if active_by_schedule.get(schedule.schedule_id):
-                            active_schedules.append(schedule)
-
-                    selected = self.select_effective_schedule(active_schedules)
+                    if not schedule.actuator_id:
+                        continue
+                    
+                    is_active = schedule.is_active_at(now, timezone=unit_timezone)
+                    
                     try:
-                        if selected:
-                            if selected.value is not None:
-                                actuator_manager.set_level(actuator_id, float(selected.value))
-                            elif selected.state_when_active == ScheduleState.ON:
-                                actuator_manager.turn_on(actuator_id)
+                        if is_active:
+                            if schedule.value is not None:
+                                actuator_manager.set_level(
+                                    schedule.actuator_id,
+                                    float(schedule.value),
+                                )
+                            elif schedule.state_when_active == ScheduleState.ON:
+                                actuator_manager.turn_on(schedule.actuator_id)
                             else:
-                                actuator_manager.turn_off(actuator_id)
+                                actuator_manager.turn_off(schedule.actuator_id)
                         else:
-                            actuator_manager.turn_off(actuator_id)
+                            actuator_manager.turn_off(schedule.actuator_id)
+                        
+                        self._last_execution_state[schedule.schedule_id] = is_active
                         results["actuators_synced"] += 1
+                        
                     except Exception as e:
-                        # Actuator manager is an injected runtime boundary that may wrap
-                        # arbitrary hardware adapters; keep syncing the rest.
-                        error_msg = f"Actuator {actuator_id}: {e}"
+                        error_msg = f"Actuator {schedule.actuator_id}: {e}"
                         results["errors"].append(error_msg)
-                        logger.error("Startup sync failed: %s", error_msg)
-
+                        logger.error(f"Startup sync failed: {error_msg}")
+                
                 results["units_synced"] += 1
-
+                
             except Exception as e:
-                # Keep unit-level startup sync resilient even if one unit has bad
-                # schedule data or an unexpected runtime failure.
                 results["errors"].append(f"Unit {unit_id}: {e}")
-                logger.error("Startup sync failed for unit %s: %s", unit_id, e)
-
+                logger.error(f"Startup sync failed for unit {unit_id}: {e}")
+        
         logger.info(
             f"Startup sync: {results['units_synced']} units, "
             f"{results['actuators_synced']} actuators, "
@@ -1631,23 +1492,21 @@ class SchedulingService:
         self,
         schedule: Schedule,
         activate: bool,
-        actuator_manager: Any | None = None,
     ) -> ExecutionResult:
         """
         Execute a schedule action with retry logic.
-
+        
         Uses exponential backoff for retries.
-
+        
         Args:
             schedule: Schedule being executed
             activate: True to activate, False to deactivate
-            actuator_manager: Actuator control service (turn_on/turn_off/set_level)
-
+            
         Returns:
             ExecutionResult with success/failure details
         """
         import time as time_module
-
+        
         action = "activate" if activate else "deactivate"
         result = ExecutionResult(
             schedule_id=schedule.schedule_id,
@@ -1655,40 +1514,26 @@ class SchedulingService:
             success=False,
             action=action,
         )
-
+        
         if not schedule.actuator_id:
             result.success = True
             return result
-
-        if actuator_manager is None:
-            result.error_message = "Actuator manager is required for schedule execution"
-            logger.error("Cannot execute schedule %s: %s", schedule.schedule_id, result.error_message)
-            self.record_execution(
-                schedule=schedule,
-                action=action,
-                success=False,
-                error_message=result.error_message,
-                retry_count=result.retry_count,
-                response_time_ms=result.response_time_ms,
-                source="system",
-            )
-            return result
-
+        
         for attempt in range(self.MAX_RETRY_ATTEMPTS):
             result.retry_count = attempt
             start_time = time_module.time()
-
+            
             try:
                 if activate:
                     if schedule.value is not None:
-                        actuator_manager.set_level(schedule.actuator_id, float(schedule.value))
+                        self.set_level(schedule.actuator_id, float(schedule.value))
                     elif schedule.state_when_active == ScheduleState.ON:
-                        actuator_manager.turn_on(schedule.actuator_id)
+                        self.turn_on(schedule.actuator_id)
                     else:
-                        actuator_manager.turn_off(schedule.actuator_id)
+                        self.turn_off(schedule.actuator_id)
                 else:
-                    actuator_manager.turn_off(schedule.actuator_id)
-
+                    self.turn_off(schedule.actuator_id)
+                
                 result.success = True
                 result.response_time_ms = int((time_module.time() - start_time) * 1000)
 
@@ -1702,19 +1547,19 @@ class SchedulingService:
                     source="system",
                 )
                 return result
-
+                
             except Exception as e:
-                # Retry envelope intentionally catches unexpected actuator/runtime
-                # failures from the injected manager and underlying adapters.
                 result.error_message = str(e)
                 result.response_time_ms = int((time_module.time() - start_time) * 1000)
-
-                logger.warning("Schedule execution failed (attempt %s/%s): %s", attempt + 1, self.MAX_RETRY_ATTEMPTS, e)
-
+                
+                logger.warning(
+                    f"Schedule execution failed (attempt {attempt + 1}/{self.MAX_RETRY_ATTEMPTS}): {e}"
+                )
+                
                 if attempt < self.MAX_RETRY_ATTEMPTS - 1:
-                    delay_ms = self.RETRY_BASE_DELAY_MS * (2**attempt)
+                    delay_ms = self.RETRY_BASE_DELAY_MS * (2 ** attempt)
                     time_module.sleep(delay_ms / 1000.0)
-
+        
         # All retries failed
         logger.error(
             f"Schedule {schedule.schedule_id} execution failed after "
@@ -1729,7 +1574,7 @@ class SchedulingService:
             response_time_ms=result.response_time_ms,
             source="system",
         )
-
+        
         return result
 
     # ==================== History Logging ====================
@@ -1740,9 +1585,9 @@ class SchedulingService:
         schedule: Schedule,
         action: str,
         success: bool,
-        error_message: str | None = None,
+        error_message: Optional[str] = None,
         retry_count: int = 0,
-        response_time_ms: int | None = None,
+        response_time_ms: Optional[int] = None,
         source: str = "system",
     ) -> None:
         """Record a schedule transition in execution log and history."""
@@ -1775,16 +1620,16 @@ class SchedulingService:
         self,
         schedule: Schedule,
         action: ScheduleAction,
-        before_state: dict | None = None,
-        after_state: dict | None = None,
+        before_state: Optional[Dict] = None,
+        after_state: Optional[Dict] = None,
         source: str = "user",
-        user_id: int | None = None,
-        reason: str | None = None,
+        user_id: Optional[int] = None,
+        reason: Optional[str] = None,
     ):
         """Log schedule change to history table."""
         if not self.repository:
             return
-
+        
         try:
             # Calculate changed fields
             changed_fields = []
@@ -1792,7 +1637,7 @@ class SchedulingService:
                 for key in after_state:
                     if before_state.get(key) != after_state.get(key):
                         changed_fields.append(key)
-
+            
             self.repository.log_history(
                 schedule_id=schedule.schedule_id or 0,
                 unit_id=schedule.unit_id,
@@ -1805,14 +1650,14 @@ class SchedulingService:
                 user_id=user_id,
                 reason=reason,
             )
-        except SCHEDULING_RECOVERABLE_ERRORS as e:
-            logger.debug("Failed to log schedule history: %s", e)
+        except Exception as e:
+            logger.debug(f"Failed to log schedule history: {e}")
 
     def _log_execution(self, result: ExecutionResult):
         """Log schedule execution to execution log table."""
         if not self.repository:
             return
-
+        
         try:
             self.repository.log_execution(
                 schedule_id=result.schedule_id,
@@ -1823,15 +1668,15 @@ class SchedulingService:
                 retry_count=result.retry_count,
                 response_time_ms=result.response_time_ms,
             )
-        except SCHEDULING_RECOVERABLE_ERRORS as e:
-            logger.debug("Failed to log schedule execution: %s", e)
+        except Exception as e:
+            logger.debug(f"Failed to log schedule execution: {e}")
 
     def get_schedule_history(
         self,
-        schedule_id: int | None = None,
-        unit_id: int | None = None,
+        schedule_id: Optional[int] = None,
+        unit_id: Optional[int] = None,
         limit: int = 100,
-    ) -> list[dict[str, Any]]:
+    ) -> List[Dict[str, Any]]:
         """Get schedule history/audit log."""
         if not self.repository:
             return []
@@ -1841,15 +1686,15 @@ class SchedulingService:
                 unit_id=unit_id,
                 limit=limit,
             )
-        except SCHEDULING_RECOVERABLE_ERRORS as e:
-            logger.error("Failed to get schedule history: %s", e)
+        except Exception as e:
+            logger.error(f"Failed to get schedule history: {e}")
             return []
 
     def get_execution_log(
         self,
-        schedule_id: int | None = None,
+        schedule_id: Optional[int] = None,
         limit: int = 100,
-    ) -> list[dict[str, Any]]:
+    ) -> List[Dict[str, Any]]:
         """Get schedule execution log."""
         if not self.repository:
             return []
@@ -1858,13 +1703,13 @@ class SchedulingService:
                 schedule_id=schedule_id,
                 limit=limit,
             )
-        except SCHEDULING_RECOVERABLE_ERRORS as e:
-            logger.error("Failed to get execution log: %s", e)
+        except Exception as e:
+            logger.error(f"Failed to get execution log: {e}")
             return []
 
     # ==================== Utility Methods ====================
 
-    def get_last_execution_state(self, schedule_id: int) -> bool | None:
+    def get_last_execution_state(self, schedule_id: int) -> Optional[bool]:
         """Get the last known execution state for a schedule."""
         return self._last_execution_state.get(schedule_id)
 
@@ -1872,16 +1717,16 @@ class SchedulingService:
         """Set the last known execution state for a schedule."""
         self._last_execution_state[schedule_id] = was_active
 
-    def get_schedule_summary(self, unit_id: int) -> dict[str, Any]:
+    def get_schedule_summary(self, unit_id: int) -> Dict[str, Any]:
         """
         Get a summary of all schedules for a unit.
-
+        
         Returns:
             Summary with counts and light info
         """
         schedules = self.get_schedules_for_unit(unit_id)
         enabled = [s for s in schedules if s.enabled]
-
+        
         by_device = {}
         for s in schedules:
             if s.device_type not in by_device:
@@ -1889,7 +1734,7 @@ class SchedulingService:
             by_device[s.device_type]["total"] += 1
             if s.enabled:
                 by_device[s.device_type]["enabled"] += 1
-
+                
         return {
             "unit_id": unit_id,
             "total_schedules": len(schedules),

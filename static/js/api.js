@@ -1,42 +1,9 @@
 /**
  * SYSGrow API Client Module
- * ============================================================================
+ * 
  * Centralized API client for all backend endpoints.
- * Exposes a single global `window.API` object organised into domain namespaces.
- *
- * All methods return Promises that resolve to the unwrapped response payload,
- * or throw an Error on HTTP failures.
- *
- * Domain Namespaces
- * -----------------
- * | Namespace                   | Constant                | Approx line |
- * |-----------------------------|-------------------------|-------------|
- * | API.Growth                  | GrowthAPI               | 312         |
- * | API.Plant                   | PlantAPI                | 829         |
- * | API.Device                  | DeviceAPI               | 1318        |
- * | API.Sensor                  | SensorAPI               | 2713        |
- * | API.Analytics               | AnalyticsAPI            | 2351        |
- * | API.Insights                | InsightsAPI             | 2109        |
- * | API.Health                  | HealthAPI               | 2608        |
- * | API.Dashboard               | DashboardAPI            | 2734        |
- * | API.Settings                | SettingsAPI             | 2883        |
- * | API.ML                      | MLAPI                   | 3019        |
- * | API.AI                      | AIAPI                   | 3898        |
- * | API.ESP32                   | ESP32API                | 4213        |
- * | API.GrowthStages            | GrowthStagesAPI         | 3718        |
- * | API.Retraining              | RetrainingAPI           | 3785        |
- * | API.ABTesting               | ABTestingAPI            | 3308        |
- * | API.MLReadiness             | MLReadinessAPI          | 3256        |
- * | API.ContinuousMonitoring    | ContinuousMonitoringAPI | 3398        |
- * | API.PersonalizedLearning    | PersonalizedLearningAPI | 3475        |
- * | API.TrainingData            | TrainingDataAPI         | 3643        |
- * | API.Session                 | SessionAPI              | 3882        |
- * | API.Status                  | StatusAPI               | 4187        |
- * | API.System                  | SystemAPI               | 4298        |
- * | API.Notification            | NotificationAPI         | 4379        |
- * | API.Irrigation              | IrrigationAPI           | 4516        |
- * | API.fetch(url, opts)        | Generic fetch wrapper   | bottom      |
- *
+ * Provides type-safe, promise-based functions for all API routes.
+ * 
  * @module api
  * @version 1.0.0
  */
@@ -198,146 +165,6 @@ async function postFormData(url, formData) {
     }
 }
 
-/**
- * Return the first non-nullish value from a list.
- * @param {...any} values
- * @returns {any}
- */
-function firstDefined(...values) {
-    for (const value of values) {
-        if (value !== undefined && value !== null) {
-            return value;
-        }
-    }
-    return undefined;
-}
-
-/**
- * Check whether a value should be treated as present in form normalization.
- * Empty strings are considered absent.
- * @param {any} value
- * @returns {boolean}
- */
-function hasFormValue(value) {
-    if (value === undefined || value === null) {
-        return false;
-    }
-    if (typeof value === "string") {
-        return value.trim() !== "";
-    }
-    return true;
-}
-
-/**
- * Append normalized values to FormData.
- * @param {FormData} formData
- * @param {string} key
- * @param {any} value
- * @param {Object} [options]
- * @param {boolean} [options.arrayAsCsv=false]
- */
-function appendFormField(formData, key, value, options = {}) {
-    if (value === undefined || value === null) {
-        return;
-    }
-
-    if (Array.isArray(value)) {
-        const items = value
-            .filter((item) => item !== undefined && item !== null && item !== "")
-            .map((item) => String(item).trim())
-            .filter((item) => item !== "");
-
-        if (items.length === 0) {
-            return;
-        }
-
-        if (options.arrayAsCsv) {
-            formData.append(key, items.join(","));
-            return;
-        }
-
-        items.forEach((item) => formData.append(key, item));
-        return;
-    }
-
-    if (value instanceof Date) {
-        formData.append(key, value.toISOString());
-        return;
-    }
-
-    if (value instanceof Blob) {
-        formData.append(key, value);
-        return;
-    }
-
-    formData.append(key, String(value));
-}
-
-/**
- * Normalize plant observation payloads to expected form-data fields.
- * @param {Object|FormData} data
- * @returns {FormData}
- */
-function toPlantObservationFormData(data) {
-    if (data instanceof FormData) {
-        return data;
-    }
-
-    const payload = data && typeof data === "object" ? data : {};
-    const formData = new FormData();
-
-    appendFormField(formData, "plant_id", firstDefined(payload.plant_id, payload.plantId));
-    appendFormField(
-        formData,
-        "observation_type",
-        firstDefined(payload.observation_type, payload.observationType, "health")
-    );
-    appendFormField(formData, "notes", payload.notes);
-    appendFormField(formData, "health_status", firstDefined(payload.health_status, payload.healthStatus));
-    appendFormField(formData, "severity_level", firstDefined(payload.severity_level, payload.severityLevel));
-    appendFormField(formData, "symptoms", payload.symptoms, { arrayAsCsv: true });
-    appendFormField(formData, "image_path", firstDefined(payload.image_path, payload.imagePath));
-
-    return formData;
-}
-
-/**
- * Normalize plant nutrient payloads to expected form-data fields.
- * @param {Object|FormData} data
- * @returns {FormData}
- */
-function toPlantNutrientFormData(data) {
-    if (data instanceof FormData) {
-        return data;
-    }
-
-    const payload = data && typeof data === "object" ? data : {};
-    const formData = new FormData();
-
-    const explicitApplicationType = hasFormValue(payload.application_type)
-        ? String(payload.application_type).trim().toLowerCase()
-        : hasFormValue(payload.applicationType)
-            ? String(payload.applicationType).trim().toLowerCase()
-            : undefined;
-    const hasPlantTarget = hasFormValue(payload.plant_id) || hasFormValue(payload.plantId);
-    const hasUnitTarget = hasFormValue(payload.unit_id) || hasFormValue(payload.unitId);
-    const inferredApplicationType =
-        explicitApplicationType ||
-        (hasPlantTarget ? "single" : undefined) ||
-        (hasUnitTarget ? "bulk" : undefined);
-
-    appendFormField(formData, "application_type", inferredApplicationType);
-    appendFormField(formData, "plant_id", firstDefined(payload.plant_id, payload.plantId));
-    appendFormField(formData, "unit_id", firstDefined(payload.unit_id, payload.unitId));
-    appendFormField(formData, "nutrient_type", firstDefined(payload.nutrient_type, payload.nutrientType));
-    appendFormField(formData, "nutrient_name", firstDefined(payload.nutrient_name, payload.nutrientName));
-    appendFormField(formData, "amount", payload.amount);
-    appendFormField(formData, "unit", payload.unit);
-    appendFormField(formData, "notes", payload.notes);
-
-    return formData;
-}
-
 // ============================================================================
 // GROWTH UNITS API
 // ============================================================================
@@ -443,7 +270,7 @@ const GrowthAPI = {
 
         if (activePlantId !== null && activePlantId !== undefined) {
             try {
-                plant = await get(`/api/plants/${unitId}/${activePlantId}`);
+                plant = await get(`/api/plants/plants/${unitId}/${activePlantId}`);
             } catch {
                 plant = null;
             }
@@ -861,10 +688,10 @@ const GrowthAPI = {
 
 const PlantAPI = {
     /**
-     * Get health summary for all plants (from health blueprint)
+     * Get health status for all plants
      * @returns {Promise<Object>} Plant health summary
      */
-    getPlantHealthSummary() {
+    getPlantHealth() {
         return get('/api/health/plants/summary');
     },
 
@@ -897,7 +724,7 @@ const PlantAPI = {
      * @returns {Promise<Object>}
      */
     getHealthHistory(plantId, days = 30) {
-        return get(`/api/plants/${plantId}/health/history?days=${days}`);
+        return get(`/api/plants/plants/${plantId}/health/history?days=${days}`);
     },
 
     /**
@@ -924,7 +751,7 @@ const PlantAPI = {
         if (unitId === null || unitId === undefined || unitId === '') {
             throw new Error('unitId is required to fetch plant details');
         }
-        return get(`/api/plants/${unitId}/${plantId}`);
+        return get(`/api/plants/plants/${unitId}/${plantId}`);
     },
 
     getPlant(plantId, unitId = null) {
@@ -946,7 +773,7 @@ const PlantAPI = {
         }
 
         // Fallback: backend can resolve unit by plant id.
-        return get(`/api/plants/${numericPlantId}`);
+        return get(`/api/plants/plants/${numericPlantId}`);
     },
 
     /**
@@ -960,7 +787,7 @@ const PlantAPI = {
      * @returns {Promise<Object>} Updated plant
      */
     updatePlant(plantId, updates) {
-        return put(`/api/plants/${plantId}`, updates);
+        return put(`/api/plants/plants/${plantId}`, updates);
     },
 
     /**
@@ -982,7 +809,7 @@ const PlantAPI = {
      * @returns {Promise<Object>} Updated plant
      */
     updatePlantStage(plantId, stageData) {
-        return put(`/api/plants/${plantId}/stage`, stageData);
+        return put(`/api/plants/plants/${plantId}/stage`, stageData);
     },
 
     /**
@@ -1016,7 +843,7 @@ const PlantAPI = {
      * @returns {Promise<Object>} Link result
      */
     linkPlantToSensor(plantId, sensorId) {
-        return post(`/api/plants/${plantId}/sensors/${sensorId}`);
+        return post(`/api/plants/plants/${plantId}/sensors/${sensorId}`);
     },
 
     /**
@@ -1026,7 +853,7 @@ const PlantAPI = {
      * @returns {Promise<Object>} Unlink result
      */
     unlinkPlantFromSensor(plantId, sensorId) {
-        return del(`/api/plants/${plantId}/sensors/${sensorId}`);
+        return del(`/api/plants/plants/${plantId}/sensors/${sensorId}`);
     },
 
     /**
@@ -1035,7 +862,7 @@ const PlantAPI = {
      * @returns {Promise<Object>} Plant sensors with details
      */
     getPlantSensors(plantId) {
-        return get(`/api/plants/${plantId}/sensors`);
+        return get(`/api/plants/plants/${plantId}/sensors`);
     },
 
     // ============================================================================
@@ -1058,7 +885,7 @@ const PlantAPI = {
      * @returns {Promise<Object>} Plant actuators with details
      */
     getPlantActuators(plantId) {
-        return get(`/api/plants/${plantId}/actuators`);
+        return get(`/api/plants/plants/${plantId}/actuators`);
     },
 
     /**
@@ -1068,7 +895,7 @@ const PlantAPI = {
      * @returns {Promise<Object>} Link result
      */
     linkPlantToActuator(plantId, actuatorId) {
-        return post(`/api/plants/${plantId}/actuators/${actuatorId}`);
+        return post(`/api/plants/plants/${plantId}/actuators/${actuatorId}`);
     },
 
     /**
@@ -1078,7 +905,7 @@ const PlantAPI = {
      * @returns {Promise<Object>} Unlink result
      */
     unlinkPlantFromActuator(plantId, actuatorId) {
-        return del(`/api/plants/${plantId}/actuators/${actuatorId}`);
+        return del(`/api/plants/plants/${plantId}/actuators/${actuatorId}`);
     },
 
     // ============================================================================
@@ -1101,7 +928,7 @@ const PlantAPI = {
      * @returns {Promise<Object>} Recorded observation with correlations
      */
     recordHealthObservation(plantId, observation) {
-        return post(`/api/plants/${plantId}/health/record`, observation);
+        return post(`/api/plants/plants/${plantId}/health/record`, observation);
     },
 
     /**
@@ -1116,39 +943,11 @@ const PlantAPI = {
 
     /**
      * Record nutrient application (FormData)
-     * @param {FormData|Object} formData - Form data or object payload for nutrient record
+     * @param {FormData} formData - Form data for nutrient record
      * @returns {Promise<Object>} Recorded nutrient entry
      */
     recordNutrients(formData) {
-        return postFormData('/api/plants/journal/nutrients', toPlantNutrientFormData(formData));
-    },
-
-    /**
-     * Alias for getPlant (used by units data-service)
-     * @param {number} plantId - Plant ID
-     * @returns {Promise<Object>} Plant data
-     */
-    getPlantInfo(plantId) {
-        return this.getPlant(plantId);
-    },
-
-    /**
-     * Record a plant observation (simplified wrapper)
-     * Normalizes payload to backend form-data contract.
-     * @param {Object} data - Observation data including plant_id
-     * @returns {Promise<Object>} Recorded observation
-     */
-    recordObservation(data) {
-        return postFormData('/api/plants/journal/observation', toPlantObservationFormData(data));
-    },
-
-    /**
-     * Record nutrient application wrapper (normalizes to form-data).
-     * @param {Object} data - Nutrient data
-     * @returns {Promise<Object>} Recorded nutrient entry
-     */
-    recordNutrient(data) {
-        return postFormData('/api/plants/journal/nutrients', toPlantNutrientFormData(data));
+        return postFormData('/api/plants/journal/nutrients', formData);
     },
 
     /**
@@ -1158,7 +957,7 @@ const PlantAPI = {
      * @returns {Promise<Object>} Health history
      */
     getHealthHistory(plantId, days = 7) {
-        return get(`/api/plants/${plantId}/health/history?days=${days}`);
+        return get(`/api/plants/plants/${plantId}/health/history?days=${days}`);
     },
 
     /**
@@ -1167,7 +966,7 @@ const PlantAPI = {
      * @returns {Promise<Object>} Health recommendations
      */
     getHealthRecommendations(plantId) {
-        return get(`/api/plants/${plantId}/health/recommendations`);
+        return get(`/api/plants/plants/${plantId}/health/recommendations`);
     },
 
     // ============================================================================
@@ -1235,10 +1034,7 @@ const PlantAPI = {
      * Get health status for all plants
      * @returns {Promise<Object>} Plants health data
      */
-    getPlantHealth(plantId) {
-        if (plantId) {
-            return get(`/api/plants/${plantId}/health/history`);
-        }
+    getPlantHealth() {
         return get('/api/plants/health');
     },
 
@@ -1523,15 +1319,6 @@ const DeviceAPI = {
     },
 
     /**
-     * Alias for getActuatorsByUnit (used by settings data-service)
-     * @param {number} unitId - Unit ID
-     * @returns {Promise<{actuators: Array, count: number}>}
-     */
-    getActuators(unitId) {
-        return this.getActuatorsByUnit(unitId);
-    },
-
-    /**
      * Add actuator
      * @param {Object} actuatorData - Actuator data
      * @returns {Promise<Object>} Created actuator
@@ -1771,14 +1558,6 @@ const DeviceAPI = {
      * @returns {Promise<Object>} Energy comparison
      */
     getComparativeEnergyAnalysis() {
-        return get('/api/devices/actuators/energy/comparative-analysis');
-    },
-
-    /**
-     * Get per-device energy breakdown (alias for comparative analysis)
-     * @returns {Promise<Object>} Device energy breakdown
-     */
-    getDeviceEnergyBreakdown() {
         return get('/api/devices/actuators/energy/comparative-analysis');
     },
 
@@ -2029,109 +1808,6 @@ const DeviceAPI = {
      */
     getMQTTDevices() {
         return get('/api/mqtt/devices/all');
-    },
-
-    // ============================================================================
-    // UNIT DEVICE SCHEDULES (delegates to Growth V3 schedule endpoints)
-    // ============================================================================
-
-    /**
-     * Get schedules for a unit
-     * @param {number} unitId - Unit ID
-     * @returns {Promise<Object>} Schedules
-     */
-    getSchedulesForUnit(unitId) {
-        return get(`/api/growth/v3/units/${unitId}/schedules`);
-    },
-
-    /**
-     * Create a device schedule
-     * @param {Object} payload - Schedule data (must include unit_id)
-     * @returns {Promise<Object>} Created schedule
-     */
-    createSchedule(payload) {
-        const unitId = payload.unit_id;
-        return post(`/api/growth/v3/units/${unitId}/schedules`, payload);
-    },
-
-    /**
-     * Update a device schedule
-     * @param {number} scheduleId - Schedule ID
-     * @param {Object} payload - Updated schedule data (must include unit_id)
-     * @returns {Promise<Object>} Updated schedule
-     */
-    updateSchedule(scheduleId, payload) {
-        const unitId = payload.unit_id;
-        return put(`/api/growth/v3/units/${unitId}/schedules/${scheduleId}`, payload);
-    },
-
-    /**
-     * Delete a device schedule
-     * @param {number} scheduleId - Schedule ID
-     * @param {number} [unitId] - Unit ID (used for route)
-     * @returns {Promise<Object>} Deletion result
-     */
-    deleteSchedule(scheduleId, unitId) {
-        if (unitId) {
-            return del(`/api/growth/v3/units/${unitId}/schedules/${scheduleId}`);
-        }
-        // unitId is required for the V3 schedule endpoint
-        console.warn('[DeviceAPI] deleteSchedule called without unitId — schedule deletion requires unitId');
-        return Promise.reject(new Error('unitId is required to delete a schedule'));
-    },
-
-    // ============================================================================
-    // SENSOR/ACTUATOR UNIT LINKING
-    // ============================================================================
-
-    /**
-     * Link a sensor to a unit by updating its unit_id
-     * @param {number} sensorId - Sensor ID
-     * @param {number} unitId - Target unit ID
-     * @returns {Promise<Object>} Update result
-     */
-    linkSensorToUnit(sensorId, unitId) {
-        return patch(`/api/devices/v2/sensors/${sensorId}`, { unit_id: unitId });
-    },
-
-    /**
-     * Unlink a sensor from its unit (set unit_id to 0)
-     * @param {number} sensorId - Sensor ID
-     * @returns {Promise<Object>} Update result
-     */
-    unlinkSensorFromUnit(sensorId) {
-        return patch(`/api/devices/v2/sensors/${sensorId}`, { unit_id: 0 });
-    },
-
-    /**
-     * Link an actuator to a unit
-     * @param {number} actuatorId - Actuator ID
-     * @param {number} unitId - Target unit ID
-     * @returns {Promise<Object>} Update result
-     */
-    linkActuatorToUnit(actuatorId, unitId) {
-        return post(`/api/devices/v2/actuators/${actuatorId}/command`, { unit_id: unitId, action: 'link' });
-    },
-
-    /**
-     * Unlink an actuator from its unit
-     * @param {number} actuatorId - Actuator ID
-     * @returns {Promise<Object>} Update result
-     */
-    unlinkActuatorFromUnit(actuatorId) {
-        return post(`/api/devices/v2/actuators/${actuatorId}/command`, { unit_id: 0, action: 'unlink' });
-    },
-
-    // ============================================================================
-    // DEVICE HEALTH
-    // ============================================================================
-
-    /**
-     * Get overall device health summary
-     * @returns {Promise<Object>} Device health summary
-     */
-    getDeviceHealth() {
-        return get('/api/health/devices');
     }
 };
 
@@ -2330,16 +2006,6 @@ const InsightsAPI = {
         if (params.days) query.append('days', params.days || 7);
         const queryStr = query.toString();
         return get(`/api/analytics/dashboard/energy-summary${queryStr ? '?' + queryStr : ''}`);
-    },
-
-    /**
-     * Get energy trend data for charts
-     * @param {string} [timerange='month'] - 'day', 'week', 'month', 'year'
-     * @param {string} [grouping='day'] - 'hour', 'day', 'week', 'month'
-     * @returns {Promise<Object>} Energy trend data
-     */
-    getEnergyTrend(timerange = 'month', grouping = 'day') {
-        return get(`/api/analytics/dashboard/energy-summary?timerange=${timerange}&grouping=${grouping}`);
     },
 
     /**
@@ -3019,29 +2685,6 @@ const SettingsAPI = {
      */
     resetThrottleConfig(unitId) {
         return post(`/api/settings/throttle/reset?unit_id=${encodeURIComponent(unitId)}`);
-    },
-
-    // ============================================================================
-    // THRESHOLD MANAGEMENT (delegates to Growth thresholds endpoints)
-    // ============================================================================
-
-    /**
-     * Update thresholds for a unit
-     * @param {number} unitId - Unit ID
-     * @param {Object} thresholds - Threshold values
-     * @returns {Promise<Object>} Updated thresholds
-     */
-    updateThresholds(unitId, thresholds) {
-        return post(`/api/growth/v2/units/${unitId}/thresholds`, thresholds);
-    },
-
-    /**
-     * Get thresholds for a unit
-     * @param {number} unitId - Unit ID
-     * @returns {Promise<Object>} Current thresholds
-     */
-    getThresholds(unitId) {
-        return get(`/api/growth/v2/units/${unitId}/thresholds`);
     }
 };
 
@@ -3256,81 +2899,6 @@ const MLAPI = {
     getConfidenceBands(params) {
         const query = new URLSearchParams(params).toString();
         return get(`/api/ml/predictions/confidence-bands?${query}`);
-    },
-
-    // ---------- Disease Trends ----------
-    /**
-     * Get disease occurrence trends over time
-     * @param {number} [days=30] - Number of days to analyse
-     * @param {number} [unitId] - Optional unit filter
-     * @returns {Promise<Object>} Daily counts and disease totals
-     */
-    getDiseaseTrends(days = 30, unitId = null) {
-        const params = new URLSearchParams({ days: String(days) });
-        if (unitId) params.append('unit_id', String(unitId));
-        return get(`/api/ml/analytics/disease/trends?${params}`);
-    },
-
-    // ---------- Model Comparison ----------
-    /**
-     * Compare performance metrics of multiple models
-     * @param {string[]} modelNames - Array of model names (min 2)
-     * @returns {Promise<Object>} Comparison results
-     */
-    compareModels(modelNames) {
-        return post('/api/ml/models/compare', { models: modelNames });
-    }
-};
-
-// ============================================================================
-// ML READINESS API
-// ============================================================================
-
-const MLReadinessAPI = {
-    /**
-     * Get irrigation ML readiness status for a unit
-     * @param {number} unitId - Growth unit ID
-     * @returns {Promise<Object>} Readiness data with model progress
-     */
-    getIrrigationReadiness(unitId) {
-        return get(`/api/ml/readiness/irrigation/${unitId}`);
-    },
-
-    /**
-     * Activate an ML model for a unit
-     * @param {number} unitId - Growth unit ID
-     * @param {string} modelName - Model name to activate
-     * @returns {Promise<Object>} Activation result
-     */
-    activateModel(unitId, modelName) {
-        return post(`/api/ml/readiness/irrigation/${unitId}/activate/${modelName}`);
-    },
-
-    /**
-     * Deactivate an ML model for a unit
-     * @param {number} unitId - Growth unit ID
-     * @param {string} modelName - Model name to deactivate
-     * @returns {Promise<Object>} Deactivation result
-     */
-    deactivateModel(unitId, modelName) {
-        return post(`/api/ml/readiness/irrigation/${unitId}/deactivate/${modelName}`);
-    },
-
-    /**
-     * Get activation status of all ML models for a unit
-     * @param {number} unitId - Growth unit ID
-     * @returns {Promise<Object>} Model activation statuses (model_name -> bool)
-     */
-    getActivationStatus(unitId) {
-        return get(`/api/ml/readiness/irrigation/${unitId}/status`);
-    },
-
-    /**
-     * Trigger readiness check for all units
-     * @returns {Promise<Object>} Check results with notifications sent
-     */
-    checkAll() {
-        return post('/api/ml/readiness/check-all');
     }
 };
 
@@ -3566,106 +3134,6 @@ const PersonalizedLearningAPI = {
      */
     findSimilarGrowers(unitId, limit = 5) {
         return get(`/api/ml/personalized/similar-growers/${unitId}?limit=${limit}`);
-    },
-
-    /**
-     * Fetch condition profile selector payload for wizard UI
-     * @param {Object} params - selector filters
-     * @returns {Promise<Object>} selector payload
-     */
-    getConditionProfileSelector(params = {}) {
-        const cleaned = Object.fromEntries(
-            Object.entries(params).filter(([, value]) => (
-                value !== undefined && value !== null && value !== '' && value !== 'undefined'
-            ))
-        );
-        const query = new URLSearchParams(cleaned).toString();
-        return get(`/api/ml/personalized/condition-profiles/selector${query ? `?${query}` : ''}`);
-    },
-
-    /**
-     * List condition profiles for a user
-     * @param {number} userId - User ID
-     * @param {Object} [filters] - Optional filters
-     * @returns {Promise<Object>} Profiles list
-     */
-    listConditionProfiles(userId, filters = {}) {
-        const query = new URLSearchParams(filters).toString();
-        return get(`/api/ml/personalized/condition-profiles/user/${userId}${query ? `?${query}` : ''}`);
-    },
-
-    /**
-     * Get a single condition profile
-     * @param {Object} params - query params
-     * @returns {Promise<Object>} Profile payload
-     */
-    getConditionProfile(params = {}) {
-        const query = new URLSearchParams(params).toString();
-        return get(`/api/ml/personalized/condition-profiles${query ? `?${query}` : ''}`);
-    },
-
-    /**
-     * Create or update a condition profile
-     * @param {Object} payload - Profile data
-     * @returns {Promise<Object>} Upserted profile
-     */
-    upsertConditionProfile(payload) {
-        return post('/api/ml/personalized/condition-profiles', payload);
-    },
-
-    /**
-     * Clone a condition profile
-     * @param {Object} payload - Clone request
-     * @returns {Promise<Object>} Cloned profile
-     */
-    cloneConditionProfile(payload) {
-        return post('/api/ml/personalized/condition-profiles/clone', payload);
-    },
-
-    /**
-     * Share a condition profile
-     * @param {Object} payload - Share request
-     * @returns {Promise<Object>} Share payload
-     */
-    shareConditionProfile(payload) {
-        return post('/api/ml/personalized/condition-profiles/share', payload);
-    },
-
-    /**
-     * List public shared profiles
-     * @returns {Promise<Object>} Shared profiles
-     */
-    listSharedConditionProfiles() {
-        return get('/api/ml/personalized/condition-profiles/shared');
-    },
-
-    /**
-     * Import a shared profile
-     * @param {Object} payload - Import request
-     * @returns {Promise<Object>} Imported profile
-     */
-    importSharedConditionProfile(payload) {
-        return post('/api/ml/personalized/condition-profiles/import', payload);
-    },
-
-    /**
-     * Apply a condition profile to a unit (environment thresholds)
-     * @param {number} unitId - Unit ID
-     * @param {Object} payload - Apply request
-     * @returns {Promise<Object>} Apply result
-     */
-    applyConditionProfileToUnit(unitId, payload) {
-        return post(`/api/growth/v2/units/${unitId}/thresholds/apply-profile`, payload);
-    },
-
-    /**
-     * Apply a condition profile to a live plant
-     * @param {number} plantId - Plant ID
-     * @param {Object} payload - Apply request
-     * @returns {Promise<Object>} Apply result
-     */
-    applyConditionProfileToPlant(plantId, payload) {
-        return post(`/api/plants/${plantId}/apply-profile`, payload);
     }
 };
 
@@ -3727,20 +3195,6 @@ const TrainingDataAPI = {
      */
     getQualityMetrics(datasetType) {
         return get(`/api/ml/training-data/quality/${datasetType}`);
-    },
-
-    /**
-     * Get quality metrics for all dataset types
-     * @returns {Promise<Object>} Aggregated quality metrics
-     */
-    async getQuality() {
-        const types = ['disease', 'climate', 'growth'];
-        const results = await Promise.allSettled(types.map(t => this.getQualityMetrics(t)));
-        const quality = {};
-        types.forEach((t, i) => {
-            quality[t] = results[i].status === 'fulfilled' ? results[i].value : null;
-        });
-        return quality;
     }
 };
 
@@ -4219,11 +3673,11 @@ const AIAPI = {
 
 const StatusAPI = {
     /**
-     * Get system status
+     * Get status page data
      * @returns {Promise<Object>} Status data
      */
     getStatus() {
-        return get('/api/health/system');
+        return get('/status/');
     },
 
     /**
@@ -4232,95 +3686,6 @@ const StatusAPI = {
      */
     getHealth() {
         return get('/api/health/system');
-    }
-};
-
-// ============================================================================
-// ESP32 / SYSGrow Bridge API
-// ============================================================================
-
-/**
- * ESP32 / SYSGrow bridge management endpoints.
- * Handles BLE pairing, health checks, firmware updates, and device discovery.
- */
-const ESP32API = {
-    /**
-     * Scan for SYSGrow devices (enable BLE pairing / permit-join)
-     * @param {Object} [options] - Scan options
-     * @param {number} [options.time] - Scan timeout in seconds (default: 30)
-     * @returns {Promise<Object>} Scan result
-     */
-    scan(options = {}) {
-        return post('/api/devices/v2/sysgrow/permit-join', {
-            value: true,
-            time: options.time || 30
-        });
-    },
-
-    /**
-     * Get SYSGrow device info by sensor ID
-     * @param {number} deviceId - Sensor/device ID
-     * @returns {Promise<Object>} Device info
-     */
-    getDevice(deviceId) {
-        return get(`/api/devices/v2/sensors/${deviceId}/device-info`);
-    },
-
-    /**
-     * Update SYSGrow device settings
-     * @param {number} deviceId - Sensor/device ID
-     * @param {Object} data - Update payload (e.g. name, config)
-     * @returns {Promise<Object>} Update result
-     */
-    updateDevice(deviceId, data) {
-        return patch(`/api/devices/v2/sensors/${deviceId}`, data);
-    },
-
-    /**
-     * Check firmware status / trigger OTA update check
-     * @param {number} deviceId - Device ID
-     * @returns {Promise<Object>} Firmware status
-     */
-    checkFirmware(deviceId) {
-        return get(`/api/devices/v2/sensors/${deviceId}/device-info`);
-    },
-
-    /**
-     * Provision / restart a SYSGrow device
-     * @param {number} deviceId - Device ID
-     * @returns {Promise<Object>} Provision result
-     */
-    provision(deviceId) {
-        return post(`/api/devices/v2/sensors/${deviceId}/command`, { restart: true });
-    },
-
-    /**
-     * Get bridge health status
-     * @returns {Promise<Object>} Bridge health
-     */
-    getHealth() {
-        return get('/api/devices/v2/sysgrow/health');
-    },
-
-    /**
-     * Restart all SYSGrow devices on the network
-     * @returns {Promise<Object>} Restart result
-     */
-    restartAll() {
-        return post('/api/devices/v2/sysgrow/restart-all', {});
-    },
-
-    /**
-     * Trigger OTA firmware update on a device
-     * @param {string} deviceId - Device friendly_name or sensor_id
-     * @param {string} firmwareUrl - Firmware binary URL
-     * @returns {Promise<Object>} OTA update result
-     */
-    otaUpdate(deviceId, firmwareUrl) {
-        return post('/api/devices/v2/sysgrow/ota-update', {
-            id: deviceId,
-            url: firmwareUrl
-        });
     }
 };
 
@@ -4387,17 +3752,6 @@ const SystemAPI = {
      */
     clearAllAlerts() {
         return post('/api/system/alerts/clear-all');
-    },
-
-    /**
-     * Export system data
-     * @param {Object} [options] - Export options
-     * @param {string} [options.format='json'] - Export format (json, csv)
-     * @returns {Promise<Object>} Export data or download URL
-     */
-    exportData(options = {}) {
-        const format = options.format || 'json';
-        return get(`/api/dashboard/summary?format=${encodeURIComponent(format)}`);
     }
 };
 
@@ -4822,13 +4176,10 @@ const API = {
     Settings: SettingsAPI,
     ML: MLAPI,
     AI: AIAPI,
-    ESP32: ESP32API,
     GrowthStages: GrowthStagesAPI,
     Retraining: RetrainingAPI,
     ABTesting: ABTestingAPI,
-    MLReadiness: MLReadinessAPI,
     ContinuousMonitoring: ContinuousMonitoringAPI,
-    Continuous: ContinuousMonitoringAPI,
     PersonalizedLearning: PersonalizedLearningAPI,
     TrainingData: TrainingDataAPI,
     Session: SessionAPI,

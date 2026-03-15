@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-from app.control_loops import PlantSensorController
+from types import SimpleNamespace
+
 from app.enums import IrrigationEligibilityDecision, IrrigationSkipReason
+from app.controllers import PlantSensorController
 from app.utils.event_bus import EventBus
 
 
@@ -11,7 +13,9 @@ class StubAnalyticsRepo:
         self.snapshots = []
 
     def insert_sensor_reading(self, sensor_id: int, reading_data: dict, timestamp: str) -> None:
-        self.readings.append({"sensor_id": sensor_id, "reading_data": reading_data, "timestamp": timestamp})
+        self.readings.append(
+            {"sensor_id": sensor_id, "reading_data": reading_data, "timestamp": timestamp}
+        )
 
     def save_plant_reading(self, **kwargs):
         self.snapshots.append(kwargs)

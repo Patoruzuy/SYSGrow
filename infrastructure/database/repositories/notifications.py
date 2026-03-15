@@ -1,8 +1,7 @@
 """Repository for notification-related database operations."""
-
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 from infrastructure.database.ops.notifications import NotificationOperations
 
@@ -15,11 +14,11 @@ class NotificationRepository:
 
     # --- Notification Settings ---
 
-    def get_settings(self, user_id: int) -> dict[str, Any] | None:
+    def get_settings(self, user_id: int) -> Optional[Dict[str, Any]]:
         """Get notification settings for a user."""
         return self._backend.get_notification_settings(user_id)
 
-    def save_settings(self, user_id: int, settings: dict[str, Any]) -> bool:
+    def save_settings(self, user_id: int, settings: Dict[str, Any]) -> bool:
         """Save notification settings for a user."""
         return self._backend.upsert_notification_settings(user_id, settings)
 
@@ -33,14 +32,14 @@ class NotificationRepository:
         message: str,
         severity: str,
         channel: str,
-        source_type: str | None = None,
-        source_id: int | None = None,
-        unit_id: int | None = None,
+        source_type: Optional[str] = None,
+        source_id: Optional[int] = None,
+        unit_id: Optional[int] = None,
         requires_action: bool = False,
-        action_type: str | None = None,
-        action_data: str | None = None,
-        expires_at: str | None = None,
-    ) -> int | None:
+        action_type: Optional[str] = None,
+        action_data: Optional[str] = None,
+        expires_at: Optional[str] = None,
+    ) -> Optional[int]:
         """Create a new notification message."""
         return self._backend.create_notification_message(
             user_id=user_id,
@@ -64,11 +63,11 @@ class NotificationRepository:
         unread_only: bool = False,
         limit: int = 50,
         offset: int = 0,
-    ) -> list[dict[str, Any]]:
+    ) -> List[Dict[str, Any]]:
         """Get notifications for a user."""
         return self._backend.get_user_notifications(user_id, unread_only, limit, offset)
 
-    def get_message_by_id(self, message_id: int) -> dict[str, Any] | None:
+    def get_message_by_id(self, message_id: int) -> Optional[Dict[str, Any]]:
         """Get a notification by ID."""
         return self._backend.get_notification_by_id(message_id)
 
@@ -84,7 +83,7 @@ class NotificationRepository:
         self,
         message_id: int,
         sent: bool,
-        error: str | None = None,
+        error: Optional[str] = None,
     ) -> bool:
         """Update email delivery status."""
         return self._backend.update_email_status(message_id, sent, error)
@@ -104,8 +103,8 @@ class NotificationRepository:
     def get_pending_actions(
         self,
         user_id: int,
-        action_type: str | None = None,
-    ) -> list[dict[str, Any]]:
+        action_type: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
         """Get notifications that require user action."""
         return self._backend.get_pending_action_notifications(user_id, action_type)
 
@@ -123,15 +122,15 @@ class NotificationRepository:
         self,
         user_id: int,
         unit_id: int,
-        plant_id: int | None = None,
-        actuator_id: int | None = None,
-        soil_moisture_before: float | None = None,
-        soil_moisture_after: float | None = None,
-        irrigation_duration_seconds: int | None = None,
-        feedback_response: str | None = None,
-        feedback_notes: str | None = None,
-        suggested_adjustment: float | None = None,
-    ) -> int | None:
+        plant_id: Optional[int] = None,
+        actuator_id: Optional[int] = None,
+        soil_moisture_before: Optional[float] = None,
+        soil_moisture_after: Optional[float] = None,
+        irrigation_duration_seconds: Optional[int] = None,
+        feedback_response: Optional[str] = None,
+        feedback_notes: Optional[str] = None,
+        suggested_adjustment: Optional[float] = None,
+    ) -> Optional[int]:
         """Create an irrigation feedback record."""
         return self._backend.create_irrigation_feedback(
             user_id=user_id,
@@ -150,8 +149,8 @@ class NotificationRepository:
         self,
         feedback_id: int,
         feedback_response: str,
-        feedback_notes: str | None = None,
-        suggested_adjustment: float | None = None,
+        feedback_notes: Optional[str] = None,
+        suggested_adjustment: Optional[float] = None,
     ) -> bool:
         """Update irrigation feedback response."""
         return self._backend.update_irrigation_feedback(
@@ -162,11 +161,11 @@ class NotificationRepository:
         self,
         unit_id: int,
         limit: int = 20,
-    ) -> list[dict[str, Any]]:
+    ) -> List[Dict[str, Any]]:
         """Get irrigation feedback history for a unit."""
         return self._backend.get_irrigation_feedback_history(unit_id, limit)
 
-    def get_pending_irrigation_feedback(self, user_id: int) -> list[dict[str, Any]]:
+    def get_pending_irrigation_feedback(self, user_id: int) -> List[Dict[str, Any]]:
         """Get irrigation feedback records awaiting user response."""
         return self._backend.get_pending_irrigation_feedback(user_id)
 

@@ -1,10 +1,8 @@
 # Python
 *.pyc
 __pycache__/
-*.egg-info/
 .pytest_cache
 .venv/
-.venv311/
 .env
 .vscode
 .git
@@ -12,16 +10,17 @@ __pycache__/
 .log
 .pyc
 .coude/
-.github/**/*.md
 
-
+docs/
 venv/
 .env/
+.venv311/
 build/
 dist/
 __pycache__/
+docs/
 .env.example
-*.OBSOLETE
+*.md
 
 # Local runtime artifacts
 devices_system.log
@@ -47,55 +46,5 @@ nginx/certbot/www/
 # Others
 .DS_Store
 devices_system.log
-bandit_app_only.json
-bandit_app_summary.txt
-bandit_report_app.json
-bandit_report.json
-bandit_services.json
-bandit_json.exit
-bandit_json_stdout.txt
-radon_cc_summary.txt
-radon_dashboard.json
-radon_top_f.txt
-
-# Stale test/analysis output
-test_results.txt
-test_failures_detail.txt
-remaining_failures.txt
-
-reports/
-service_documentation_overview_20260214_161851.ipynb
-data/user_profiles/condition_profiles/user_1_condition_profiles.json
-data/user_profiles/condition_profiles/links/user_1_condition_profile_links.json
-data/user_profiles/condition_profiles/shared/FS426oJnFoo_uZ8L2WmYNw.json
-docs/FRONTEND_AUDIT_REPORT.md
-.github/skills/AUDIT_CONTEXT.md
-.github/skills/API_ENDPOINTS.md
-.github/skills/CURRENT_STATE.md
-.github/skills/CLAUDE.md
-.github/skills/PROJECT_OVERVIEW.md
-.github/skills/frontend-design.md
-var/pytest_check.txt
-var/pytest_final.txt
-var/pytest_run.txt
-var/pytest_targeted.txt
-.github/AUDIT_AI_SERVICES_REVIEW.md
-.github/AUDIT_FULL_REVIEW.md
-.github/AUDIT_SERVICES_REVIEW.md
-.github/copilot-instructions.md
-.github/agents/opus.agent.md
-.github/prompts/ask-opus.prompt.md
-.github/prompts/AUDIT_REPORT.md
-.github/prompts/audit.md
-.github/prompts/full-review.md
-.github/prompts/opus.agent.md
-.github/AUDIT_AI_SERVICES_REVIEW.md
-.github/AUDIT_FULL_REVIEW.md
-.github/AUDIT_SERVICES_REVIEW.md
-.github/copilot-instructions.md
-.github/agents/opus.agent.md
-.github/prompts/ask-opus.prompt.md
-.github/prompts/AUDIT_REPORT.md
-.github/prompts/audit.md
-.github/prompts/full-review.md
-.github/prompts/opus.agent.md
+devices_system.log
+devices_system.log

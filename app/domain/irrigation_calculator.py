@@ -7,15 +7,14 @@ Replaces all hardcoded irrigation defaults with data-driven calculations.
 Usage:
     calculator = IrrigationCalculator(plant_view_service)
     result = calculator.calculate(plant_id=1, pump_flow_rate=3.5)
-
+    
 ML Integration:
     calculator = IrrigationCalculator(plant_view_service, ml_predictor=ml_service)
     result = calculator.calculate_with_ml(plant_id=1, pump_flow_rate=3.5)
 """
-
-import logging
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, Protocol
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Protocol
+import logging
 
 from app.constants import (
     GROWTH_STAGE_VOLUME_MULTIPLIERS,
@@ -25,50 +24,27 @@ from app.constants import (
 )
 
 if TYPE_CHECKING:
+    from app.services.application.plant_service import PlantViewService
     from app.domain.plant_profile import PlantProfile
-
-
-# ── Domain Protocols (avoid importing service layer) ─────────────────
-
-
-class WateringScheduleProvider(Protocol):
-    """Minimal interface for looking up plant-type watering data."""
-
-    def get_watering_schedule(self, plant_type: str) -> dict[str, Any]: ...
-
-
-class PlantDataProvider(Protocol):
-    """
-    Domain-side contract for plant data access.
-
-    Implemented by PlantViewService (service layer) — the domain never
-    imports the concrete class, keeping the dependency arrow clean.
-    """
-
-    @property
-    def plant_json_handler(self) -> WateringScheduleProvider: ...
-
-    def get_plant(self, plant_id: int, unit_id: int | None = None) -> "PlantProfile | None": ...
-
 
 logger = logging.getLogger(__name__)
 
 
 class MLPredictorProtocol(Protocol):
     """Protocol for ML prediction services."""
-
+    
     def predict_water_volume(
         self,
         plant_id: int,
-        environmental_data: dict[str, float],
-    ) -> float | None:
+        environmental_data: Dict[str, float],
+    ) -> Optional[float]:
         """Predict optimal water volume based on environmental conditions."""
         ...
-
+    
     def get_adjustment_factor(
         self,
         plant_id: int,
-        historical_feedback: list[dict[str, Any]],
+        historical_feedback: List[Dict[str, Any]],
     ) -> float:
         """Get adjustment factor based on historical feedback."""
         ...
@@ -77,14 +53,14 @@ class MLPredictorProtocol(Protocol):
 @dataclass
 class MLPrediction:
     """ML prediction result for irrigation."""
-
-    predicted_volume_ml: float | None = None
+    
+    predicted_volume_ml: Optional[float] = None
     adjustment_factor: float = 1.0
     confidence: float = 0.0
     model_version: str = ""
-    features_used: list[str] = field(default_factory=list)
-
-    def to_dict(self) -> dict[str, Any]:
+    features_used: List[str] = field(default_factory=list)
+    
+    def to_dict(self) -> Dict[str, Any]:
         return {
             "predicted_volume_ml": self.predicted_volume_ml,
             "adjustment_factor": self.adjustment_factor,
@@ -105,17 +81,17 @@ class IrrigationCalculation:
     reasoning: str
 
     # Input parameters (for debugging/logging)
-    plant_id: int | None = None
+    plant_id: Optional[int] = None
     pot_size_liters: float = 0.0
     growing_medium: str = "soil"
     growth_stage: str = "vegetative"
     plant_type: str = "default"
-
+    
     # ML integration fields
-    ml_prediction: MLPrediction | None = None
+    ml_prediction: Optional[MLPrediction] = None
     ml_adjusted: bool = False
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for API response."""
         result = {
             "water_volume_ml": round(self.water_volume_ml, 1),
@@ -148,7 +124,7 @@ class IrrigationCalculator:
         stage_factor = growth_stage_multipliers[current_stage]
 
         volume_ml = base_ml * pot_factor * medium_factor * stage_factor
-
+        
     ML Integration:
         When an ML predictor is provided, the calculator can:
         1. Use ML predictions as the primary water volume source
@@ -161,21 +137,21 @@ class IrrigationCalculator:
 
     # Default water amount if not specified in plant data
     DEFAULT_BASE_ML = 100.0
-
+    
     # ML blending threshold - use ML if confidence > this
     ML_CONFIDENCE_THRESHOLD = 0.7
 
     def __init__(
         self,
-        plant_service: PlantDataProvider,
-        ml_predictor: MLPredictorProtocol | None = None,
-        feedback_callback: Callable[[int, str, float], None] | None = None,
+        plant_service: "PlantViewService",
+        ml_predictor: Optional[MLPredictorProtocol] = None,
+        feedback_callback: Optional[Callable[[int, str, float], None]] = None,
     ):
         """
         Initialize calculator with plant service for data access.
 
         Args:
-            plant_service: Any object satisfying PlantDataProvider (e.g. PlantViewService)
+            plant_service: PlantViewService for accessing plant and watering data
             ml_predictor: Optional ML service for predictions and adjustments
             feedback_callback: Optional callback for recording irrigation feedback
                               Signature: (plant_id, feedback_type, volume_ml) -> None
@@ -210,7 +186,9 @@ class IrrigationCalculator:
         factors = []
 
         # Get base amount from plant type via PlantViewService
-        watering_schedule = self._plant_service.plant_json_handler.get_watering_schedule(plant_type)
+        watering_schedule = self._plant_service.plant_json_handler.get_watering_schedule(
+            plant_type
+        )
         base_ml = watering_schedule.get("amount_ml_per_plant", self.DEFAULT_BASE_ML)
         factors.append(f"base={base_ml}ml")
 
@@ -231,7 +209,7 @@ class IrrigationCalculator:
 
         # Calculate final volume
         volume_ml = base_ml * pot_factor * medium_factor * stage_factor
-        reasoning = " x ".join(factors) + f" = {volume_ml:.1f}ml"
+        reasoning = " × ".join(factors) + f" = {volume_ml:.1f}ml"
 
         return volume_ml, reasoning
 
@@ -239,8 +217,8 @@ class IrrigationCalculator:
         self,
         volume_ml: float,
         flow_rate_ml_per_second: float,
-        min_duration: int | None = None,
-        max_duration: int | None = None,
+        min_duration: Optional[int] = None,
+        max_duration: Optional[int] = None,
     ) -> int:
         """
         Compute irrigation duration in seconds.
@@ -272,7 +250,7 @@ class IrrigationCalculator:
     def calculate(
         self,
         plant_id: int,
-        pump_flow_rate: float | None = None,
+        pump_flow_rate: Optional[float] = None,
     ) -> IrrigationCalculation:
         """
         Full irrigation calculation for a plant.
@@ -303,7 +281,7 @@ class IrrigationCalculator:
     def calculate_for_plant(
         self,
         plant: "PlantProfile",
-        pump_flow_rate: float | None = None,
+        pump_flow_rate: Optional[float] = None,
     ) -> IrrigationCalculation:
         """
         Calculate irrigation for a PlantProfile instance.
@@ -346,7 +324,10 @@ class IrrigationCalculator:
 
         # Build reasoning string
         calibration_note = "calibrated" if is_calibrated else "estimated"
-        reasoning = f"{volume_reasoning}; duration={duration}s at {flow_rate:.2f}ml/s ({calibration_note})"
+        reasoning = (
+            f"{volume_reasoning}; "
+            f"duration={duration}s at {flow_rate:.2f}ml/s ({calibration_note})"
+        )
 
         return IrrigationCalculation(
             water_volume_ml=volume_ml,
@@ -424,7 +405,6 @@ class IrrigationCalculator:
         adjusted_increase = base_increase * medium_config.retention_coefficient
 
         return min(adjusted_increase, 50.0)  # Cap at 50% increase
-
     # =========================================================================
     # ML Integration Methods
     # =========================================================================
@@ -432,8 +412,8 @@ class IrrigationCalculator:
     def calculate_with_ml(
         self,
         plant_id: int,
-        pump_flow_rate: float | None = None,
-        environmental_data: dict[str, float] | None = None,
+        pump_flow_rate: Optional[float] = None,
+        environmental_data: Optional[Dict[str, float]] = None,
     ) -> IrrigationCalculation:
         """
         Calculate irrigation with ML enhancement.
@@ -451,14 +431,14 @@ class IrrigationCalculator:
         """
         # Get base formula calculation
         base_result = self.calculate(plant_id, pump_flow_rate)
-
+        
         # If no ML predictor, return base result
         if not self._ml_predictor:
             return base_result
-
+        
         # Get ML prediction
         ml_prediction = self._get_ml_prediction(plant_id, environmental_data or {})
-
+        
         if not ml_prediction:
             return base_result
 
@@ -472,16 +452,16 @@ class IrrigationCalculator:
             # ML not confident enough, return formula-based with prediction data
             base_result.ml_prediction = ml_prediction
             return base_result
-
+        
         # Apply ML adjustment or use ML prediction
         adjusted_volume = self._blend_with_ml(
             formula_volume=base_result.water_volume_ml,
             ml_prediction=ml_prediction,
         )
-
+        
         # Recalculate duration with adjusted volume
         duration = self.compute_duration(adjusted_volume, base_result.flow_rate_ml_per_second)
-
+        
         # Update result
         return IrrigationCalculation(
             water_volume_ml=adjusted_volume,
@@ -501,8 +481,8 @@ class IrrigationCalculator:
     def _get_ml_prediction(
         self,
         plant_id: int,
-        environmental_data: dict[str, float],
-    ) -> MLPrediction | None:
+        environmental_data: Dict[str, float],
+    ) -> Optional[MLPrediction]:
         """
         Get ML prediction for irrigation volume.
 
@@ -515,15 +495,17 @@ class IrrigationCalculator:
         """
         if not self._ml_predictor:
             return None
-
+        
         try:
-            predicted_volume = self._ml_predictor.predict_water_volume(plant_id, environmental_data)
-
+            predicted_volume = self._ml_predictor.predict_water_volume(
+                plant_id, environmental_data
+            )
+            
             # Phase 3.3: Get plant-specific historical feedback
             historical_feedback = []
             try:
                 plant = self._plant_service.get_plant(plant_id)
-                if plant and hasattr(plant, "unit_id") and hasattr(self._ml_predictor, "get_feedback_for_plant"):
+                if plant and hasattr(plant, 'unit_id') and hasattr(self._ml_predictor, 'get_feedback_for_plant'):
                     # Pass plant_id for plant-specific learning (Phase 3)
                     historical_feedback = self._ml_predictor.get_feedback_for_plant(
                         unit_id=plant.unit_id,
@@ -531,11 +513,13 @@ class IrrigationCalculator:
                         plant_id=plant_id,  # Phase 3: Plant-specific learning
                     )
             except Exception as e:
-                logger.debug("Could not fetch historical feedback for plant %s: %s", plant_id, e)
-
+                logger.debug(f"Could not fetch historical feedback for plant {plant_id}: {e}")
+            
             # Phase 3.3: Get adjustment factor with plant-specific learning
-            adjustment_factor = self._ml_predictor.get_adjustment_factor(plant_id, historical_feedback)
-
+            adjustment_factor = self._ml_predictor.get_adjustment_factor(
+                plant_id, historical_feedback
+            )
+            
             # Calculate confidence based on whether we have ML prediction and feedback
             # Handle case where historical_feedback might be a Mock or other non-list type
             feedback_count = 0
@@ -543,7 +527,7 @@ class IrrigationCalculator:
                 feedback_count = len(historical_feedback) if historical_feedback else 0
             except (TypeError, AttributeError):
                 feedback_count = 0
-
+            
             confidence = 0.0
             if predicted_volume is not None:
                 confidence = 0.7  # Base confidence for ML prediction
@@ -553,7 +537,7 @@ class IrrigationCalculator:
             elif adjustment_factor != 1.0 and feedback_count > 0:
                 # Only have adjustment factor from feedback
                 confidence = min(0.6, 0.4 + feedback_count * 0.01)
-
+            
             return MLPrediction(
                 predicted_volume_ml=predicted_volume,
                 adjustment_factor=adjustment_factor,
@@ -590,7 +574,10 @@ class IrrigationCalculator:
             ml_volume = ml_prediction.predicted_volume_ml * ml_prediction.adjustment_factor
             ml_weight = ml_prediction.confidence
             formula_weight = 1.0 - ml_weight
-            return formula_volume * formula_weight + ml_volume * ml_weight
+            return (
+                formula_volume * formula_weight + 
+                ml_volume * ml_weight
+            )
         else:
             # Apply adjustment factor
             return formula_volume * ml_prediction.adjustment_factor
@@ -613,7 +600,8 @@ class IrrigationCalculator:
             try:
                 self._feedback_callback(plant_id, feedback_type, volume_ml)
                 logger.info(
-                    "Recorded irrigation feedback for plant %s: %s (%.1f ml)", plant_id, feedback_type, volume_ml
+                    "Recorded irrigation feedback for plant %s: %s (%.1f ml)",
+                    plant_id, feedback_type, volume_ml
                 )
             except Exception as e:
                 logger.error("Failed to record feedback: %s", e)
@@ -622,8 +610,8 @@ class IrrigationCalculator:
         self,
         plant_id: int,
         current_moisture: float,
-        target_moisture: float | None = None,
-    ) -> dict[str, Any]:
+        target_moisture: Optional[float] = None,
+    ) -> Dict[str, Any]:
         """
         Get irrigation recommendations for a plant.
 
@@ -642,15 +630,18 @@ class IrrigationCalculator:
                 "urgency": "low",
                 "reason": "Plant not found",
             }
-
+        
         growing_medium = plant.growing_medium or "soil"
         medium_config = GrowingMediumConfig.get(growing_medium)
-
+        
         if target_moisture is None:
-            target_moisture = (medium_config.recommended_moisture_min + medium_config.recommended_moisture_max) / 2
-
+            target_moisture = (
+                medium_config.recommended_moisture_min + 
+                medium_config.recommended_moisture_max
+            ) / 2
+        
         moisture_deficit = target_moisture - current_moisture
-
+        
         # Determine action and urgency
         if current_moisture < medium_config.recommended_moisture_min:
             urgency = "high" if moisture_deficit > 20 else "medium"

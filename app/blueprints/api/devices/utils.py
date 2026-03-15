@@ -5,52 +5,33 @@ Shared utilities for device management API
 Common helper functions, response builders, and service accessors
 used across all device API modules.
 """
-
 from __future__ import annotations
 
 import logging
 from typing import Any
 
-# Re-export shared utilities from centralized module.
-# These are imported by sub-modules (control.py, crud.py, sensors.py, shared.py, etc.)
-# via ``from ..utils import _success, _fail, ...``.
+from app.schemas.device import SensorResponse, ActuatorResponse
+
+# Import shared utilities from centralized module
 from app.blueprints.api._common import (
-    fail as _fail,
-    get_actuator_service as _actuator_service,
-    get_analytics_service as _analytics_service,
-    get_device_coordinator as _device_coordinator,
-    get_device_health_service as _device_health_service,
-    get_device_repo as _device_repo,
-    get_growth_service as _growth_service,
-    get_sensor_service as _sensor_service,
-    get_zigbee_service as _zigbee_service,
     success as _success,
+    fail as _fail,
+    get_growth_service as _growth_service,
+    get_device_health_service as _device_health_service,
+    get_device_coordinator as _device_coordinator,
+    get_analytics_service as _analytics_service,
+    get_device_repo as _device_repo,
+    get_zigbee_service as _zigbee_service,
+    get_sensor_service as _sensor_service,
+    get_actuator_service as _actuator_service,
 )
-from app.schemas.device import ActuatorResponse, SensorResponse
 
 logger = logging.getLogger("devices_api")
-
-__all__ = [
-    "_actuator_service",
-    "_actuator_to_response",
-    "_analytics_service",
-    "_device_coordinator",
-    "_device_health_service",
-    "_device_repo",
-    "_fail",
-    "_growth_service",
-    "_sensor_service",
-    "_sensor_to_response",
-    "_success",
-    "_to_csv",
-    "_zigbee_service",
-]
 
 
 # =====================================
 # RESPONSE MAPPERS
 # =====================================
-
 
 def _sensor_to_response(sensor: dict[str, Any]) -> SensorResponse:
     """Map database sensor dict to SensorResponse schema"""
@@ -101,20 +82,19 @@ def _actuator_to_response(actuator: dict[str, Any]) -> ActuatorResponse:
 # CSV EXPORT HELPER
 # =====================================
 
-
 def _to_csv(rows: list[dict], headers: list[str]) -> str:
     """Convert rows to CSV format"""
     import csv
     from io import StringIO
-
+    
     output = StringIO()
     writer = csv.writer(output)
-
+    
     # Write header
     writer.writerow(headers)
-
+    
     # Write data rows
     for row in rows:
-        writer.writerow([row.get(h, "") for h in headers])
-
+        writer.writerow([row.get(h, '') for h in headers])
+    
     return output.getvalue()

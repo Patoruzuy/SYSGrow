@@ -1,14 +1,11 @@
-import logging
 import os
-from contextlib import suppress
-from logging.handlers import RotatingFileHandler
-
 import requests
-
+import logging
+from logging.handlers import RotatingFileHandler
 from app.enums.events import DeviceEvent
-from app.schemas.events import ConnectivityStatePayload, RelayStatePayload
+from app.schemas.events import RelayStatePayload, ConnectivityStatePayload
+from datetime import datetime
 from app.utils.time import iso_now
-
 from .relay_base import RelayBase
 
 # Module-level logger with rotation (prevents unbounded log file growth)
@@ -19,13 +16,12 @@ if not logger.handlers:
         "logs/devices.log",
         maxBytes=10 * 1024 * 1024,  # 10MB
         backupCount=3,
-        encoding="utf-8",
+        encoding="utf-8"
     )
     _handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
     logger.addHandler(_handler)
     logger.setLevel(logging.INFO)
     logger.propagate = False  # Don't duplicate to root logger
-
 
 class WiFiRelay(RelayBase):
     """
@@ -34,7 +30,7 @@ class WiFiRelay(RelayBase):
     Attributes:
         device (str): The name of the controlled device.
         ip (str): The IP address of the relay module.
-
+    
     Methods:
         turn_on(): Sends an HTTP request to turn on the relay.
         turn_off(): Sends an HTTP request to turn off the relay.
@@ -59,9 +55,9 @@ class WiFiRelay(RelayBase):
                 DeviceEvent.RELAY_STATE_CHANGED,
                 RelayStatePayload(device=self.device, state="on"),
             )  # Publish Event
-            logger.info("Turned on WiFi relay for %s at %s", self.device, self.ip)
+            logger.info(f"Turned on WiFi relay for {self.device} at {self.ip}")
         except Exception as e:
-            logger.error("Error turning on WiFi relay %s: %s", self.device, e)
+            logger.error(f"Error turning on WiFi relay {self.device}: {e}")
 
     def turn_off(self):
         """Sends an HTTP request to turn off the relay."""
@@ -71,9 +67,9 @@ class WiFiRelay(RelayBase):
                 DeviceEvent.RELAY_STATE_CHANGED,
                 RelayStatePayload(device=self.device, state="off"),
             )  # Publish Event
-            logger.info("Turned off WiFi relay for %s at %s", self.device, self.ip)
+            logger.info(f"Turned off WiFi relay for {self.device} at {self.ip}")
         except Exception as e:
-            logger.error("Error turning off WiFi relay %s: %s", self.device, e)
+            logger.error(f"Error turning off WiFi relay {self.device}: {e}")
 
     def _send_request(self, state: str):
         """
@@ -87,7 +83,7 @@ class WiFiRelay(RelayBase):
             response = requests.get(url, timeout=5)  # Added timeout
             response.raise_for_status()
             # Emit connectivity success event for WiFi reachability
-            with suppress(Exception):
+            try:
                 self.event_bus.publish(
                     DeviceEvent.CONNECTIVITY_CHANGED,
                     ConnectivityStatePayload(
@@ -98,9 +94,11 @@ class WiFiRelay(RelayBase):
                         timestamp=iso_now(),
                     ),
                 )
+            except Exception:
+                pass
         except requests.exceptions.RequestException as e:
             # Emit connectivity failure event for WiFi reachability
-            with suppress(Exception):
+            try:
                 self.event_bus.publish(
                     DeviceEvent.CONNECTIVITY_CHANGED,
                     ConnectivityStatePayload(
@@ -112,4 +110,6 @@ class WiFiRelay(RelayBase):
                         details={"error": str(e)},
                     ),
                 )
-            raise Exception(f"Error controlling relay at {url}: {e}") from e
+            except Exception:
+                pass
+            raise Exception(f"Error controlling relay at {url}: {e}") from e  

@@ -1,0 +1,7066 @@
+{
+  "summary": {
+    "backend_route_count": 423,
+    "backend_normalized_count": 769,
+    "frontend_ref_count": 425,
+    "frontend_normalized_count": 332,
+    "backend_only_count": 504,
+    "frontend_only_count": 67,
+    "backend_only_by_domain": {
+      "analytics": 3,
+      "anomalies": 2,
+      "dashboard": 5,
+      "devices": 18,
+      "docs": 2,
+      "growth": 6,
+      "harvests": 1,
+      "health": 12,
+      "irrigation": 6,
+      "ml": 32,
+      "plants": 26,
+      "settings": 5,
+      "units": 5,
+      "v1": 381
+    }
+  },
+  "backend_only": [
+    {
+      "normalized": "/api/analytics/actuators/overview",
+      "routes": [
+        {
+          "rule": "/api/v1/analytics/actuators/overview",
+          "endpoint": "analytics_api.get_actuators_overview",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/analytics/dashboard/environmental-summary",
+      "routes": [
+        {
+          "rule": "/api/v1/analytics/dashboard/environmental-summary",
+          "endpoint": "analytics_api.get_environmental_summary",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/analytics/sensors/day-night/summary",
+      "routes": [
+        {
+          "rule": "/api/v1/analytics/sensors/day-night/summary",
+          "endpoint": "analytics_api.get_day_night_summary",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/anomalies",
+      "routes": [
+        {
+          "rule": "/api/v1/anomalies/",
+          "endpoint": "anomalies_api.list_anomalies",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/anomalies/summary",
+      "routes": [
+        {
+          "rule": "/api/v1/anomalies/summary",
+          "endpoint": "anomalies_api.anomaly_summary",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/dashboard/growth-stage",
+      "routes": [
+        {
+          "rule": "/api/v1/dashboard/growth-stage",
+          "endpoint": "dashboard_api.get_growth_stage",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/dashboard/harvest-timeline",
+      "routes": [
+        {
+          "rule": "/api/v1/dashboard/harvest-timeline",
+          "endpoint": "dashboard_api.get_harvest_timeline",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/dashboard/irrigation-status",
+      "routes": [
+        {
+          "rule": "/api/v1/dashboard/irrigation-status",
+          "endpoint": "dashboard_api.get_irrigation_status",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/dashboard/timeseries",
+      "routes": [
+        {
+          "rule": "/api/v1/dashboard/timeseries",
+          "endpoint": "dashboard_api.get_timeseries",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/dashboard/water-schedule",
+      "routes": [
+        {
+          "rule": "/api/v1/dashboard/water-schedule",
+          "endpoint": "dashboard_api.get_water_schedule",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/devices/actuators/state-history/prune",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/actuators/state-history/prune",
+          "endpoint": "devices_api.prune_actuator_state_history",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/devices/actuators/{}/state-history",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/actuators/<int:actuator_id>/state-history",
+          "endpoint": "devices_api.get_actuator_state_history",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/devices/actuators/{}/state-history.csv",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/actuators/<int:actuator_id>/state-history.csv",
+          "endpoint": "devices_api.export_actuator_state_history_csv",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/devices/connectivity-history",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/connectivity-history",
+          "endpoint": "devices_api.get_connectivity_history",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/devices/connectivity-history.csv",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/connectivity-history.csv",
+          "endpoint": "devices_api.export_connectivity_history_csv",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/devices/units/{}/actuators/state-history",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/units/<int:unit_id>/actuators/state-history",
+          "endpoint": "devices_api.get_unit_actuator_state_history",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/devices/units/{}/actuators/state-history.csv",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/units/<int:unit_id>/actuators/state-history.csv",
+          "endpoint": "devices_api.export_unit_actuator_state_history_csv",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/devices/v2/actuators/{}/device-info",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/v2/actuators/<int:actuator_id>/device-info",
+          "endpoint": "devices_api.get_actuator_device_info",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/devices/v2/actuators/{}/identify",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/v2/actuators/<int:actuator_id>/identify",
+          "endpoint": "devices_api.identify_actuator",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/devices/v2/actuators/{}/remove-from-network",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/v2/actuators/<int:actuator_id>/remove-from-network",
+          "endpoint": "devices_api.remove_actuator_from_network",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/devices/v2/actuators/{}/rename",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/v2/actuators/<int:actuator_id>/rename",
+          "endpoint": "devices_api.rename_actuator_device",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/devices/v2/sensors/{}/identify",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/v2/sensors/<int:sensor_id>/identify",
+          "endpoint": "devices_api.identify_sensor",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/devices/v2/sensors/{}/remove-from-network",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/v2/sensors/<int:sensor_id>/remove-from-network",
+          "endpoint": "devices_api.remove_sensor_from_network",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/devices/v2/sensors/{}/rename",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/v2/sensors/<int:sensor_id>/rename",
+          "endpoint": "devices_api.rename_sensor_device",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/devices/v2/sensors/{}/state",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/v2/sensors/<int:sensor_id>/state",
+          "endpoint": "devices_api.get_sensor_state",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/devices/v2/zigbee2mqtt/devices/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/v2/zigbee2mqtt/devices/<ieee_address>",
+          "endpoint": "devices_api.get_zigbee_device",
+          "methods": [
+            "GET"
+          ]
+        },
+        {
+          "rule": "/api/v1/devices/v2/zigbee2mqtt/devices/<ieee_address>",
+          "endpoint": "devices_api.remove_zigbee_device",
+          "methods": [
+            "DELETE"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/devices/v2/zigbee2mqtt/devices/{}/rename",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/v2/zigbee2mqtt/devices/<ieee_address>/rename",
+          "endpoint": "devices_api.rename_zigbee_device",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/devices/v2/zigbee2mqtt/devices/{}/state",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/v2/zigbee2mqtt/devices/<ieee_address>/state",
+          "endpoint": "devices_api.get_zigbee_device_state",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/docs",
+      "routes": [
+        {
+          "rule": "/api/v1/docs/",
+          "endpoint": "docs_api.swagger_ui",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/docs/openapi.json",
+      "routes": [
+        {
+          "rule": "/api/v1/docs/openapi.json",
+          "endpoint": "docs_api.openapi_spec",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/growth/thresholds/proposal/respond",
+      "routes": [
+        {
+          "rule": "/api/v1/growth/thresholds/proposal/respond",
+          "endpoint": "growth_api.respond_to_threshold_proposal",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/growth/units/{}/thresholds",
+      "routes": [
+        {
+          "rule": "/api/v1/growth/units/<int:unit_id>/thresholds",
+          "endpoint": "growth_api.get_thresholds",
+          "methods": [
+            "GET"
+          ]
+        },
+        {
+          "rule": "/api/v1/growth/units/<int:unit_id>/thresholds",
+          "endpoint": "growth_api.set_thresholds",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/growth/v3/schedules/{}/execution-log",
+      "routes": [
+        {
+          "rule": "/api/v1/growth/v3/schedules/<int:schedule_id>/execution-log",
+          "endpoint": "growth_api.get_schedule_execution_log",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/growth/v3/units/{}/schedules/conflicts",
+      "routes": [
+        {
+          "rule": "/api/v1/growth/v3/units/<int:unit_id>/schedules/conflicts",
+          "endpoint": "growth_api.detect_schedule_conflicts",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/growth/v3/units/{}/schedules/history",
+      "routes": [
+        {
+          "rule": "/api/v1/growth/v3/units/<int:unit_id>/schedules/history",
+          "endpoint": "growth_api.get_schedule_history",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/growth/v3/units/{}/schedules/preview",
+      "routes": [
+        {
+          "rule": "/api/v1/growth/v3/units/<int:unit_id>/schedules/preview",
+          "endpoint": "growth_api.preview_schedules",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/harvests/compare",
+      "routes": [
+        {
+          "rule": "/api/v1/harvests/compare",
+          "endpoint": "harvest.compare_specific_harvests",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/health",
+      "routes": [
+        {
+          "rule": "/api/v1/health",
+          "endpoint": "harvest.health_check",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/health/cache",
+      "routes": [
+        {
+          "rule": "/api/v1/health/cache",
+          "endpoint": "health_api.get_cache_metrics",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/health/cache-stats",
+      "routes": [
+        {
+          "rule": "/api/v1/health/cache-stats",
+          "endpoint": "health_api.get_cache_statistics",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/health/cache-warm",
+      "routes": [
+        {
+          "rule": "/api/v1/health/cache-warm",
+          "endpoint": "health_api.warm_caches",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/health/cache/repository",
+      "routes": [
+        {
+          "rule": "/api/v1/health/cache/repository",
+          "endpoint": "health_api.get_repository_cache_metrics",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/health/check-alerts",
+      "routes": [
+        {
+          "rule": "/api/v1/health/check-alerts",
+          "endpoint": "health_api.check_health_and_create_alerts",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/health/performance-metrics",
+      "routes": [
+        {
+          "rule": "/api/v1/health/performance-metrics",
+          "endpoint": "health_api.get_performance_metrics",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/health/plants/attention",
+      "routes": [
+        {
+          "rule": "/api/v1/health/plants/attention",
+          "endpoint": "health_api.get_plants_needing_attention",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/health/plants/{}/observations",
+      "routes": [
+        {
+          "rule": "/api/v1/health/plants/<int:plant_id>/observations",
+          "endpoint": "health_api.get_plant_observations",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/health/plants/{}/observe",
+      "routes": [
+        {
+          "rule": "/api/v1/health/plants/<int:plant_id>/observe",
+          "endpoint": "health_api.record_health_observation",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/health/plants/{}/score",
+      "routes": [
+        {
+          "rule": "/api/v1/health/plants/<int:plant_id>/score",
+          "endpoint": "health_api.get_plant_health_score",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/health/units/{}/plants/scores",
+      "routes": [
+        {
+          "rule": "/api/v1/health/units/<int:unit_id>/plants/scores",
+          "endpoint": "health_api.get_unit_plants_health_scores",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/irrigation/calculate/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/irrigation/calculate/<int:plant_id>",
+          "endpoint": "irrigation.calculate_irrigation",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/irrigation/eligibility/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/irrigation/eligibility/<int:unit_id>",
+          "endpoint": "irrigation.get_eligibility_traces",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/irrigation/executions/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/irrigation/executions/<int:unit_id>",
+          "endpoint": "irrigation.get_execution_logs",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/irrigation/manual/log",
+      "routes": [
+        {
+          "rule": "/api/v1/irrigation/manual/log",
+          "endpoint": "irrigation.log_manual_irrigation",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/irrigation/manual/predict/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/irrigation/manual/predict/<int:plant_id>",
+          "endpoint": "irrigation.predict_manual_next_irrigation",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/irrigation/manual/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/irrigation/manual/<int:unit_id>",
+          "endpoint": "irrigation.get_manual_irrigation_history",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/ml/analysis/correlations",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/analysis/correlations",
+          "endpoint": "ml_analysis.analyze_correlations",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/ml/analysis/patterns",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/analysis/patterns",
+          "endpoint": "ml_analysis.detect_patterns",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/ml/analytics/energy/actuator/{}/dashboard",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/analytics/energy/actuator/<int:actuator_id>/dashboard",
+          "endpoint": "ml_analytics.get_actuator_energy_dashboard",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/ml/analytics/energy/actuator/{}/predict-failure",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/analytics/energy/actuator/<int:actuator_id>/predict-failure",
+          "endpoint": "ml_analytics.predict_actuator_failure",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/ml/continuous/insights",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/continuous/insights",
+          "endpoint": "ml_continuous.get_all_insights",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/ml/models/{}/metadata",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/models/<string:model_name>/metadata",
+          "endpoint": "ml_models.get_model_metadata",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/ml/models/{}/promote",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/models/<string:model_name>/promote",
+          "endpoint": "ml_models.promote_model_version",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/ml/models/{}/versions",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/models/<string:model_name>/versions",
+          "endpoint": "ml_models.list_model_versions",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/ml/monitoring/drift/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/monitoring/drift/<string:model_name>",
+          "endpoint": "ml_monitoring.check_model_drift",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/ml/monitoring/insights/critical",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/monitoring/insights/critical",
+          "endpoint": "ml_monitoring.get_critical_insights",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/ml/monitoring/training/history",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/monitoring/training/history",
+          "endpoint": "ml_monitoring.get_training_history",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/ml/personalized/condition-profiles/selector",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/personalized/condition-profiles/selector",
+          "endpoint": "ml_personalized.get_condition_profile_selector",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/ml/personalized/condition-profiles/shared/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/personalized/condition-profiles/shared/<string:token>",
+          "endpoint": "ml_personalized.get_shared_condition_profile",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/ml/personalized/condition-profiles/user/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/personalized/condition-profiles/user/<int:user_id>",
+          "endpoint": "ml_personalized.list_condition_profiles",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/ml/predictions/climate/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/predictions/climate/<string:growth_stage>",
+          "endpoint": "ml_predictions.predict_climate_conditions",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/ml/predictions/climate/{}/watering-issues",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/predictions/climate/<int:unit_id>/watering-issues",
+          "endpoint": "ml_predictions.detect_watering_issues",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/ml/predictions/disease/risk",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/predictions/disease/risk",
+          "endpoint": "ml_predictions.predict_disease_risk",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/ml/predictions/disease/risks",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/predictions/disease/risks",
+          "endpoint": "ml_predictions.get_all_disease_risks",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/ml/predictions/growth/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/predictions/growth/<string:stage>",
+          "endpoint": "ml_predictions.predict_growth_conditions",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/ml/predictions/health/{}/recommendations",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/predictions/health/<int:unit_id>/recommendations",
+          "endpoint": "ml_predictions.get_health_recommendations",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/ml/predictions/irrigation/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/predictions/irrigation/<int:unit_id>",
+          "endpoint": "ml_predictions.get_irrigation_predictions",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/ml/predictions/irrigation/{}/duration",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/predictions/irrigation/<int:unit_id>/duration",
+          "endpoint": "ml_predictions.get_irrigation_duration_prediction",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/ml/predictions/irrigation/{}/next",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/predictions/irrigation/<int:unit_id>/next",
+          "endpoint": "ml_predictions.get_irrigation_next_prediction",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/ml/predictions/irrigation/{}/response",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/predictions/irrigation/<int:unit_id>/response",
+          "endpoint": "ml_predictions.get_irrigation_response_prediction",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/ml/predictions/irrigation/{}/threshold",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/predictions/irrigation/<int:unit_id>/threshold",
+          "endpoint": "ml_predictions.get_irrigation_threshold_prediction",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/ml/predictions/irrigation/{}/timing",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/predictions/irrigation/<int:unit_id>/timing",
+          "endpoint": "ml_predictions.get_irrigation_timing_prediction",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/ml/retraining/events",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/retraining/events",
+          "endpoint": "ml_retraining.get_events",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/ml/retraining/jobs/{}/disable",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/retraining/jobs/<job_id>/disable",
+          "endpoint": "ml_retraining.disable_job",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/ml/retraining/jobs/{}/pause",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/retraining/jobs/<job_id>/pause",
+          "endpoint": "ml_retraining.pause_job",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/ml/retraining/jobs/{}/resume",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/retraining/jobs/<job_id>/resume",
+          "endpoint": "ml_retraining.resume_job",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/ml/training-data/plant-health/status",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/training-data/plant-health/status",
+          "endpoint": "ml_training_data.get_plant_health_training_status",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/ml/training-data/plant-health/train",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/training-data/plant-health/train",
+          "endpoint": "ml_training_data.train_plant_health_models",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/plants/automation-status",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/automation-status",
+          "endpoint": "plants_api.get_automation_status",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/plants/disease-risk",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/disease-risk",
+          "endpoint": "plants_api.get_disease_risk",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/plants/disease/history",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/disease/history",
+          "endpoint": "disease.get_disease_history",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/plants/disease/occurrences",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/disease/occurrences",
+          "endpoint": "disease.record_disease_occurrence",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/plants/disease/occurrences/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/disease/occurrences/<int:occurrence_id>",
+          "endpoint": "disease.get_disease_occurrence",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/plants/disease/occurrences/{}/resolve",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/disease/occurrences/<int:occurrence_id>/resolve",
+          "endpoint": "disease.resolve_disease_occurrence",
+          "methods": [
+            "PUT"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/plants/disease/prediction/accuracy",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/disease/prediction/accuracy",
+          "endpoint": "disease.get_prediction_accuracy",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/plants/disease/prediction/feedback",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/disease/prediction/feedback",
+          "endpoint": "disease.record_prediction_feedback",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/plants/disease/statistics",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/disease/statistics",
+          "endpoint": "disease.get_disease_statistics",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/plants/environmental-alerts",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/environmental-alerts",
+          "endpoint": "plants_api.get_environmental_alerts",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/plants/harvest-recommendations",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/harvest-recommendations",
+          "endpoint": "plants_api.get_harvest_recommendations",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/plants/harvests",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/harvests",
+          "endpoint": "plants_api.get_harvests",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/plants/health/statuses",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/health/statuses",
+          "endpoint": "plants_api.get_health_statuses",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/plants/health/symptoms",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/health/symptoms",
+          "endpoint": "plants_api.get_available_symptoms",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/plants/journal",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/journal",
+          "endpoint": "plants_api.get_journal_entries",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/plants/journal/watering",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/journal/watering",
+          "endpoint": "plants_api.create_watering_record",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/plants/lighting-schedule",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/lighting-schedule",
+          "endpoint": "plants_api.get_lighting_schedule",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/plants/types/{}/performance",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/types/<plant_type>/performance",
+          "endpoint": "harvest.get_plant_type_performance",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/plants/units/{}/vpd",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/units/<int:unit_id>/vpd",
+          "endpoint": "plants_api.get_vpd_status",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/plants/watering-decision",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/watering-decision",
+          "endpoint": "plants_api.get_watering_decision",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/plants/yield-projection",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/yield-projection",
+          "endpoint": "plants_api.get_yield_projection",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/plants/{}/journal/environmental-adjustment",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/<int:plant_id>/journal/environmental-adjustment",
+          "endpoint": "plants_api.add_environmental_adjustment_entry",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/plants/{}/journal/pruning",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/<int:plant_id>/journal/pruning",
+          "endpoint": "plants_api.add_pruning_entry",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/plants/{}/journal/transplant",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/<int:plant_id>/journal/transplant",
+          "endpoint": "plants_api.add_transplant_entry",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/plants/{}/journal/watering",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/<int:plant_id>/journal/watering",
+          "endpoint": "plants_api.add_watering_entry",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/plants/{}/journal/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/<int:plant_id>/journal/<int:entry_id>",
+          "endpoint": "plants_api.update_journal_entry",
+          "methods": [
+            "PUT"
+          ]
+        },
+        {
+          "rule": "/api/v1/plants/<int:plant_id>/journal/<int:entry_id>",
+          "endpoint": "plants_api.delete_journal_entry",
+          "methods": [
+            "DELETE"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/settings/database/backup",
+      "routes": [
+        {
+          "rule": "/api/v1/settings/database/backup",
+          "endpoint": "settings_api.create_database_backup",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/settings/database/prune",
+      "routes": [
+        {
+          "rule": "/api/v1/settings/database/prune",
+          "endpoint": "settings_api.prune_sensor_readings",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/settings/database/vacuum",
+      "routes": [
+        {
+          "rule": "/api/v1/settings/database/vacuum",
+          "endpoint": "settings_api.vacuum_database",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/settings/notifications/actions",
+      "routes": [
+        {
+          "rule": "/api/v1/settings/notifications/actions",
+          "endpoint": "settings_api.get_pending_actions",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/settings/retention/actuator-state",
+      "routes": [
+        {
+          "rule": "/api/v1/settings/retention/actuator-state",
+          "endpoint": "settings_api.get_retention_days",
+          "methods": [
+            "GET"
+          ]
+        },
+        {
+          "rule": "/api/v1/settings/retention/actuator-state",
+          "endpoint": "settings_api.set_retention_days",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/units/{}/growth-cycles/compare",
+      "routes": [
+        {
+          "rule": "/api/v1/units/<int:unit_id>/growth-cycles/compare",
+          "endpoint": "harvest.compare_growth_cycles",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/units/{}/harvest-environment",
+      "routes": [
+        {
+          "rule": "/api/v1/units/<int:unit_id>/harvest-environment",
+          "endpoint": "harvest.get_harvest_environment_stats",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/units/{}/harvest-stats",
+      "routes": [
+        {
+          "rule": "/api/v1/units/<int:unit_id>/harvest-stats",
+          "endpoint": "harvest.get_unit_harvest_stats",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/units/{}/plants",
+      "routes": [
+        {
+          "rule": "/api/v1/units/<int:unit_id>/plants",
+          "endpoint": "harvest.get_plants_for_unit",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/units/{}/sensor-summaries",
+      "routes": [
+        {
+          "rule": "/api/v1/units/<int:unit_id>/sensor-summaries",
+          "endpoint": "harvest.get_unit_sensor_summaries",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/analytics/actuators/overview",
+      "routes": [
+        {
+          "rule": "/api/v1/analytics/actuators/overview",
+          "endpoint": "analytics_api.get_actuators_overview",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/analytics/actuators/{}/anomalies",
+      "routes": [
+        {
+          "rule": "/api/v1/analytics/actuators/<int:actuator_id>/anomalies",
+          "endpoint": "analytics_api.get_actuator_anomalies",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/analytics/actuators/{}/dashboard",
+      "routes": [
+        {
+          "rule": "/api/v1/analytics/actuators/<int:actuator_id>/dashboard",
+          "endpoint": "analytics_api.get_actuator_dashboard",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/analytics/actuators/{}/energy-costs",
+      "routes": [
+        {
+          "rule": "/api/v1/analytics/actuators/<int:actuator_id>/energy-costs",
+          "endpoint": "analytics_api.get_actuator_energy_costs",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/analytics/actuators/{}/predict-failure",
+      "routes": [
+        {
+          "rule": "/api/v1/analytics/actuators/<int:actuator_id>/predict-failure",
+          "endpoint": "analytics_api.predict_actuator_failure",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/analytics/actuators/{}/recommendations",
+      "routes": [
+        {
+          "rule": "/api/v1/analytics/actuators/<int:actuator_id>/recommendations",
+          "endpoint": "analytics_api.get_actuator_recommendations",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/analytics/batch/failure-predictions",
+      "routes": [
+        {
+          "rule": "/api/v1/analytics/batch/failure-predictions",
+          "endpoint": "analytics_api.get_batch_failure_predictions",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/analytics/dashboard/energy-summary",
+      "routes": [
+        {
+          "rule": "/api/v1/analytics/dashboard/energy-summary",
+          "endpoint": "analytics_api.get_energy_summary",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/analytics/dashboard/environmental-summary",
+      "routes": [
+        {
+          "rule": "/api/v1/analytics/dashboard/environmental-summary",
+          "endpoint": "analytics_api.get_environmental_summary",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/analytics/efficiency-score",
+      "routes": [
+        {
+          "rule": "/api/v1/analytics/efficiency-score",
+          "endpoint": "analytics_api.get_efficiency_score",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/analytics/sensors/correlations",
+      "routes": [
+        {
+          "rule": "/api/v1/analytics/sensors/correlations",
+          "endpoint": "analytics_api.get_sensors_correlations",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/analytics/sensors/day-night/summary",
+      "routes": [
+        {
+          "rule": "/api/v1/analytics/sensors/day-night/summary",
+          "endpoint": "analytics_api.get_day_night_summary",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/analytics/sensors/history",
+      "routes": [
+        {
+          "rule": "/api/v1/analytics/sensors/history",
+          "endpoint": "analytics_api.get_sensors_history",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/analytics/sensors/history/enriched",
+      "routes": [
+        {
+          "rule": "/api/v1/analytics/sensors/history/enriched",
+          "endpoint": "analytics_api.get_sensors_history_enriched",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/analytics/sensors/overview",
+      "routes": [
+        {
+          "rule": "/api/v1/analytics/sensors/overview",
+          "endpoint": "analytics_api.get_sensors_overview",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/analytics/sensors/statistics",
+      "routes": [
+        {
+          "rule": "/api/v1/analytics/sensors/statistics",
+          "endpoint": "analytics_api.get_sensors_statistics",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/analytics/sensors/trends",
+      "routes": [
+        {
+          "rule": "/api/v1/analytics/sensors/trends",
+          "endpoint": "analytics_api.get_sensors_trends",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/analytics/units/comparison",
+      "routes": [
+        {
+          "rule": "/api/v1/analytics/units/comparison",
+          "endpoint": "analytics_api.get_multi_unit_comparison",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/analytics/units/{}/comparison",
+      "routes": [
+        {
+          "rule": "/api/v1/analytics/units/<int:unit_id>/comparison",
+          "endpoint": "analytics_api.get_unit_comparison",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/anomalies",
+      "routes": [
+        {
+          "rule": "/api/v1/anomalies/",
+          "endpoint": "anomalies_api.list_anomalies",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/anomalies/summary",
+      "routes": [
+        {
+          "rule": "/api/v1/anomalies/summary",
+          "endpoint": "anomalies_api.anomaly_summary",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/blog/categories",
+      "routes": [
+        {
+          "rule": "/api/v1/blog/categories",
+          "endpoint": "blog_api.get_categories",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/blog/featured",
+      "routes": [
+        {
+          "rule": "/api/v1/blog/featured",
+          "endpoint": "blog_api.get_featured",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/blog/post/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/blog/post/<slug>",
+          "endpoint": "blog_api.get_post",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/blog/posts",
+      "routes": [
+        {
+          "rule": "/api/v1/blog/posts",
+          "endpoint": "blog_api.get_posts",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/blog/search",
+      "routes": [
+        {
+          "rule": "/api/v1/blog/search",
+          "endpoint": "blog_api.search_posts",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/blog/tags",
+      "routes": [
+        {
+          "rule": "/api/v1/blog/tags",
+          "endpoint": "blog_api.get_tags",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/dashboard/actuators/recent-state",
+      "routes": [
+        {
+          "rule": "/api/v1/dashboard/actuators/recent-state",
+          "endpoint": "dashboard_api.get_recent_actuator_state",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/dashboard/connectivity/recent",
+      "routes": [
+        {
+          "rule": "/api/v1/dashboard/connectivity/recent",
+          "endpoint": "dashboard_api.get_recent_connectivity",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/dashboard/growth-stage",
+      "routes": [
+        {
+          "rule": "/api/v1/dashboard/growth-stage",
+          "endpoint": "dashboard_api.get_growth_stage",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/dashboard/harvest-timeline",
+      "routes": [
+        {
+          "rule": "/api/v1/dashboard/harvest-timeline",
+          "endpoint": "dashboard_api.get_harvest_timeline",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/dashboard/irrigation-status",
+      "routes": [
+        {
+          "rule": "/api/v1/dashboard/irrigation-status",
+          "endpoint": "dashboard_api.get_irrigation_status",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/dashboard/sensors/current",
+      "routes": [
+        {
+          "rule": "/api/v1/dashboard/sensors/current",
+          "endpoint": "dashboard_api.get_current_sensor_data",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/dashboard/status",
+      "routes": [
+        {
+          "rule": "/api/v1/dashboard/status",
+          "endpoint": "dashboard_api.get_system_status",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/dashboard/summary",
+      "routes": [
+        {
+          "rule": "/api/v1/dashboard/summary",
+          "endpoint": "dashboard_api.get_dashboard_summary",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/dashboard/timeseries",
+      "routes": [
+        {
+          "rule": "/api/v1/dashboard/timeseries",
+          "endpoint": "dashboard_api.get_timeseries",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/dashboard/water-schedule",
+      "routes": [
+        {
+          "rule": "/api/v1/dashboard/water-schedule",
+          "endpoint": "dashboard_api.get_water_schedule",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/actuators/energy/comparative-analysis",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/actuators/energy/comparative-analysis",
+          "endpoint": "devices_api.get_comparative_energy_analysis",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/actuators/state-history/prune",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/actuators/state-history/prune",
+          "endpoint": "devices_api.prune_actuator_state_history",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/actuators/total-power",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/actuators/total-power",
+          "endpoint": "devices_api.get_total_power",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/actuators/{}/calibrations",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/actuators/<int:actuator_id>/calibrations",
+          "endpoint": "devices_api.get_actuator_calibrations",
+          "methods": [
+            "GET"
+          ]
+        },
+        {
+          "rule": "/api/v1/devices/actuators/<int:actuator_id>/calibrations",
+          "endpoint": "devices_api.save_actuator_calibration",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/actuators/{}/cost",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/actuators/<int:actuator_id>/cost",
+          "endpoint": "devices_api.get_actuator_cost_estimate",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/actuators/{}/energy",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/actuators/<int:actuator_id>/energy",
+          "endpoint": "devices_api.get_actuator_energy_stats",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/actuators/{}/energy/anomalies",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/actuators/<int:actuator_id>/energy/anomalies",
+          "endpoint": "devices_api.detect_actuator_power_anomalies",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/actuators/{}/energy/cost-trends",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/actuators/<int:actuator_id>/energy/cost-trends",
+          "endpoint": "devices_api.get_actuator_energy_cost_trends",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/actuators/{}/energy/dashboard",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/actuators/<int:actuator_id>/energy/dashboard",
+          "endpoint": "devices_api.get_actuator_energy_dashboard",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/actuators/{}/energy/recommendations",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/actuators/<int:actuator_id>/energy/recommendations",
+          "endpoint": "devices_api.get_actuator_optimization_recommendations",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/actuators/{}/power",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/actuators/<int:actuator_id>/power",
+          "endpoint": "devices_api.get_actuator_power",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/actuators/{}/power-readings",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/actuators/<int:actuator_id>/power-readings",
+          "endpoint": "devices_api.get_actuator_power_readings",
+          "methods": [
+            "GET"
+          ]
+        },
+        {
+          "rule": "/api/v1/devices/actuators/<int:actuator_id>/power-readings",
+          "endpoint": "devices_api.save_actuator_power_reading",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/actuators/{}/state-history",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/actuators/<int:actuator_id>/state-history",
+          "endpoint": "devices_api.get_actuator_state_history",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/actuators/{}/state-history.csv",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/actuators/<int:actuator_id>/state-history.csv",
+          "endpoint": "devices_api.export_actuator_state_history_csv",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/actuators/{}/toggle",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/actuators/<int:actuator_id>/toggle",
+          "endpoint": "devices_api.toggle_actuator",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/all/unit/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/all/unit/<int:unit_id>",
+          "endpoint": "devices_api.get_all_devices_for_unit",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/analytics/actuators/predict-failures",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/analytics/actuators/predict-failures",
+          "endpoint": "devices_api.predict_all_actuator_failures",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/analytics/actuators/{}/dashboard",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/analytics/actuators/<int:actuator_id>/dashboard",
+          "endpoint": "devices_api.get_analytics_actuator_dashboard",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/analytics/actuators/{}/predict-failure",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/analytics/actuators/<int:actuator_id>/predict-failure",
+          "endpoint": "devices_api.predict_actuator_failure",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/config/actuator_types",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/config/actuator_types",
+          "endpoint": "devices_api.get_actuator_types",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/config/adc_channels",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/config/adc_channels",
+          "endpoint": "devices_api.get_available_adc_channels",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/config/gpio_pins",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/config/gpio_pins",
+          "endpoint": "devices_api.get_available_gpio_pins",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/config/sensor_types",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/config/sensor_types",
+          "endpoint": "devices_api.get_sensor_types",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/connectivity-history",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/connectivity-history",
+          "endpoint": "devices_api.get_connectivity_history",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/connectivity-history.csv",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/connectivity-history.csv",
+          "endpoint": "devices_api.export_connectivity_history_csv",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/control_actuator",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/control_actuator",
+          "endpoint": "devices_api.control_actuator_by_type",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/sensors/discover",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/sensors/discover",
+          "endpoint": "devices_api.discover_mqtt_sensors",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/sensors/{}/anomalies",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/sensors/<int:sensor_id>/anomalies",
+          "endpoint": "devices_api.check_sensor_anomalies",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/sensors/{}/calibrate",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/sensors/<int:sensor_id>/calibrate",
+          "endpoint": "devices_api.calibrate_sensor",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/sensors/{}/history/anomalies",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/sensors/<int:sensor_id>/history/anomalies",
+          "endpoint": "devices_api.get_sensor_anomaly_history",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/sensors/{}/history/calibration",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/sensors/<int:sensor_id>/history/calibration",
+          "endpoint": "devices_api.get_sensor_calibration_history",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/sensors/{}/history/health",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/sensors/<int:sensor_id>/history/health",
+          "endpoint": "devices_api.get_sensor_health_history",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/sensors/{}/read",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/sensors/<int:sensor_id>/read",
+          "endpoint": "devices_api.read_sensor_value",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/sensors/{}/statistics",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/sensors/<int:sensor_id>/statistics",
+          "endpoint": "devices_api.get_sensor_statistics",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/sensors/{}/zigbee2mqtt/calibration",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/sensors/<int:sensor_id>/zigbee2mqtt/calibration",
+          "endpoint": "devices_api.get_zigbee2mqtt_calibration",
+          "methods": [
+            "GET"
+          ]
+        },
+        {
+          "rule": "/api/v1/devices/sensors/<int:sensor_id>/zigbee2mqtt/calibration",
+          "endpoint": "devices_api.set_zigbee2mqtt_calibration",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/units/{}/actuators/state-history",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/units/<int:unit_id>/actuators/state-history",
+          "endpoint": "devices_api.get_unit_actuator_state_history",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/units/{}/actuators/state-history.csv",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/units/<int:unit_id>/actuators/state-history.csv",
+          "endpoint": "devices_api.export_unit_actuator_state_history_csv",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/v2/actuators",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/v2/actuators",
+          "endpoint": "devices_api.get_all_actuators_",
+          "methods": [
+            "GET"
+          ]
+        },
+        {
+          "rule": "/api/v1/devices/v2/actuators",
+          "endpoint": "devices_api.add_actuator_v2",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/v2/actuators/unit/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/v2/actuators/unit/<int:unit_id>",
+          "endpoint": "devices_api.get_actuators_for_unit",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/v2/actuators/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/v2/actuators/<int:actuator_id>",
+          "endpoint": "devices_api.remove_actuator",
+          "methods": [
+            "DELETE"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/v2/actuators/{}/command",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/v2/actuators/<int:actuator_id>/command",
+          "endpoint": "devices_api.send_actuator_command",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/v2/actuators/{}/device-info",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/v2/actuators/<int:actuator_id>/device-info",
+          "endpoint": "devices_api.get_actuator_device_info",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/v2/actuators/{}/identify",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/v2/actuators/<int:actuator_id>/identify",
+          "endpoint": "devices_api.identify_actuator",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/v2/actuators/{}/remove-from-network",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/v2/actuators/<int:actuator_id>/remove-from-network",
+          "endpoint": "devices_api.remove_actuator_from_network",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/v2/actuators/{}/rename",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/v2/actuators/<int:actuator_id>/rename",
+          "endpoint": "devices_api.rename_actuator_device",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/v2/sensors",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/v2/sensors",
+          "endpoint": "devices_api.get_all_sensors",
+          "methods": [
+            "GET"
+          ]
+        },
+        {
+          "rule": "/api/v1/devices/v2/sensors",
+          "endpoint": "devices_api.add_sensor",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/v2/sensors/primary-metrics/resolve",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/v2/sensors/primary-metrics/resolve",
+          "endpoint": "devices_api.resolve_primary_metrics_conflicts",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/v2/sensors/unit/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/v2/sensors/unit/<int:unit_id>",
+          "endpoint": "devices_api.get_unit_sensors",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/v2/sensors/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/v2/sensors/<int:sensor_id>",
+          "endpoint": "devices_api.remove_sensor",
+          "methods": [
+            "DELETE"
+          ]
+        },
+        {
+          "rule": "/api/v1/devices/v2/sensors/<int:sensor_id>",
+          "endpoint": "devices_api.update_sensor",
+          "methods": [
+            "PATCH"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/v2/sensors/{}/command",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/v2/sensors/<int:sensor_id>/command",
+          "endpoint": "devices_api.send_sensor_command",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/v2/sensors/{}/device-info",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/v2/sensors/<int:sensor_id>/device-info",
+          "endpoint": "devices_api.get_sensor_device_info",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/v2/sensors/{}/identify",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/v2/sensors/<int:sensor_id>/identify",
+          "endpoint": "devices_api.identify_sensor",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/v2/sensors/{}/primary-metrics",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/v2/sensors/<int:sensor_id>/primary-metrics",
+          "endpoint": "devices_api.update_primary_metrics",
+          "methods": [
+            "PATCH"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/v2/sensors/{}/remove-from-network",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/v2/sensors/<int:sensor_id>/remove-from-network",
+          "endpoint": "devices_api.remove_sensor_from_network",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/v2/sensors/{}/rename",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/v2/sensors/<int:sensor_id>/rename",
+          "endpoint": "devices_api.rename_sensor_device",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/v2/sensors/{}/state",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/v2/sensors/<int:sensor_id>/state",
+          "endpoint": "devices_api.get_sensor_state",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/v2/sysgrow/health",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/v2/sysgrow/health",
+          "endpoint": "devices_api.sysgrow_health_check",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/v2/sysgrow/ota-update",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/v2/sysgrow/ota-update",
+          "endpoint": "devices_api.sysgrow_ota_update",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/v2/sysgrow/permit-join",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/v2/sysgrow/permit-join",
+          "endpoint": "devices_api.sysgrow_permit_join",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/v2/sysgrow/restart-all",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/v2/sysgrow/restart-all",
+          "endpoint": "devices_api.sysgrow_restart_all",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/v2/zigbee2mqtt/actuators",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/v2/zigbee2mqtt/actuators",
+          "endpoint": "devices_api.get_zigbee_actuators",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/v2/zigbee2mqtt/bridge/status",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/v2/zigbee2mqtt/bridge/status",
+          "endpoint": "devices_api.get_zigbee_bridge_status",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/v2/zigbee2mqtt/devices/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/v2/zigbee2mqtt/devices/<ieee_address>",
+          "endpoint": "devices_api.get_zigbee_device",
+          "methods": [
+            "GET"
+          ]
+        },
+        {
+          "rule": "/api/v1/devices/v2/zigbee2mqtt/devices/<ieee_address>",
+          "endpoint": "devices_api.remove_zigbee_device",
+          "methods": [
+            "DELETE"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/v2/zigbee2mqtt/devices/{}/rename",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/v2/zigbee2mqtt/devices/<ieee_address>/rename",
+          "endpoint": "devices_api.rename_zigbee_device",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/v2/zigbee2mqtt/devices/{}/state",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/v2/zigbee2mqtt/devices/<ieee_address>/state",
+          "endpoint": "devices_api.get_zigbee_device_state",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/v2/zigbee2mqtt/discover",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/v2/zigbee2mqtt/discover",
+          "endpoint": "devices_api.discover_zigbee_devices",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/v2/zigbee2mqtt/permit-join",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/v2/zigbee2mqtt/permit-join",
+          "endpoint": "devices_api.permit_zigbee_join",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/v2/zigbee2mqtt/rediscover",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/v2/zigbee2mqtt/rediscover",
+          "endpoint": "devices_api.force_zigbee_rediscovery",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/v2/zigbee2mqtt/sensors",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/v2/zigbee2mqtt/sensors",
+          "endpoint": "devices_api.get_zigbee_sensors",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/zigbee2mqtt/command",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/zigbee2mqtt/command",
+          "endpoint": "devices_api.send_zigbee2mqtt_command",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/zigbee2mqtt/devices",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/zigbee2mqtt/devices",
+          "endpoint": "devices_api.get_zigbee2mqtt_devices",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/devices/zigbee2mqtt/devices/unit/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/devices/zigbee2mqtt/devices/unit/<int:unit_id>",
+          "endpoint": "devices_api.get_zigbee2mqtt_devices_by_unit",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/docs",
+      "routes": [
+        {
+          "rule": "/api/v1/docs/",
+          "endpoint": "docs_api.swagger_ui",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/docs/openapi.json",
+      "routes": [
+        {
+          "rule": "/api/v1/docs/openapi.json",
+          "endpoint": "docs_api.openapi_spec",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/growth/thresholds/proposal/respond",
+      "routes": [
+        {
+          "rule": "/api/v1/growth/thresholds/proposal/respond",
+          "endpoint": "growth_api.respond_to_threshold_proposal",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/growth/thresholds/recommended",
+      "routes": [
+        {
+          "rule": "/api/v1/growth/thresholds/recommended",
+          "endpoint": "growth_api.get_recommended_thresholds",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/growth/units/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/growth/units/<int:unit_id>",
+          "endpoint": "growth_api.get_unit",
+          "methods": [
+            "GET"
+          ]
+        },
+        {
+          "rule": "/api/v1/growth/units/<int:unit_id>",
+          "endpoint": "growth_api.update_unit",
+          "methods": [
+            "PATCH"
+          ]
+        },
+        {
+          "rule": "/api/v1/growth/units/<int:unit_id>",
+          "endpoint": "growth_api.delete_unit",
+          "methods": [
+            "DELETE"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/growth/units/{}/camera/capture",
+      "routes": [
+        {
+          "rule": "/api/v1/growth/units/<int:unit_id>/camera/capture",
+          "endpoint": "growth_api.capture_photo",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/growth/units/{}/camera/feed",
+      "routes": [
+        {
+          "rule": "/api/v1/growth/units/<int:unit_id>/camera/feed",
+          "endpoint": "growth_api.camera_feed",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/growth/units/{}/camera/settings",
+      "routes": [
+        {
+          "rule": "/api/v1/growth/units/<int:unit_id>/camera/settings",
+          "endpoint": "growth_api.update_camera_settings",
+          "methods": [
+            "PUT"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/growth/units/{}/camera/start",
+      "routes": [
+        {
+          "rule": "/api/v1/growth/units/<int:unit_id>/camera/start",
+          "endpoint": "growth_api.start_camera",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/growth/units/{}/camera/status",
+      "routes": [
+        {
+          "rule": "/api/v1/growth/units/<int:unit_id>/camera/status",
+          "endpoint": "growth_api.get_camera_status",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/growth/units/{}/camera/stop",
+      "routes": [
+        {
+          "rule": "/api/v1/growth/units/<int:unit_id>/camera/stop",
+          "endpoint": "growth_api.stop_camera",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/growth/units/{}/thresholds",
+      "routes": [
+        {
+          "rule": "/api/v1/growth/units/<int:unit_id>/thresholds",
+          "endpoint": "growth_api.get_thresholds",
+          "methods": [
+            "GET"
+          ]
+        },
+        {
+          "rule": "/api/v1/growth/units/<int:unit_id>/thresholds",
+          "endpoint": "growth_api.set_thresholds",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/growth/v2/units",
+      "routes": [
+        {
+          "rule": "/api/v1/growth/v2/units",
+          "endpoint": "growth_api.list_units",
+          "methods": [
+            "GET"
+          ]
+        },
+        {
+          "rule": "/api/v1/growth/v2/units",
+          "endpoint": "growth_api.create_unit",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/growth/v2/units/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/growth/v2/units/<int:unit_id>",
+          "endpoint": "growth_api.update_unit_v2",
+          "methods": [
+            "PATCH"
+          ]
+        },
+        {
+          "rule": "/api/v1/growth/v2/units/<int:unit_id>",
+          "endpoint": "growth_api.delete_unit_v2",
+          "methods": [
+            "DELETE"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/growth/v2/units/{}/thresholds",
+      "routes": [
+        {
+          "rule": "/api/v1/growth/v2/units/<int:unit_id>/thresholds",
+          "endpoint": "growth_api.update_unit_thresholds_v2",
+          "methods": [
+            "POST"
+          ]
+        },
+        {
+          "rule": "/api/v1/growth/v2/units/<int:unit_id>/thresholds",
+          "endpoint": "growth_api.get_unit_thresholds_v2",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/growth/v2/units/{}/thresholds/apply-profile",
+      "routes": [
+        {
+          "rule": "/api/v1/growth/v2/units/<int:unit_id>/thresholds/apply-profile",
+          "endpoint": "growth_api.apply_condition_profile_to_unit",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/growth/v3/schedules/{}/execution-log",
+      "routes": [
+        {
+          "rule": "/api/v1/growth/v3/schedules/<int:schedule_id>/execution-log",
+          "endpoint": "growth_api.get_schedule_execution_log",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/growth/v3/units/{}/schedules",
+      "routes": [
+        {
+          "rule": "/api/v1/growth/v3/units/<int:unit_id>/schedules",
+          "endpoint": "growth_api.get_schedules",
+          "methods": [
+            "GET"
+          ]
+        },
+        {
+          "rule": "/api/v1/growth/v3/units/<int:unit_id>/schedules",
+          "endpoint": "growth_api.create_schedule",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/growth/v3/units/{}/schedules/active",
+      "routes": [
+        {
+          "rule": "/api/v1/growth/v3/units/<int:unit_id>/schedules/active",
+          "endpoint": "growth_api.get_active_schedules",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/growth/v3/units/{}/schedules/auto-generate",
+      "routes": [
+        {
+          "rule": "/api/v1/growth/v3/units/<int:unit_id>/schedules/auto-generate",
+          "endpoint": "growth_api.auto_generate_schedules",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/growth/v3/units/{}/schedules/bulk-update",
+      "routes": [
+        {
+          "rule": "/api/v1/growth/v3/units/<int:unit_id>/schedules/bulk-update",
+          "endpoint": "growth_api.bulk_update_schedules",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/growth/v3/units/{}/schedules/conflicts",
+      "routes": [
+        {
+          "rule": "/api/v1/growth/v3/units/<int:unit_id>/schedules/conflicts",
+          "endpoint": "growth_api.detect_schedule_conflicts",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/growth/v3/units/{}/schedules/history",
+      "routes": [
+        {
+          "rule": "/api/v1/growth/v3/units/<int:unit_id>/schedules/history",
+          "endpoint": "growth_api.get_schedule_history",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/growth/v3/units/{}/schedules/preview",
+      "routes": [
+        {
+          "rule": "/api/v1/growth/v3/units/<int:unit_id>/schedules/preview",
+          "endpoint": "growth_api.preview_schedules",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/growth/v3/units/{}/schedules/summary",
+      "routes": [
+        {
+          "rule": "/api/v1/growth/v3/units/<int:unit_id>/schedules/summary",
+          "endpoint": "growth_api.get_schedule_summary",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/growth/v3/units/{}/schedules/templates",
+      "routes": [
+        {
+          "rule": "/api/v1/growth/v3/units/<int:unit_id>/schedules/templates",
+          "endpoint": "growth_api.get_schedule_templates",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/growth/v3/units/{}/schedules/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/growth/v3/units/<int:unit_id>/schedules/<int:schedule_id>",
+          "endpoint": "growth_api.get_schedule",
+          "methods": [
+            "GET"
+          ]
+        },
+        {
+          "rule": "/api/v1/growth/v3/units/<int:unit_id>/schedules/<int:schedule_id>",
+          "endpoint": "growth_api.update_schedule",
+          "methods": [
+            "PUT"
+          ]
+        },
+        {
+          "rule": "/api/v1/growth/v3/units/<int:unit_id>/schedules/<int:schedule_id>",
+          "endpoint": "growth_api.delete_schedule",
+          "methods": [
+            "DELETE"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/growth/v3/units/{}/schedules/{}/enabled",
+      "routes": [
+        {
+          "rule": "/api/v1/growth/v3/units/<int:unit_id>/schedules/<int:schedule_id>/enabled",
+          "endpoint": "growth_api.toggle_schedule",
+          "methods": [
+            "PATCH"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/harvests",
+      "routes": [
+        {
+          "rule": "/api/v1/harvests",
+          "endpoint": "harvest.list_harvest_reports",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/harvests/compare",
+      "routes": [
+        {
+          "rule": "/api/v1/harvests/compare",
+          "endpoint": "harvest.compare_specific_harvests",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/harvests/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/harvests/<int:harvest_id>",
+          "endpoint": "harvest.get_harvest_report",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/health",
+      "routes": [
+        {
+          "rule": "/api/v1/health",
+          "endpoint": "harvest.health_check",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/health/actuators/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/health/actuators/<int:actuator_id>",
+          "endpoint": "health_api.get_actuator_health",
+          "methods": [
+            "GET"
+          ]
+        },
+        {
+          "rule": "/api/v1/health/actuators/<int:actuator_id>",
+          "endpoint": "health_api.save_actuator_health",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/health/api-metrics",
+      "routes": [
+        {
+          "rule": "/api/v1/health/api-metrics",
+          "endpoint": "health_api.get_api_metrics",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/health/cache",
+      "routes": [
+        {
+          "rule": "/api/v1/health/cache",
+          "endpoint": "health_api.get_cache_metrics",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/health/cache-stats",
+      "routes": [
+        {
+          "rule": "/api/v1/health/cache-stats",
+          "endpoint": "health_api.get_cache_statistics",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/health/cache-warm",
+      "routes": [
+        {
+          "rule": "/api/v1/health/cache-warm",
+          "endpoint": "health_api.warm_caches",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/health/cache/repository",
+      "routes": [
+        {
+          "rule": "/api/v1/health/cache/repository",
+          "endpoint": "health_api.get_repository_cache_metrics",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/health/check-alerts",
+      "routes": [
+        {
+          "rule": "/api/v1/health/check-alerts",
+          "endpoint": "health_api.check_health_and_create_alerts",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/health/database",
+      "routes": [
+        {
+          "rule": "/api/v1/health/database",
+          "endpoint": "health_api.get_database_health",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/health/detailed",
+      "routes": [
+        {
+          "rule": "/api/v1/health/detailed",
+          "endpoint": "health_api.get_detailed_health",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/health/devices",
+      "routes": [
+        {
+          "rule": "/api/v1/health/devices",
+          "endpoint": "health_api.get_devices_health",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/health/infrastructure",
+      "routes": [
+        {
+          "rule": "/api/v1/health/infrastructure",
+          "endpoint": "health_api.get_infrastructure_status",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/health/ml",
+      "routes": [
+        {
+          "rule": "/api/v1/health/ml",
+          "endpoint": "health_api.get_ml_health",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/health/performance-metrics",
+      "routes": [
+        {
+          "rule": "/api/v1/health/performance-metrics",
+          "endpoint": "health_api.get_performance_metrics",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/health/ping",
+      "routes": [
+        {
+          "rule": "/api/v1/health/ping",
+          "endpoint": "health_api.ping",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/health/plants/attention",
+      "routes": [
+        {
+          "rule": "/api/v1/health/plants/attention",
+          "endpoint": "health_api.get_plants_needing_attention",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/health/plants/statuses",
+      "routes": [
+        {
+          "rule": "/api/v1/health/plants/statuses",
+          "endpoint": "health_api.get_health_statuses",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/health/plants/summary",
+      "routes": [
+        {
+          "rule": "/api/v1/health/plants/summary",
+          "endpoint": "health_api.get_plants_health_summary",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/health/plants/symptoms",
+      "routes": [
+        {
+          "rule": "/api/v1/health/plants/symptoms",
+          "endpoint": "health_api.get_health_symptoms",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/health/plants/{}/observations",
+      "routes": [
+        {
+          "rule": "/api/v1/health/plants/<int:plant_id>/observations",
+          "endpoint": "health_api.get_plant_observations",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/health/plants/{}/observe",
+      "routes": [
+        {
+          "rule": "/api/v1/health/plants/<int:plant_id>/observe",
+          "endpoint": "health_api.record_health_observation",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/health/plants/{}/score",
+      "routes": [
+        {
+          "rule": "/api/v1/health/plants/<int:plant_id>/score",
+          "endpoint": "health_api.get_plant_health_score",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/health/sensors/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/health/sensors/<int:sensor_id>",
+          "endpoint": "health_api.get_sensor_health",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/health/storage",
+      "routes": [
+        {
+          "rule": "/api/v1/health/storage",
+          "endpoint": "health_api.get_storage_health",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/health/system",
+      "routes": [
+        {
+          "rule": "/api/v1/health/system",
+          "endpoint": "health_api.get_system_health",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/health/units",
+      "routes": [
+        {
+          "rule": "/api/v1/health/units",
+          "endpoint": "health_api.get_all_units_health",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/health/units/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/health/units/<int:unit_id>",
+          "endpoint": "health_api.get_unit_health",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/health/units/{}/plants/scores",
+      "routes": [
+        {
+          "rule": "/api/v1/health/units/<int:unit_id>/plants/scores",
+          "endpoint": "health_api.get_unit_plants_health_scores",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/help/article/{}/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/help/article/<category>/<article_id>",
+          "endpoint": "help_api.get_article",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/help/articles",
+      "routes": [
+        {
+          "rule": "/api/v1/help/articles",
+          "endpoint": "help_api.get_articles",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/help/categories",
+      "routes": [
+        {
+          "rule": "/api/v1/help/categories",
+          "endpoint": "help_api.get_categories",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/help/search",
+      "routes": [
+        {
+          "rule": "/api/v1/help/search",
+          "endpoint": "help_api.search_articles",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/irrigation/action/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/irrigation/action/<int:request_id>",
+          "endpoint": "irrigation.handle_action",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/irrigation/calculate/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/irrigation/calculate/<int:plant_id>",
+          "endpoint": "irrigation.calculate_irrigation",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/irrigation/calibration/pump/start",
+      "routes": [
+        {
+          "rule": "/api/v1/irrigation/calibration/pump/start",
+          "endpoint": "irrigation.start_pump_calibration",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/irrigation/calibration/pump/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/irrigation/calibration/pump/<int:actuator_id>",
+          "endpoint": "irrigation.get_pump_calibration",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/irrigation/calibration/pump/{}/adjust",
+      "routes": [
+        {
+          "rule": "/api/v1/irrigation/calibration/pump/<int:actuator_id>/adjust",
+          "endpoint": "irrigation.adjust_pump_calibration",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/irrigation/calibration/pump/{}/complete",
+      "routes": [
+        {
+          "rule": "/api/v1/irrigation/calibration/pump/<int:actuator_id>/complete",
+          "endpoint": "irrigation.complete_pump_calibration",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/irrigation/calibration/pump/{}/history",
+      "routes": [
+        {
+          "rule": "/api/v1/irrigation/calibration/pump/<int:actuator_id>/history",
+          "endpoint": "irrigation.get_pump_calibration_history",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/irrigation/config/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/irrigation/config/<int:unit_id>",
+          "endpoint": "irrigation.get_config",
+          "methods": [
+            "GET"
+          ]
+        },
+        {
+          "rule": "/api/v1/irrigation/config/<int:unit_id>",
+          "endpoint": "irrigation.update_config",
+          "methods": [
+            "PUT"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/irrigation/eligibility/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/irrigation/eligibility/<int:unit_id>",
+          "endpoint": "irrigation.get_eligibility_traces",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/irrigation/executions/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/irrigation/executions/<int:unit_id>",
+          "endpoint": "irrigation.get_execution_logs",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/irrigation/history/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/irrigation/history/<int:unit_id>",
+          "endpoint": "irrigation.get_history",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/irrigation/manual/log",
+      "routes": [
+        {
+          "rule": "/api/v1/irrigation/manual/log",
+          "endpoint": "irrigation.log_manual_irrigation",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/irrigation/manual/predict/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/irrigation/manual/predict/<int:plant_id>",
+          "endpoint": "irrigation.predict_manual_next_irrigation",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/irrigation/manual/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/irrigation/manual/<int:unit_id>",
+          "endpoint": "irrigation.get_manual_irrigation_history",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/irrigation/preferences",
+      "routes": [
+        {
+          "rule": "/api/v1/irrigation/preferences",
+          "endpoint": "irrigation.get_preferences",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/irrigation/recommendations/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/irrigation/recommendations/<int:plant_id>",
+          "endpoint": "irrigation.get_irrigation_recommendations",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/irrigation/requests",
+      "routes": [
+        {
+          "rule": "/api/v1/irrigation/requests",
+          "endpoint": "irrigation.get_pending_requests",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/irrigation/requests/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/irrigation/requests/<int:request_id>",
+          "endpoint": "irrigation.get_request",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/irrigation/requests/{}/approve",
+      "routes": [
+        {
+          "rule": "/api/v1/irrigation/requests/<int:request_id>/approve",
+          "endpoint": "irrigation.approve_request",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/irrigation/requests/{}/cancel",
+      "routes": [
+        {
+          "rule": "/api/v1/irrigation/requests/<int:request_id>/cancel",
+          "endpoint": "irrigation.cancel_request",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/irrigation/requests/{}/delay",
+      "routes": [
+        {
+          "rule": "/api/v1/irrigation/requests/<int:request_id>/delay",
+          "endpoint": "irrigation.delay_request",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/irrigation/requests/{}/feedback",
+      "routes": [
+        {
+          "rule": "/api/v1/irrigation/requests/<int:request_id>/feedback",
+          "endpoint": "irrigation.submit_feedback",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/irrigation/send-recommendation/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/irrigation/send-recommendation/<int:plant_id>",
+          "endpoint": "irrigation.send_recommendation_notification",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/ab-testing/tests",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/ab-testing/tests",
+          "endpoint": "ml_ab_testing.list_tests",
+          "methods": [
+            "GET"
+          ]
+        },
+        {
+          "rule": "/api/v1/ml/ab-testing/tests",
+          "endpoint": "ml_ab_testing.create_test",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/ab-testing/tests/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/ab-testing/tests/<test_id>",
+          "endpoint": "ml_ab_testing.get_test",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/ab-testing/tests/{}/analysis",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/ab-testing/tests/<test_id>/analysis",
+          "endpoint": "ml_ab_testing.analyze_test",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/ab-testing/tests/{}/cancel",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/ab-testing/tests/<test_id>/cancel",
+          "endpoint": "ml_ab_testing.cancel_test",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/ab-testing/tests/{}/complete",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/ab-testing/tests/<test_id>/complete",
+          "endpoint": "ml_ab_testing.complete_test",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/ab-testing/tests/{}/record-result",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/ab-testing/tests/<test_id>/record-result",
+          "endpoint": "ml_ab_testing.record_result",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/ab-testing/tests/{}/select-version",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/ab-testing/tests/<test_id>/select-version",
+          "endpoint": "ml_ab_testing.select_version",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/analysis/correlations",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/analysis/correlations",
+          "endpoint": "ml_analysis.analyze_correlations",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/analysis/patterns",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/analysis/patterns",
+          "endpoint": "ml_analysis.detect_patterns",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/analysis/root-cause",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/analysis/root-cause",
+          "endpoint": "ml_analysis.analyze_root_cause",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/analytics/disease/statistics",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/analytics/disease/statistics",
+          "endpoint": "ml_analytics.get_disease_statistics",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/analytics/disease/trends",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/analytics/disease/trends",
+          "endpoint": "ml_analytics.get_disease_trends",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/analytics/energy/actuator/{}/dashboard",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/analytics/energy/actuator/<int:actuator_id>/dashboard",
+          "endpoint": "ml_analytics.get_actuator_energy_dashboard",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/analytics/energy/actuator/{}/predict-failure",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/analytics/energy/actuator/<int:actuator_id>/predict-failure",
+          "endpoint": "ml_analytics.predict_actuator_failure",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/continuous/insights",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/continuous/insights",
+          "endpoint": "ml_continuous.get_all_insights",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/continuous/insights/critical",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/continuous/insights/critical",
+          "endpoint": "ml_continuous.get_critical_insights",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/continuous/insights/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/continuous/insights/<int:unit_id>",
+          "endpoint": "ml_continuous.get_unit_insights",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/continuous/start",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/continuous/start",
+          "endpoint": "ml_continuous.start_monitoring",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/continuous/status",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/continuous/status",
+          "endpoint": "ml_continuous.get_status",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/continuous/stop",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/continuous/stop",
+          "endpoint": "ml_continuous.stop_monitoring",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/continuous/units/{}/add",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/continuous/units/<int:unit_id>/add",
+          "endpoint": "ml_continuous.add_unit",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/continuous/units/{}/remove",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/continuous/units/<int:unit_id>/remove",
+          "endpoint": "ml_continuous.remove_unit",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/health",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/health",
+          "endpoint": "ml_base.ml_health",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/models",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/models",
+          "endpoint": "ml_models.list_models",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/models/compare",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/models/compare",
+          "endpoint": "ml_models.compare_models",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/models/status",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/models/status",
+          "endpoint": "ml_models.get_models_status",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/models/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/models/<string:model_name>",
+          "endpoint": "ml_models.get_model_details",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/models/{}/activate",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/models/<string:model_name>/activate",
+          "endpoint": "ml_models.activate_model_version",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/models/{}/drift",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/models/<string:model_name>/drift",
+          "endpoint": "ml_models.get_drift_metrics",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/models/{}/drift/history",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/models/<string:model_name>/drift/history",
+          "endpoint": "ml_models.get_drift_history",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/models/{}/features",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/models/<string:model_name>/features",
+          "endpoint": "ml_models.get_feature_importance",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/models/{}/metadata",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/models/<string:model_name>/metadata",
+          "endpoint": "ml_models.get_model_metadata",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/models/{}/promote",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/models/<string:model_name>/promote",
+          "endpoint": "ml_models.promote_model_version",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/models/{}/retrain",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/models/<string:model_name>/retrain",
+          "endpoint": "ml_models.retrain_model",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/models/{}/versions",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/models/<string:model_name>/versions",
+          "endpoint": "ml_models.list_model_versions",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/monitoring/drift/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/monitoring/drift/<string:model_name>",
+          "endpoint": "ml_monitoring.check_model_drift",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/monitoring/insights/critical",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/monitoring/insights/critical",
+          "endpoint": "ml_monitoring.get_critical_insights",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/monitoring/insights/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/monitoring/insights/<int:unit_id>",
+          "endpoint": "ml_monitoring.get_unit_insights",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/monitoring/training/history",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/monitoring/training/history",
+          "endpoint": "ml_monitoring.get_training_history",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/personalized/condition-profiles",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/personalized/condition-profiles",
+          "endpoint": "ml_personalized.get_condition_profile",
+          "methods": [
+            "GET"
+          ]
+        },
+        {
+          "rule": "/api/v1/ml/personalized/condition-profiles",
+          "endpoint": "ml_personalized.upsert_condition_profile",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/personalized/condition-profiles/clone",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/personalized/condition-profiles/clone",
+          "endpoint": "ml_personalized.clone_condition_profile",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/personalized/condition-profiles/import",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/personalized/condition-profiles/import",
+          "endpoint": "ml_personalized.import_shared_condition_profile",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/personalized/condition-profiles/selector",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/personalized/condition-profiles/selector",
+          "endpoint": "ml_personalized.get_condition_profile_selector",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/personalized/condition-profiles/share",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/personalized/condition-profiles/share",
+          "endpoint": "ml_personalized.share_condition_profile",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/personalized/condition-profiles/shared",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/personalized/condition-profiles/shared",
+          "endpoint": "ml_personalized.list_shared_condition_profiles",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/personalized/condition-profiles/shared/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/personalized/condition-profiles/shared/<string:token>",
+          "endpoint": "ml_personalized.get_shared_condition_profile",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/personalized/condition-profiles/user/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/personalized/condition-profiles/user/<int:user_id>",
+          "endpoint": "ml_personalized.list_condition_profiles",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/personalized/profiles",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/personalized/profiles",
+          "endpoint": "ml_personalized.create_profile",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/personalized/profiles/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/personalized/profiles/<int:unit_id>",
+          "endpoint": "ml_personalized.get_profile",
+          "methods": [
+            "GET"
+          ]
+        },
+        {
+          "rule": "/api/v1/ml/personalized/profiles/<int:unit_id>",
+          "endpoint": "ml_personalized.update_profile",
+          "methods": [
+            "PUT"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/personalized/recommendations/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/personalized/recommendations/<int:unit_id>",
+          "endpoint": "ml_personalized.get_recommendations",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/personalized/similar-growers/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/personalized/similar-growers/<int:unit_id>",
+          "endpoint": "ml_personalized.get_similar_growers",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/personalized/successes",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/personalized/successes",
+          "endpoint": "ml_personalized.record_success",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/predictions/climate/forecast",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/predictions/climate/forecast",
+          "endpoint": "ml_predictions.get_climate_forecast",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/predictions/climate/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/predictions/climate/<string:growth_stage>",
+          "endpoint": "ml_predictions.predict_climate_conditions",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/predictions/climate/{}/recommendations",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/predictions/climate/<int:unit_id>/recommendations",
+          "endpoint": "ml_predictions.get_climate_recommendations",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/predictions/climate/{}/watering-issues",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/predictions/climate/<int:unit_id>/watering-issues",
+          "endpoint": "ml_predictions.detect_watering_issues",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/predictions/disease/alerts",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/predictions/disease/alerts",
+          "endpoint": "ml_predictions.get_disease_alerts",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/predictions/disease/risk",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/predictions/disease/risk",
+          "endpoint": "ml_predictions.predict_disease_risk",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/predictions/disease/risks",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/predictions/disease/risks",
+          "endpoint": "ml_predictions.get_all_disease_risks",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/predictions/growth/compare",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/predictions/growth/compare",
+          "endpoint": "ml_predictions.compare_growth_conditions",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/predictions/growth/stages/all",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/predictions/growth/stages/all",
+          "endpoint": "ml_predictions.get_all_growth_stages",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/predictions/growth/status",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/predictions/growth/status",
+          "endpoint": "ml_predictions.get_growth_predictor_status",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/predictions/growth/transition-analysis",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/predictions/growth/transition-analysis",
+          "endpoint": "ml_predictions.analyze_growth_transition",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/predictions/growth/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/predictions/growth/<string:stage>",
+          "endpoint": "ml_predictions.predict_growth_conditions",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/predictions/health/observation",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/predictions/health/observation",
+          "endpoint": "ml_predictions.record_health_observation",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/predictions/health/{}/recommendations",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/predictions/health/<int:unit_id>/recommendations",
+          "endpoint": "ml_predictions.get_health_recommendations",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/predictions/irrigation/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/predictions/irrigation/<int:unit_id>",
+          "endpoint": "ml_predictions.get_irrigation_predictions",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/predictions/irrigation/{}/duration",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/predictions/irrigation/<int:unit_id>/duration",
+          "endpoint": "ml_predictions.get_irrigation_duration_prediction",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/predictions/irrigation/{}/next",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/predictions/irrigation/<int:unit_id>/next",
+          "endpoint": "ml_predictions.get_irrigation_next_prediction",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/predictions/irrigation/{}/response",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/predictions/irrigation/<int:unit_id>/response",
+          "endpoint": "ml_predictions.get_irrigation_response_prediction",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/predictions/irrigation/{}/threshold",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/predictions/irrigation/<int:unit_id>/threshold",
+          "endpoint": "ml_predictions.get_irrigation_threshold_prediction",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/predictions/irrigation/{}/timing",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/predictions/irrigation/<int:unit_id>/timing",
+          "endpoint": "ml_predictions.get_irrigation_timing_prediction",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/predictions/what-if",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/predictions/what-if",
+          "endpoint": "ml_predictions.what_if_simulation",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/readiness/check-all",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/readiness/check-all",
+          "endpoint": "ml_readiness.check_all_units",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/readiness/irrigation/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/readiness/irrigation/<int:unit_id>",
+          "endpoint": "ml_readiness.get_irrigation_readiness",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/readiness/irrigation/{}/activate/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/readiness/irrigation/<int:unit_id>/activate/<string:model_name>",
+          "endpoint": "ml_readiness.activate_model",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/readiness/irrigation/{}/deactivate/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/readiness/irrigation/<int:unit_id>/deactivate/<string:model_name>",
+          "endpoint": "ml_readiness.deactivate_model",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/readiness/irrigation/{}/status",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/readiness/irrigation/<int:unit_id>/status",
+          "endpoint": "ml_readiness.get_activation_status",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/retraining/events",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/retraining/events",
+          "endpoint": "ml_retraining.get_events",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/retraining/jobs",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/retraining/jobs",
+          "endpoint": "ml_retraining.get_jobs",
+          "methods": [
+            "GET"
+          ]
+        },
+        {
+          "rule": "/api/v1/ml/retraining/jobs",
+          "endpoint": "ml_retraining.create_job",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/retraining/jobs/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/retraining/jobs/<job_id>",
+          "endpoint": "ml_retraining.delete_job",
+          "methods": [
+            "DELETE"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/retraining/jobs/{}/disable",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/retraining/jobs/<job_id>/disable",
+          "endpoint": "ml_retraining.disable_job",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/retraining/jobs/{}/enable",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/retraining/jobs/<job_id>/enable",
+          "endpoint": "ml_retraining.enable_job",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/retraining/jobs/{}/pause",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/retraining/jobs/<job_id>/pause",
+          "endpoint": "ml_retraining.pause_job",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/retraining/jobs/{}/resume",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/retraining/jobs/<job_id>/resume",
+          "endpoint": "ml_retraining.resume_job",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/retraining/jobs/{}/run",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/retraining/jobs/<job_id>/run",
+          "endpoint": "ml_retraining.run_job_now",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/retraining/scheduler/start",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/retraining/scheduler/start",
+          "endpoint": "ml_retraining.start_scheduler",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/retraining/scheduler/stop",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/retraining/scheduler/stop",
+          "endpoint": "ml_retraining.stop_scheduler",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/retraining/status",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/retraining/status",
+          "endpoint": "ml_retraining.get_status",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/retraining/trigger",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/retraining/trigger",
+          "endpoint": "ml_retraining.trigger_retraining",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/training-data/collect/climate",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/training-data/collect/climate",
+          "endpoint": "ml_training_data.collect_climate_data",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/training-data/collect/disease",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/training-data/collect/disease",
+          "endpoint": "ml_training_data.collect_disease_data",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/training-data/collect/growth",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/training-data/collect/growth",
+          "endpoint": "ml_training_data.collect_growth_data",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/training-data/plant-health/status",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/training-data/plant-health/status",
+          "endpoint": "ml_training_data.get_plant_health_training_status",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/training-data/plant-health/train",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/training-data/plant-health/train",
+          "endpoint": "ml_training_data.train_plant_health_models",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/training-data/quality/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/training-data/quality/<dataset_type>",
+          "endpoint": "ml_training_data.get_quality_metrics",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/training-data/summary",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/training-data/summary",
+          "endpoint": "ml_training_data.get_summary",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/training-data/validate",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/training-data/validate",
+          "endpoint": "ml_training_data.validate_data",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/training/cancel",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/training/cancel",
+          "endpoint": "ml_base.cancel_training",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/ml/training/history",
+      "routes": [
+        {
+          "rule": "/api/v1/ml/training/history",
+          "endpoint": "ml_base.get_training_history",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/automation-status",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/automation-status",
+          "endpoint": "plants_api.get_automation_status",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/available-plants",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/available-plants",
+          "endpoint": "plants_api.get_available_plants",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/catalog",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/catalog",
+          "endpoint": "plants_api.get_plant_catalog",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/catalog/custom",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/catalog/custom",
+          "endpoint": "plants_api.add_custom_plant_to_catalog",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/disease-risk",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/disease-risk",
+          "endpoint": "plants_api.get_disease_risk",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/disease/history",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/disease/history",
+          "endpoint": "disease.get_disease_history",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/disease/occurrences",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/disease/occurrences",
+          "endpoint": "disease.record_disease_occurrence",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/disease/occurrences/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/disease/occurrences/<int:occurrence_id>",
+          "endpoint": "disease.get_disease_occurrence",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/disease/occurrences/{}/resolve",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/disease/occurrences/<int:occurrence_id>/resolve",
+          "endpoint": "disease.resolve_disease_occurrence",
+          "methods": [
+            "PUT"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/disease/prediction/accuracy",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/disease/prediction/accuracy",
+          "endpoint": "disease.get_prediction_accuracy",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/disease/prediction/feedback",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/disease/prediction/feedback",
+          "endpoint": "disease.record_prediction_feedback",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/disease/statistics",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/disease/statistics",
+          "endpoint": "disease.get_disease_statistics",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/environmental-alerts",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/environmental-alerts",
+          "endpoint": "plants_api.get_environmental_alerts",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/guide",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/guide",
+          "endpoint": "plants_api.get_plants_guide",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/guide/full",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/guide/full",
+          "endpoint": "plants_api.get_plants_guide_full",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/guide/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/guide/<int:plant_id>",
+          "endpoint": "plants_api.get_plant_detail",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/harvest-recommendations",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/harvest-recommendations",
+          "endpoint": "plants_api.get_harvest_recommendations",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/harvests",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/harvests",
+          "endpoint": "plants_api.get_harvests",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/health",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/health",
+          "endpoint": "plants_api.get_all_plants_health",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/health/statuses",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/health/statuses",
+          "endpoint": "plants_api.get_health_statuses",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/health/symptoms",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/health/symptoms",
+          "endpoint": "plants_api.get_available_symptoms",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/journal",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/journal",
+          "endpoint": "plants_api.get_journal_entries",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/journal/nutrients",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/journal/nutrients",
+          "endpoint": "plants_api.create_nutrient_record",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/journal/observation",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/journal/observation",
+          "endpoint": "plants_api.create_observation",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/journal/watering",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/journal/watering",
+          "endpoint": "plants_api.create_watering_record",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/lighting-schedule",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/lighting-schedule",
+          "endpoint": "plants_api.get_lighting_schedule",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/problem-diagnosis",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/problem-diagnosis",
+          "endpoint": "plants_api.get_problem_diagnosis",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/types/{}/performance",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/types/<plant_type>/performance",
+          "endpoint": "harvest.get_plant_type_performance",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/units/{}/actuators/available",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/units/<int:unit_id>/actuators/available",
+          "endpoint": "plants_api.get_available_actuators",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/units/{}/plants",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/units/<int:unit_id>/plants",
+          "endpoint": "plants_api.list_plants",
+          "methods": [
+            "GET"
+          ]
+        },
+        {
+          "rule": "/api/v1/plants/units/<int:unit_id>/plants",
+          "endpoint": "plants_api.add_plant",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/units/{}/plants/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/units/<int:unit_id>/plants/<int:plant_id>",
+          "endpoint": "plants_api.remove_plant",
+          "methods": [
+            "DELETE"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/units/{}/plants/{}/active",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/units/<int:unit_id>/plants/<int:plant_id>/active",
+          "endpoint": "plants_api.set_active_plant",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/units/{}/sensors/available",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/units/<int:unit_id>/sensors/available",
+          "endpoint": "plants_api.get_available_sensors",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/units/{}/vpd",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/units/<int:unit_id>/vpd",
+          "endpoint": "plants_api.get_vpd_status",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/watering-decision",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/watering-decision",
+          "endpoint": "plants_api.get_watering_decision",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/yield-projection",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/yield-projection",
+          "endpoint": "plants_api.get_yield_projection",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/<int:plant_id>",
+          "endpoint": "plants_api.get_plant_by_id",
+          "methods": [
+            "GET"
+          ]
+        },
+        {
+          "rule": "/api/v1/plants/<int:plant_id>",
+          "endpoint": "plants_api.update_plant",
+          "methods": [
+            "PUT"
+          ]
+        },
+        {
+          "rule": "/api/v1/plants/<int:plant_id>",
+          "endpoint": "harvest.delete_plant",
+          "methods": [
+            "DELETE"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/{}/actuators",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/<int:plant_id>/actuators",
+          "endpoint": "plants_api.get_plant_actuators",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/{}/actuators/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/<int:plant_id>/actuators/<int:actuator_id>",
+          "endpoint": "plants_api.link_plant_to_actuator",
+          "methods": [
+            "POST"
+          ]
+        },
+        {
+          "rule": "/api/v1/plants/<int:plant_id>/actuators/<int:actuator_id>",
+          "endpoint": "plants_api.unlink_plant_from_actuator",
+          "methods": [
+            "DELETE"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/{}/apply-profile",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/<int:plant_id>/apply-profile",
+          "endpoint": "plants_api.apply_condition_profile_to_plant",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/{}/detail",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/<int:plant_id>/detail",
+          "endpoint": "plants_api.get_plant_detail_unified",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/{}/harvest",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/<int:plant_id>/harvest",
+          "endpoint": "harvest.create_harvest_report",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/{}/health/history",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/<int:plant_id>/health/history",
+          "endpoint": "plants_api.get_plant_health_history",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/{}/health/recommendations",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/<int:plant_id>/health/recommendations",
+          "endpoint": "plants_api.get_plant_health_recommendations",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/{}/health/record",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/<int:plant_id>/health/record",
+          "endpoint": "plants_api.record_plant_health",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/{}/journal/entries",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/<int:plant_id>/journal/entries",
+          "endpoint": "plants_api.get_journal_paginated",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/{}/journal/environmental-adjustment",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/<int:plant_id>/journal/environmental-adjustment",
+          "endpoint": "plants_api.add_environmental_adjustment_entry",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/{}/journal/pruning",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/<int:plant_id>/journal/pruning",
+          "endpoint": "plants_api.add_pruning_entry",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/{}/journal/stage-timeline",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/<int:plant_id>/journal/stage-timeline",
+          "endpoint": "plants_api.get_stage_timeline",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/{}/journal/summary",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/<int:plant_id>/journal/summary",
+          "endpoint": "plants_api.get_journal_summary",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/{}/journal/transplant",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/<int:plant_id>/journal/transplant",
+          "endpoint": "plants_api.add_transplant_entry",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/{}/journal/watering",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/<int:plant_id>/journal/watering",
+          "endpoint": "plants_api.add_watering_entry",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/{}/journal/watering-history",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/<int:plant_id>/journal/watering-history",
+          "endpoint": "plants_api.get_watering_history",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/{}/journal/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/<int:plant_id>/journal/<int:entry_id>",
+          "endpoint": "plants_api.update_journal_entry",
+          "methods": [
+            "PUT"
+          ]
+        },
+        {
+          "rule": "/api/v1/plants/<int:plant_id>/journal/<int:entry_id>",
+          "endpoint": "plants_api.delete_journal_entry",
+          "methods": [
+            "DELETE"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/{}/sensors",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/<int:plant_id>/sensors",
+          "endpoint": "plants_api.get_plant_sensors",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/{}/sensors/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/<int:plant_id>/sensors/<int:sensor_id>",
+          "endpoint": "plants_api.link_plant_to_sensor",
+          "methods": [
+            "POST"
+          ]
+        },
+        {
+          "rule": "/api/v1/plants/<int:plant_id>/sensors/<int:sensor_id>",
+          "endpoint": "plants_api.unlink_plant_from_sensor",
+          "methods": [
+            "DELETE"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/{}/stage",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/<int:plant_id>/stage",
+          "endpoint": "plants_api.update_plant_stage",
+          "methods": [
+            "PUT"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/{}/stage/extend",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/<int:plant_id>/stage/extend",
+          "endpoint": "plants_api.extend_plant_stage",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/plants/{}/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/plants/<int:unit_id>/<int:plant_id>",
+          "endpoint": "plants_api.get_plant",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/settings/camera",
+      "routes": [
+        {
+          "rule": "/api/v1/settings/camera",
+          "endpoint": "settings_api.get_camera_settings",
+          "methods": [
+            "GET"
+          ]
+        },
+        {
+          "rule": "/api/v1/settings/camera",
+          "endpoint": "settings_api.update_camera_settings",
+          "methods": [
+            "PUT"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/settings/database/backup",
+      "routes": [
+        {
+          "rule": "/api/v1/settings/database/backup",
+          "endpoint": "settings_api.create_database_backup",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/settings/database/prune",
+      "routes": [
+        {
+          "rule": "/api/v1/settings/database/prune",
+          "endpoint": "settings_api.prune_sensor_readings",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/settings/database/vacuum",
+      "routes": [
+        {
+          "rule": "/api/v1/settings/database/vacuum",
+          "endpoint": "settings_api.vacuum_database",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/settings/environment",
+      "routes": [
+        {
+          "rule": "/api/v1/settings/environment",
+          "endpoint": "settings_api.get_environment_thresholds",
+          "methods": [
+            "GET"
+          ]
+        },
+        {
+          "rule": "/api/v1/settings/environment",
+          "endpoint": "settings_api.update_environment_thresholds",
+          "methods": [
+            "PUT"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/settings/hotspot",
+      "routes": [
+        {
+          "rule": "/api/v1/settings/hotspot",
+          "endpoint": "settings_api.get_hotspot_settings",
+          "methods": [
+            "GET"
+          ]
+        },
+        {
+          "rule": "/api/v1/settings/hotspot",
+          "endpoint": "settings_api.update_hotspot_settings",
+          "methods": [
+            "PUT"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/settings/notifications",
+      "routes": [
+        {
+          "rule": "/api/v1/settings/notifications",
+          "endpoint": "settings_api.get_notification_settings",
+          "methods": [
+            "GET"
+          ]
+        },
+        {
+          "rule": "/api/v1/settings/notifications",
+          "endpoint": "settings_api.update_notification_settings",
+          "methods": [
+            "PUT"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/settings/notifications/actions",
+      "routes": [
+        {
+          "rule": "/api/v1/settings/notifications/actions",
+          "endpoint": "settings_api.get_pending_actions",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/settings/notifications/actions/{}/respond",
+      "routes": [
+        {
+          "rule": "/api/v1/settings/notifications/actions/<int:message_id>/respond",
+          "endpoint": "settings_api.respond_to_action",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/settings/notifications/irrigation-feedback",
+      "routes": [
+        {
+          "rule": "/api/v1/settings/notifications/irrigation-feedback",
+          "endpoint": "settings_api.get_irrigation_feedback",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/settings/notifications/irrigation-feedback/history/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/settings/notifications/irrigation-feedback/history/<int:unit_id>",
+          "endpoint": "settings_api.get_irrigation_feedback_history",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/settings/notifications/irrigation-feedback/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/settings/notifications/irrigation-feedback/<int:feedback_id>",
+          "endpoint": "settings_api.submit_irrigation_feedback",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/settings/notifications/messages",
+      "routes": [
+        {
+          "rule": "/api/v1/settings/notifications/messages",
+          "endpoint": "settings_api.get_notifications",
+          "methods": [
+            "GET"
+          ]
+        },
+        {
+          "rule": "/api/v1/settings/notifications/messages",
+          "endpoint": "settings_api.clear_all_notifications",
+          "methods": [
+            "DELETE"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/settings/notifications/messages/read-all",
+      "routes": [
+        {
+          "rule": "/api/v1/settings/notifications/messages/read-all",
+          "endpoint": "settings_api.mark_all_notifications_read",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/settings/notifications/messages/{}",
+      "routes": [
+        {
+          "rule": "/api/v1/settings/notifications/messages/<int:message_id>",
+          "endpoint": "settings_api.delete_notification",
+          "methods": [
+            "DELETE"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/settings/notifications/messages/{}/read",
+      "routes": [
+        {
+          "rule": "/api/v1/settings/notifications/messages/<int:message_id>/read",
+          "endpoint": "settings_api.mark_notification_read",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/settings/notifications/test-email",
+      "routes": [
+        {
+          "rule": "/api/v1/settings/notifications/test-email",
+          "endpoint": "settings_api.test_email_notification",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/settings/retention/actuator-state",
+      "routes": [
+        {
+          "rule": "/api/v1/settings/retention/actuator-state",
+          "endpoint": "settings_api.get_retention_days",
+          "methods": [
+            "GET"
+          ]
+        },
+        {
+          "rule": "/api/v1/settings/retention/actuator-state",
+          "endpoint": "settings_api.set_retention_days",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/settings/security/recovery-codes/count",
+      "routes": [
+        {
+          "rule": "/api/v1/settings/security/recovery-codes/count",
+          "endpoint": "settings_api.get_recovery_code_count",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/settings/security/recovery-codes/generate",
+      "routes": [
+        {
+          "rule": "/api/v1/settings/security/recovery-codes/generate",
+          "endpoint": "settings_api.generate_recovery_codes",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/settings/throttle",
+      "routes": [
+        {
+          "rule": "/api/v1/settings/throttle",
+          "endpoint": "settings_api.get_throttle_config",
+          "methods": [
+            "GET"
+          ]
+        },
+        {
+          "rule": "/api/v1/settings/throttle",
+          "endpoint": "settings_api.update_throttle_config",
+          "methods": [
+            "PUT"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/settings/throttle/reset",
+      "routes": [
+        {
+          "rule": "/api/v1/settings/throttle/reset",
+          "endpoint": "settings_api.reset_throttle_config",
+          "methods": [
+            "POST"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/units/{}/growth-cycles/compare",
+      "routes": [
+        {
+          "rule": "/api/v1/units/<int:unit_id>/growth-cycles/compare",
+          "endpoint": "harvest.compare_growth_cycles",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/units/{}/harvest-environment",
+      "routes": [
+        {
+          "rule": "/api/v1/units/<int:unit_id>/harvest-environment",
+          "endpoint": "harvest.get_harvest_environment_stats",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/units/{}/harvest-stats",
+      "routes": [
+        {
+          "rule": "/api/v1/units/<int:unit_id>/harvest-stats",
+          "endpoint": "harvest.get_unit_harvest_stats",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/units/{}/plants",
+      "routes": [
+        {
+          "rule": "/api/v1/units/<int:unit_id>/plants",
+          "endpoint": "harvest.get_plants_for_unit",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/units/{}/sensor-summaries",
+      "routes": [
+        {
+          "rule": "/api/v1/units/<int:unit_id>/sensor-summaries",
+          "endpoint": "harvest.get_unit_sensor_summaries",
+          "methods": [
+            "GET"
+          ]
+        }
+      ]
+    }
+  ],
+  "frontend_only": [
+    {
+      "normalized": "/api/analytics",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 2193,
+          "ref": "/api/analytics"
+        },
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 2266,
+          "ref": "/api/analytics"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/analytics/actuators/overview{}",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 2542,
+          "ref": "/api/analytics/actuators/overview${params}"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/analytics/dashboard/energy-summary${queryStr",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 2351,
+          "ref": "/api/analytics/dashboard/energy-summary${queryStr"
+        },
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 2364,
+          "ref": "/api/analytics/dashboard/energy-summary${queryStr"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/analytics/dashboard/environmental-summary{}",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 2639,
+          "ref": "/api/analytics/dashboard/environmental-summary${params}"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/analytics/sensors/anomalies",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 2530,
+          "ref": "/api/analytics/sensors/anomalies?${params}"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/analytics/sensors/history${queryStr",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 2791,
+          "ref": "/api/analytics/sensors/history${queryStr"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/analytics/sensors/overview{}",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 2426,
+          "ref": "/api/analytics/sensors/overview${params}"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/dashboard",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 2297,
+          "ref": "/api/dashboard"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/dashboard/devices/toggle/{}",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 2838,
+          "ref": "/api/dashboard/devices/toggle/${deviceType}"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/dashboard/growth-stage${qs",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 2904,
+          "ref": "/api/dashboard/growth-stage${qs"
+        },
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 4015,
+          "ref": "/api/dashboard/growth-stage${qs"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/dashboard/harvest-timeline${qs",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 2916,
+          "ref": "/api/dashboard/harvest-timeline${qs"
+        },
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 4071,
+          "ref": "/api/dashboard/harvest-timeline${qs"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/dashboard/irrigation-status${qs",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 2940,
+          "ref": "/api/dashboard/irrigation-status${qs"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/dashboard/summary${queryString",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 2400,
+          "ref": "/api/dashboard/summary${queryString"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/dashboard/timeseries${qs",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 2828,
+          "ref": "/api/dashboard/timeseries${qs"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/dashboard/water-schedule${qs",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 2928,
+          "ref": "/api/dashboard/water-schedule${qs"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/devices/actuators/anomalies/{}/resolve",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 1690,
+          "ref": "/api/devices/actuators/anomalies/${anomalyId}/resolve"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/devices/actuators/{}/anomalies",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 1670,
+          "ref": "/api/devices/actuators/${actuatorId}/anomalies"
+        },
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 1680,
+          "ref": "/api/devices/actuators/${actuatorId}/anomalies"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/devices/sensors/discover-mqtt",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 1972,
+          "ref": "/api/devices/sensors/discover-mqtt?unit_id=${unitId}&topic_prefix=${topicPrefix}"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/devices/v2/zigbee2mqtt/devices/${encodeURIComponent",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 1884,
+          "ref": "/api/devices/v2/zigbee2mqtt/devices/${encodeURIComponent"
+        },
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 1893,
+          "ref": "/api/devices/v2/zigbee2mqtt/devices/${encodeURIComponent"
+        },
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 1903,
+          "ref": "/api/devices/v2/zigbee2mqtt/devices/${encodeURIComponent"
+        },
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 1912,
+          "ref": "/api/devices/v2/zigbee2mqtt/devices/${encodeURIComponent"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/growth/units",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 388,
+          "ref": "/api/growth/units"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/growth/v3/schedules/{}/execution-log${query",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 781,
+          "ref": "/api/growth/v3/schedules/${scheduleId}/execution-log${query"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/growth/v3/units/{}/schedules${query",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 656,
+          "ref": "/api/growth/v3/units/${unitId}/schedules${query"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/growth/v3/units/{}/schedules/conflicts${query",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 795,
+          "ref": "/api/growth/v3/units/${unitId}/schedules/conflicts${query"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/growth/v3/units/{}/schedules/history${query",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 767,
+          "ref": "/api/growth/v3/units/${unitId}/schedules/history${query"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/growth/v3/units/{}/schedules/preview${query",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 751,
+          "ref": "/api/growth/v3/units/${unitId}/schedules/preview${query"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/health/alerts/{}/dismiss",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 2770,
+          "ref": "/api/health/alerts/${alertId}/dismiss"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/irrigation/calculate/{}${useML",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 4863,
+          "ref": "/api/irrigation/calculate/${plantId}${useML"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/irrigation/eligibility/{}${qs",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 4728,
+          "ref": "/api/irrigation/eligibility/${unitId}${qs"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/irrigation/executions/{}${qs",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 4717,
+          "ref": "/api/irrigation/executions/${unitId}${qs"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/irrigation/manual/predict/{}${qs",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 4750,
+          "ref": "/api/irrigation/manual/predict/${plantId}${qs"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/irrigation/manual/{}${qs",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 4739,
+          "ref": "/api/irrigation/manual/${unitId}${qs"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/ml/ab-testing/tests{}",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 3381,
+          "ref": "/api/ml/ab-testing/tests${query}"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/ml/continuous/insights/{}{}",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 3524,
+          "ref": "/api/ml/continuous/insights/${unitId}${query}"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/ml/continuous/insights{}",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 3513,
+          "ref": "/api/ml/continuous/insights${query}"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/ml/insights/annotations",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 3280,
+          "ref": "/api/ml/insights/annotations?${query}"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/ml/personalized/condition-profiles${query",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 3636,
+          "ref": "/api/ml/personalized/condition-profiles${query"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/ml/personalized/condition-profiles/selector${query",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 3615,
+          "ref": "/api/ml/personalized/condition-profiles/selector${query"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/ml/personalized/condition-profiles/user/{}${query",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 3626,
+          "ref": "/api/ml/personalized/condition-profiles/user/${userId}${query"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/ml/predictions/confidence-bands",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 3290,
+          "ref": "/api/ml/predictions/confidence-bands?${query}"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/ml/predictions/disease/risks${qs",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 3987,
+          "ref": "/api/ml/predictions/disease/risks${qs"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/ml/predictions/disease/risks${query",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 1304,
+          "ref": "/api/ml/predictions/disease/risks${query"
+        },
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 3222,
+          "ref": "/api/ml/predictions/disease/risks${query"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/ml/predictions/growth/{}${daysInStage",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 3791,
+          "ref": "/api/ml/predictions/growth/${stage}${daysInStage"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/ml/retraining/events${query",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 3915,
+          "ref": "/api/ml/retraining/events${query"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/ml/retraining/jobs/{}/{}",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 3211,
+          "ref": "/api/ml/retraining/jobs/${jobId}/${action}"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/ml/retraining/schedule",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 3192,
+          "ref": "/api/ml/retraining/schedule"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/mqtt/actuators/add",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 2055,
+          "ref": "/api/mqtt/actuators/add"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/mqtt/broker/config",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 2012,
+          "ref": "/api/mqtt/broker/config"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/mqtt/devices/add",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 2037,
+          "ref": "/api/mqtt/devices/add"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/mqtt/devices/all",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 2063,
+          "ref": "/api/mqtt/devices/all"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/mqtt/devices/discover",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 2028,
+          "ref": "/api/mqtt/devices/discover"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/mqtt/sensors/add",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 2046,
+          "ref": "/api/mqtt/sensors/add"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/mqtt/test-connection",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 2020,
+          "ref": "/api/mqtt/test-connection"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/plants/automation-status${query",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 1339,
+          "ref": "/api/plants/automation-status${query"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/plants/environmental-alerts${query",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 1315,
+          "ref": "/api/plants/environmental-alerts${query"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/plants/harvest-recommendations${query",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 1329,
+          "ref": "/api/plants/harvest-recommendations${query"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/plants/journal${query",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 1263,
+          "ref": "/api/plants/journal${query"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/plants/lighting-schedule${query",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 1334,
+          "ref": "/api/plants/lighting-schedule${query"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/plants/watering-decision${query",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 1310,
+          "ref": "/api/plants/watering-decision${query"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/plants/yield-projection${query",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 1324,
+          "ref": "/api/plants/yield-projection${query"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/plants/{}/journal",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\my-plant-detail.js",
+          "line": 12,
+          "ref": "/api/plants/<id>/journal/"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/settings/notifications/actions{}",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 4570,
+          "ref": "/api/settings/notifications/actions${query}"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/settings/notifications/messages${query",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 4526,
+          "ref": "/api/settings/notifications/messages${query"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/settings/wifi/broadcast",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 3027,
+          "ref": "/api/settings/wifi/broadcast"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/settings/wifi/configure",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 3018,
+          "ref": "/api/settings/wifi/configure"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/settings/wifi/scan",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 3009,
+          "ref": "/api/settings/wifi/scan"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/system/alerts${query",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\static\\js\\api.js",
+          "line": 4420,
+          "ref": "/api/system/alerts${query"
+        }
+      ]
+    },
+    {
+      "normalized": "/api/v1/growth/units/{{",
+      "refs": [
+        {
+          "file": "E:\\Work\\SYSGrow\\backend\\templates\\fullscreen.html",
+          "line": 35,
+          "ref": "/api/v1/growth/units/{{"
+        }
+      ]
+    }
+  ]
+}

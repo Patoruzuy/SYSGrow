@@ -1,45 +1,14 @@
 """Database operations for Irrigation Workflow entities."""
-
 from __future__ import annotations
 
-import contextlib
 import logging
 import sqlite3
 from datetime import timedelta
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 from app.utils.time import coerce_datetime, iso_now, utc_now
-from infrastructure.database.sql_safety import build_insert_parts, build_set_clause, safe_columns
 
 logger = logging.getLogger(__name__)
-
-# Columns that may be written via upsert_workflow_config.
-_WORKFLOW_CONFIG_COLUMNS: frozenset[str] = frozenset(
-    {
-        "workflow_enabled",
-        "auto_irrigation_enabled",
-        "manual_mode_enabled",
-        "require_approval",
-        "default_scheduled_time",
-        "delay_increment_minutes",
-        "max_delay_hours",
-        "expiration_hours",
-        "send_reminder_before_execution",
-        "reminder_minutes_before",
-        "request_feedback_enabled",
-        "feedback_delay_minutes",
-        "ml_learning_enabled",
-        "ml_threshold_adjustment_enabled",
-        "ml_response_predictor_enabled",
-        "ml_threshold_optimizer_enabled",
-        "ml_duration_optimizer_enabled",
-        "ml_timing_predictor_enabled",
-        "ml_response_predictor_notified_at",
-        "ml_threshold_optimizer_notified_at",
-        "ml_duration_optimizer_notified_at",
-        "ml_timing_predictor_notified_at",
-    }
-)
 
 
 class IrrigationWorkflowOperations:
@@ -53,21 +22,21 @@ class IrrigationWorkflowOperations:
         soil_moisture_detected: float,
         soil_moisture_threshold: float,
         user_id: int = 1,
-        plant_id: int | None = None,
-        actuator_id: int | None = None,
+        plant_id: Optional[int] = None,
+        actuator_id: Optional[int] = None,
         actuator_type: str = "water_pump",
-        sensor_id: int | None = None,
-        scheduled_time: str | None = None,
-        expires_at: str | None = None,
+        sensor_id: Optional[int] = None,
+        scheduled_time: Optional[str] = None,
+        expires_at: Optional[str] = None,
         # ML context fields (Phase 1)
-        temperature_at_detection: float | None = None,
-        humidity_at_detection: float | None = None,
-        vpd_at_detection: float | None = None,
-        lux_at_detection: float | None = None,
-        hours_since_last_irrigation: float | None = None,
-        plant_type: str | None = None,
-        growth_stage: str | None = None,
-    ) -> int | None:
+        temperature_at_detection: Optional[float] = None,
+        humidity_at_detection: Optional[float] = None,
+        vpd_at_detection: Optional[float] = None,
+        lux_at_detection: Optional[float] = None,
+        hours_since_last_irrigation: Optional[float] = None,
+        plant_type: Optional[str] = None,
+        growth_stage: Optional[str] = None,
+    ) -> Optional[int]:
         """Create a new pending irrigation request with ML context."""
         try:
             db = self.get_db()
@@ -85,26 +54,12 @@ class IrrigationWorkflowOperations:
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    unit_id,
-                    plant_id,
-                    user_id,
-                    actuator_id,
-                    actuator_type,
-                    soil_moisture_detected,
-                    soil_moisture_threshold,
-                    sensor_id,
-                    now,
-                    scheduled_time,
-                    expires_at,
-                    temperature_at_detection,
-                    humidity_at_detection,
-                    vpd_at_detection,
-                    lux_at_detection,
-                    hours_since_last_irrigation,
-                    plant_type,
-                    growth_stage,
-                    now,
-                    now,
+                    unit_id, plant_id, user_id, actuator_id, actuator_type,
+                    soil_moisture_detected, soil_moisture_threshold, sensor_id,
+                    now, scheduled_time, expires_at,
+                    temperature_at_detection, humidity_at_detection, vpd_at_detection,
+                    lux_at_detection, hours_since_last_irrigation,
+                    plant_type, growth_stage, now, now,
                 ),
             )
             request_id = cur.lastrowid
@@ -115,11 +70,14 @@ class IrrigationWorkflowOperations:
             logger.error(f"Failed to create pending irrigation request: {exc}")
             return None
 
-    def get_pending_irrigation_request(self, request_id: int) -> dict[str, Any] | None:
+    def get_pending_irrigation_request(self, request_id: int) -> Optional[Dict[str, Any]]:
         """Get a pending irrigation request by ID."""
         try:
             db = self.get_db()
-            cur = db.execute("SELECT * FROM PendingIrrigationRequest WHERE request_id = ?", (request_id,))
+            cur = db.execute(
+                "SELECT * FROM PendingIrrigationRequest WHERE request_id = ?",
+                (request_id,)
+            )
             row = cur.fetchone()
             return dict(row) if row else None
         except sqlite3.Error as exc:
@@ -129,13 +87,13 @@ class IrrigationWorkflowOperations:
     def get_pending_requests_for_unit(
         self,
         unit_id: int,
-        status: str | None = None,
-    ) -> list[dict[str, Any]]:
+        status: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
         """Get pending irrigation requests for a unit."""
         try:
             db = self.get_db()
             query = "SELECT * FROM PendingIrrigationRequest WHERE unit_id = ?"
-            params: list[Any] = [unit_id]
+            params: List[Any] = [unit_id]
 
             if status:
                 query += " AND status = ?"
@@ -151,14 +109,14 @@ class IrrigationWorkflowOperations:
     def get_pending_requests_for_user(
         self,
         user_id: int,
-        status: str | None = None,
+        status: Optional[str] = None,
         limit: int = 20,
-    ) -> list[dict[str, Any]]:
+    ) -> List[Dict[str, Any]]:
         """Get pending irrigation requests for a user."""
         try:
             db = self.get_db()
             query = "SELECT * FROM PendingIrrigationRequest WHERE user_id = ?"
-            params: list[Any] = [user_id]
+            params: List[Any] = [user_id]
 
             if status:
                 query += " AND status = ?"
@@ -175,8 +133,8 @@ class IrrigationWorkflowOperations:
 
     def get_requests_due_for_execution(
         self,
-        current_time: str | None = None,
-    ) -> list[dict[str, Any]]:
+        current_time: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
         """Get requests that are due for execution (scheduled_time <= now)."""
         try:
             db = self.get_db()
@@ -203,9 +161,9 @@ class IrrigationWorkflowOperations:
 
     def claim_due_requests(
         self,
-        current_time: str | None = None,
+        current_time: Optional[str] = None,
         limit: int = 50,
-    ) -> list[dict[str, Any]]:
+    ) -> List[Dict[str, Any]]:
         """Atomically claim due requests for execution."""
         db = None
         try:
@@ -233,8 +191,8 @@ class IrrigationWorkflowOperations:
                 db.commit()
                 return []
 
-            placeholders = ",".join("?" for _ in request_ids)  # nosec B608 — only '?' chars
-            params = [now, now, "executing", now, *request_ids]
+            placeholders = ",".join("?" for _ in request_ids)
+            params = [now, now, "executing", now] + request_ids
             cur.execute(
                 f"""
                 UPDATE PendingIrrigationRequest
@@ -244,11 +202,11 @@ class IrrigationWorkflowOperations:
                     attempt_count = COALESCE(attempt_count, 0) + 1,
                     updated_at = ?
                 WHERE request_id IN ({placeholders})
-                """,  # nosec B608
+                """,
                 params,
             )
             cur.execute(
-                f"SELECT * FROM PendingIrrigationRequest WHERE request_id IN ({placeholders})",  # nosec B608
+                f"SELECT * FROM PendingIrrigationRequest WHERE request_id IN ({placeholders})",
                 request_ids,
             )
             rows = cur.fetchall()
@@ -257,8 +215,10 @@ class IrrigationWorkflowOperations:
         except sqlite3.Error as exc:
             logger.error(f"Failed to claim due requests: {exc}")
             if db is not None:
-                with contextlib.suppress(Exception):
+                try:
                     db.rollback()
+                except Exception:
+                    pass
             return []
 
     def mark_execution_started(
@@ -287,7 +247,7 @@ class IrrigationWorkflowOperations:
             logger.error(f"Failed to mark execution started: {exc}")
             return False
 
-    def get_executing_requests(self, limit: int = 50) -> list[dict[str, Any]]:
+    def get_executing_requests(self, limit: int = 50) -> List[Dict[str, Any]]:
         """Get requests currently executing."""
         try:
             db = self.get_db()
@@ -310,26 +270,26 @@ class IrrigationWorkflowOperations:
     def create_execution_log(
         self,
         *,
-        request_id: int | None,
-        user_id: int | None,
+        request_id: Optional[int],
+        user_id: Optional[int],
         unit_id: int,
-        plant_id: int | None,
-        sensor_id: str | None,
+        plant_id: Optional[int],
+        sensor_id: Optional[str],
         trigger_reason: str,
-        trigger_moisture: float | None,
-        threshold_at_trigger: float | None,
+        trigger_moisture: Optional[float],
+        threshold_at_trigger: Optional[float],
         triggered_at_utc: str,
-        planned_duration_s: int | None,
-        pump_actuator_id: str | None,
-        valve_actuator_id: str | None,
-        assumed_flow_ml_s: float | None,
-        estimated_volume_ml: float | None,
+        planned_duration_s: Optional[int],
+        pump_actuator_id: Optional[str],
+        valve_actuator_id: Optional[str],
+        assumed_flow_ml_s: Optional[float],
+        estimated_volume_ml: Optional[float],
         execution_status: str,
-        execution_error: str | None,
+        execution_error: Optional[str],
         executed_at_utc: str,
-        post_moisture_delay_s: int | None,
-        created_at_utc: str | None = None,
-    ) -> int | None:
+        post_moisture_delay_s: Optional[int],
+        created_at_utc: Optional[str] = None,
+    ) -> Optional[int]:
         """Create a new irrigation execution log entry."""
         try:
             db = self.get_db()
@@ -348,25 +308,13 @@ class IrrigationWorkflowOperations:
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    request_id,
-                    user_id,
-                    unit_id,
-                    plant_id,
-                    sensor_id,
-                    trigger_reason,
-                    trigger_moisture,
-                    threshold_at_trigger,
-                    triggered_at_utc,
-                    planned_duration_s,
-                    pump_actuator_id,
-                    valve_actuator_id,
-                    assumed_flow_ml_s,
-                    estimated_volume_ml,
-                    execution_status,
-                    execution_error,
-                    executed_at_utc,
-                    post_moisture_delay_s,
-                    now,
+                    request_id, user_id, unit_id, plant_id, sensor_id,
+                    trigger_reason, trigger_moisture, threshold_at_trigger,
+                    triggered_at_utc, planned_duration_s,
+                    pump_actuator_id, valve_actuator_id,
+                    assumed_flow_ml_s, estimated_volume_ml,
+                    execution_status, execution_error,
+                    executed_at_utc, post_moisture_delay_s, now,
                 ),
             )
             log_id = cur.lastrowid
@@ -381,14 +329,14 @@ class IrrigationWorkflowOperations:
         request_id: int,
         *,
         execution_status: str,
-        actual_duration_s: int | None = None,
-        estimated_volume_ml: float | None = None,
-        execution_error: str | None = None,
+        actual_duration_s: Optional[int] = None,
+        estimated_volume_ml: Optional[float] = None,
+        execution_error: Optional[str] = None,
     ) -> bool:
         """Update execution log status for the most recent request log."""
         try:
             updates = ["execution_status = ?"]
-            params: list[Any] = [execution_status]
+            params: List[Any] = [execution_status]
 
             if actual_duration_s is not None:
                 updates.append("actual_duration_s = ?")
@@ -406,14 +354,14 @@ class IrrigationWorkflowOperations:
             db.execute(
                 f"""
                 UPDATE IrrigationExecutionLog
-                SET {", ".join(updates)}
+                SET {', '.join(updates)}
                 WHERE id = (
                     SELECT id FROM IrrigationExecutionLog
                     WHERE request_id = ?
                     ORDER BY id DESC
                     LIMIT 1
                 )
-                """,  # nosec B608 — updates list built from hardcoded column names above
+                """,
                 params,
             )
             db.commit()
@@ -425,7 +373,7 @@ class IrrigationWorkflowOperations:
     def get_latest_execution_log_for_request(
         self,
         request_id: int,
-    ) -> dict[str, Any] | None:
+    ) -> Optional[Dict[str, Any]]:
         """Get the most recent execution log for a request."""
         try:
             db = self.get_db()
@@ -444,7 +392,7 @@ class IrrigationWorkflowOperations:
             logger.error(f"Failed to get execution log for request {request_id}: {exc}")
             return None
 
-    def get_execution_logs_pending_post_capture(self, limit: int = 50) -> list[dict[str, Any]]:
+    def get_execution_logs_pending_post_capture(self, limit: int = 50) -> List[Dict[str, Any]]:
         """Get completed execution logs pending post-watering moisture capture."""
         try:
             db = self.get_db()
@@ -469,8 +417,8 @@ class IrrigationWorkflowOperations:
         *,
         post_moisture: float,
         post_measured_at_utc: str,
-        delta_moisture: float | None,
-        recommendation: str | None,
+        delta_moisture: Optional[float],
+        recommendation: Optional[str],
     ) -> bool:
         """Update a log entry with post-watering moisture data."""
         try:
@@ -495,15 +443,15 @@ class IrrigationWorkflowOperations:
     def create_eligibility_trace(
         self,
         *,
-        plant_id: int | None,
+        plant_id: Optional[int],
         unit_id: int,
-        sensor_id: str | None,
-        moisture: float | None,
-        threshold: float | None,
+        sensor_id: Optional[str],
+        moisture: Optional[float],
+        threshold: Optional[float],
         decision: str,
-        skip_reason: str | None,
+        skip_reason: Optional[str],
         evaluated_at_utc: str,
-    ) -> int | None:
+    ) -> Optional[int]:
         """Create an irrigation eligibility trace entry."""
         try:
             db = self.get_db()
@@ -540,13 +488,13 @@ class IrrigationWorkflowOperations:
         unit_id: int,
         plant_id: int,
         watered_at_utc: str,
-        amount_ml: float | None,
-        notes: str | None,
-        pre_moisture: float | None,
-        pre_moisture_at_utc: str | None,
+        amount_ml: Optional[float],
+        notes: Optional[str],
+        pre_moisture: Optional[float],
+        pre_moisture_at_utc: Optional[str],
         settle_delay_min: int,
-        created_at_utc: str | None = None,
-    ) -> int | None:
+        created_at_utc: Optional[str] = None,
+    ) -> Optional[int]:
         """Create a manual irrigation log entry."""
         try:
             db = self.get_db()
@@ -579,7 +527,7 @@ class IrrigationWorkflowOperations:
             logger.error(f"Failed to create manual irrigation log: {exc}")
             return None
 
-    def get_manual_logs_pending_post_capture(self, limit: int = 50) -> list[dict[str, Any]]:
+    def get_manual_logs_pending_post_capture(self, limit: int = 50) -> List[Dict[str, Any]]:
         """Get manual irrigation logs pending post-watering capture."""
         try:
             db = self.get_db()
@@ -603,7 +551,7 @@ class IrrigationWorkflowOperations:
         *,
         post_moisture: float,
         post_moisture_at_utc: str,
-        delta_moisture: float | None,
+        delta_moisture: Optional[float],
     ) -> bool:
         """Update a manual irrigation log with post-watering moisture."""
         try:
@@ -630,7 +578,7 @@ class IrrigationWorkflowOperations:
         *,
         start_ts: str,
         end_ts: str,
-    ) -> list[dict[str, Any]]:
+    ) -> List[Dict[str, Any]]:
         """Fetch manual irrigation logs for a plant within a time window."""
         try:
             db = self.get_db()
@@ -656,7 +604,7 @@ class IrrigationWorkflowOperations:
         *,
         start_ts: str,
         end_ts: str,
-    ) -> list[dict[str, Any]]:
+    ) -> List[Dict[str, Any]]:
         """Fetch irrigation execution logs for a plant within a time window."""
         try:
             db = self.get_db()
@@ -683,19 +631,21 @@ class IrrigationWorkflowOperations:
         start_ts: str,
         end_ts: str,
         limit: int = 200,
-        plant_id: int | None = None,
-    ) -> list[dict[str, Any]]:
+        plant_id: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
         """Fetch irrigation execution logs for a unit within a time window."""
         try:
             db = self.get_db()
-            query = """
+            query = (
+                """
                 SELECT *
                 FROM IrrigationExecutionLog
                 WHERE unit_id = ?
                   AND executed_at_utc >= ?
                   AND executed_at_utc <= ?
                 """
-            params: list[Any] = [unit_id, start_ts, end_ts]
+            )
+            params: List[Any] = [unit_id, start_ts, end_ts]
             if plant_id is not None:
                 query += " AND plant_id = ?"
                 params.append(plant_id)
@@ -714,19 +664,21 @@ class IrrigationWorkflowOperations:
         start_ts: str,
         end_ts: str,
         limit: int = 200,
-        plant_id: int | None = None,
-    ) -> list[dict[str, Any]]:
+        plant_id: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
         """Fetch irrigation eligibility traces for a unit within a time window."""
         try:
             db = self.get_db()
-            query = """
+            query = (
+                """
                 SELECT *
                 FROM IrrigationEligibilityTrace
                 WHERE unit_id = ?
                   AND evaluated_at_utc >= ?
                   AND evaluated_at_utc <= ?
                 """
-            params: list[Any] = [unit_id, start_ts, end_ts]
+            )
+            params: List[Any] = [unit_id, start_ts, end_ts]
             if plant_id is not None:
                 query += " AND plant_id = ?"
                 params.append(plant_id)
@@ -745,19 +697,21 @@ class IrrigationWorkflowOperations:
         start_ts: str,
         end_ts: str,
         limit: int = 200,
-        plant_id: int | None = None,
-    ) -> list[dict[str, Any]]:
+        plant_id: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
         """Fetch manual irrigation logs for a unit within a time window."""
         try:
             db = self.get_db()
-            query = """
+            query = (
+                """
                 SELECT *
                 FROM ManualIrrigationLog
                 WHERE unit_id = ?
                   AND watered_at_utc >= ?
                   AND watered_at_utc <= ?
                 """
-            params: list[Any] = [unit_id, start_ts, end_ts]
+            )
+            params: List[Any] = [unit_id, start_ts, end_ts]
             if plant_id is not None:
                 query += " AND plant_id = ?"
                 params.append(plant_id)
@@ -769,7 +723,7 @@ class IrrigationWorkflowOperations:
             logger.error(f"Failed to fetch manual logs for unit {unit_id}: {exc}")
             return []
 
-    def get_plant_irrigation_model(self, plant_id: int) -> dict[str, Any] | None:
+    def get_plant_irrigation_model(self, plant_id: int) -> Optional[Dict[str, Any]]:
         """Fetch stored irrigation model for a plant."""
         try:
             db = self.get_db()
@@ -787,9 +741,9 @@ class IrrigationWorkflowOperations:
         self,
         *,
         plant_id: int,
-        drydown_rate_per_hour: float | None,
+        drydown_rate_per_hour: Optional[float],
         sample_count: int,
-        confidence: float | None,
+        confidence: Optional[float],
         updated_at_utc: str,
     ) -> bool:
         """Insert or update a plant irrigation model row."""
@@ -824,7 +778,7 @@ class IrrigationWorkflowOperations:
         self,
         unit_id: int,
         lock_seconds: int,
-        current_time: str | None = None,
+        current_time: Optional[str] = None,
     ) -> bool:
         """Acquire a unit-level irrigation lock with a TTL."""
         db = None
@@ -874,8 +828,10 @@ class IrrigationWorkflowOperations:
         except sqlite3.Error as exc:
             logger.error("Failed to acquire irrigation lock for unit %s: %s", unit_id, exc)
             if db is not None:
-                with contextlib.suppress(Exception):
+                try:
                     db.rollback()
+                except Exception:
+                    pass
             return False
 
     def release_unit_lock(self, unit_id: int) -> bool:
@@ -889,7 +845,7 @@ class IrrigationWorkflowOperations:
             logger.error("Failed to release irrigation lock for unit %s: %s", unit_id, exc)
             return False
 
-    def get_expired_requests(self, current_time: str | None = None) -> list[dict[str, Any]]:
+    def get_expired_requests(self, current_time: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get requests that have expired."""
         try:
             db = self.get_db()
@@ -913,8 +869,8 @@ class IrrigationWorkflowOperations:
         self,
         request_id: int,
         status: str,
-        user_response: str | None = None,
-        delayed_until: str | None = None,
+        user_response: Optional[str] = None,
+        delayed_until: Optional[str] = None,
     ) -> bool:
         """Update the status of a pending irrigation request."""
         try:
@@ -950,9 +906,9 @@ class IrrigationWorkflowOperations:
         self,
         request_id: int,
         success: bool,
-        duration_seconds: int | None = None,
-        soil_moisture_after: float | None = None,
-        error: str | None = None,
+        duration_seconds: Optional[int] = None,
+        soil_moisture_after: Optional[float] = None,
+        error: Optional[str] = None,
     ) -> bool:
         """Record execution results for a request."""
         try:
@@ -969,16 +925,12 @@ class IrrigationWorkflowOperations:
                 WHERE request_id = ?
                 """,
                 (
-                    "executed" if success else "failed",
-                    now,
-                    duration_seconds,
-                    soil_moisture_after,
-                    1 if success else 0,
-                    error,
+                    'executed' if success else 'failed',
+                    now, duration_seconds, soil_moisture_after,
+                    1 if success else 0, error,
                     "completed" if success else "failed",
                     now,
-                    now,
-                    request_id,
+                    now, request_id
                 ),
             )
             db.commit()
@@ -1019,7 +971,7 @@ class IrrigationWorkflowOperations:
             logger.error(f"Failed to link feedback: {exc}")
             return False
 
-    def get_request_by_feedback_id(self, feedback_id: int) -> dict[str, Any] | None:
+    def get_request_by_feedback_id(self, feedback_id: int) -> Optional[Dict[str, Any]]:
         """Fetch a pending request associated with a feedback record."""
         try:
             db = self.get_db()
@@ -1033,7 +985,7 @@ class IrrigationWorkflowOperations:
             logger.error(f"Failed to get request for feedback {feedback_id}: {exc}")
             return None
 
-    def mark_ml_data_collected(self, request_id: int, preference_score: float | None = None) -> bool:
+    def mark_ml_data_collected(self, request_id: int, preference_score: Optional[float] = None) -> bool:
         """Mark that ML data has been collected from this request."""
         try:
             db = self.get_db()
@@ -1054,8 +1006,8 @@ class IrrigationWorkflowOperations:
     def has_active_request_for_unit(
         self,
         unit_id: int,
-        plant_id: int | None = None,
-        actuator_id: int | None = None,
+        plant_id: Optional[int] = None,
+        actuator_id: Optional[int] = None,
     ) -> bool:
         """Check if unit has an active pending request (to avoid duplicates)."""
         try:
@@ -1064,7 +1016,7 @@ class IrrigationWorkflowOperations:
                 "SELECT COUNT(*) FROM PendingIrrigationRequest "
                 "WHERE unit_id = ? AND status IN ('pending', 'approved', 'delayed')"
             )
-            params: list[Any] = [unit_id]
+            params: List[Any] = [unit_id]
             if plant_id is not None:
                 query += " AND plant_id = ?"
                 params.append(plant_id)
@@ -1081,8 +1033,8 @@ class IrrigationWorkflowOperations:
     def get_last_completed_irrigation(
         self,
         unit_id: int,
-        plant_id: int | None = None,
-    ) -> dict[str, Any] | None:
+        plant_id: Optional[int] = None,
+    ) -> Optional[Dict[str, Any]]:
         """Get the most recent completed irrigation for a unit or plant."""
         try:
             db = self.get_db()
@@ -1090,7 +1042,7 @@ class IrrigationWorkflowOperations:
                 "SELECT * FROM PendingIrrigationRequest "
                 "WHERE unit_id = ? AND status = 'executed' AND execution_success = 1"
             )
-            params: list[Any] = [unit_id]
+            params: List[Any] = [unit_id]
             if plant_id is not None:
                 query += " AND plant_id = ?"
                 params.append(plant_id)
@@ -1105,12 +1057,12 @@ class IrrigationWorkflowOperations:
     def get_ml_training_data(
         self,
         min_records: int = 20,
-        unit_id: int | None = None,
+        unit_id: Optional[int] = None,
         include_cancelled: bool = False,
-    ) -> list[dict[str, Any]]:
+    ) -> List[Dict[str, Any]]:
         """
         Get irrigation requests with ML context data for training.
-
+        
         Returns completed requests that have environmental context.
         """
         try:
@@ -1120,33 +1072,36 @@ class IrrigationWorkflowOperations:
                 WHERE ml_data_collected = 1
                   AND temperature_at_detection IS NOT NULL
             """
-            params: list[Any] = []
-
+            params: List[Any] = []
+            
             if unit_id:
                 query += " AND unit_id = ?"
                 params.append(unit_id)
-
+            
             if not include_cancelled:
                 query += " AND status != 'cancelled'"
-
+            
             query += " ORDER BY detected_at DESC"
-
+            
             cur = db.execute(query, params)
             results = [dict(row) for row in cur.fetchall()]
-
+            
             # Return empty if not enough data for training
             if len(results) < min_records:
-                logger.debug(f"Only {len(results)} ML training records found, need {min_records}")
-
+                logger.debug(
+                    f"Only {len(results)} ML training records found, "
+                    f"need {min_records}"
+                )
+            
             return results
         except sqlite3.Error as exc:
             logger.error(f"Failed to get ML training data: {exc}")
             return []
 
-    def count_ml_training_samples(self, unit_id: int | None = None) -> dict[str, int]:
+    def count_ml_training_samples(self, unit_id: Optional[int] = None) -> Dict[str, int]:
         """
         Count available ML training samples by type.
-
+        
         Returns dict with counts for each model type:
         - response_predictor: Requests with user response
         - threshold_optimizer: Requests with feedback
@@ -1156,60 +1111,51 @@ class IrrigationWorkflowOperations:
         try:
             db = self.get_db()
             counts = {}
-
-            response_where = "WHERE temperature_at_detection IS NOT NULL"
-            response_params: list[Any] = []
-            joined_where = "WHERE p.temperature_at_detection IS NOT NULL"
-            joined_params: list[Any] = []
-            if unit_id is not None:
-                response_where += " AND unit_id = ?"
-                response_params.append(unit_id)
-                joined_where += " AND p.unit_id = ?"
-                joined_params.append(unit_id)
-
+            
+            # Response predictor: needs user_response and context
+            base_where = "WHERE temperature_at_detection IS NOT NULL"
+            unit_clause = f" AND unit_id = {unit_id}" if unit_id else ""
+            
             # Response predictor count
-            response_predictor_sql = (
-                "SELECT COUNT(*) FROM PendingIrrigationRequest "
-                f"{response_where} "
-                "AND user_response IN ('approve', 'delay', 'cancel')"
-            )
-            cur = db.execute(response_predictor_sql, response_params)
+            cur = db.execute(f"""
+                SELECT COUNT(*) FROM PendingIrrigationRequest
+                {base_where} {unit_clause}
+                AND user_response IN ('approve', 'delay', 'cancel')
+            """)
             counts["response_predictor"] = cur.fetchone()[0]
-
+            
             # Threshold optimizer count (needs feedback)
-            threshold_optimizer_sql = (
-                "SELECT COUNT(*) FROM PendingIrrigationRequest p "
-                "LEFT JOIN IrrigationFeedback f ON p.feedback_id = f.feedback_id "
-                f"{joined_where} "
-                "AND f.feedback_response IN ('triggered_too_early', 'triggered_too_late')"
-            )
-            cur = db.execute(threshold_optimizer_sql, joined_params)
+            cur = db.execute(f"""
+                SELECT COUNT(*) FROM PendingIrrigationRequest p
+                LEFT JOIN IrrigationFeedback f ON p.feedback_id = f.feedback_id
+                {base_where} {unit_clause}
+                AND f.feedback_response IN ('triggered_too_early', 'triggered_too_late')
+            """)
             counts["threshold_optimizer"] = cur.fetchone()[0]
-
+            
             # Duration optimizer count (needs execution result)
-            duration_optimizer_sql = (
-                "SELECT COUNT(*) "
-                "FROM PendingIrrigationRequest p "
-                "INNER JOIN IrrigationExecutionLog l ON l.request_id = p.request_id "
-                f"{joined_where} "
-                "AND p.status = 'executed' "
-                "AND l.post_moisture IS NOT NULL"
-            )
-            cur = db.execute(duration_optimizer_sql, joined_params)
+            cur = db.execute(f"""
+                SELECT COUNT(*)
+                FROM PendingIrrigationRequest p
+                INNER JOIN IrrigationExecutionLog l
+                    ON l.request_id = p.request_id
+                {base_where} {unit_clause}
+                AND p.status = 'executed'
+                AND l.post_moisture IS NOT NULL
+            """)
             counts["duration_optimizer"] = cur.fetchone()[0]
-
+            
             # Timing predictor count (delayed with delay reason)
-            timing_predictor_sql = (
-                "SELECT COUNT(*) FROM PendingIrrigationRequest "
-                f"{response_where} "
-                "AND user_response = 'delay' "
-                "AND hours_since_last_irrigation IS NOT NULL"
-            )
-            cur = db.execute(timing_predictor_sql, response_params)
+            cur = db.execute(f"""
+                SELECT COUNT(*) FROM PendingIrrigationRequest
+                {base_where} {unit_clause}
+                AND user_response = 'delay'
+                AND hours_since_last_irrigation IS NOT NULL
+            """)
             counts["timing_predictor"] = cur.fetchone()[0]
-
+            
             return counts
-
+            
         except sqlite3.Error as exc:
             logger.error(f"Failed to count ML training samples: {exc}")
             return {
@@ -1221,65 +1167,82 @@ class IrrigationWorkflowOperations:
 
     # ========== IrrigationWorkflowConfig Operations ==========
 
-    def get_workflow_config(self, unit_id: int) -> dict[str, Any] | None:
+    def get_workflow_config(self, unit_id: int) -> Optional[Dict[str, Any]]:
         """Get workflow configuration for a unit."""
         try:
             db = self.get_db()
-            cur = db.execute("SELECT * FROM IrrigationWorkflowConfig WHERE unit_id = ?", (unit_id,))
+            cur = db.execute(
+                "SELECT * FROM IrrigationWorkflowConfig WHERE unit_id = ?",
+                (unit_id,)
+            )
             row = cur.fetchone()
             return dict(row) if row else None
         except sqlite3.Error as exc:
             logger.error(f"Failed to get workflow config: {exc}")
             return None
 
-    def upsert_workflow_config(self, unit_id: int, config: dict[str, Any]) -> bool:
+    def upsert_workflow_config(self, unit_id: int, config: Dict[str, Any]) -> bool:
         """Insert or update workflow configuration for a unit."""
         try:
-            cols = safe_columns(config, _WORKFLOW_CONFIG_COLUMNS, context="upsert_workflow_config")
-            if not cols:
-                return True  # nothing to write
-
             db = self.get_db()
             existing = self.get_workflow_config(unit_id)
             now = iso_now()
 
             if existing:
-                cols["updated_at"] = now
-                set_sql, params = build_set_clause(cols)
+                # Update
+                set_clauses = []
+                params = []
+                for key, value in config.items():
+                    if key not in ("id", "unit_id", "created_at"):
+                        set_clauses.append(f"{key} = ?")
+                        params.append(value)
+                set_clauses.append("updated_at = ?")
+                params.append(now)
                 params.append(unit_id)
-                db.execute(
-                    f"UPDATE IrrigationWorkflowConfig SET {set_sql} WHERE unit_id = ?",  # nosec B608
-                    params,
-                )
+
+                if set_clauses:
+                    query = f"UPDATE IrrigationWorkflowConfig SET {', '.join(set_clauses)} WHERE unit_id = ?"
+                    db.execute(query, params)
             else:
-                cols["unit_id"] = unit_id
-                cols["created_at"] = now
-                cols["updated_at"] = now
-                col_sql, ph_sql, values = build_insert_parts(cols)
-                db.execute(
-                    f"INSERT INTO IrrigationWorkflowConfig ({col_sql}) VALUES ({ph_sql})",  # nosec B608
-                    values,
-                )
+                # Insert
+                columns = ["unit_id"]
+                values = [unit_id]
+                placeholders = ["?"]
+
+                for key, value in config.items():
+                    if key not in ("id", "unit_id", "created_at"):
+                        columns.append(key)
+                        values.append(value)
+                        placeholders.append("?")
+
+                columns.extend(["created_at", "updated_at"])
+                values.extend([now, now])
+                placeholders.extend(["?", "?"])
+
+                query = f"INSERT INTO IrrigationWorkflowConfig ({', '.join(columns)}) VALUES ({', '.join(placeholders)})"
+                db.execute(query, values)
 
             db.commit()
             return True
         except sqlite3.Error as exc:
-            logger.error("Failed to upsert workflow config: %s", exc)
+            logger.error(f"Failed to upsert workflow config: {exc}")
             return False
 
     # ========== IrrigationUserPreference Operations ==========
 
-    def get_user_preference(self, user_id: int, unit_id: int | None = None) -> dict[str, Any] | None:
+    def get_user_preference(self, user_id: int, unit_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
         """Get irrigation preferences for a user (optionally per-unit)."""
         try:
             db = self.get_db()
             if unit_id:
                 cur = db.execute(
-                    "SELECT * FROM IrrigationUserPreference WHERE user_id = ? AND unit_id = ?", (user_id, unit_id)
+                    "SELECT * FROM IrrigationUserPreference WHERE user_id = ? AND unit_id = ?",
+                    (user_id, unit_id)
                 )
             else:
                 cur = db.execute(
-                    "SELECT * FROM IrrigationUserPreference WHERE user_id = ? AND unit_id IS NULL", (user_id,)
+                    "SELECT * FROM IrrigationUserPreference WHERE user_id = ? AND unit_id IS NULL",
+                    (user_id,)
                 )
             row = cur.fetchone()
             return dict(row) if row else None
@@ -1292,7 +1255,7 @@ class IrrigationWorkflowOperations:
         user_id: int,
         response_type: str,
         response_time_seconds: float,
-        unit_id: int | None = None,
+        unit_id: Optional[int] = None,
     ) -> bool:
         """Update user preference statistics based on their response."""
         try:
@@ -1359,8 +1322,7 @@ class IrrigationWorkflowOperations:
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
-                        user_id,
-                        unit_id,
+                        user_id, unit_id,
                         initial_values["total_requests"],
                         initial_values["immediate_approvals"],
                         initial_values["delayed_approvals"],
@@ -1382,7 +1344,7 @@ class IrrigationWorkflowOperations:
         self,
         user_id: int,
         feedback_type: str,
-        unit_id: int | None = None,
+        unit_id: Optional[int] = None,
     ) -> bool:
         """Update user moisture feedback statistics."""
         try:
@@ -1431,7 +1393,7 @@ class IrrigationWorkflowOperations:
         self,
         unit_id: int,
         limit: int = 50,
-    ) -> list[dict[str, Any]]:
+    ) -> List[Dict[str, Any]]:
         """Get irrigation request history for a unit."""
         try:
             db = self.get_db()
@@ -1460,13 +1422,13 @@ class IrrigationWorkflowOperations:
     ) -> bool:
         """
         Update Bayesian threshold belief for a user/unit.
-
+        
         Stores the belief parameters and JSON for persistence.
         """
         try:
             db = self.get_db()
             now = iso_now()
-
+            
             # Update existing or insert new preference
             db.execute(
                 """
@@ -1483,14 +1445,9 @@ class IrrigationWorkflowOperations:
                     updated_at = excluded.updated_at
                 """,
                 (
-                    user_id,
-                    unit_id,
-                    threshold_mean,
-                    belief_json,
-                    threshold_variance,
-                    sample_count,
-                    now,
-                    now,
+                    user_id, unit_id, threshold_mean,
+                    belief_json, threshold_variance, sample_count,
+                    now, now,
                 ),
             )
             db.commit()

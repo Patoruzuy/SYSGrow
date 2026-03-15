@@ -9,21 +9,17 @@ Stage Processors (ValidationProcessor, TransformationProcessor, etc.):
 Pipeline Processors (CompositeProcessor):
 - Also implement process() and build_payloads() for full orchestration
 """
-
-from __future__ import annotations
-
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable
+from typing import Any, Callable, Dict, Optional, TYPE_CHECKING, List, Tuple
 
 if TYPE_CHECKING:
-    from app.domain.sensors import CalibrationData, SensorEntity, SensorReading
-    from app.schemas.events import DashboardSnapshotPayload, DeviceSensorReadingPayload
+    from app.domain.sensors import SensorEntity, SensorReading, CalibrationData
+    from app.schemas.events import DeviceSensorReadingPayload, DashboardSnapshotPayload
 
 
 class ProcessorError(Exception):
     """Exception raised by data processors."""
-
     pass
 
 
@@ -38,15 +34,14 @@ class PreparedPayloads:
         dashboard_payload: Payload for dashboard namespace (priority metrics only)
         controller_events: List of (event_name, payload_dict) for EventBus publishing
     """
-
     unit_id: int
     device_payload: "DeviceSensorReadingPayload"
-    dashboard_payload: "DashboardSnapshotPayload" | None = None
-    controller_events: list[tuple[str, dict[str, Any]]] = field(default_factory=list)
+    dashboard_payload: Optional["DashboardSnapshotPayload"] = None
+    controller_events: List[Tuple[str, Dict[str, Any]]] = field(default_factory=list)
 
 
 # Type alias for sensor resolver function
-SensorResolver = Callable[[int], Any | None]
+SensorResolver = Callable[[int], Optional[Any]]
 
 
 class IDataProcessor(ABC):
@@ -69,7 +64,7 @@ class IDataProcessor(ABC):
     # -------------------------------------------------------------------------
 
     @abstractmethod
-    def validate(self, raw_data: dict[str, Any]) -> dict[str, Any]:
+    def validate(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Validate raw sensor data.
 
@@ -85,7 +80,7 @@ class IDataProcessor(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def transform(self, validated_data: dict[str, Any], sensor: "SensorEntity") -> "SensorReading":
+    def transform(self, validated_data: Dict[str, Any], sensor: 'SensorEntity') -> 'SensorReading':
         """
         Transform validated data into SensorReading.
 
@@ -98,7 +93,7 @@ class IDataProcessor(ABC):
         """
         raise NotImplementedError()
 
-    def apply_calibration(self, data: dict[str, Any], calibration: "CalibrationData") -> dict[str, Any]:
+    def apply_calibration(self, data: Dict[str, Any], calibration: 'CalibrationData') -> Dict[str, Any]:
         """
         Apply calibration to data (optional override).
 
@@ -112,7 +107,7 @@ class IDataProcessor(ABC):
         # Default: no calibration
         return data
 
-    def enrich(self, reading: "SensorReading") -> "SensorReading":
+    def enrich(self, reading: 'SensorReading') -> 'SensorReading':
         """
         Enrich reading with metadata (optional override).
 
@@ -129,7 +124,7 @@ class IDataProcessor(ABC):
     # Pipeline Methods (required for pipeline processors like CompositeProcessor)
     # -------------------------------------------------------------------------
 
-    def process(self, sensor: "SensorEntity", raw_data: dict[str, Any]) -> "SensorReading":
+    def process(self, sensor: 'SensorEntity', raw_data: Dict[str, Any]) -> 'SensorReading':
         """
         Run the full processing pipeline: validate -> calibrate -> transform -> enrich.
 
@@ -149,7 +144,12 @@ class IDataProcessor(ABC):
         """
         raise NotImplementedError()
 
-    def build_payloads(self, *, sensor: "SensorEntity", reading: "SensorReading") -> PreparedPayloads | None:
+    def build_payloads(
+        self,
+        *,
+        sensor: 'SensorEntity',
+        reading: 'SensorReading'
+    ) -> Optional[PreparedPayloads]:
         """
         Build ready-to-emit WebSocket payloads.
 
